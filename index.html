@@ -3055,6 +3055,103 @@ function koPick(h,a){return Math.random()<koProb(h,a)?h:a;}
 function mulberry(seed){return function(){let t=seed+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function goalMins(num,count,salt){const r=mulberry(num*131+(salt||0)*977+count*7);let a=[];for(let i=0;i<count;i++)a.push(1+Math.floor(r()*90));return a.sort((x,y)=>x-y);}
 
+/* ===== Ticket Simulation 2.0 foundation ======================================
+   Deterministic, Play-only simulation read model. It never writes official REAL,
+   realko, provider live state, standings, routes, records, or tournament moments.
+   instantSimMatch() may consume its final score exactly like the old simScore()
+   path, but wallet settlement remains centralized in settleTicket/settleAllBets. */
+var TSE_GOAL_REASONS=['open play','counterattack','set piece','penalty','rebound','own goal','defensive error'];
+var TSE_NINE_REASON={counterattack:1,'set piece':1,penalty:1,'own goal':1,'defensive error':1};
+function tseHash(s){s=String(s||'');var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function tseSeed(num,h,a,extra){return tseHash([num,h,a,extra||'ticket-sim-2'].join('|'));}
+function tseChoice(r,arr){return arr[Math.floor(r()*arr.length)%arr.length];}
+function tsePeriod(min){if(min<=45)return'first half';if(min===46)return'halftime';if(min<=90)return'second half';if(min<=105)return'extra time';if(min<=120)return'extra time';return'penalties';}
+function tseSideState(forGoals,againstGoals,min,redFor,redAgainst){
+  var lead=forGoals-againstGoals,late=Math.max(0,(min-65)/25),posture='balanced';
+  if(lead>0&&late>.2)posture='defensive';else if(lead<0&&late>.1)posture='attacking';
+  if(redFor>=2)posture='defensive';else if(redFor>=1&&lead>=0)posture='defensive';
+  return {gameState:lead>0?'leading':lead<0?'chasing':'level',tacticalPosture:posture,latePressure:lead<0?late:lead===0?late*.35:0,fatigue:Math.min(1,min>90?.75+(min-90)/45:Math.max(0,(min-58)/44)),intensity:Math.min(1,.45+late*.35+(lead<0?.18:0)+(redAgainst?0.08:0))};
+}
+function tseHazard(base,ctx,redFor,redAgainst){
+  var x=base;
+  if(ctx.tacticalPosture==='attacking')x*=1+0.38*ctx.latePressure;
+  if(ctx.tacticalPosture==='defensive')x*=0.72;
+  x*=1+ctx.intensity*0.10-ctx.fatigue*0.08;
+  if(redFor===1)x*=0.62;
+  if(redFor>=2)x*=0.20;
+  if(redAgainst===1)x*=1.20;
+  if(redAgainst>=2)x*=1.48;
+  return Math.max(0.0004,Math.min(0.075,x));
+}
+function tseReason(r,sideState,redFor){
+  if(redFor>=2)return tseChoice(r,['counterattack','set piece','penalty','own goal','defensive error']);
+  if(sideState.tacticalPosture==='defensive')return tseChoice(r,['counterattack','set piece','penalty','defensive error']);
+  if(sideState.tacticalPosture==='attacking')return tseChoice(r,['open play','set piece','rebound','penalty','defensive error']);
+  return tseChoice(r,TSE_GOAL_REASONS);
+}
+function tseHeadline(team,reason,score){
+  var map={'open play':'break through from open play','counterattack':'strike on the counter','set piece':'cash in from a set piece',penalty:'convert from the spot',rebound:'pounce on the rebound','own goal':'benefit from an own goal','defensive error':'punish a defensive error'};
+  return nm(team)+' '+(map[reason]||'score')+' · '+score.h+'-'+score.a;
+}
+function premiumSimMatch(num,opt){
+  opt=opt||{};var m=M[num],isKO=!!(opt.knockout||(m&&m.stage!=='group')),p=m?(m.stage==='group'?[m.home,m.away]:koParts(num)):[opt.home,opt.away];
+  var h=opt.home||p[0],a=opt.away||p[1];if(!(h&&a))return null;
+  var seed=(opt.seed!=null?opt.seed:tseSeed(num,h,a,opt.replayKey)),r=mulberry(seed>>>0),x=xgFor(h,a),score={h:0,a:0},red={h:(opt.redCards&&opt.redCards.h)||0,a:(opt.redCards&&opt.redCards.a)||0};
+  var events=[],metrics={h:{attack:0,pressure:0},a:{attack:0,pressure:0}},phase='regulation',forceDraw=!!opt.forceRegulationDraw,forceETDraw=!!opt.forceExtraTimeDraw;
+  function pushEvent(ev){events.push(ev);}
+  function maybeCard(min){
+    if(opt.disableRandomCards)return;
+    if(min>18&&min<88&&r()<0.0009){var side=r()<0.5?'h':'a';red[side]=Math.min(2,red[side]+1);pushEvent({minute:min,period:tsePeriod(min),type:'red_card',side:side,team:side==='h'?h:a,score:{h:score.h,a:score.a},headline:nm(side==='h'?h:a)+' reduced to '+(11-red[side])+' men'});}
+  }
+  function tick(min,et){
+    var hs=tseSideState(score.h,score.a,min,red.h,red.a),as=tseSideState(score.a,score.h,min,red.a,red.h);
+    var hHaz=tseHazard((x[0]/90)*(et?0.82:1),hs,red.h,red.a),aHaz=tseHazard((x[1]/90)*(et?0.82:1),as,red.a,red.h);
+    metrics.h.attack+=hHaz;metrics.a.attack+=aHaz;metrics.h.pressure+=hs.intensity*hHaz;metrics.a.pressure+=as.intensity*aHaz;
+    maybeCard(min);
+    if(!forceDraw&&r()<hHaz){var rh=tseReason(r,hs,red.h);score.h++;pushEvent({minute:min,period:tsePeriod(min),type:'goal',side:'h',team:h,reason:rh,score:{h:score.h,a:score.a},headline:tseHeadline(h,rh,score)});}
+    else if(!forceDraw&&r()<aHaz){var ra=tseReason(r,as,red.a);score.a++;pushEvent({minute:min,period:tsePeriod(min),type:'goal',side:'a',team:a,reason:ra,score:{h:score.h,a:score.a},headline:tseHeadline(a,ra,score)});}
+  }
+  for(var min=1;min<=90;min++)tick(min,false);
+  var regulation={h:score.h,a:score.a};
+  if(isKO&&score.h===score.a){
+    phase='extra_time';pushEvent({minute:90,period:'final',type:'extra_time_start',score:{h:score.h,a:score.a},headline:'Level after regulation · extra time begins'});
+    forceDraw=forceETDraw;
+    for(var em=91;em<=120;em++)tick(em,true);
+  }
+  var afterExtra={h:score.h,a:score.a},shootout=null,advancing=null;
+  if(isKO&&score.h===score.a){
+    phase='penalties';var hp=0,ap=0;for(var k=1;k<=5;k++){if(r()<shootoutProb(h,a))hp++;if(r()<shootoutProb(a,h))ap++;}
+    while(hp===ap){if(r()<shootoutProb(h,a))hp++;else ap++;}
+    shootout={h:hp,a:ap};advancing=hp>ap?h:a;
+    pushEvent({minute:121,period:'penalties',type:'penalties',side:advancing===h?'h':'a',team:advancing,score:{h:score.h,a:score.a},shootout:shootout,headline:nm(advancing)+' advance on penalties'});
+  }else if(isKO){advancing=score.h>score.a?h:a;}
+  var finalPeriod=isKO?(shootout?'penalties':(regulation.h===regulation.a?'extra time':'final')):'final';
+  var last=events[events.length-1]||{headline:'Full time · simulated result'};
+  return {kind:'ticket_simulation_2',num:num,teams:{h:h,a:a},seed:seed,replayKey:'ts2:'+num+':'+seed,minute:finalPeriod==='penalties'?121:(finalPeriod==='extra time'?120:90),period:finalPeriod,
+    score:{h:score.h,a:score.a},regulationScore:regulation,extraTimeScore:afterExtra,shootout:shootout,advancingTeam:advancing,redCards:{h:red.h,a:red.a},
+    state:{h:tseSideState(score.h,score.a,finalPeriod==='penalties'?120:90,red.h,red.a),a:tseSideState(score.a,score.h,finalPeriod==='penalties'?120:90,red.a,red.h)},
+    events:events,metrics:metrics,eventHeadline:last.headline,playbackState:'complete'};
+}
+function tseOutcomeForPick(result,pick){
+  if(!result)return null;
+  if(result.advancingTeam){var h=result.teams.h,a=result.teams.a;return pick==='h'?(result.advancingTeam===h?'winning':'losing'):pick==='a'?(result.advancingTeam===a?'winning':'losing'):'losing';}
+  var sh=result.score.h,sa=result.score.a;if(pick==='h')return sh>sa?'winning':'losing';if(pick==='a')return sa>sh?'winning':'losing';return sh===sa?'winning':'losing';
+}
+function tseLegTimeline(b,result){
+  var pick=b&&b.pick,states=[],last='alive';
+  (result.events||[]).forEach(function(ev){var st=tseOutcomeForPick({score:ev.score,teams:result.teams,advancingTeam:null},pick)||'alive';var legState=st==='winning'?'winning':(ev.score.h===ev.score.a?'sweating':'losing');last=legState;states.push({minute:ev.minute,event:ev.headline||ev.type,legState:legState,overallTicketState:legState==='losing'?'sweating':'alive',keyEvent:ev.type==='goal'||ev.type==='penalties'});});
+  var final=tseOutcomeForPick(result,pick)==='winning'?'settled':'losing';states.push({minute:result.minute,event:'Full time',legState:final,overallTicketState:final==='settled'?'eligible':'lost',keyEvent:true,finalScore:result.score});
+  return states;
+}
+function ticketStageContract(b,result,legIndex,totalLegs){
+  var timeline=tseLegTimeline(b,result),last=timeline[timeline.length-1]||{},legState=last.legState||'alive';
+  return {compactTicketSummary:{label:b?betLabel(b):'Simulated ticket',stake:b&&b.stake||0,odds:b&&b.odds||null,legIndex:legIndex||1,totalLegs:totalLegs||1},
+    currentMatch:{num:result.num,teams:result.teams},activeLeg:legIndex||1,score:result.score,matchClock:result.minute,period:result.period,eventHeadline:result.eventHeadline,
+    ticketLegState:legState,overallTicketState:last.overallTicketState||'alive',playbackState:result.playbackState,replayKey:result.replayKey,
+    detail:{events:result.events,redCards:result.redCards,regulationScore:result.regulationScore,extraTimeScore:result.extraTimeScore,shootout:result.shootout,timeline:timeline},
+    screenContract:{maxWidth:430,minWidth:390,requiresVerticalScroll:false,primaryFields:['compactTicketSummary','currentMatch','score','matchClock','period','eventHeadline','ticketLegState','overallTicketState','playbackState','replayKey','detail']}};
+}
+
 // RENDER
 let TAB="home",lastChamp=null;
 var _shownBank=null;
@@ -4944,10 +5041,11 @@ function instantSimMatch(num){var m=M[num];if(!m)return false;
   if(S.real&&S.real[num])return false;            // a real result already decides it
   if(S.sc[num]&&!isBetSim(num))return false;      // your own My-Sim prediction — respect it
   var H,A;if(m.stage==="group"){H=m.home;A=m.away;}else{var p=koParts(num);H=p[0];A=p[1];if(!(H&&A))return false;}
-  var s=simScore(H,A);
-  if(m.stage!=="group"&&s.h===s.a){if(Math.random()<shootoutProb(H,A))s.h++;else s.a++;}
-  S.sc[num]={h:s.h,a:s.a};(S.betsim=S.betsim||{})[num]=1;
-  if(m.stage!=="group")S.ko[num]=(s.h>s.a)?H:A;
+  var result=premiumSimMatch(num,{home:H,away:A,knockout:m.stage!=="group",replayKey:'instant:'+num+':'+(S.bets&&S.bets.length||0)});
+  if(!result)return false;
+  S._lastTicketSim=result;
+  S.sc[num]={h:result.score.h,a:result.score.a};(S.betsim=S.betsim||{})[num]=1;
+  if(m.stage!=="group")S.ko[num]=result.advancingTeam||((result.score.h>result.score.a)?H:A);
   return true;}
 function betMatchNums(bets){var nums={};bets.forEach(function(b){if(b.settled)return;
   if(b.kind==="par"){(b.legs||[]).forEach(function(l){if((l.k==="m"||l.k==="mkt")&&l.num!=null)nums[l.num]=1;});}
