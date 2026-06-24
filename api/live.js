@@ -56,7 +56,12 @@ function slimFootballData(m) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=20');
+  // Edge cache 30s + 30s stale-while-revalidate. The UI polls every ~45s during a
+  // confirmed live match, so this shields upstream API-Sports to roughly one origin
+  // call per 30s window per region — regardless of how many browser sessions are
+  // open (previously 10s, i.e. up to 3x more upstream calls). Coalescing + the
+  // in-memory TTL below add a second layer so concurrent requests share one fetch.
+  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=30');
 
   const key = process.env.API_SPORTS_KEY;
   if (!key) { res.status(200).json({ configured: false, response: [], finished: [], fetchedAt: new Date().toISOString(), sourceStatus: 'missing-config' }); return; }
@@ -80,7 +85,7 @@ export default async function handler(req, res) {
     route: '/api/live',
     provider: 'api-sports',
     cacheKey: 'live:wc:all',
-    ttlMs: 10000,
+    ttlMs: 30000,
     staleMs: 2 * 60000,
     rateLimit: { limit: 90, windowMs: 60000 },
     fallback: { response: [], finished: [] },
