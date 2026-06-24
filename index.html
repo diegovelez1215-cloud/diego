@@ -5109,6 +5109,54 @@ function tccScenarioSheet(g){
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');
 }
+/* ===== Full Route Explorer Engine =============================================
+   Logic-only foundation for the future full route UI. This does not render a new
+   screen and does not mutate tournament state; it reads the shared status
+   resolver + the official 2026 bracket slots already encoded in MATCHES/TP3. */
+var FRE_STATUS={confirmed:'Confirmed',locked:'Mathematically locked',stands:'As it stands',alive:'Still alive',pending:'Pending official final'};
+function freStatusFromResolver(ts){if(!ts)return FRE_STATUS.pending;if(ts.tone==='confirmed')return FRE_STATUS.confirmed;if(ts.tone==='locked')return FRE_STATUS.locked;if(ts.tone==='as_it_stands')return FRE_STATUS.stands;if(ts.tone==='pending')return FRE_STATUS.pending;return FRE_STATUS.alive;}
+function freOrdinal(pos){return pos===1?'1st':pos===2?'2nd':pos===3?'3rd':String(pos);}
+function freDirectSlot(g,pos){var raw=String(pos)+g;for(var n=73;n<=88;n++){var m=M[n];if(m.home===raw)return{matchNum:n,side:'home',slot:raw};if(m.away===raw)return{matchNum:n,side:'away',slot:raw};}return null;}
+function freThirdCandidateSlots(g){var out=[];for(var n=73;n<=88;n++){var m=M[n],raw=(typeof m.home==='string'&&m.home.indexOf('3:')===0)?m.home:((typeof m.away==='string'&&m.away.indexOf('3:')===0)?m.away:null);if(raw&&raw.slice(2).indexOf(g)>=0)out.push({matchNum:n,side:m.home===raw?'home':'away',slot:raw});}return out;}
+function freConfirmedThirdSlot(g){var as=withTour(liveTour(),function(){return assignThirds();});if(!as)return null;for(var n in as){if(as[n]===g){var m=M[+n],raw=(typeof m.home==='string'&&m.home.indexOf('3:')===0)?m.home:m.away;return{matchNum:+n,side:m.home===raw?'home':'away',slot:raw};}}return null;}
+function frePossibleTeamsForSlot(raw){
+  if(!raw)return[];
+  if(T[raw])return[raw];
+  var m=String(raw).match(/^([12])([A-L])$/);if(m){var g=m[2],pos=+m[1],done=withTour(liveTour(),function(){return gComplete(g);});if(done){var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return row?[row.code]:[];}return (GROUPS[g]||[]).slice();}
+  if(String(raw).indexOf('3:')===0){var gs=String(raw).slice(2).split(''),done=withTour(liveTour(),function(){return allDone();});if(done){var as=withTour(liveTour(),function(){return assignThirds();});if(as){var n=73;for(;n<=88;n++){var mm=M[n];if(mm.home===raw||mm.away===raw)break;}var g=as&&as[n],row=g&&withTour(liveTour(),function(){return standings(g)[2];});return row?[row.code]:[];}}return gs.map(function(g){var row=withTour(liveTour(),function(){return standings(g)[2];});return row&&row.code;}).filter(Boolean);}
+  return[];
+}
+function freOpponentState(slot,scenarioStatus){
+  if(!slot)return{state:'opponent to be decided',confirmedOpponent:null,possibleOpponents:[],sourceSlot:null};
+  var m=M[slot.matchNum],oppRaw=slot.side==='home'?m.away:m.home,possible=frePossibleTeamsForSlot(oppRaw),confirmed=null,state='opponent to be decided';
+  if(possible.length===1){var os=tccTeamTournamentStatus(possible[0]);if(scenarioStatus===FRE_STATUS.confirmed&&os&&os.tone==='confirmed'&&os.lockedQualified){confirmed=possible[0];state='confirmed opponent';}else state='possible opponents';}
+  else if(possible.length>1)state='possible opponents';
+  if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0&&!withTour(liveTour(),function(){return allDone();}))state='qualification slot pending';
+  var dt=M[slot.matchNum]&&koDateTime(M[slot.matchNum]);if(!confirmed&&dt&&Date.now()>=dt.getTime())state='pending official final';
+  return{state:state,confirmedOpponent:confirmed,possibleOpponents:confirmed?[confirmed]:possible,sourceSlot:oppRaw};
+}
+function freNextRouteSlots(matchNum){var out=[],n=matchNum;while(NEXTWIN[n]){n=NEXTWIN[n];out.push({matchNum:n,round:roundName(n),slot:'W'+(FEEDERS[n]&&FEEDERS[n][0]===matchNum?FEEDERS[n][0]:matchNum)});matchNum=n;}return out;}
+function freScenarioPossible(ts,pos){if(!ts||ts.eliminated)return false;if(ts.complete)return ts.currentPosition===pos&&ts.lockedQualified;if(pos===1)return ts.minPossiblePosition<=1&&ts.groupVictoryStillPossible;if(pos===2)return ts.minPossiblePosition<=2&&ts.maxPossiblePosition>=2&&ts.qualificationStillPossible;if(pos===3)return ts.bestThirdPlaceEligibility&&ts.maxPossiblePosition>=3&&ts.minPossiblePosition<=3;return false;}
+function freBuildScenario(code,pos){
+  var g=TG[code],ts=tccTeamTournamentStatus(code);if(!g||!ts||!freScenarioPossible(ts,pos))return null;
+  var status=freStatusFromResolver(ts),slot=null,qualificationStatus='not_qualified',thirdEligible=false,thirdState=null;
+  if(pos<=2){slot=freDirectSlot(g,pos);qualificationStatus='qualified';}
+  else{thirdEligible=!!ts.bestThirdPlaceEligibility;var all=withTour(liveTour(),function(){return allDone();}),safe=tccThirdPlaceSafeStatus(g,code);
+    if(all&&safe.known&&safe.qual){slot=freConfirmedThirdSlot(g);qualificationStatus='qualified_best_third';status=safe.ambiguous?FRE_STATUS.pending:FRE_STATUS.confirmed;thirdState=safe.ambiguous?'pending official final':'confirmed';}
+    else if(all&&safe.known&&!safe.qual){qualificationStatus='eliminated';thirdState='eliminated';}
+    else{var slots=freThirdCandidateSlots(g);slot=slots[0]||null;qualificationStatus='conditional_best_third';status=FRE_STATUS.pending;thirdState='conditional';}}
+  if(!slot||qualificationStatus==='eliminated')return{finishPosition:freOrdinal(pos),finishPositionNumber:pos,qualificationStatus:qualificationStatus,bestThirdPlaceEligible:thirdEligible,roundOf32Slot:null,opponent:{state:pos===3?'qualification slot pending':'opponent to be decided',confirmedOpponent:null,possibleOpponents:[],sourceSlot:null},nextRoundRouteSlots:[],status:status,thirdPlaceState:thirdState};
+  var opp=freOpponentState(slot,status);
+  if(pos===3&&qualificationStatus==='conditional_best_third')opp.state='qualification slot pending';
+  return{finishPosition:freOrdinal(pos),finishPositionNumber:pos,qualificationStatus:qualificationStatus,bestThirdPlaceEligible:thirdEligible,roundOf32Slot:{matchNum:slot.matchNum,round:roundName(slot.matchNum),side:slot.side,slot:slot.slot},opponent:opp,nextRoundRouteSlots:freNextRouteSlots(slot.matchNum),status:status,thirdPlaceState:thirdState};
+}
+function fullRouteExplorerEngine(code){
+  code=teamCode?teamCode(code):code;var g=TG[code],ts=tccTeamTournamentStatus(code);if(!code||!g||!ts)return null;
+  var base={team:code,name:nm(code),group:g,status:freStatusFromResolver(ts),resolverStatus:{type:ts.type,tone:ts.tone,headline:ts.headline,label:ts.label,currentPosition:ts.currentPosition,minPossiblePosition:ts.minPossiblePosition,maxPossiblePosition:ts.maxPossiblePosition,lockedWinner:!!ts.lockedWinner,lockedQualified:!!ts.lockedQualified,eliminated:!!ts.eliminated,complete:!!ts.complete},scenarios:[]};
+  if(ts.eliminated){base.status=FRE_STATUS.confirmed;base.eliminated=true;return base;}
+  [1,2,3].forEach(function(pos){var s=freBuildScenario(code,pos);if(s)base.scenarios.push(s);});
+  return base;
+}
 /* ===== Route Explorer Lite =====================================================
    A compact "What this means" route card. Pure read-off of the SHARED tournament
    -status resolver (tccTeamTournamentStatus) + the existing bracket mapping
