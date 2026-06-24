@@ -17,10 +17,12 @@ function loadApp() {
   window.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
   window.requestAnimationFrame = (fn) => window.setTimeout(fn, 16);
   window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+  window.MutationObserver = class MutationObserver { observe() {} disconnect() {} };
   window.AudioContext = function AudioContext() {};
   window.webkitAudioContext = window.AudioContext;
   window.eval(`${script}
     window.__routeTest = {
+      document: document,
       getState: function(){ return S; },
       setState: function(v){ S = v; },
       blankState: blankState,
@@ -34,11 +36,21 @@ function loadApp() {
       freDirectSlot: freDirectSlot,
       freThirdCandidateSlots: freThirdCandidateSlots,
       freConfirmedThirdSlot: freConfirmedThirdSlot,
+      frePossibleTeamsForSlot: frePossibleTeamsForSlot,
       freScenarioPossible: freScenarioPossible,
+      freExplorerHTML: freExplorerHTML,
+      routeExplorerLiteHTML: routeExplorerLiteHTML,
+      freMomentsHTML: freMomentsHTML,
+      tccRoadSheet: tccRoadSheet,
+      sheet: sheet,
+      editorialItems: editorialItems,
+      activeMode: activeMode,
       koParts: koParts,
       M: M,
       MATCHES: MATCHES,
       GROUPS: GROUPS,
+      TP3: TP3,
+      TP3C: TP3C,
       NEXTWIN: NEXTWIN,
       REAL: REAL
     };`);
@@ -124,4 +136,56 @@ test('route engine does not mutate settlement pickem leaderboard or live state c
   const before = JSON.stringify(app.getState());
   ['POR', 'COL', 'USA', 'BRA', 'GER', 'TUR'].forEach((code) => app.fullRouteExplorerEngine(code));
   assert.equal(JSON.stringify(app.getState()), before);
+}));
+
+test('Portugal and Colombia route opponents are mathematically valid by source slot', () => withApp((app) => {
+  ['POR', 'COL'].forEach((code) => {
+    const route = app.fullRouteExplorerEngine(code);
+    route.scenarios.forEach((s) => {
+      assert.ok(s.roundOf32Slot || s.qualificationStatus === 'eliminated');
+      if (!s.opponent.sourceSlot) return;
+      const valid = app.frePossibleTeamsForSlot(s.opponent.sourceSlot);
+      s.opponent.possibleOpponents.forEach((opp) => {
+        assert.ok(valid.includes(opp), `${code} ${s.finishPosition} included invalid opponent ${opp} for ${s.opponent.sourceSlot}`);
+      });
+      if (s.opponent.state === 'confirmed opponent') {
+        assert.equal(s.status, 'Confirmed');
+      }
+    });
+  });
+}));
+
+test('third-place allocation matrix changes by qualifying-group combination', () => withApp((app) => {
+  const comboA = 'ABCDEFGH';
+  const comboB = 'BCDEFGHI';
+  assert.ok(app.TP3[comboA], 'expected Annex C mapping for ABCDEFGH');
+  assert.ok(app.TP3[comboB], 'expected Annex C mapping for BCDEFGHI');
+  assert.notEqual(app.TP3[comboA], app.TP3[comboB]);
+  assert.equal(app.TP3[comboA].length, app.TP3C.length);
+  assert.equal(app.TP3[comboB].length, app.TP3C.length);
+}));
+
+test('route explorer uses official tournament language only', () => withApp((app) => {
+  const forbidden = /\b(Power|POWER RATING|likely opponent|likely against|match profile|Model win projection|live win probability|Form profile|Momentum|fatigue|estimated from match load|Supercomputer|title chances|upset|odds|probability)\b/i;
+  ['POR', 'COL', 'USA', 'BRA', 'GER', 'TUR'].forEach((code) => {
+    const html = [
+      app.freExplorerHTML(code),
+      app.routeExplorerLiteHTML(code),
+      app.freMomentsHTML(code),
+    ].join('\n');
+    assert.equal(forbidden.test(html), false, `${code} route UI leaked invented language: ${html.match(forbidden)}`);
+  });
+}));
+
+test('factual road sheet and match center do not show model signals', () => withApp((app) => {
+  assert.equal(app.activeMode(), 'real');
+  const doc = app.document;
+  assert.ok(doc);
+  const forbidden = /\b(Power|POWER RATING|Model win projection|live win probability|Form profile|Momentum|fatigue|estimated from match load|Supercomputer|title chances|match profile|lowest-rated|higher-rated|Group of Death|toughest group|model)\b/i;
+  app.tccRoadSheet('USA');
+  assert.equal(forbidden.test(doc.getElementById('sheet').textContent), false);
+  app.sheet(1);
+  assert.equal(forbidden.test(doc.getElementById('sheet').textContent), false);
+  const stories = app.editorialItems().map((x) => `${x.h} ${x.t}`).join('\n');
+  assert.equal(forbidden.test(stories), false);
 }));

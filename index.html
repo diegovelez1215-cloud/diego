@@ -3314,15 +3314,9 @@ function editorialItems(){
  function Lz(n){var s=S.sc[n],m=M[n];return s.h>s.a?m.away:m.home;}
  var big=null,bm=-1;played.forEach(function(n){var s=S.sc[n],d=Math.abs(s.h-s.a);if(d>bm){bm=d;big=n;}});
  if(big&&bm>=3){var sb=S.sc[big];items.push({ic:"💥",h:nm(W(big))+" run riot",t:nm(W(big))+" dismantled "+nm(Lz(big))+" "+Math.max(sb.h,sb.a)+"–"+Math.min(sb.h,sb.a)+", the most emphatic result of the tournament so far.",team:W(big),num:big});}
- var up=null,ug=-1;played.forEach(function(n){var s=S.sc[n];if(s.h===s.a)return;var gap=(RAT[Lz(n)]||70)-(RAT[W(n)]||70);if(gap>ug){ug=gap;up=n;}});
- if(up&&ug>=7){var su=S.sc[up];items.push({ic:"🫨",h:"Shock: "+nm(W(up))+" stun "+nm(Lz(up)),t:nm(W(up))+" upset far higher-rated "+nm(Lz(up))+" "+(su.h>su.a?su.h+"–"+su.a:su.a+"–"+su.h)+" — a genuine bracket-buster.",team:W(up),num:up});}
  var hi=null,ht=-1;played.forEach(function(n){var s=S.sc[n];if(s.h+s.a>ht){ht=s.h+s.a;hi=n;}});
  if(hi&&ht>=5){var sh2=S.sc[hi],mh=M[hi];items.push({ic:"🎆",h:ht+"-goal thriller",t:nm(mh.home)+" "+sh2.h+"–"+sh2.a+" "+nm(mh.away)+" — end-to-end chaos and the highest-scoring game yet.",num:hi});}
  try{var gb=goldenBoot();if(gb&&gb.length&&gb[0].n>=2)items.push({ic:"🥇",h:"Golden Boot: "+gb[0].player,t:gb[0].player+" ("+nm(gb[0].team)+") leads the race with "+gb[0].n+" goals.",team:gb[0].team});}catch(e){}
- var bt=null,bs=-1;for(var n2=73;n2<=88;n2++){var p=koParts(n2);if(p[0]&&p[1]){var sm=(RAT[p[0]]||0)+(RAT[p[1]]||0);if(sm>bs){bs=sm;bt=p;}}}
- if(bt&&bs>=171)items.push({ic:"🔥",h:"As it stands: "+nm(bt[0])+" v "+nm(bt[1]),t:"The bracket is setting up a Round-of-32 heavyweight between "+nm(bt[0])+" and "+nm(bt[1])+". Top your group to dodge it."});
- try{var ci=cinderellaIn();if(ci)items.push({ic:"🦄",h:"Cinderella watch: "+nm(ci),t:nm(ci)+", the lowest-rated side left, is defying the model and sitting in a knockout place as it stands.",team:ci});}catch(e){}
- try{var god=groupOfDeath();if(god){var st=standings(god);items.push({ic:"💀",h:"Group "+god+": the Group of Death",t:nm(st[0].code)+" lead the toughest group on paper, with "+nm(st[2].code)+" and "+nm(st[3].code)+" fighting to survive."});}}catch(e){}
  return items;}
 function newsroomHTML(){
  var cats=["Storylines","Results","Golden Boot"];if(cats.indexOf(_activeNewsTab)<0)_activeNewsTab="Storylines";
@@ -3920,7 +3914,7 @@ function teamAttrs(code){var base=RAT[code]||70;var r=_teamRow(code);
 function attrCompareHTML(h,a){if(!h||!a)return'';var H=teamAttrs(h),A=teamAttrs(a);if(!H.n&&!A.n)return'';
   function row(lbl,hv,av){var hp=Math.round(hv/((hv+av)||1)*100);return '<div class="ac-row"><span class="ac-v">'+hv+'</span><div class="ac-mid"><div class="ac-lbl">'+lbl+'</div><div class="ac-bar"><i style="width:'+hp+'%"></i></div></div><span class="ac-v r">'+av+'</span></div>';}
   return '<div class="acard"><div class="ac-h"><span>'+esc(nm(h))+'</span><span class="ac-t">Form profile · real goals</span><span>'+esc(nm(a))+'</span></div>'+row('Attack',H.att,A.att)+row('Defense',H.def,A.def)+row('Momentum',H.form,A.form)+'</div>';}
-/* ===== Cinderella tracker (lowest-rated squad that reaches the knockouts) ===== */
+/* ===== Cinderella tracker for simulation surfaces ===== */
 var _cind=null;
 function cinderella(){if(_cind)return _cind;var lo=999,pick=null;Object.keys(RAT).forEach(function(c){if(RAT[c]<lo||(RAT[c]===lo&&(!pick||c<pick))){lo=RAT[c];pick=c;}});_cind=pick;return pick;}
 function cinderellaIn(){var c=cinderella();for(var n=73;n<=88;n++){var p=koParts(n);if(p[0]===c||p[1]===c)return c;}return null;}
@@ -5051,7 +5045,7 @@ function tccFeatured(){
   var up=MATCHES.filter(function(m){if(tccPlayed(m.num))return false;var d=koDateTime(m);return d&&d.getTime()>=now-3*3600000;});
   if(up.length){up.sort(function(a,b){var da=koDateTime(a),db=koDateTime(b);return (da?da.getTime():0)-(db?db.getTime():0);});
     var day=up[0].date,sameDay=up.filter(function(m){return m.date===day;});
-    sameDay.sort(function(a,b){return tccProfile(b)-tccProfile(a)||matchClock(a)-matchClock(b);});
+    sameDay.sort(function(a,b){return (tccIsDecider(b.num)?1:0)-(tccIsDecider(a.num)?1:0)||matchClock(a)-matchClock(b)||a.num-b.num;});
     return {num:sameDay[0].num,kind:'upcoming'};}
   var fin=MATCHES.filter(function(m){return tccPlayed(m.num);});
   if(fin.length){fin.sort(function(a,b){var da=koDateTime(a),db=koDateTime(b);return (db?db.getTime():0)-(da?da.getTime():0);});return {num:fin[0].num,kind:'recent'};}
@@ -5133,8 +5127,8 @@ function tccGroupScenarios(g){
   var remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
   if(!remaining.length)return [];
   var official=tccOffTable(g),ptsOf={};official.forEach(function(r){ptsOf[r.code]=r.Pts;});
-  remaining.forEach(function(m){m._val=(ptsOf[m.home]+ptsOf[m.away])*2+((RAT[m.home]||60)+(RAT[m.away]||60))/20+(tccIsDecider(m.num)?10:0);});
-  remaining.sort(function(a,b){return b._val-a._val||matchClock(a)-matchClock(b);});
+  remaining.forEach(function(m){m._val=(tccIsDecider(m.num)?10:0)+(ptsOf[m.home]+ptsOf[m.away]);});
+  remaining.sort(function(a,b){return b._val-a._val||matchClock(a)-matchClock(b)||a.num-b.num;});
   return remaining.slice(0,4).map(function(m){
     var hWinPos=tccPosAfter(g,m.num,m.home),aWinPos=tccPosAfter(g,m.num,m.away);
     var hPts=ptsOf[m.home]+3,aPts=ptsOf[m.away]+3,hDraw=ptsOf[m.home]+1,aDraw=ptsOf[m.away]+1,lines=[];
@@ -5277,7 +5271,7 @@ function reLiteOutcomes(code){
   if(ts.lockedQualified)lose='A loss can’t undo qualification, but it can cost top spot and seeding.';
   else if(ts.possibleThirdPlaceFinish)lose='Third place would depend on the global best-third-place race.';
   else if(ts.qualificationStillPossible)lose='A loss risks '+N+'’s place and opens an alternate route.';
-  else lose='A loss would likely end '+N+'’s run.';
+  else lose='A loss could end '+N+'’s run, pending other results.';
   return {next:nextM,opp:opp,win:win,draw:draw,lose:lose};
 }
 /* R32 opponent read-off — surfaced ONLY when bracket mapping + group status can
@@ -5293,7 +5287,7 @@ function reLiteR32(code){
   var meConfirmed=ts.complete&&ts.tone==='confirmed';
   if(oppCode){var os=tccTeamTournamentStatus(oppCode),oppConfirmed=os&&os.complete&&os.tone==='confirmed'&&os.lockedQualified;
     if(meConfirmed&&oppConfirmed)return {label:'Confirmed opponent',text:'Round of 32: '+nm(code)+' meet '+nm(oppCode)+'.',opp:oppCode};
-    return {label:'Possible opponent',text:'Round of 32 likely against '+nm(oppCode)+' — pending official finals.',opp:oppCode};}
+    return {label:'Possible opponent',text:'Round of 32 could be against '+nm(oppCode)+' — pending official finals.',opp:oppCode};}
   if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0)return {label:'Qualification slot pending',text:nm(code)+'’s slot is locked. The third-place qualifier is still to be confirmed.'};
   return {label:'Opponent to be decided',text:nm(code)+'’s Round of 32 slot is locked. Opponent to be decided.'};
 }
@@ -5420,12 +5414,6 @@ function freMomentsHTML(code){
   try{if(typeof activeMode==='function'&&activeMode()==='real'){var ts=tccTeamTournamentStatus(code);
     if(ts&&ts.lockedQualified&&!ts.eliminated)cards.push('<div class="fre-mom fre-mom-gold"><span class="fre-mom-ic">✅</span><div><b>Qualification locked</b><span>'+esc(nm(code))+(ts.lockedWinner?' top their group':' are through to the Round of 32')+'</span></div></div>');
   }}catch(e){}
-  // biggest official upset by power rating
-  try{if(typeof activeMode==='function'&&activeMode()==='real'){var up=null;
-    MATCHES.forEach(function(m){if(m.stage!=='group'||!tccOfficialFinal(m.num))return;var s=S.sc[m.num];if(!s||s.h===s.a)return;
-      var w=s.h>s.a?m.home:m.away,l=s.h>s.a?m.away:m.home,gap=(RAT[l]||70)-(RAT[w]||70);if(gap>=8&&(!up||gap>up.gap))up={w:w,l:l,gap:gap,s:s,m:m};});
-    if(up)cards.push('<div class="fre-mom fre-mom-cy"><span class="fre-mom-ic">🚨</span><div><b>Upset of the round</b><span>'+esc(nm(up.w))+' stunned '+esc(nm(up.l))+'</span></div></div>');
-  }}catch(e){}
   if(!cards.length)return '';
   return '<div class="fre-moments">'+cards.slice(0,2).join('')+'</div>';
 }
@@ -5444,7 +5432,7 @@ function freExplorerHTML(code){
   var h='<div class="grab"></div><div class="sh-rnd">Route Explorer</div><div class="sh-when">'+esc(nm(code))+' · Group '+TG[code]+' · what each finish means</div>';
   h+=freMomentsHTML(code);
   h+='<div class="fre" id="fre-'+code+'">';
-  h+='<div class="fre-head"><span class="fre-fl fre-fl-lg">'+fl(code)+'</span><div class="fre-htx"><div class="fre-hnm">'+esc(nm(code))+'</div><div class="fre-hmeta">Group '+TG[code]+(RAT[code]?(' · Power '+RAT[code]):'')+'</div></div>'+(ts?('<span class="fre-stchip '+freToneClass(ts.tone)+'">'+esc(ts.headline)+'</span>'):'')+'</div>';
+  h+='<div class="fre-head"><span class="fre-fl fre-fl-lg">'+fl(code)+'</span><div class="fre-htx"><div class="fre-hnm">'+esc(nm(code))+'</div><div class="fre-hmeta">Group '+TG[code]+'</div></div>'+(ts?('<span class="fre-stchip '+freToneClass(ts.tone)+'">'+esc(ts.headline)+'</span>'):'')+'</div>';
   h+='<div class="fre-emph">'+esc(freEmphasis(code))+'</div>';
   if(!route||route.eliminated||(ts&&ts.eliminated)){
     h+=freEliminatedHTML(code);
@@ -5498,7 +5486,7 @@ function tccTieStake(num){
   return 'Winner advances to the <b>'+esc(roundName(nx))+'</b>'+(ow?', to face <b>'+esc(nm(ow))+'</b>':(other?', to face the winner of #'+other:''))+'.';}
 function tccRoadSheet(code){if(!code||!T[code])return;var g=TG[code];
   var html='<div class="grab"></div><div class="sh-rnd">Road to the final</div><div class="sh-when">'+esc(nm(code))+' · Group '+g+'</div>';
-  html+='<div class="tcc-road-hero"><span class="fl">'+fl(code)+'</span><div><div class="tcc-rh-nm">'+esc(nm(code))+'</div><div class="tcc-rh-s">Group '+g+' · Power '+(RAT[code]||'–')+'</div></div></div>';
+  html+='<div class="tcc-road-hero"><span class="fl">'+fl(code)+'</span><div><div class="tcc-rh-nm">'+esc(nm(code))+'</div><div class="tcc-rh-s">Group '+g+' · official route</div></div></div>';
   var allOff=withTour(liveTour(),function(){return allDone();});
   html+='<div class="tcc-prov">'+(allOff?'📡 Official bracket path':'📡 Live projection · provisional until groups finish')+'</div>';
   withTour(liveTour(),function(){
@@ -5631,16 +5619,12 @@ function renderRoad(){let h=`<div class="picker"><div class="pkt">Choose a natio
   const[stxt,scls]=statusMap[st.s];
   const _fm=gMatches(g).find(m=>m.home===code||m.away===code);const _reg=_fm?VEN[_fm.venue][4]:"East";
   h+=`<div class="rhero"><div class="rhead"><div class="rbg" style="background:${CGRAD[_reg]}"></div>
-    <div class="rfl" id="rcrest">${fl(code)}</div><div class="rinfo"><div class="rn">${nm(code)}</div><div class="rg">Group ${g} · Power ${rat}</div>
-    <div class="rstat ${scls}">${stxt}</div>
-    <div class="ratbar"><div class="rl"><span>POWER RATING</span><span>${rat}/100</span></div><div class="rt2"><div class="rf" style="width:${rat}%"></div></div></div></div></div>`;
+    <div class="rfl" id="rcrest">${fl(code)}</div><div class="rinfo"><div class="rn">${nm(code)}</div><div class="rg">Group ${g} · official route</div>
+    <div class="rstat ${scls}">${stxt}</div></div></div>`;
   h+=`<div id="tblurb"></div>`;
   h+=`<div id="tfacts" class="tfacts-slot"></div>`;
   try{h+=freEntryCardHTML(code);}catch(e){}
   // timeline
-  var tmc=S._tmc&&S._tmc[code];
-  if(tmc){h+='<div class="ttc" onclick="runTeamMC()"><div class="ttc-h">🔮 Supercomputer · '+tmc.N+' sims · tap to re-run</div><div class="ttc-g"><div><b>'+ttp(tmc.c)+'</b><span>Win it all</span></div><div><b>'+ttp(tmc.f)+'</b><span>Reach final</span></div><div><b>'+ttp(tmc.sf)+'</b><span>Reach semis</span></div></div></div>';}
-  else{h+='<button class="reveal-btn" style="background:linear-gradient(135deg,#5e5ce6,#0a84ff);color:#fff" onclick="runTeamMC()">🔮 Run '+nm(code)+"'s title chances</button>";}
   h+=`<div class="timeline"><div class="tlttl">Road to the Final</div>`;
   // group node
   const sg=standings(g),pos=sg.findIndex(x=>x.code===code)+1,me=sg[pos-1];
@@ -5810,20 +5794,21 @@ function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group
   let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(mt.wd)}, ${longDate(mt.date)} · ${to12(mt.time)} ET${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
   var realState=matchLiveState(num);if(realState){inner+='<div class="bethint" style="border-color:'+(realState.kind==='hold'?'rgba(255,203,61,.35)':'rgba(100,210,255,.35)')+';color:'+(realState.kind==='hold'?'var(--gold)':'var(--blue2)')+'"><b>'+esc(realState.label||'Official status')+'</b> · Official result pending. Bets and bracket paths stay open until a confirmed final arrives.</div>';}
   else if(livePendingOfficial(num)){inner+='<div class="bethint" style="border-color:rgba(100,210,255,.28);color:var(--blue2)"><b>Live update pending official feed</b> · We will show confirmed score and status as soon as the provider supplies them.</div>';}
-  try{inner+=matchFraming(num,ph,pa,ko);}catch(e){}
+  var factualMode=(typeof activeMode==='function'&&activeMode()==='real');
+  if(!factualMode){try{inner+=matchFraming(num,ph,pa,ko);}catch(e){}}
   function side(code,slot){if(!code)return `<div class="sh-side"><span class="fl">·</span><div class="nm ph">${slotLabel(slot)}</div></div>`;
-    return `<div class="sh-side"><span class="fl">${fl(code)}</span><div class="nm">${nm(code)}</div><div class="rt3">Power ${RAT[code]||'–'}</div></div>`;}
+    return `<div class="sh-side"><span class="fl">${fl(code)}</span><div class="nm">${nm(code)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[code]||'–'}</div>`}</div>`;}
   if(ko){inner+=`<div class="sh-vs">${side(ph,mt.home)}<div class="sh-mid">vs</div>${side(pa,mt.away)}</div>`;
     if(ph&&pa){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
     else inner+=`<div class="sh-when" style="margin-top:8px">Teams decided once earlier rounds finish.</div>`;}
   else{const sh=s?s.h:0,sa=s?s.a:0;
-    inner+=`<div class="sh-vs"><div class="sh-side"><span class="fl">${fl(mt.home)}</span><div class="nm">${nm(mt.home)}</div><div class="rt3">Power ${RAT[mt.home]}</div></div><div class="sh-score">${s?`${s.h} - ${s.a}`:'– : –'}</div><div class="sh-side"><span class="fl">${fl(mt.away)}</span><div class="nm">${nm(mt.away)}</div><div class="rt3">Power ${RAT[mt.away]}</div></div></div>`;
+    inner+=`<div class="sh-vs"><div class="sh-side"><span class="fl">${fl(mt.home)}</span><div class="nm">${nm(mt.home)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[mt.home]}</div>`}</div><div class="sh-score">${s?`${s.h} - ${s.a}`:'– : –'}</div><div class="sh-side"><span class="fl">${fl(mt.away)}</span><div class="nm">${nm(mt.away)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[mt.away]}</div>`}</div></div>`;
     inner+=`<div class="sh-edit"><div class="col"><div class="lab">${mt.home}</div><div class="stepper"><button onclick="bump(${num},'h',-1);sheet(${num})">−</button><span class="sc">${s?s.h:'–'}</span><button onclick="bump(${num},'h',1);sheet(${num})">+</button></div></div><div class="col"><div class="lab">${mt.away}</div><div class="stepper"><button onclick="bump(${num},'a',-1);sheet(${num})">−</button><span class="sc">${s?s.a:'–'}</span><button onclick="bump(${num},'a',1);sheet(${num})">+</button></div></div></div>`;
     if(s&&!S.real[num])inner+=goalTL(num,s);
     if(S.real[num]){inner+=`<div class="sh-when" style="color:var(--green);font-weight:800">● Official live result</div>`;inner+='<div id="mstats" class="mstats-slot"></div>';}}
-  if(ph&&pa){var _fh=formGuideHTML(ph),_fa=formGuideHTML(pa);if(_fh||_fa)inner+='<div class="formrow"><div class="fr-s">'+_fh+'</div><div class="fr-c">FORM</div><div class="fr-s right">'+_fa+'</div></div>';inner+=attrCompareHTML(ph,pa);}
-  if(!ko&&!s&&!(S.real&&S.real[num])&&!(S.live&&S.live.num===num))inner+=predictorHTML(num,mt.home,mt.away);
-  {const _h=ko?ph:mt.home,_a=ko?pa:mt.away;if(_h&&_a){inner+=sheetProbViz(num,_h,_a,ko);inner+=liveProbHTML(num,_h,_a);inner+=sheetExtra(num,_h,_a,ko);inner+=matchActionZone(num,_h,_a,ko);}}
+  if(ph&&pa&&!factualMode){var _fh=formGuideHTML(ph),_fa=formGuideHTML(pa);if(_fh||_fa)inner+='<div class="formrow"><div class="fr-s">'+_fh+'</div><div class="fr-c">FORM</div><div class="fr-s right">'+_fa+'</div></div>';inner+=attrCompareHTML(ph,pa);}
+  if(!factualMode&&!ko&&!s&&!(S.real&&S.real[num])&&!(S.live&&S.live.num===num))inner+=predictorHTML(num,mt.home,mt.away);
+  {const _h=ko?ph:mt.home,_a=ko?pa:mt.away;if(_h&&_a){if(!factualMode){inner+=sheetProbViz(num,_h,_a,ko);inner+=liveProbHTML(num,_h,_a);inner+=sheetExtra(num,_h,_a,ko);}inner+=matchActionZone(num,_h,_a,ko);}}
   inner+=`<div class="sh-stad"><div class="s1">🏟️ ${ven[1]}</div><div class="s2">${ven[0]} (FIFA) · ${mt.venue}</div><div class="s3"><span>📍 ${ven[2]}</span><span>👥 ~${ven[5].toLocaleString()}</span><span>${REGION[ven[4]]}</span></div><div class="wx-slot" id="wxSlot"></div></div>`;
   const links=[];if(ph)links.push(`<button onclick="focusTeam('${ph}');closeSheet()">🧭 ${nm(ph)}'s road</button>`);if(pa)links.push(`<button onclick="focusTeam('${pa}');closeSheet()">🧭 ${nm(pa)}'s road</button>`);
   if(links.length)inner+=`<div class="sh-links">${links.join("")}</div>`;
@@ -5836,7 +5821,7 @@ function findFotmobMatch(dates,hc,ac){
   return Promise.resolve(null);}
 function loadMatchStats(num){var el=document.getElementById('mstats');if(!el)return;
   var m=M[num];if(!m||m.stage!=="group"||!(S.real&&S.real[num]))return;
-  el.innerHTML=modelMatchProfileHTML(num);}
+  el.innerHTML='<div class="mstats"><div class="ms-head">📊 Live stats unavailable <span class="ms-src">Official feed</span></div><div class="bethint" style="margin:10px 0 0;text-align:left">Confirmed live match stats are unavailable for this fixture. No modeled stats are shown in Tournament mode.</div></div>';}
 function matchStatsHTML(num,stats,flip){var m=M[num];
   var rows=stats.map(function(s){var hv=flip?s.a:s.h,av=flip?s.h:s.a;
     var hiH=(flip?s.hi==='away':s.hi==='home'),hiA=(flip?s.hi==='home':s.hi==='away');
@@ -5876,7 +5861,7 @@ function wxFactor(num){var ven=venOf(num);if(!ven)return{mult:1,note:"",icon:"�
   return {mult:mult,note:note,icon:icon};}
 function wxHTML(w,venue,num){var wf=(num!=null)?wxFactor(num):null;
   var live=w?('<span class="wx-i">'+(w.rain?'🌧️':(w.temp>=88?'☀️':w.temp<=45?'❄️':'⛅'))+'</span><b>'+w.temp+'°F</b><span>'+(w.rain?'Rain':'Clear')+' · '+esc(venue)+'</span>'):'';
-  var eff=(wf&&wf.note)?('<span class="wx-eff">⚙️ '+wf.note+'</span>'):'';
+  var eff='';
   if(!live&&!eff)return"";
   if(!live)live='<span class="wx-i">'+(wf?wf.icon:'⛅')+'</span><span>'+esc(venue)+'</span>';
   return '<div class="wx">'+live+eff+'</div>';}
@@ -5957,13 +5942,8 @@ function storiesHTML(){const st=storylines();if(!st.length)return "";
   return `<div class="storiesttl">📰 Tournament storylines</div><div class="stories">`+st.map(s=>`<div class="story ${s.k||''}"><span class="si">${s.t}</span><div><div class="sh">${s.h}</div><div class="ss">${s.s}</div></div></div>`).join("")+`</div>`;}
 function storylines(){let out=[];const c=winner(104);
   if(c){const ru=loser(104);out.push({k:"champ",t:"🏆",h:nm(c)+" are crowned world champions",s:ru?"Victory over "+nm(ru)+" in the final at MetLife Stadium.":"Champions of United 2026."});}
-  let up=null,upd=0;MATCHES.forEach(m=>{if(m.stage!=="group")return;const s=S.sc[m.num];if(!s)return;const w=s.h>s.a?m.home:(s.a>s.h?m.away:null);if(!w)return;const l=w===m.home?m.away:m.home;const d=(RAT[l]||70)-(RAT[w]||70);if(d>upd){upd=d;up={w,l,m,s};}});
-  if(up&&upd>=8){const us=up.w===up.m.home?up.s.h+"-"+up.s.a:up.s.a+"-"+up.s.h;out.push({t:"📌",h:nm(up.w)+" stun "+nm(up.l),s:us+" — a result defying a "+upd+"-point ranking gap."});}
   let dem=null,dd=0;MATCHES.forEach(m=>{if(m.stage!=="group")return;const s=S.sc[m.num];if(!s)return;const d=Math.abs(s.h-s.a);if(d>dd){dd=d;dem={m,s};}});
   if(dem&&dd>=4){const hw=dem.s.h>dem.s.a;out.push({t:"🎯",h:nm(hw?dem.m.home:dem.m.away)+" dominant in statement win",s:nm(dem.m.home)+" "+dem.s.h+"-"+dem.s.a+" "+nm(dem.m.away)+"."});}
-  if(allDone()){let ci=null;for(let n=89;n<=96;n++){const p=koParts(n);[p[0],p[1]].forEach(t=>{if(t&&(!ci||(RAT[t]||70)<(RAT[ci]||70)))ci=t;});}
-    if(ci&&(RAT[ci]||70)<=74)out.push({t:"✨",h:nm(ci)+" defy the odds",s:"The tournament's lowest-rated knockout survivor."});}
-  const god=groupOfDeath();out.push({k:"death",t:"💀",h:"Group "+god+" is the group of death",s:"The toughest section on paper — average power "+Math.round(groupAvg(god))+"."});
   return out.slice(0,5);}
 function nextStage(){const eg=MATCHES.filter(m=>m.stage==="group"&&!S.sc[m.num]);
   if(eg.length){eg.forEach(m=>S.sc[m.num]=simScore(m.home,m.away));"ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=standings(g).map(x=>x.code));S.thirds=null;revalidateKO();return "Group stage";}
