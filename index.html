@@ -4922,10 +4922,10 @@ function tccGroupDeciders(g){var ms=gMatches(g);if(!ms.length)return [];var maxd
 function tccIsDecider(num){var m=M[num];if(!m||m.stage!=='group')return false;if(gCompleteOfficial(m.group))return false;return tccGroupDeciders(m.group).some(function(x){return x.num===num;});}
 function tccProfile(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);var r=(RAT[pr[0]]||60)+(RAT[pr[1]]||60);if(m.stage!=='group')r+=40;return r;}
 /* official(+live) standings, independent of My-Sim sandbox or active mode */
-function tccRealTable(g){return withTour(liveTour(),function(){
-  if(S._rwlive)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&S._rwlive[m.num]&&S._rwlive[m.num].sh!=null)S.sc[m.num]={h:S._rwlive[m.num].sh,a:S._rwlive[m.num].sa};});
+function tccRealTable(g){var liveScores=S._rwlive;return withTour(liveTour(),function(){
+  if(liveScores)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&liveScores[m.num]&&liveScores[m.num].sh!=null)S.sc[m.num]={h:liveScores[m.num].sh,a:liveScores[m.num].sa};});
   return standings(g);});}
-function tccOffTable(g){return withTour(liveTour(),function(){return standings(g);});}
+function tccOffTable(g){var lv=S._rwlive;S._rwlive=null;try{return withTour(liveTour(),function(){return standings(g);});}finally{S._rwlive=lv;}}
 function tccAdjacentTieRisk(table,pos){var r=table[pos-1];if(!r)return false;return table.some(function(o,i){return i!==pos-1&&o.Pts===r.Pts&&o.GD===r.GD&&o.GF===r.GF&&Math.abs((i+1)-pos)<=1;});}
 var _tccOutCache={};
 function tccGroupOutcomeSig(g){return g+'|'+gMatches(g).map(function(m){var v=tccOfficialFinal(m.num)?(REAL[m.num][0]+'-'+REAL[m.num][1]):'_';return m.num+':'+v;}).join(',');}
@@ -5026,6 +5026,115 @@ function tccResolveGroupStatus(g){
   return map;
 }
 function tccTeamTournamentStatus(code){var g=TG[code];return g?tccResolveGroupStatus(g)[code]:null;}
+/* ===== Phase 6 foundation: final group matchday + knockout transition =========
+   Logic-only read models for Cowork's later UI pass. These helpers derive from
+   official results, provider live states, the shared group resolver, and the
+   existing Round-of-32 / third-place matrix. They do not mutate standings,
+   bracket picks, wallet, tickets, or Play state. */
+function fdFixtureState(num){
+  var m=M[num],live=tccLiveState(num),fin=tccOfficialFinal(num);
+  if(fin)return {num:num,kind:'official_final',label:'Official final',score:{h:REAL[num][0],a:REAL[num][1]}};
+  if(live)return {num:num,kind:live.kind==='hold'?'hold':'live',label:live.label||(live.kind==='hold'?'Pending official update':'Live'),score:(live.sh!=null&&live.sa!=null)?{h:live.sh,a:live.sa}:null,min:live.min,status:live.status};
+  if(m&&marketPastKickoff(num))return {num:num,kind:'pending_official_feed',label:'Live update pending official feed',score:null};
+  return {num:num,kind:'scheduled',label:'Scheduled',score:null};
+}
+function fdRowSig(table){return (table||[]).map(function(r){return r.code+':'+r.Pts+':'+r.GD+':'+r.GF;}).join('|');}
+function fdFinalMatchdayStakes(g,official,projected,fixtures){
+  var stakes=[],live=fixtures.some(function(f){return f.kind==='live'||f.kind==='hold'||f.kind==='pending_official_feed';});
+  if(live&&projected&&projected[0]&&official&&official[0]&&projected[0].code!==official[0].code){
+    stakes.push(nm(projected[0].code)+' moves into first with this score.');
+  }
+  if(live&&projected&&official&&fdRowSig(projected)!==fdRowSig(official)){
+    var movers=projected.filter(function(r,i){return official[i]&&official[i].code!==r.code;}).map(function(r){return r.code;});
+    if(movers.length)stakes.push('A goal changes the group order.');
+  }
+  var third=(projected&&projected[2])?projected[2]:null,thirdStatus=third?tccTeamTournamentStatus(third.code):null;
+  if(third&&(!thirdStatus||!thirdStatus.lockedQualified&&!thirdStatus.eliminated)){
+    stakes.push('Third-place qualification remains unresolved.');
+  }
+  if(live&&(projected||[]).some(function(r){var ts=tccTeamTournamentStatus(r.code);return ts&&ts.lockedQualified&&!ts.eliminated;})){
+    stakes.push('This result would confirm a Round of 32 place.');
+  }
+  if(!stakes.length&&live)stakes.push('As it stands remains provisional until the official final.');
+  return stakes.slice(0,4);
+}
+function finalMatchdayGroupModel(g){
+  var deciders=tccGroupDeciders(g).slice().sort(function(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;});
+  if(deciders.length<2)return null;
+  var states=deciders.map(function(m){var st=fdFixtureState(m.num);st.home=m.home;st.away=m.away;st.date=m.date;st.time=m.time;return st;});
+  var complete=gCompleteOfficial(g),active=states.some(function(st){return st.kind!=='official_final';});
+  var official=tccOffTable(g),projected=tccRealTable(g);
+  return {group:g,isFinalMatchday:!complete&&active,complete:complete,asItStands:!complete&&states.some(function(st){return st.kind==='live'||st.kind==='hold'||st.kind==='pending_official_feed';}),
+    fixtures:states,officialTable:official,projectedTable:projected,stakes:fdFinalMatchdayStakes(g,official,projected,states),
+    resolver:tccResolveGroupStatus(g)};
+}
+function r32SlotTeam(raw,matchNum){
+  if(T[raw])return raw;
+  var m=String(raw||'').match(/^([12])([A-L])$/);
+  if(m){var g=m[2],pos=+m[1];if(!gCompleteOfficial(g))return null;var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return row?row.code:null;}
+  if(String(raw||'').indexOf('3:')===0){
+    if(!withTour(liveTour(),function(){return allDone();}))return null;
+    var as=withTour(liveTour(),function(){return assignThirds();});if(!as)return null;
+    var ag=as[matchNum],row3=ag&&withTour(liveTour(),function(){return standings(ag)[2];});
+    return row3?row3.code:null;
+  }
+  return null;
+}
+function r32FixtureStates(){
+  return [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].map(function(n){
+    var raw=[M[n].home,M[n].away];
+    var p=[r32SlotTeam(raw[0],n),r32SlotTeam(raw[1],n)];
+    var pending=[];
+    if(!p[0])pending.push(raw[0]);
+    if(!p[1])pending.push(raw[1]);
+    return {matchNum:n,home:p[0]||null,away:p[1]||null,rawHome:raw[0],rawAway:raw[1],state:(p[0]&&p[1])?'confirmed_pairing':'pending',pendingSlots:pending};
+  });
+}
+function r32PairingsConfirmed(){return r32FixtureStates().every(function(x){return x.state==='confirmed_pairing';});}
+function fdAllQualifiersResolved(){
+  if(!withTour(liveTour(),function(){return allDone();}))return false;
+  if(!withTour(liveTour(),function(){return assignThirds();}))return false;
+  var unresolved=false;
+  "ABCDEFGHIJKL".split("").forEach(function(g){var st=tccResolveGroupStatus(g);Object.keys(st).forEach(function(c){var x=st[c];if(x.provisionalByTiebreaker||x.type==='pending_official_final')unresolved=true;});});
+  return !unresolved;
+}
+function knockoutRoundComplete(nums){return nums.every(function(n){return !!(S.realko&&S.realko[n]);});}
+function tournamentPhaseState(){
+  var finalGroups="ABCDEFGHIJKL".split("").map(finalMatchdayGroupModel).filter(function(x){return x&&x.isFinalMatchday;});
+  var allGroupsFinal=withTour(liveTour(),function(){return allDone();});
+  var allQual=fdAllQualifiersResolved(),r32Ready=r32PairingsConfirmed();
+  var phase='group_stage';
+  if(!allGroupsFinal)phase=finalGroups.length?'final_matchday':'group_stage';
+  else if(!allQual||!r32Ready)phase='groups_resolving';
+  else if(!knockoutRoundComplete([73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]))phase='round_of_32';
+  else if(!knockoutRoundComplete([89,90,91,92,93,94,95,96]))phase='round_of_16';
+  else if(!knockoutRoundComplete([97,98,99,100]))phase='quarterfinal';
+  else if(!knockoutRoundComplete([101,102]))phase='semifinal';
+  else if(!(S.realko&&S.realko[103]))phase='third_place';
+  else if(!(S.realko&&S.realko[104]))phase='final';
+  else phase='complete';
+  return {phase:phase,allGroupFixturesFinal:allGroupsFinal,allQualifyingTeamsResolved:allQual,roundOf32PairingsConfirmed:r32Ready,
+    prioritizeBracket:allGroupsFinal||phase!=='group_stage'&&phase!=='final_matchday',finalMatchdayGroups:finalGroups.map(function(x){return x.group;}),roundOf32:r32FixtureStates()};
+}
+function knockoutRouteForTeam(code){
+  code=teamCode?teamCode(code):code;
+  if(!code||!T[code])return null;
+  var phase=tournamentPhaseState(),entry=withTour(liveTour(),function(){return teamEntryR32(code);});
+  var ts=tccTeamTournamentStatus(code);
+  if(ts&&ts.eliminated)return {team:code,state:'eliminated',phase:phase.phase,match:null,next:[]};
+  if(!entry)return {team:code,state:'pending_group_resolution',phase:phase.phase,match:null,next:[]};
+  var p=withTour(liveTour(),function(){return koParts(entry);}),opp=p[0]===code?p[1]:p[0];
+  return {team:code,state:opp?'confirmed_match':'opponent_to_be_decided',phase:phase.phase,match:{matchNum:entry,opponent:opp||null,round:roundName(entry)},next:freNextRouteSlots(entry)};
+}
+function validFutureFixtureNums(){
+  var phase=tournamentPhaseState();
+  return MATCHES.filter(function(m){
+    if(tccPlayed(m.num)||tccLiveState(m.num))return false;
+    if(m.stage==='group')return phase.phase==='group_stage'||phase.phase==='final_matchday';
+    var p=withTour(liveTour(),function(){return koParts(m.num);});
+    return !!(p[0]&&p[1]);
+  }).map(function(m){return m.num;});
+}
 /* compact truth chip for a standings row (only for settled/locked states) */
 function tccRowChip(code){if(typeof activeMode==='function'&&activeMode()!=='real')return '';var ts=tccTeamTournamentStatus(code);if(!ts)return '';
   if(ts.lockedWinner)return '<span class="st-chip win">'+(ts.complete?'Winners':'Winners · locked')+'</span>';
@@ -6319,6 +6428,15 @@ function marketPastKickoff(num){var m=M[num];if(!m)return false;var d=koDateTime
 function matchHoldState(num){return (S.rwState&&S.rwState[num]&&S.rwState[num].kind==='hold')?S.rwState[num]:null;}
 function matchLiveState(num){return (S.rwState&&S.rwState[num]&&(S.rwState[num].kind==='live'||S.rwState[num].kind==='hold'))?S.rwState[num]:null;}
 function officialFinalPayload(f){return f&&f.gh!=null&&f.ga!=null&&rwKind(f)==='final';}
+function knockoutOfficialWinnerFromPayload(f,hc,ac){
+  if(!officialFinalPayload(f)||!hc||!ac)return null;
+  if(f.winner==='HOME_TEAM')return hc;
+  if(f.winner==='AWAY_TEAM')return ac;
+  var status=String((f&&f.status)||'').toUpperCase();
+  if(status==='PEN'||status==='PENALTY_SHOOTOUT')return null;
+  if(f.gh!=null&&f.ga!=null&&f.gh!==f.ga)return f.gh>f.ga?hc:ac;
+  return null;
+}
 function ingestMatchStates(arr){if(!Array.isArray(arr)||!arr.length)return;if(!S.rwState)S.rwState={};
   arr.forEach(function(f){var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac);if(!mm)return;
     var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga,kind=rwKind(f);if(kind==='final')return;
@@ -6428,9 +6546,7 @@ function ingestKO(arr){
     if(!officialFinalPayload(f))return;
     if((f.stage||'')==='GROUP_STAGE')return;            // group games handled separately
     var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return;
-    var win=null;
-    if(f.winner==='HOME_TEAM')win=hc;else if(f.winner==='AWAY_TEAM')win=ac;
-    else if(f.gh!=null&&f.ga!=null){if(f.gh>f.ga)win=hc;else if(f.ga>f.gh)win=ac;}
+    var win=knockoutOfficialWinnerFromPayload(f,hc,ac);
     if(win)byPair[[hc,ac].sort().join('|')]=win;          // decided KO game
   });
   if(!Object.keys(byPair).length)return false;

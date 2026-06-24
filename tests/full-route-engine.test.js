@@ -31,6 +31,14 @@ function loadApp() {
       liveTour: liveTour,
       standings: standings,
       gMatches: gMatches,
+      fdFixtureState: fdFixtureState,
+      finalMatchdayGroupModel: finalMatchdayGroupModel,
+      tournamentPhaseState: tournamentPhaseState,
+      r32FixtureStates: r32FixtureStates,
+      knockoutRouteForTeam: knockoutRouteForTeam,
+      validFutureFixtureNums: validFutureFixtureNums,
+      knockoutOfficialWinnerFromPayload: knockoutOfficialWinnerFromPayload,
+      ingestKO: ingestKO,
       fullRouteExplorerEngine: fullRouteExplorerEngine,
       tccTeamTournamentStatus: tccTeamTournamentStatus,
       freDirectSlot: freDirectSlot,
@@ -64,6 +72,55 @@ function withApp(fn) {
   } finally {
     dom.window.close();
   }
+}
+
+function resetOfficial(app) {
+  Object.keys(app.REAL).forEach((k) => delete app.REAL[k]);
+  const state = app.blankState();
+  state.mode = 'real';
+  Object.keys(app.GROUPS).forEach((g) => { state.order[g] = app.GROUPS[g].slice(); });
+  app.setState(state);
+  return state;
+}
+
+function setOfficial(app, state, num, h, a) {
+  app.REAL[num] = [h, a];
+  state.sc[num] = { h, a };
+  state.real[num] = 1;
+}
+
+function fillGroup(app, state, group, mode = 'ordered') {
+  const order = app.GROUPS[group];
+  const margin = Object.keys(app.GROUPS).indexOf(group) + 1;
+  app.gMatches(group).forEach((m) => {
+    if (mode === 'draws') return setOfficial(app, state, m.num, 0, 0);
+    const hi = order.indexOf(m.home);
+    const ai = order.indexOf(m.away);
+    setOfficial(app, state, m.num, hi < ai ? margin : 0, hi < ai ? 0 : margin);
+  });
+}
+
+function fillAllGroups(app, state, tiedGroup = null) {
+  Object.keys(app.GROUPS).forEach((g) => fillGroup(app, state, g, g === tiedGroup ? 'draws' : 'ordered'));
+}
+
+function makeFinalMatchday(app, group = 'K') {
+  const state = resetOfficial(app);
+  const deciders = app.gMatches(group)
+    .slice()
+    .sort((a, b) => (a.date === b.date ? a.num - b.num : a.date < b.date ? -1 : 1))
+    .slice(-2);
+  const deciderNums = new Set(deciders.map((m) => m.num));
+  app.gMatches(group).forEach((m) => {
+    if (!deciderNums.has(m.num)) setOfficial(app, state, m.num, m.home === app.GROUPS[group][0] ? 1 : 0, m.away === app.GROUPS[group][0] ? 1 : 0);
+  });
+  state.rwState[deciders[0].num] = { kind: 'live', sh: 2, sa: 0, min: 63, label: 'Live', status: '2H' };
+  state.rwState[deciders[1].num] = { kind: 'live', sh: 0, sa: 1, min: 63, label: 'Live', status: '2H' };
+  state._rwlive = {};
+  state._rwlive[deciders[0].num] = { sh: 2, sa: 0, min: 63, label: 'Live', status: '2H' };
+  state._rwlive[deciders[1].num] = { sh: 0, sa: 1, min: 63, label: 'Live', status: '2H' };
+  app.setState(state);
+  return { state, deciders };
 }
 
 test('locked group winner has correct route slot', () => withApp((app) => {
@@ -188,4 +245,97 @@ test('factual road sheet and match center do not show model signals', () => with
   assert.equal(forbidden.test(doc.getElementById('sheet').textContent), false);
   const stories = app.editorialItems().map((x) => `${x.h} ${x.t}`).join('\n');
   assert.equal(forbidden.test(stories), false);
+}));
+
+test('final group matchday model tracks two simultaneous deciders', () => withApp((app) => {
+  const { deciders } = makeFinalMatchday(app, 'K');
+  const model = app.finalMatchdayGroupModel('K');
+  assert.equal(model.isFinalMatchday, true);
+  assert.equal(model.fixtures.length, 2);
+  assert.deepEqual(model.fixtures.map((f) => f.num), deciders.map((m) => m.num));
+  assert.equal(model.asItStands, true);
+  assert.equal(model.fixtures.every((f) => f.kind === 'live'), true);
+}));
+
+test('live final-day scores produce projected standings without overwriting official table', () => withApp((app) => {
+  makeFinalMatchday(app, 'K');
+  const model = app.finalMatchdayGroupModel('K');
+  const officialPlayed = model.officialTable.reduce((n, r) => n + r.Pl, 0);
+  const projectedPlayed = model.projectedTable.reduce((n, r) => n + r.Pl, 0);
+  assert.ok(projectedPlayed > officialPlayed, 'projected table should include live deciders');
+  assert.notEqual(JSON.stringify(model.officialTable), JSON.stringify(model.projectedTable));
+  assert.equal(model.stakes.some((s) => /Official final|have won|officially/i.test(s)), false);
+}));
+
+test('projected qualification copy stays conservative with live unresolved finals', () => withApp((app) => {
+  makeFinalMatchday(app, 'K');
+  const model = app.finalMatchdayGroupModel('K');
+  assert.ok(model.stakes.length > 0);
+  assert.equal(model.stakes.every((s) => !/\bofficially\b|\bconfirmed\b/i.test(s)), true);
+  assert.ok(model.stakes.some((s) => /unresolved|provisional|would/i.test(s)));
+}));
+
+test('all official group finals complete group stage and populate round of 32 pairings', () => withApp((app) => {
+  const state = resetOfficial(app);
+  fillAllGroups(app, state);
+  app.setState(state);
+  const phase = app.tournamentPhaseState();
+  assert.equal(phase.allGroupFixturesFinal, true);
+  assert.equal(phase.roundOf32PairingsConfirmed, true);
+  assert.equal(phase.phase, 'round_of_32');
+  assert.equal(phase.roundOf32.every((x) => x.state === 'confirmed_pairing'), true);
+}));
+
+test('phase resolver switches to groups resolving when official tiebreaks remain pending', () => withApp((app) => {
+  const state = resetOfficial(app);
+  fillAllGroups(app, state, 'A');
+  app.setState(state);
+  const phase = app.tournamentPhaseState();
+  assert.equal(phase.allGroupFixturesFinal, true);
+  assert.equal(phase.allQualifyingTeamsResolved, false);
+  assert.equal(phase.phase, 'groups_resolving');
+}));
+
+test('unresolved third-place slots remain pending before groups complete', () => withApp((app) => {
+  makeFinalMatchday(app, 'K');
+  const phase = app.tournamentPhaseState();
+  assert.equal(phase.phase, 'final_matchday');
+  assert.equal(phase.roundOf32.some((x) => x.pendingSlots.some((slot) => String(slot).startsWith('3:'))), true);
+}));
+
+test('route transition exposes knockout match only after qualifiers resolve', () => withApp((app) => {
+  resetOfficial(app);
+  let pending = app.knockoutRouteForTeam('POR');
+  assert.notEqual(pending.state, 'confirmed_match');
+  const state = resetOfficial(app);
+  fillAllGroups(app, state);
+  app.setState(state);
+  const route = app.knockoutRouteForTeam(app.GROUPS.K[0]);
+  assert.equal(route.state, 'confirmed_match');
+  assert.ok(route.match.matchNum >= 73 && route.match.matchNum <= 88);
+}));
+
+test('extra-time and penalty payloads advance only from official winner rules', () => withApp((app) => {
+  assert.equal(app.knockoutOfficialWinnerFromPayload({ status: 'AET', gh: 2, ga: 1 }, 'POR', 'COL'), 'POR');
+  assert.equal(app.knockoutOfficialWinnerFromPayload({ status: 'PEN', gh: 1, ga: 1 }, 'POR', 'COL'), null);
+  assert.equal(app.knockoutOfficialWinnerFromPayload({ status: 'PEN', gh: 1, ga: 1, winner: 'AWAY_TEAM' }, 'POR', 'COL'), 'COL');
+}));
+
+test('delayed final-day fixture does not falsely complete a group', () => withApp((app) => {
+  const { state, deciders } = makeFinalMatchday(app, 'K');
+  state.rwState[deciders[0].num] = { kind: 'hold', label: 'Play suspended', status: 'SUSP' };
+  delete state._rwlive[deciders[0].num];
+  app.setState(state);
+  const model = app.finalMatchdayGroupModel('K');
+  assert.equal(model.complete, false);
+  assert.equal(model.fixtures.some((f) => f.kind === 'hold'), true);
+}));
+
+test('valid future fixtures drop completed groups and expose resolved knockout fixtures', () => withApp((app) => {
+  const state = resetOfficial(app);
+  fillAllGroups(app, state);
+  app.setState(state);
+  const nums = app.validFutureFixtureNums();
+  assert.equal(nums.some((n) => app.M[n].stage === 'group'), false);
+  assert.equal(nums.some((n) => n >= 73 && n <= 88), true);
 }));
