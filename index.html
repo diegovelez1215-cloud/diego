@@ -1511,32 +1511,47 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .social-league-card b{display:block;font-size:13px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.social-league-card span{display:block;font-size:11px;color:var(--mut);font-weight:700;margin-top:3px;line-height:1.35}
 .social-league-card button{width:100%;margin-top:10px;border:1px solid var(--line2);background:rgba(255,255,255,.06);color:#fff;border-radius:11px;padding:10px 8px;font-size:11px;font-weight:900}
 @media (max-width:430px){.social-metrics{grid-template-columns:repeat(2,1fr)}.social-league{grid-template-columns:1fr}.social-profile{align-items:flex-start}.social-cta{padding:9px 10px}}
-/* ===== Phase 3A Lite · You-tab polish (profile header, performance card, next-action card) ===== */
-.you-head{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;background:linear-gradient(150deg,rgba(10,132,255,.16),rgba(8,13,31,.55));border:1px solid rgba(255,255,255,.11);box-shadow:var(--shadow-1)}
-.you-av{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#0a84ff,#5e5ce6);color:#fff;font-size:20px;font-weight:900;flex:0 0 auto;box-shadow:0 10px 24px -14px rgba(10,132,255,.85)}
+/* ===== Phase 3A · You-tab premium dashboard (profile header + performance hero + next-action) ===== */
+.you-stack{display:flex;flex-direction:column;gap:14px;margin-bottom:2px}
+/* one composed hero unit: profile header + performance, divided — reads as a personal dashboard, not stacked cards */
+.you-hero{position:relative;overflow:hidden;border-radius:22px;padding:18px;background:linear-gradient(162deg,rgba(54,68,142,.55),rgba(16,22,74,.66));border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 46px -28px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.07) inset;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.you-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(118% 78% at 100% -12%,rgba(100,210,255,.16),transparent 56%);pointer-events:none}
+.you-head{position:relative;display:flex;align-items:center;gap:13px}
+.you-av{position:relative;width:52px;height:52px;border-radius:16px;flex:0 0 auto;display:grid;place-items:center;background:linear-gradient(135deg,#1f6dff,#5e5ce6);color:#fff;font-size:21px;font-weight:900;font-family:'Space Grotesk',sans-serif;box-shadow:0 12px 26px -12px rgba(31,109,255,.9),0 0 0 1px rgba(255,255,255,.16) inset}
 .you-id{min-width:0;flex:1}
-.you-nm{font-size:16px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.you-status{font-size:11.5px;font-weight:700;color:var(--mut);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.you-edit{flex:0 0 auto;min-height:44px;border-radius:12px;padding:0 14px;background:rgba(255,255,255,.07);border:1px solid var(--line2);color:#fff;font-size:11.5px;font-weight:800}
-.you-perf{padding:16px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11);box-shadow:var(--shadow-1)}
-.you-perf-k{font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);margin-bottom:10px}
-.you-prim{display:flex;flex-direction:column;gap:3px;margin-bottom:14px}
-.you-prim b{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;line-height:1}
-.you-prim span{font-size:11px;font-weight:700;color:var(--mut)}
-.you-sub2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.you-s{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:11px 10px;text-align:center;min-width:0}
-.you-s b{display:block;font-size:17px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.you-nm{font-size:18px;font-weight:900;color:#fff;letter-spacing:-.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.you-status{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;font-weight:750;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.you-status i{width:6px;height:6px;border-radius:999px;background:var(--teal2);flex:0 0 auto;box-shadow:0 0 0 3px rgba(100,210,255,.18)}
+.you-edit{flex:0 0 auto;min-height:44px;display:inline-flex;align-items:center;border-radius:13px;padding:0 14px;background:rgba(255,255,255,.08);border:1px solid var(--line2);color:#fff;font-size:11.5px;font-weight:850;transition:background .18s var(--ease)}
+.you-edit:active{background:rgba(255,255,255,.15)}
+.you-div{height:1px;margin:16px 0 15px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent)}
+.you-perf-k{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut2)}
+.you-pill{font-size:9px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--teal2);background:rgba(100,210,255,.12);border:1px solid rgba(100,210,255,.32);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.you-prim{position:relative;margin:9px 0 3px;font-family:'Space Grotesk',sans-serif;font-size:40px;line-height:1;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-1.2px}
+.you-prim-sub{position:relative;font-size:11px;font-weight:700;color:var(--mut)}
+.you-sub2{position:relative;display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;margin-top:15px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:13px 6px}
+.you-s{text-align:center;min-width:0;padding:0 8px}
+.you-s b{display:block;font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;line-height:1;overflow:hidden;text-overflow:ellipsis}
 .you-s b.g{color:var(--green)}.you-s b.r{color:var(--red)}
-.you-s span{display:block;font-size:10.5px;font-weight:700;color:var(--mut2);margin-top:3px}
-.you-meta{margin-top:12px;font-size:11px;font-weight:700;color:var(--mut2);line-height:1.45}
-.you-next{position:relative;padding:15px;border-radius:18px;border:1px solid rgba(255,214,10,.26);background:linear-gradient(150deg,rgba(255,214,10,.11),rgba(8,13,31,.5));box-shadow:var(--shadow-1)}
-.you-next-k{font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
-.you-next-t{font-size:15px;font-weight:900;color:#fff}
-.you-next-s{font-size:12px;font-weight:700;color:var(--mut);margin-top:4px;line-height:1.4;overflow-wrap:anywhere}
-.you-next-btn{margin-top:12px;width:100%;min-height:46px;border:0;border-radius:13px;background:linear-gradient(135deg,#ffd60a,#ff9f0a);color:#1a1200;font-size:13px;font-weight:900}
-.you-next.neutral{border-color:rgba(255,255,255,.11);background:rgba(255,255,255,.045)}
-.you-next.neutral .you-next-k{color:var(--blue2)}
-.you-next.neutral .you-next-btn{background:rgba(255,255,255,.08);border:1px solid var(--line2);color:#fff}
+.you-s span{display:block;margin-top:5px;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--mut2)}
+.you-sep{width:1px;height:30px;background:rgba(255,255,255,.10)}
+.you-meta{position:relative;margin-top:13px;font-size:11px;font-weight:700;color:var(--mut2);line-height:1.45}
+/* next-action card — vivid, single CTA. Gold = Play/pick action · cyan = tournament/explore */
+.you-next{position:relative;overflow:hidden;border-radius:20px;padding:16px;border:1px solid rgba(255,214,10,.30);background:linear-gradient(155deg,rgba(255,214,10,.15),rgba(16,22,74,.62) 62%);box-shadow:0 16px 40px -26px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.06) inset}
+.you-next::before{content:"";position:absolute;inset:0;background:radial-gradient(92% 80% at 0 0,rgba(255,214,10,.13),transparent 56%);pointer-events:none}
+.you-next-k{position:relative;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold)}
+.you-next-k i{width:7px;height:7px;border-radius:999px;background:var(--gold);flex:0 0 auto;box-shadow:0 0 0 3px rgba(255,214,10,.20)}
+.you-next-t{position:relative;margin-top:9px;font-size:17px;font-weight:900;color:#fff;letter-spacing:-.3px;line-height:1.14}
+.you-next-s{position:relative;margin-top:6px;font-size:12.5px;font-weight:750;color:var(--mut);line-height:1.42;overflow-wrap:anywhere}
+.you-next-btn{position:relative;margin-top:14px;width:100%;min-height:48px;border:0;border-radius:14px;background:linear-gradient(135deg,#ffd60a,#ff9f0a);color:#1a1200;font-size:13.5px;font-weight:950;letter-spacing:.2px;box-shadow:0 10px 24px -13px rgba(255,159,10,.85);transition:transform .12s var(--ease)}
+.you-next-btn:active{transform:translateY(1px)}
+.you-next.neutral{border-color:rgba(100,210,255,.30);background:linear-gradient(155deg,rgba(100,210,255,.13),rgba(16,22,74,.62) 62%)}
+.you-next.neutral::before{background:radial-gradient(92% 80% at 0 0,rgba(100,210,255,.13),transparent 56%)}
+.you-next.neutral .you-next-k{color:var(--teal2)}
+.you-next.neutral .you-next-k i{background:var(--teal2);box-shadow:0 0 0 3px rgba(100,210,255,.20)}
+.you-next.neutral .you-next-btn{background:rgba(255,255,255,.10);border:1px solid var(--line2);color:#fff;box-shadow:none}
+@media (max-width:412px){.you-prim{font-size:36px}.you-nm{font-size:17px}.you-next-t{font-size:16px}.you-hero{padding:16px}}
+@media (prefers-reduced-motion:reduce){.you-next-btn:active,.you-edit:active{transform:none}}
 .lbh-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0}
 .lbh-row b{font-family:'Space Grotesk',sans-serif;color:var(--green);font-variant-numeric:tabular-nums}
 .lbh-you{margin-top:7px;font-size:11.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.06);border-radius:9px;padding:7px 10px;text-align:center}
@@ -3878,7 +3893,7 @@ function h2hQuick(){var a=S.h2hA,b=S.h2hB;if(a===b)return toast("Pick two differ
    lbName(), live match state). No new storage keys, no fabricated data. */
 function youGoTournament(){TAB='schedule';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#schedule','Tournament opened',40);}
 function youActionCard(cls,k,t,subHtml,btn,fn){
- return '<div class="you-next'+(cls==='neutral'?' neutral':'')+'"><div class="you-next-k">'+esc(k)+'</div><div class="you-next-t">'+esc(t)+'</div><div class="you-next-s">'+subHtml+'</div><button class="you-next-btn" onclick="'+fn+'">'+esc(btn)+'</button></div>';}
+ return '<div class="you-next'+(cls==='neutral'?' neutral':'')+'"><div class="you-next-k"><i></i>'+esc(k)+'</div><div class="you-next-t">'+esc(t)+'</div><div class="you-next-s">'+subHtml+'</div><button class="you-next-btn" onclick="'+fn+'">'+esc(btn)+'</button></div>';}
 function youMatchLine(num){var m=M[num];if(!m)return '';var pr=m.stage==='group'?[m.home,m.away]:koParts(num);if(!(pr[0]&&pr[1]))return '';return fl(pr[0])+' '+esc(nm(pr[0]))+' v '+esc(nm(pr[1]))+' '+fl(pr[1]);}
 /* Single contextual next-action card — priority: live pick > upcoming pick > open market > explore */
 function youNextHTML(open){
@@ -3912,18 +3927,21 @@ function youPolishHTML(){
  var initial=me?me.charAt(0).toUpperCase():'G';
  /* truthful status line — never implies login / cloud sync */
  var status=open.length?(open.length+' active pick'+(open.length===1?'':'s')):(settled.length?'Tournament tracker':'Ready for matchday');
- var head='<div class="you-head"><div class="you-av">'+esc(initial)+'</div><div class="you-id"><div class="you-nm">'+name+'</div><div class="you-status">'+esc(status)+'</div></div><button class="you-edit" onclick="lbPostSheet()">'+(me?'Edit profile':'Set name')+'</button></div>';
- /* performance card — primary: virtual balance · supporting: win rate + simulated P/L */
+ var head='<div class="you-head"><div class="you-av">'+esc(initial)+'</div><div class="you-id"><div class="you-nm">'+name+'</div><div class="you-status"><i></i>'+esc(status)+'</div></div><button class="you-edit" onclick="lbPostSheet()">'+(me?'Edit profile':'Set name')+'</button></div>';
+ /* performance block — primary: virtual balance · supporting: win rate + simulated P/L (data unchanged) */
  var wr=settled.length?Math.round(st.winRate)+'%':'—';
  var wrCls=settled.length?(st.winRate>=50?'g':''):'';
  var plTxt=settled.length?((pnl>=0?'+':'−')+'$'+Math.abs(pnl).toLocaleString()):'—';
  var plCls=settled.length?(pnl>=0?'g':'r'):'';
  var metaLine=(total===0)?'No picks yet — your tournament starts with the next match.':((settled.length===0)?(total+' active pick'+(total===1?'':'s')+' · completed picks appear here after official results.'):(total+' picks placed · '+settled.length+' settled'));
- var perf='<div class="you-perf"><div class="you-perf-k">Your simulated season</div>'
-   +'<div class="you-prim"><b>$'+(S.bank||0).toLocaleString()+'</b><span>Virtual balance · simulated funds, not real money</span></div>'
-   +'<div class="you-sub2"><div class="you-s"><b class="'+wrCls+'">'+wr+'</b><span>Win rate</span></div><div class="you-s"><b class="'+plCls+'">'+plTxt+'</b><span>Simulated P/L</span></div></div>'
-   +'<div class="you-meta">'+esc(metaLine)+'</div></div>';
- return head+perf+youNextHTML(open);}
+ var perf='<div class="you-perf-k"><span>Your simulated season</span><span class="you-pill">Simulated $</span></div>'
+   +'<div class="you-prim">$'+(S.bank||0).toLocaleString()+'</div>'
+   +'<div class="you-prim-sub">Virtual balance · play money, never real funds</div>'
+   +'<div class="you-sub2"><div class="you-s"><b class="'+wrCls+'">'+wr+'</b><span>Win rate</span></div><div class="you-sep"></div><div class="you-s"><b class="'+plCls+'">'+plTxt+'</b><span>Sim P/L</span></div></div>'
+   +'<div class="you-meta">'+esc(metaLine)+'</div>';
+ /* profile header + performance composed as one frosted hero unit, divided */
+ var hero='<div class="you-hero">'+head+'<div class="you-div"></div>'+perf+'</div>';
+ return '<div class="you-stack">'+hero+youNextHTML(open)+'</div>';}
 function socialHubHTML(){var st=bettorStats(),open=S.bets.filter(function(b){return !b.settled;}).length,settled=S.bets.filter(function(b){return b.settled;});
  var me=lbName(),roi=st.settled?((st.roi>=0?'+':'')+st.roi.toFixed(1)+'%'):'—',wr=st.settled?Math.round(st.winRate)+'%':'—';
  var pnl=settled.reduce(function(t,b){return t+(b.net||0);},0),style=playStyle(st.roi||0,S.bank||0),initial=me?me.charAt(0).toUpperCase():'U';
