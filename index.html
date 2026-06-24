@@ -368,6 +368,8 @@ nav button.on .e{opacity:1}
 /* modal / sheet */
 .scrim{position:fixed;inset:0;background:rgba(3,6,14,.72);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-end;justify-content:center}
 .scrim.on{display:flex;animation:fade .2s}
+/* Lock the page behind an open sheet so the background can't scroll (no scroll-behind). Additive — no-op where :has() is unsupported. */
+body:has(.scrim.on){overflow:hidden}
 @keyframes fade{from{opacity:0}}
 .sheet{background:var(--bg2);border:1px solid var(--line2);border-bottom:none;border-radius:22px 22px 0 0;width:100%;max-width:780px;max-height:84vh;overflow-y:auto;padding:8px 16px 26px;animation:up .26s cubic-bezier(.2,.8,.2,1)}
 @keyframes up{from{transform:translateY(100%)}}
@@ -564,6 +566,13 @@ body::after{ /* fine film grain for cinematic depth */
 .pk-btns{display:grid;grid-template-columns:1fr auto 1fr;gap:6px}
 .pk-btns button{border:1px solid var(--line2);background:var(--solid);color:var(--mut);font-size:11px;font-weight:800;padding:8px 6px;border-radius:9px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk-btns button.on{background:var(--grad);color:#fff;border-color:transparent}
+.pk-row.done{opacity:.96}
+.pk-locked{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pk-res{font-size:11px;font-weight:900;padding:5px 9px;border-radius:8px;background:var(--solid);border:1px solid var(--line2);color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pk-res.ok{background:rgba(48,209,88,.16);border-color:rgba(48,209,88,.4);color:var(--green)}
+.pk-res.no{background:rgba(255,69,58,.14);border-color:rgba(255,69,58,.38);color:#ff8a82}
+.pk-res.pend{background:rgba(255,203,61,.12);border-color:rgba(255,203,61,.34);color:var(--gold)}
+.pk-pickwas{font-size:10.5px;font-weight:800;color:var(--mut2);white-space:nowrap}
 /* Power-up store */
 .store-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:9px}
 .si-ic{font-size:26px;width:34px;text-align:center}
@@ -1432,7 +1441,10 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .lbd-form{margin:14px 0 10px}.lbd-form label{display:block;font-size:11px;font-weight:800;color:var(--mut2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .lbd-form input{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:12px;color:var(--txt);font-size:16px;font-weight:700;padding:12px 14px}
 .lbd-stat{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px;color:var(--mut)}.lbd-stat b{color:var(--txt);font-weight:900}
-.lbd-row{display:grid;grid-template-columns:30px 1fr auto auto 10px;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line);margin-bottom:7px;cursor:pointer}
+.lbd-row{display:grid;grid-template-columns:26px 28px 1fr auto auto 10px;align-items:center;gap:9px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line);margin-bottom:7px;cursor:pointer}
+.lbd-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#fff;background:linear-gradient(135deg,#0a84ff,#30d158)}
+.lbd-mv{display:inline-flex;margin-left:6px;font-size:9px;font-weight:900;vertical-align:middle;padding:1px 5px;border-radius:6px}
+.lbd-mv.up{color:var(--green);background:rgba(48,209,88,.16)}.lbd-mv.dn{color:#ff8a82;background:rgba(255,69,58,.14)}.lbd-mv.hold{color:var(--mut2);background:rgba(255,255,255,.06)}.lbd-mv.new{color:var(--gold);background:rgba(255,203,61,.14)}
 .lbd-row:active{transform:scale(.99)}
 .lbd-go{color:var(--mut3);font-weight:900;font-size:13px}
 .lbd-pulse{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:8px;margin-bottom:10px}
@@ -1440,7 +1452,7 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .lbd-card::before{content:"";position:absolute;inset:0;background:radial-gradient(80% 80% at 100% 0,rgba(255,255,255,.12),transparent 60%);pointer-events:none}
 .lbd-card span,.lbd-card b{position:relative}.lbd-card span{display:block;font-size:9.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2);margin-bottom:5px}.lbd-card b{display:block;font-size:13px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lbd-card.gold b{color:var(--gold)}.lbd-card.green b{color:var(--green)}.lbd-style{display:inline-flex;margin-left:6px;padding:2px 6px;border-radius:7px;background:rgba(255,255,255,.07);color:var(--teal2);font-size:9px;font-weight:900;vertical-align:middle}
-@media(max-width:520px){.lbd-pulse{grid-template-columns:1fr}.lbd-row{grid-template-columns:28px 1fr auto 8px}.lbd-roi{display:none}}
+@media(max-width:520px){.lbd-pulse{grid-template-columns:1fr}.lbd-row{grid-template-columns:24px 26px 1fr auto 8px}.lbd-roi{display:none}}
 /* leaderboard profile drawer */
 .prof-head{display:flex;align-items:center;gap:12px;margin:4px 2px 14px}
 .prof-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#3b9bff,#5e5ce6);color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center}
@@ -2063,6 +2075,32 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .tcc-st-row.scen .tcc-st-ic{color:var(--mut3)}
 .tcc-st-tag{display:inline-block;font-size:8.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:1px 6px;border-radius:10px;border:1px solid var(--line2);color:var(--mut2);margin-left:6px;vertical-align:1px}
 .tcc-scn-btn{display:block;width:100%;min-height:44px;margin-top:9px;border-radius:11px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
+/* Route Explorer Lite — compact "What this means" route card */
+.rel-wrap{display:flex;flex-direction:column;gap:10px;margin:4px 0 12px}
+.rel-card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(29,42,114,.34),rgba(255,255,255,.018));padding:12px 13px;margin-top:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.rel-wrap .rel-card{margin-top:0}
+.rel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
+.rel-k{font-size:9.5px;font-weight:950;letter-spacing:.8px;text-transform:uppercase;color:var(--gold)}
+.rel-status{flex:none;font-size:9px;font-weight:950;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.rel-status.rel-confirmed{color:var(--green);border-color:rgba(48,209,88,.4);background:rgba(48,209,88,.12)}
+.rel-status.rel-locked{color:#cfe0ff;border-color:rgba(94,158,255,.4);background:rgba(10,132,255,.14)}
+.rel-status.rel-stands{color:var(--blue2);border-color:rgba(94,158,255,.3);background:rgba(10,132,255,.08)}
+.rel-status.rel-alive{color:var(--gold);border-color:rgba(255,203,61,.34);background:rgba(255,203,61,.1)}
+.rel-status.rel-pending{color:var(--mut);border-color:var(--line2)}
+.rel-sub{font-size:11px;font-weight:700;color:var(--mut);margin:1px 0 9px}
+.rel-rows{display:flex;flex-direction:column;gap:7px}
+.rel-row{display:flex;gap:9px;align-items:flex-start}
+.rel-row .rel-ic{flex:none;width:18px;height:18px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;margin-top:1px}
+.rel-win .rel-ic{color:var(--green);background:rgba(48,209,88,.14)}
+.rel-draw .rel-ic{color:var(--mut2);background:rgba(255,255,255,.07)}
+.rel-lose .rel-ic{color:var(--red);background:rgba(255,69,58,.14)}
+.rel-tx{min-width:0;line-height:1.34}
+.rel-tx b{display:block;font-size:10px;font-weight:900;letter-spacing:.3px;text-transform:uppercase;color:var(--mut2);margin-bottom:1px}
+.rel-tx span{display:block;font-size:12.5px;font-weight:650;color:var(--txt)}
+.rel-r32{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.rel-r32-lab{align-self:flex-start;font-size:8.5px;font-weight:950;letter-spacing:.5px;text-transform:uppercase;color:#cfe0ff;background:rgba(10,132,255,.14);border:1px solid rgba(94,158,255,.32);border-radius:20px;padding:2px 8px}
+.rel-r32-tx{font-size:12.5px;font-weight:700;color:var(--txt);line-height:1.35}
+.rel-foot{margin-top:9px;font-size:9.5px;font-weight:800;letter-spacing:.3px;color:var(--mut3);text-transform:uppercase}
 /* bottom-sheet shared bits */
 .tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
 .tcc-sheet-lead b{color:var(--txt);font-weight:800}
@@ -2218,16 +2256,47 @@ const FEEDERS={89:[74,77],90:[73,75],91:[76,78],92:[79,80],93:[83,84],94:[81,82]
 /* Official FIFA 2026 Annex C: all 495 third-place allocation combinations (key=sorted 8 qualifying groups, value=3rd-group per winner-slot in order 1A,1B,1D,1E,1G,1I,1K,1L). */
 var TP3={"EFGHIJKL":"EJIFHGLK","DFGHIJKL":"HGIDJFLK","DEGHIJKL":"EJIDHGLK","DEFHIJKL":"EJIDHFLK","DEFGIJKL":"EGIDJFLK","DEFGHJKL":"EGJDHFLK","DEFGHIKL":"EGIDHFLK","DEFGHIJL":"EGJDHFLI","DEFGHIJK":"EGJDHFIK","CFGHIJKL":"HGICJFLK","CEGHIJKL":"EJICHGLK","CEFHIJKL":"EJICHFLK","CEFGIJKL":"EGICJFLK","CEFGHJKL":"EGJCHFLK","CEFGHIKL":"EGICHFLK","CEFGHIJL":"EGJCHFLI","CEFGHIJK":"EGJCHFIK","CDGHIJKL":"HGICJDLK","CDFHIJKL":"CJIDHFLK","CDFGIJKL":"CGIDJFLK","CDFGHJKL":"CGJDHFLK","CDFGHIKL":"CGIDHFLK","CDFGHIJL":"CGJDHFLI","CDFGHIJK":"CGJDHFIK","CDEHIJKL":"EJICHDLK","CDEGIJKL":"EGICJDLK","CDEGHJKL":"EGJCHDLK","CDEGHIKL":"EGICHDLK","CDEGHIJL":"EGJCHDLI","CDEGHIJK":"EGJCHDIK","CDEFIJKL":"CJEDIFLK","CDEFHJKL":"CJEDHFLK","CDEFHIKL":"CEIDHFLK","CDEFHIJL":"CJEDHFLI","CDEFHIJK":"CJEDHFIK","CDEFGJKL":"CGEDJFLK","CDEFGIKL":"CGEDIFLK","CDEFGIJL":"CGEDJFLI","CDEFGIJK":"CGEDJFIK","CDEFGHKL":"CGEDHFLK","CDEFGHJL":"CGJDHFLE","CDEFGHJK":"CGJDHFEK","CDEFGHIL":"CGEDHFLI","CDEFGHIK":"CGEDHFIK","CDEFGHIJ":"CGJDHFEI","BFGHIJKL":"HJBFIGLK","BEGHIJKL":"EJIBHGLK","BEFHIJKL":"EJBFIHLK","BEFGIJKL":"EJBFIGLK","BEFGHJKL":"EJBFHGLK","BEFGHIKL":"EGBFIHLK","BEFGHIJL":"EJBFHGLI","BEFGHIJK":"EJBFHGIK","BDGHIJKL":"HJBDIGLK","BDFHIJKL":"HJBDIFLK","BDFGIJKL":"IGBDJFLK","BDFGHJKL":"HGBDJFLK","BDFGHIKL":"HGBDIFLK","BDFGHIJL":"HGBDJFLI","BDFGHIJK":"HGBDJFIK","BDEHIJKL":"EJBDIHLK","BDEGIJKL":"EJBDIGLK","BDEGHJKL":"EJBDHGLK","BDEGHIKL":"EGBDIHLK","BDEGHIJL":"EJBDHGLI","BDEGHIJK":"EJBDHGIK","BDEFIJKL":"EJBDIFLK","BDEFHJKL":"EJBDHFLK","BDEFHIKL":"EIBDHFLK","BDEFHIJL":"EJBDHFLI","BDEFHIJK":"EJBDHFIK","BDEFGJKL":"EGBDJFLK","BDEFGIKL":"EGBDIFLK","BDEFGIJL":"EGBDJFLI","BDEFGIJK":"EGBDJFIK","BDEFGHKL":"EGBDHFLK","BDEFGHJL":"HGBDJFLE","BDEFGHJK":"HGBDJFEK","BDEFGHIL":"EGBDHFLI","BDEFGHIK":"EGBDHFIK","BDEFGHIJ":"HGBDJFEI","BCGHIJKL":"HJBCIGLK","BCFHIJKL":"HJBCIFLK","BCFGIJKL":"IGBCJFLK","BCFGHJKL":"HGBCJFLK","BCFGHIKL":"HGBCIFLK","BCFGHIJL":"HGBCJFLI","BCFGHIJK":"HGBCJFIK","BCEHIJKL":"EJBCIHLK","BCEGIJKL":"EJBCIGLK","BCEGHJKL":"EJBCHGLK","BCEGHIKL":"EGBCIHLK","BCEGHIJL":"EJBCHGLI","BCEGHIJK":"EJBCHGIK","BCEFIJKL":"EJBCIFLK","BCEFHJKL":"EJBCHFLK","BCEFHIKL":"EIBCHFLK","BCEFHIJL":"EJBCHFLI","BCEFHIJK":"EJBCHFIK","BCEFGJKL":"EGBCJFLK","BCEFGIKL":"EGBCIFLK","BCEFGIJL":"EGBCJFLI","BCEFGIJK":"EGBCJFIK","BCEFGHKL":"EGBCHFLK","BCEFGHJL":"HGBCJFLE","BCEFGHJK":"HGBCJFEK","BCEFGHIL":"EGBCHFLI","BCEFGHIK":"EGBCHFIK","BCEFGHIJ":"HGBCJFEI","BCDHIJKL":"HJBCIDLK","BCDGIJKL":"IGBCJDLK","BCDGHJKL":"HGBCJDLK","BCDGHIKL":"HGBCIDLK","BCDGHIJL":"HGBCJDLI","BCDGHIJK":"HGBCJDIK","BCDFIJKL":"CJBDIFLK","BCDFHJKL":"CJBDHFLK","BCDFHIKL":"CIBDHFLK","BCDFHIJL":"CJBDHFLI","BCDFHIJK":"CJBDHFIK","BCDFGJKL":"CGBDJFLK","BCDFGIKL":"CGBDIFLK","BCDFGIJL":"CGBDJFLI","BCDFGIJK":"CGBDJFIK","BCDFGHKL":"CGBDHFLK","BCDFGHJL":"CGBDHFLJ","BCDFGHJK":"HGBCJFDK","BCDFGHIL":"CGBDHFLI","BCDFGHIK":"CGBDHFIK","BCDFGHIJ":"HGBCJFDI","BCDEIJKL":"EJBCIDLK","BCDEHJKL":"EJBCHDLK","BCDEHIKL":"EIBCHDLK","BCDEHIJL":"EJBCHDLI","BCDEHIJK":"EJBCHDIK","BCDEGJKL":"EGBCJDLK","BCDEGIKL":"EGBCIDLK","BCDEGIJL":"EGBCJDLI","BCDEGIJK":"EGBCJDIK","BCDEGHKL":"EGBCHDLK","BCDEGHJL":"HGBCJDLE","BCDEGHJK":"HGBCJDEK","BCDEGHIL":"EGBCHDLI","BCDEGHIK":"EGBCHDIK","BCDEGHIJ":"HGBCJDEI","BCDEFJKL":"CJBDEFLK","BCDEFIKL":"CEBDIFLK","BCDEFIJL":"CJBDEFLI","BCDEFIJK":"CJBDEFIK","BCDEFHKL":"CEBDHFLK","BCDEFHJL":"CJBDHFLE","BCDEFHJK":"CJBDHFEK","BCDEFHIL":"CEBDHFLI","BCDEFHIK":"CEBDHFIK","BCDEFHIJ":"CJBDHFEI","BCDEFGKL":"CGBDEFLK","BCDEFGJL":"CGBDJFLE","BCDEFGJK":"CGBDJFEK","BCDEFGIL":"CGBDEFLI","BCDEFGIK":"CGBDEFIK","BCDEFGIJ":"CGBDJFEI","BCDEFGHL":"CGBDHFLE","BCDEFGHK":"CGBDHFEK","BCDEFGHJ":"HGBCJFDE","BCDEFGHI":"CGBDHFEI","AFGHIJKL":"HJIFAGLK","AEGHIJKL":"EJIAHGLK","AEFHIJKL":"EJIFAHLK","AEFGIJKL":"EJIFAGLK","AEFGHJKL":"EGJFAHLK","AEFGHIKL":"EGIFAHLK","AEFGHIJL":"EGJFAHLI","AEFGHIJK":"EGJFAHIK","ADGHIJKL":"HJIDAGLK","ADFHIJKL":"HJIDAFLK","ADFGIJKL":"IGJDAFLK","ADFGHJKL":"HGJDAFLK","ADFGHIKL":"HGIDAFLK","ADFGHIJL":"HGJDAFLI","ADFGHIJK":"HGJDAFIK","ADEHIJKL":"EJIDAHLK","ADEGIJKL":"EJIDAGLK","ADEGHJKL":"EGJDAHLK","ADEGHIKL":"EGIDAHLK","ADEGHIJL":"EGJDAHLI","ADEGHIJK":"EGJDAHIK","ADEFIJKL":"EJIDAFLK","ADEFHJKL":"HJEDAFLK","ADEFHIKL":"HEIDAFLK","ADEFHIJL":"HJEDAFLI","ADEFHIJK":"HJEDAFIK","ADEFGJKL":"EGJDAFLK","ADEFGIKL":"EGIDAFLK","ADEFGIJL":"EGJDAFLI","ADEFGIJK":"EGJDAFIK","ADEFGHKL":"HGEDAFLK","ADEFGHJL":"HGJDAFLE","ADEFGHJK":"HGJDAFEK","ADEFGHIL":"HGEDAFLI","ADEFGHIK":"HGEDAFIK","ADEFGHIJ":"HGJDAFEI","ACGHIJKL":"HJICAGLK","ACFHIJKL":"HJICAFLK","ACFGIJKL":"IGJCAFLK","ACFGHJKL":"HGJCAFLK","ACFGHIKL":"HGICAFLK","ACFGHIJL":"HGJCAFLI","ACFGHIJK":"HGJCAFIK","ACEHIJKL":"EJICAHLK","ACEGIJKL":"EJICAGLK","ACEGHJKL":"EGJCAHLK","ACEGHIKL":"EGICAHLK","ACEGHIJL":"EGJCAHLI","ACEGHIJK":"EGJCAHIK","ACEFIJKL":"EJICAFLK","ACEFHJKL":"HJECAFLK","ACEFHIKL":"HEICAFLK","ACEFHIJL":"HJECAFLI","ACEFHIJK":"HJECAFIK","ACEFGJKL":"EGJCAFLK","ACEFGIKL":"EGICAFLK","ACEFGIJL":"EGJCAFLI","ACEFGIJK":"EGJCAFIK","ACEFGHKL":"HGECAFLK","ACEFGHJL":"HGJCAFLE","ACEFGHJK":"HGJCAFEK","ACEFGHIL":"HGECAFLI","ACEFGHIK":"HGECAFIK","ACEFGHIJ":"HGJCAFEI","ACDHIJKL":"HJICADLK","ACDGIJKL":"IGJCADLK","ACDGHJKL":"HGJCADLK","ACDGHIKL":"HGICADLK","ACDGHIJL":"HGJCADLI","ACDGHIJK":"HGJCADIK","ACDFIJKL":"CJIDAFLK","ACDFHJKL":"HJFCADLK","ACDFHIKL":"HFICADLK","ACDFHIJL":"HJFCADLI","ACDFHIJK":"HJFCADIK","ACDFGJKL":"CGJDAFLK","ACDFGIKL":"CGIDAFLK","ACDFGIJL":"CGJDAFLI","ACDFGIJK":"CGJDAFIK","ACDFGHKL":"HGFCADLK","ACDFGHJL":"CGJDAFLH","ACDFGHJK":"HGJCAFDK","ACDFGHIL":"HGFCADLI","ACDFGHIK":"HGFCADIK","ACDFGHIJ":"HGJCAFDI","ACDEIJKL":"EJICADLK","ACDEHJKL":"HJECADLK","ACDEHIKL":"HEICADLK","ACDEHIJL":"HJECADLI","ACDEHIJK":"HJECADIK","ACDEGJKL":"EGJCADLK","ACDEGIKL":"EGICADLK","ACDEGIJL":"EGJCADLI","ACDEGIJK":"EGJCADIK","ACDEGHKL":"HGECADLK","ACDEGHJL":"HGJCADLE","ACDEGHJK":"HGJCADEK","ACDEGHIL":"HGECADLI","ACDEGHIK":"HGECADIK","ACDEGHIJ":"HGJCADEI","ACDEFJKL":"CJEDAFLK","ACDEFIKL":"CEIDAFLK","ACDEFIJL":"CJEDAFLI","ACDEFIJK":"CJEDAFIK","ACDEFHKL":"HEFCADLK","ACDEFHJL":"HJFCADLE","ACDEFHJK":"HJECAFDK","ACDEFHIL":"HEFCADLI","ACDEFHIK":"HEFCADIK","ACDEFHIJ":"HJECAFDI","ACDEFGKL":"CGEDAFLK","ACDEFGJL":"CGJDAFLE","ACDEFGJK":"CGJDAFEK","ACDEFGIL":"CGEDAFLI","ACDEFGIK":"CGEDAFIK","ACDEFGIJ":"CGJDAFEI","ACDEFGHL":"HGFCADLE","ACDEFGHK":"HGECAFDK","ACDEFGHJ":"HGJCAFDE","ACDEFGHI":"HGECAFDI","ABGHIJKL":"HJBAIGLK","ABFHIJKL":"HJBAIFLK","ABFGIJKL":"IJBFAGLK","ABFGHJKL":"HJBFAGLK","ABFGHIKL":"HGBAIFLK","ABFGHIJL":"HJBFAGLI","ABFGHIJK":"HJBFAGIK","ABEHIJKL":"EJBAIHLK","ABEGIJKL":"EJBAIGLK","ABEGHJKL":"EJBAHGLK","ABEGHIKL":"EGBAIHLK","ABEGHIJL":"EJBAHGLI","ABEGHIJK":"EJBAHGIK","ABEFIJKL":"EJBAIFLK","ABEFHJKL":"EJBFAHLK","ABEFHIKL":"EIBFAHLK","ABEFHIJL":"EJBFAHLI","ABEFHIJK":"EJBFAHIK","ABEFGJKL":"EJBFAGLK","ABEFGIKL":"EGBAIFLK","ABEFGIJL":"EJBFAGLI","ABEFGIJK":"EJBFAGIK","ABEFGHKL":"EGBFAHLK","ABEFGHJL":"HJBFAGLE","ABEFGHJK":"HJBFAGEK","ABEFGHIL":"EGBFAHLI","ABEFGHIK":"EGBFAHIK","ABEFGHIJ":"HJBFAGEI","ABDHIJKL":"IJBDAHLK","ABDGIJKL":"IJBDAGLK","ABDGHJKL":"HJBDAGLK","ABDGHIKL":"IGBDAHLK","ABDGHIJL":"HJBDAGLI","ABDGHIJK":"HJBDAGIK","ABDFIJKL":"IJBDAFLK","ABDFHJKL":"HJBDAFLK","ABDFHIKL":"HIBDAFLK","ABDFHIJL":"HJBDAFLI","ABDFHIJK":"HJBDAFIK","ABDFGJKL":"FJBDAGLK","ABDFGIKL":"IGBDAFLK","ABDFGIJL":"FJBDAGLI","ABDFGIJK":"FJBDAGIK","ABDFGHKL":"HGBDAFLK","ABDFGHJL":"HGBDAFLJ","ABDFGHJK":"HGBDAFJK","ABDFGHIL":"HGBDAFLI","ABDFGHIK":"HGBDAFIK","ABDFGHIJ":"HGBDAFIJ","ABDEIJKL":"EJBAIDLK","ABDEHJKL":"EJBDAHLK","ABDEHIKL":"EIBDAHLK","ABDEHIJL":"EJBDAHLI","ABDEHIJK":"EJBDAHIK","ABDEGJKL":"EJBDAGLK","ABDEGIKL":"EGBAIDLK","ABDEGIJL":"EJBDAGLI","ABDEGIJK":"EJBDAGIK","ABDEGHKL":"EGBDAHLK","ABDEGHJL":"HJBDAGLE","ABDEGHJK":"HJBDAGEK","ABDEGHIL":"EGBDAHLI","ABDEGHIK":"EGBDAHIK","ABDEGHIJ":"HJBDAGEI","ABDEFJKL":"EJBDAFLK","ABDEFIKL":"EIBDAFLK","ABDEFIJL":"EJBDAFLI","ABDEFIJK":"EJBDAFIK","ABDEFHKL":"HEBDAFLK","ABDEFHJL":"HJBDAFLE","ABDEFHJK":"HJBDAFEK","ABDEFHIL":"HEBDAFLI","ABDEFHIK":"HEBDAFIK","ABDEFHIJ":"HJBDAFEI","ABDEFGKL":"EGBDAFLK","ABDEFGJL":"EGBDAFLJ","ABDEFGJK":"EGBDAFJK","ABDEFGIL":"EGBDAFLI","ABDEFGIK":"EGBDAFIK","ABDEFGIJ":"EGBDAFIJ","ABDEFGHL":"HGBDAFLE","ABDEFGHK":"HGBDAFEK","ABDEFGHJ":"HGBDAFEJ","ABDEFGHI":"HGBDAFEI","ABCHIJKL":"IJBCAHLK","ABCGIJKL":"IJBCAGLK","ABCGHJKL":"HJBCAGLK","ABCGHIKL":"IGBCAHLK","ABCGHIJL":"HJBCAGLI","ABCGHIJK":"HJBCAGIK","ABCFIJKL":"IJBCAFLK","ABCFHJKL":"HJBCAFLK","ABCFHIKL":"HIBCAFLK","ABCFHIJL":"HJBCAFLI","ABCFHIJK":"HJBCAFIK","ABCFGJKL":"CJBFAGLK","ABCFGIKL":"IGBCAFLK","ABCFGIJL":"CJBFAGLI","ABCFGIJK":"CJBFAGIK","ABCFGHKL":"HGBCAFLK","ABCFGHJL":"HGBCAFLJ","ABCFGHJK":"HGBCAFJK","ABCFGHIL":"HGBCAFLI","ABCFGHIK":"HGBCAFIK","ABCFGHIJ":"HGBCAFIJ","ABCEIJKL":"EJBAICLK","ABCEHJKL":"EJBCAHLK","ABCEHIKL":"EIBCAHLK","ABCEHIJL":"EJBCAHLI","ABCEHIJK":"EJBCAHIK","ABCEGJKL":"EJBCAGLK","ABCEGIKL":"EGBAICLK","ABCEGIJL":"EJBCAGLI","ABCEGIJK":"EJBCAGIK","ABCEGHKL":"EGBCAHLK","ABCEGHJL":"HJBCAGLE","ABCEGHJK":"HJBCAGEK","ABCEGHIL":"EGBCAHLI","ABCEGHIK":"EGBCAHIK","ABCEGHIJ":"HJBCAGEI","ABCEFJKL":"EJBCAFLK","ABCEFIKL":"EIBCAFLK","ABCEFIJL":"EJBCAFLI","ABCEFIJK":"EJBCAFIK","ABCEFHKL":"HEBCAFLK","ABCEFHJL":"HJBCAFLE","ABCEFHJK":"HJBCAFEK","ABCEFHIL":"HEBCAFLI","ABCEFHIK":"HEBCAFIK","ABCEFHIJ":"HJBCAFEI","ABCEFGKL":"EGBCAFLK","ABCEFGJL":"EGBCAFLJ","ABCEFGJK":"EGBCAFJK","ABCEFGIL":"EGBCAFLI","ABCEFGIK":"EGBCAFIK","ABCEFGIJ":"EGBCAFIJ","ABCEFGHL":"HGBCAFLE","ABCEFGHK":"HGBCAFEK","ABCEFGHJ":"HGBCAFEJ","ABCEFGHI":"HGBCAFEI","ABCDIJKL":"IJBCADLK","ABCDHJKL":"HJBCADLK","ABCDHIKL":"HIBCADLK","ABCDHIJL":"HJBCADLI","ABCDHIJK":"HJBCADIK","ABCDGJKL":"CJBDAGLK","ABCDGIKL":"IGBCADLK","ABCDGIJL":"CJBDAGLI","ABCDGIJK":"CJBDAGIK","ABCDGHKL":"HGBCADLK","ABCDGHJL":"HGBCADLJ","ABCDGHJK":"HGBCADJK","ABCDGHIL":"HGBCADLI","ABCDGHIK":"HGBCADIK","ABCDGHIJ":"HGBCADIJ","ABCDFJKL":"CJBDAFLK","ABCDFIKL":"CIBDAFLK","ABCDFIJL":"CJBDAFLI","ABCDFIJK":"CJBDAFIK","ABCDFHKL":"HFBCADLK","ABCDFHJL":"CJBDAFLH","ABCDFHJK":"HJBCAFDK","ABCDFHIL":"HFBCADLI","ABCDFHIK":"HFBCADIK","ABCDFHIJ":"HJBCAFDI","ABCDFGKL":"CGBDAFLK","ABCDFGJL":"CGBDAFLJ","ABCDFGJK":"CGBDAFJK","ABCDFGIL":"CGBDAFLI","ABCDFGIK":"CGBDAFIK","ABCDFGIJ":"CGBDAFIJ","ABCDFGHL":"CGBDAFLH","ABCDFGHK":"HGBCAFDK","ABCDFGHJ":"HGBCAFDJ","ABCDFGHI":"HGBCAFDI","ABCDEJKL":"EJBCADLK","ABCDEIKL":"EIBCADLK","ABCDEIJL":"EJBCADLI","ABCDEIJK":"EJBCADIK","ABCDEHKL":"HEBCADLK","ABCDEHJL":"HJBCADLE","ABCDEHJK":"HJBCADEK","ABCDEHIL":"HEBCADLI","ABCDEHIK":"HEBCADIK","ABCDEHIJ":"HJBCADEI","ABCDEGKL":"EGBCADLK","ABCDEGJL":"EGBCADLJ","ABCDEGJK":"EGBCADJK","ABCDEGIL":"EGBCADLI","ABCDEGIK":"EGBCADIK","ABCDEGIJ":"EGBCADIJ","ABCDEGHL":"HGBCADLE","ABCDEGHK":"HGBCADEK","ABCDEGHJ":"HGBCADEJ","ABCDEGHI":"HGBCADEI","ABCDEFKL":"CEBDAFLK","ABCDEFJL":"CJBDAFLE","ABCDEFJK":"CJBDAFEK","ABCDEFIL":"CEBDAFLI","ABCDEFIK":"CEBDAFIK","ABCDEFIJ":"CJBDAFEI","ABCDEFHL":"HFBCADLE","ABCDEFHK":"HEBCAFDK","ABCDEFHJ":"HJBCAFDE","ABCDEFHI":"HEBCAFDI","ABCDEFGL":"CGBDAFLE","ABCDEFGK":"CGBDAFEK","ABCDEFGJ":"CGBDAFEJ","ABCDEFGI":"CGBDAFEI","ABCDEFGH":"HGBCAFDE"};var TP3C=[79,85,81,74,82,77,87,80];
 
-function teamInitials(c){var n=(T[c]&&T[c][0])||String(c||'Team');return n.split(/\s+/).filter(Boolean).slice(0,2).map(function(x){return x.charAt(0).toUpperCase();}).join('')||String(c||'T').slice(0,2).toUpperCase();}
+function normTeamInput(v){return String(v||'').normalize?String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''):String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+var TEAM_ALIAS={czechrepublic:'CZE',czechia:'CZE',southafrica:'RSA',southkorea:'KOR',korearepublic:'KOR',korea:'KOR',bosniaandherzegovina:'BIH',bosniaherzegovina:'BIH',bosnia:'BIH',turkey:'TUR',turkiye:'TUR',trkiye:'TUR',ivorycoast:'CIV',ctedivoire:'CIV',cotedivoire:'CIV',curacao:'CUW',curaao:'CUW',capeverde:'CPV',caboverde:'CPV',capeverdeislands:'CPV',iran:'IRN',iriran:'IRN',unitedstates:'USA',usa:'USA',unitedstatesofamerica:'USA',drcongo:'COD',congodr:'COD',democraticrepublicofthecongo:'COD',dccongo:'COD',congodemocraticrepublic:'COD',congo:'COD',newzealand:'NZL',saudiarabia:'KSA',panama:'PAN'};
+function teamCode(v){if(v&&typeof v==='object')v=v.code||v.team||v.name||v.shortName||v.country||'';var raw=String(v||'').trim(),up=raw.toUpperCase();if(T[up])return up;var n=normTeamInput(raw);if(TEAM_ALIAS[n]&&T[TEAM_ALIAS[n]])return TEAM_ALIAS[n];for(var c in T){if(normTeamInput(T[c][0])===n)return c;}return null;}
+function teamInitials(c){var code=teamCode(c),n=(code&&T[code]&&T[code][0])||String((c&&typeof c==='object'&&(c.name||c.team||c.code))||c||'Team');return n.split(/\s+/).filter(Boolean).slice(0,2).map(function(x){return x.charAt(0).toUpperCase();}).join('')||String(code||c||'T').slice(0,3).toUpperCase();}
 /* Country-code normalization + reliable flag-emoji support detection. We measure
    how many distinct colours the platform actually paints for a flag glyph; an
    unsupported flag renders as plain letters / a tofu box (≤2 colours), so we
    swap in a clean initials badge instead of a blank white block. Cached per glyph. */
 var _flagSupport={};
-function _glyphColors(s){try{var sz=22,cv=document.createElement('canvas');if(!cv||!cv.getContext)return-1;cv.width=cv.height=sz;var x=cv.getContext('2d');if(!x||!x.getImageData)return-1;x.textBaseline='middle';x.textAlign='center';x.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.clearRect(0,0,sz,sz);x.fillText(s,sz/2,sz/2);var d=x.getImageData(0,0,sz,sz).data,c={};for(var i=0;i<d.length;i+=4){if(d[i+3]>20)c[(d[i]>>5)+'.'+(d[i+1]>>5)+'.'+(d[i+2]>>5)]=1;}return Object.keys(c).length;}catch(e){return-1;}}
-function flagRenders(s){if(s in _flagSupport)return _flagSupport[s];var ok=true;var n=_glyphColors(s);if(n>=0){var ref=_glyphColors('A');ok=n>ref+1&&n>=3;}return _flagSupport[s]=ok;}
-function flBadge(c){var t=(T[c]&&/^[A-Za-z]{2,3}$/.test(String(c)))?String(c).toUpperCase():teamInitials(c);return '<span class="flbadge">'+esc(t)+'</span>';}
-function fl(c){var f=T[c]&&T[c][1];if(f&&String(f).trim()&&f!=="·"&&flagRenders(f))return f;return flBadge(c);}
+/* Scan how a glyph actually rasterizes: distinct colours, inked pixels and
+   chromatic (saturated, non-grey/white) pixels. A real national flag is
+   colourful and saturated; an unsupported flag renders as a near-blank
+   white "tofu" box — lots of white, ~no saturated pixels. We use the
+   saturation signal to reject those so Germany (and any flag) never shows
+   as an empty white block — it falls back to a clean initials badge. */
+function _glyphScan(s){try{var sz=24,cv=document.createElement('canvas');if(!cv||!cv.getContext)return null;cv.width=cv.height=sz;var x=cv.getContext('2d');if(!x||!x.getImageData)return null;x.textBaseline='middle';x.textAlign='center';x.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.clearRect(0,0,sz,sz);x.fillText(s,sz/2,sz/2);var d=x.getImageData(0,0,sz,sz).data,c={},ink=0,sat=0,white=0;for(var i=0;i<d.length;i+=4){if(d[i+3]<=24)continue;var r=d[i],g=d[i+1],b=d[i+2];ink++;c[(r>>5)+'.'+(g>>5)+'.'+(b>>5)]=1;if(Math.max(r,g,b)-Math.min(r,g,b)>40)sat++;if(r>=228&&g>=228&&b>=228)white++;}return {n:Object.keys(c).length,ink:ink,sat:sat,white:white};}catch(e){return null;}}
+function _glyphColors(s){var sc=_glyphScan(s);return sc?sc.n:-1;}
+/* Decide ONCE whether this platform's canvas can actually measure emoji glyphs.
+   We scan a reference flag that is colourful on every flag-capable platform
+   (🇧🇷 Brazil — green/yellow/blue). If even that comes back blank/unreadable,
+   canvas read-back is blocked here (some privacy modes), so we must TRUST native
+   emoji rendering — badging every flag would be the worse failure. When canvas
+   IS readable we measure each flag and badge only the ones that paint as a
+   blank / white "tofu" box. */
+var _canvasFlagReadable=null;
+function _flagCanvasReadable(){if(_canvasFlagReadable!=null)return _canvasFlagReadable;var ref=_glyphScan('🇧🇷');_canvasFlagReadable=!!(ref&&ref.ink>=6&&ref.sat>=3&&ref.n>=4);return _canvasFlagReadable;}
+function flagRenders(s){if(s in _flagSupport)return _flagSupport[s];
+  if(!_flagCanvasReadable())return _flagSupport[s]=true;            // can't measure → trust the native emoji
+  var sc=_glyphScan(s),ok=false;
+  if(sc){var ref=_glyphScan('A'),refN=ref?ref.n:1;
+    var whiteHeavy=sc.ink>0&&(sc.white/sc.ink)>=0.85;               // dominated by white = blank/tofu box
+    ok=sc.ink>=6&&sc.n>=Math.max(3,refN+1)&&sc.sat>=3&&!whiteHeavy; // real flag: colourful, saturated, not white-block
+  }
+  return _flagSupport[s]=ok;}
+/* Emoji/color fonts can finish loading after first paint; a flag checked too
+   early may be mis-cached. Re-check once fonts are ready and re-render. */
+function recheckFlags(){try{_flagSupport={};_canvasFlagReadable=null;if(typeof render==='function')render();}catch(e){}}
+try{if(document.fonts&&document.fonts.ready&&document.fonts.ready.then)document.fonts.ready.then(function(){setTimeout(recheckFlags,30);});else setTimeout(recheckFlags,400);}catch(e){setTimeout(function(){try{recheckFlags();}catch(e){}},400);}
+try{window.addEventListener('load',function(){setTimeout(recheckFlags,60);});}catch(e){}
+function flBadge(c){var code=teamCode(c),raw=String((c&&typeof c==='object'&&(c.code||c.team||c.name))||c||'').trim(),t=(code&&/^[A-Za-z]{2,3}$/.test(String(code)))?String(code).toUpperCase():(/^[A-Za-z]{2,3}$/.test(raw)?raw.toUpperCase():teamInitials(c));return '<span class="flbadge">'+esc(t)+'</span>';}
+function fl(c){var code=teamCode(c),f=code&&T[code]&&T[code][1];if(f&&String(f).trim()&&f!=="·"&&f!=="🏳"&&flagRenders(f))return f;return flBadge(code||c);}
 /* render a raw flag emoji (e.g. host-nation flag) with the same no-tofu guarantee */
 var _flEmojiCode={'🇨🇦':'CA','🇺🇸':'US','🇲🇽':'MX'};
 function flStr(emoji){if(emoji&&String(emoji).trim()&&flagRenders(emoji))return emoji;return '<span class="flbadge">'+esc(_flEmojiCode[emoji]||'•')+'</span>';}
@@ -2904,13 +2973,54 @@ function checkPicks(){if(!S.preds)return;if(!S.predResolved)S.predResolved={};va
      if(bonus){S.bank+=bonus;try{haptic('win');}catch(e){}toast("🎯 "+ms+"-pick streak · +$"+bonus.toLocaleString()+"!");}}
    else{if(S.powerups&&S.powerups.streak>0){S.powerups.streak--;toast("🛟 Streak Saver used — streak survives!");}else{S.pickStreak=0;}}});
  if(changed)saveState();}
-function pickem(num,pick){if(!S.preds)S.preds={};S.preds[num]=pick;try{haptic('pick');}catch(e){}saveState();renderHome();}
+/* A pick is only allowed while the match is genuinely open (not kicked off,
+   no sim/official score, not live). Once it starts it locks — never silently
+   dropped: it stays in the list and transitions to a locked/result row. */
+function pkemMatchOpen(num){return !((S.real&&S.real[num])||S.sc[num]||matchLiveState(num));}
+function pkemSort(x,y){var kx=(x.date||"")+(x.time||"")+("000"+x.num).slice(-3),ky=(y.date||"")+(y.time||"")+("000"+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;}
+function pkemPickLabel(m,p){return p==='h'?nm(m.home):p==='d'?'Draw':p==='a'?nm(m.away):'—';}
+/* Build the Pick'em list. CRITICAL: the list is pick-aware and de-duplicated,
+   so selecting a team, a live poll, a finished match or a tab switch can never
+   remove, reorder-out or duplicate a fixture the user is engaging with.
+   - every OPEN group match the user already picked is always kept
+   - the next open group matches fill the card (up to a cap)
+   - any picked match that has since started/finished stays, shown as locked/result
+   - a match that JUST kicked off (within the recency window) stays even if the
+     user never picked it, so a fixture they were looking at transitions to a
+     locked/result row instead of silently disappearing the moment it locks. */
+function pickemList(){
+ var P=S.preds||{},seen={},out=[];
+ function add(m){if(!m||seen[m.num])return;seen[m.num]=1;out.push(m);}
+ function koMs(m){var d=koDateTime(m);return d?d.getTime():0;}
+ function byKoDesc(x,y){return koMs(y)-koMs(x);}
+ var grp=MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away;});
+ var open=grp.filter(function(m){return pkemMatchOpen(m.num);}).sort(pkemSort);
+ open.forEach(function(m){if(P[m.num]!=null)add(m);});      // never drop an open pick
+ open.forEach(function(m){if(out.length<5)add(m);});        // fill with next upcoming
+ var locked=grp.filter(function(m){return !seen[m.num]&&!pkemMatchOpen(m.num);});
+ locked.filter(function(m){return P[m.num]!=null;}).sort(byKoDesc).slice(0,4).forEach(add); // their own picks → keep as result rows
+ var now=Date.now(),RECENT=36*3600000;                     // recently kicked-off, even if unpicked → don't let it vanish
+ locked.filter(function(m){return P[m.num]==null&&koMs(m)&&(now-koMs(m))<=RECENT;}).sort(byKoDesc).slice(0,3).forEach(add);
+ return out.sort(pkemSort);
+}
+function pickem(num,pick){if(!S.preds)S.preds={};if(!pkemMatchOpen(num)){try{toast("That match is locked — pick before kickoff");}catch(e){}return;}S.preds[num]=pick;try{haptic('pick');}catch(e){}saveState();renderHome();}
 function pickemHTML(){
- var ms=MATCHES.filter(function(m){return m.stage==="group"&&!(S.real&&S.real[m.num])&&!S.sc[m.num]&&m.home&&m.away;})
-   .sort(function(x,y){var kx=(x.date||"")+(x.time||"")+("000"+x.num).slice(-3),ky=(y.date||"")+(y.time||"")+("000"+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;}).slice(0,4);
+ var ms=pickemList();
  if(!ms.length)return "";
- var rows=ms.map(function(m){var p=(S.preds||{})[m.num];
-   return '<div class="pk-row"><div class="pk-mt"><span class="fl">'+fl(m.home)+'</span> '+nm(m.home)+' <span class="pk-v">v</span> '+nm(m.away)+' <span class="fl">'+fl(m.away)+'</span></div><div class="pk-btns"><button class="'+(p==='h'?'on':'')+'" onclick="pickem('+m.num+',\'h\')">'+esc(nm(m.home))+'</button><button class="'+(p==='d'?'on':'')+'" onclick="pickem('+m.num+',\'d\')">Draw</button><button class="'+(p==='a'?'on':'')+'" onclick="pickem('+m.num+',\'a\')">'+esc(nm(m.away))+'</button></div></div>';}).join("");
+ var rows=ms.map(function(m){
+   var p=(S.preds||{})[m.num];
+   var title='<div class="pk-mt"><span class="fl">'+fl(m.home)+'</span> '+esc(nm(m.home))+' <span class="pk-v">v</span> '+esc(nm(m.away))+' <span class="fl">'+fl(m.away)+'</span></div>';
+   var official=!!(S.real&&S.real[m.num]),sc=S.sc[m.num];
+   if(official&&sc){
+     var o=betOutcome(m.num),correct=(p!=null&&p===o);
+     var tag=(p==null)?'<span class="pk-res">FT '+sc.h+'–'+sc.a+'</span>':'<span class="pk-res '+(correct?'ok':'no')+'">'+(correct?'✓':'✗')+' '+sc.h+'–'+sc.a+'</span>';
+     return '<div class="pk-row done">'+title+'<div class="pk-locked">'+tag+'<span class="pk-pickwas">Your pick · '+esc(pkemPickLabel(m,p))+'</span></div></div>';
+   }
+   if(!pkemMatchOpen(m.num)){
+     return '<div class="pk-row done">'+title+'<div class="pk-locked"><span class="pk-res pend">Locked · awaiting result</span><span class="pk-pickwas">Your pick · '+esc(pkemPickLabel(m,p))+'</span></div></div>';
+   }
+   return '<div class="pk-row"><div class="pk-mt"><span class="fl">'+fl(m.home)+'</span> '+esc(nm(m.home))+' <span class="pk-v">v</span> '+esc(nm(m.away))+' <span class="fl">'+fl(m.away)+'</span></div><div class="pk-btns"><button class="'+(p==='h'?'on':'')+'" onclick="pickem('+m.num+',\'h\')">'+esc(nm(m.home))+'</button><button class="'+(p==='d'?'on':'')+'" onclick="pickem('+m.num+',\'d\')">Draw</button><button class="'+(p==='a'?'on':'')+'" onclick="pickem('+m.num+',\'a\')">'+esc(nm(m.away))+'</button></div></div>';
+ }).join("");
  return '<div class="pkem-card"><div class="pkem-h"><span>🎯 Daily Pick’em</span><span class="pkem-streak">🔥 '+(S.pickStreak||0)+(S.pickBest?' · best '+S.pickBest:'')+'</span></div><div class="pkem-sub">Call the next results. Correct picks build a streak → bonus cash at 3 · 5 · 10 · 20.</div>'+rows+'</div>';}
 /* ===== Power-Up Store ===== */
 function storeItem(ic,name,desc,key,cost){var owned=(S.powerups&&S.powerups[key])||0;return '<div class="store-item"><div class="si-ic">'+ic+'</div><div class="si-tx"><div class="si-n">'+name+(owned?' <span class="si-own">×'+owned+'</span>':'')+'</div><div class="si-d">'+desc+'</div></div><button class="si-buy'+(S.bank<cost?' dis':'')+'" onclick="buyPower(\''+key+'\','+cost+')">$'+cost.toLocaleString()+'</button></div>';}
@@ -3311,6 +3421,37 @@ var SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 function supaReady(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function supaHeaders(){return {apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'};}
 function lbName(){try{return localStorage.getItem('wc26_name')||'';}catch(e){return '';}}
+/* ===== Competition reset (Phase 5A leaderboard) =====
+   This is a RESET, not a permanent cap. Old fake/inactive seeded rows (created
+   before the reset) are hidden from view (never deleted destructively here), but
+   the board is NOT whitelisted to a fixed set of names. A row is shown when it is:
+     • part of the reset cohort (Dingus, Diego, Ana — kept visible after reset), OR
+     • the current user (always shown as themselves), OR
+     • a genuine post-reset record (created at/after the reset epoch) — so any
+       future real player appears automatically the moment they become active
+       through real participation, profile activation, a ticket, a Pick'em entry
+       or any post-reset leaderboard post (each of those auto-posts a fresh row).
+   Because post-reset records pass on their own, we never have to whitelist new
+   people by hand. */
+var LB_RESET_COHORT=["Dingus","Diego","Ana"];
+var LB_ACTIVE=LB_RESET_COHORT;                                  // back-compat alias
+var LB_RESET_EPOCH=Date.parse("2026-06-24T00:00:00Z");          // competition reset moment
+function _lbKey(s){return (s||"").trim().toLowerCase();}
+function lbCohortSet(){var m={};LB_RESET_COHORT.forEach(function(n){m[_lbKey(n)]=1;});var me=lbName();if(me)m[_lbKey(me)]=1;return m;}
+function lbActiveSet(){return lbCohortSet();}                   // back-compat alias
+function lbPostReset(e){var t=Date.parse((e&&e.created_at)||0)||0;return t>=LB_RESET_EPOCH;}
+function lbVisible(e){return !!lbCohortSet()[_lbKey(dispName(e&&e.name))]||lbPostReset(e);}
+function lbIsActive(name){return !!lbCohortSet()[_lbKey(dispName(name))];}
+function lbCurate(arr){return (arr||[]).filter(lbVisible);}
+/* One-time, non-destructive backup of leaderboard-related local data (identity +
+   wallet/tickets/picks/history live in wc26_v1). Never overwrites an existing
+   backup, so Diego's data is preserved before any cleanup. */
+(function lbBackupOnce(){try{if(localStorage.getItem('wc26_lb_backup'))return;var snap={ts:new Date().toISOString(),name:localStorage.getItem('wc26_name')||null,state:localStorage.getItem('wc26_v1')||null};localStorage.setItem('wc26_lb_backup',JSON.stringify(snap));}catch(e){}})();
+/* Rank-movement memory: remember each player's last rank so we can show ▲/▼/–
+   honestly from stored data (no fabricated movement). */
+function lbRankMemo(){try{return JSON.parse(localStorage.getItem('wc26_lb_ranks')||'{}')||{};}catch(e){return {};}}
+function lbRankSave(arr){try{var m={};arr.forEach(function(e,i){m[_lbKey(dispName(e.name))]=i+1;});localStorage.setItem('wc26_lb_ranks',JSON.stringify(m));}catch(e){}}
+function lbMoveTag(name,idx){var prev=lbRankMemo()[_lbKey(dispName(name))];var cur=idx+1;if(prev==null)return '<span class="lbd-mv new">NEW</span>';if(prev>cur)return '<span class="lbd-mv up">▲'+(prev-cur)+'</span>';if(prev<cur)return '<span class="lbd-mv dn">▼'+(cur-prev)+'</span>';return '<span class="lbd-mv hold">–</span>';}
 /* Keep the global board clean — block slurs/profanity on post, and mask any that
    already slipped through when displaying. */
 var BADWORDS=["nigger","nigga","niqqer","faggot","retard","retarded","autist","autistic","kike","spic","chink","tranny","trannie","beaner","wetback","coon","gook","paki","kkk","molest","pedo","paedo","rapist","fuck","fuk","shit","cunt","bitch","pussy","cock","whore","slut","bastard","dyke","negro"];
@@ -3394,12 +3535,13 @@ function lbFetch(){var els=[].slice.call(document.querySelectorAll("#lbBoard,#so
  function paint(html){els=[].slice.call(document.querySelectorAll("#lbBoard,#socialLbBoard"));els.forEach(function(el){el.innerHTML=html;});}
  fetch(SUPA_URL+'/rest/v1/scores?select=*&order=bankroll.desc&limit=300',{headers:supaHeaders()})
   .then(function(r){return r.ok?r.json():[];}).then(function(arr){
-   if(!arr||!arr.length){paint('<div class="emptyst"><div class="ei">🏆</div><div class="et">No scores yet</div><div class="es">Be the first — your score posts itself once you set a name.</div></div>');return;}
-   arr=dedupBoard(arr).slice(0,100);_lbData=arr;
+   arr=lbCurate(dedupBoard(arr)).slice(0,100);_lbData=arr;
+   if(!arr.length){paint('<div class="emptyst"><div class="ei">🏆</div><div class="et">No active players yet</div><div class="es">Set your name to join — every new player shows up here automatically once they post a score.</div></div>');return;}
    var myIdx=me?arr.findIndex(function(e){return dispName(e.name)===me;}):-1;
-   var banner='<div class="lbd-live">🟢 Live · auto-updating · tap anyone for their profile</div>'+lbRaceHTML(arr,myIdx)+(myIdx>=0?'<div class="lbd-you">🎯 You\'re <b>#'+(myIdx+1)+'</b> of '+arr.length+(myIdx===0?' — top of the world! 🌍':'')+'</div>':'');
-   paint(banner+arr.map(function(e,i){var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1),roiVal=+(e.roi||0),ps=playStyle(roiVal,e.bankroll||0);var roi=(e.roi!=null&&e.roi!==0)?'<span class="lbd-roi '+(roiVal>=0?'g':'r')+'">'+(roiVal>=0?'+':'')+roiVal+'%</span>':'';var dn=maskBad(dispName(e.name));
-     return '<div class="lbd-row'+(me&&dn===me?' me':'')+'" onclick="lbProfile('+i+')"><span class="lbd-rk">'+medal+'</span><span class="lbd-nm">'+esc(dn)+'<span class="lbd-style">'+ps[0]+' '+ps[1]+'</span>'+(e.champ?' <span class="lbd-ch">🏆 '+esc(e.champ)+'</span>':'')+'</span>'+roi+'<span class="lbd-bk">$'+(e.bankroll||0).toLocaleString()+'</span><span class="lbd-go">›</span></div>';}).join(""));
+   var banner='<div class="lbd-live">🟢 Live · auto-updating · tap anyone for their profile</div>'+lbRaceHTML(arr,myIdx)+(myIdx>=0?'<div class="lbd-you">🎯 You\'re <b>#'+(myIdx+1)+'</b> of '+arr.length+(myIdx===0?' — top of the table':'')+'</div>':'');
+   paint(banner+arr.map(function(e,i){var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1),roiVal=+(e.roi||0);var roi=(e.roi!=null&&e.roi!==0)?'<span class="lbd-roi '+(roiVal>=0?'g':'r')+'">'+(roiVal>=0?'+':'')+roiVal+'% ROI</span>':'';var dn=maskBad(dispName(e.name));
+     return '<div class="lbd-row'+(me&&dn===me?' me':'')+'" onclick="lbProfile('+i+')"><span class="lbd-rk">'+medal+'</span><span class="lbd-av">'+esc(dn.charAt(0).toUpperCase())+'</span><span class="lbd-nm">'+esc(dn)+lbMoveTag(e.name,i)+(e.champ?'<span class="lbd-ch">🏆 '+esc(e.champ)+'</span>':'')+'</span>'+roi+'<span class="lbd-bk">$'+(e.bankroll||0).toLocaleString()+'</span><span class="lbd-go">›</span></div>';}).join(""));
+   lbRankSave(arr);
   }).catch(function(){paint('<div class="bethint">Leaderboard unavailable right now.</div>');});}
 /* ===== Leaderboard profile drawer (P6) — richer, story-rich, but kept off the first view ===== */
 var _lbData=[];
@@ -3414,19 +3556,25 @@ function lbProfile(i){var e=_lbData[i];if(!e)return;var me=lbName();var dn=maskB
  var rank=i+1,roi=(e.roi!=null?e.roi:0),ps=playStyle(roi,e.bankroll||0);
  try{haptic('tap');}catch(e2){}
  var rows='<div class="prof-grid">'
-  +'<div class="prof-c"><b>#'+rank+'</b><span>Global rank</span></div>'
+  +'<div class="prof-c"><b>#'+rank+'</b><span>Rank</span></div>'
   +'<div class="prof-c"><b>$'+(e.bankroll||0).toLocaleString()+'</b><span>Bankroll</span></div>'
   +'<div class="prof-c"><b class="'+(roi>=0?'g':'r')+'">'+(roi>=0?'+':'')+roi+'%</b><span>ROI</span></div>'
   +'<div class="prof-c"><b>'+(e.champ?esc(e.champ):'—')+'</b><span>Picks to win</span></div>';
- if(isMe){var st=bettorStats(),strk=curStreak();
-  rows+='<div class="prof-c"><b>'+(st.settled?Math.round(st.winRate)+'%':'—')+'</b><span>Win rate</span></div>'
-   +'<div class="prof-c"><b class="g">'+(st.biggest>0?'+$'+st.biggest.toLocaleString():'—')+'</b><span>Biggest hit</span></div>'
-   +'<div class="prof-c"><b>'+(st.bestTeam?fl(st.bestTeam)+' '+nm(st.bestTeam):'—')+'</b><span>Lucky team</span></div>'
-   +'<div class="prof-c"><b>'+(strk||'—')+'</b><span>Current streak</span></div>';}
- rows+='</div>';
+ if(isMe){var st=bettorStats(),strk=curStreak(),settledBets=S.bets.filter(function(b){return b.settled&&canonicalBetState(b)!=='void';}),wins=settledBets.filter(function(b){return canonicalBetState(b)==='won';}).length,losses=settledBets.filter(function(b){return canonicalBetState(b)==='lost';}).length,pnl=settledBets.reduce(function(t,b){return t+(b.net||0);},0);
+  if(st.settled){
+   rows+='<div class="prof-c"><b class="'+(pnl>=0?'g':'r')+'">'+(pnl>=0?'+':'')+'$'+Math.abs(pnl).toLocaleString()+'</b><span>Profit / loss</span></div>'
+    +'<div class="prof-c"><b>'+wins+'–'+losses+'</b><span>Wins / losses</span></div>'
+    +'<div class="prof-c"><b>'+Math.round(st.winRate)+'%</b><span>Win rate</span></div>'
+    +'<div class="prof-c"><b class="g">'+(st.biggest>0?'+$'+st.biggest.toLocaleString():'—')+'</b><span>Biggest win</span></div>'
+    +'<div class="prof-c"><b>'+(strk||'—')+'</b><span>Streak</span></div>'
+    +'<div class="prof-c"><b>'+st.settled+'</b><span>Settled picks</span></div>';
+  }
+  rows+='</div>'+(st.settled?'':'<div class="bethint" style="text-align:center;margin:12px 2px 2px">No settled picks yet — your win/loss record fills in as your picks settle.</div>');
+ }else{
+  rows+='</div><div class="bethint" style="text-align:center;margin:12px 2px 2px">Public stats show bankroll, ROI and title pick. Win/loss detail is private to each player.</div>';
+ }
  var html='<div class="grab"></div><div class="prof-head"><div class="prof-av">'+esc(dn.charAt(0).toUpperCase())+'</div><div><div class="prof-nm">'+esc(dn)+(isMe?' <span class="prof-you">YOU</span>':'')+'</div><div class="prof-style">'+ps[0]+' '+ps[1]+' · '+ps[2]+'</div></div></div>'
   +rows
-  +(isMe?'':'<div class="bethint" style="text-align:center;margin:12px 2px 2px">Public stats are limited to what each player posts. Full detail shows for your own profile.</div>')
   +'<button class="tbtn" style="width:100%;justify-content:center;margin-top:14px" onclick="closeSheet()">Close</button>';
  var sh=document.getElementById("sheet");if(sh){sh.innerHTML=html;sh.style.transform="";}document.getElementById("scrim").classList.add("on");}
 /* compact leaderboard card for the Home screen (easy to find + dopamine) */
@@ -3436,8 +3584,8 @@ function goLeaderboard(){TAB='h2h';if(typeof pushTab==="function")pushTab();swit
 function lbHomeFetch(){if(!supaReady())return;var me=lbName();
  fetch(SUPA_URL+'/rest/v1/scores?select=*&order=bankroll.desc&limit=300',{headers:supaHeaders()})
   .then(function(r){return r.ok?r.json():[];}).then(function(arr){
-   if(!arr||!arr.length){_lbHomeWire='<div class="lbh-card" onclick="goLeaderboard()"><div class="lbh-h">🏆 Global leaderboard</div><div class="lbh-empty">Be the first to post a score →</div></div>';lbHomeRender();return;}
-   arr=dedupBoard(arr);
+   arr=lbCurate(dedupBoard(arr));
+   if(!arr.length){_lbHomeWire='<div class="lbh-card" onclick="goLeaderboard()"><div class="lbh-h">🏆 Global leaderboard</div><div class="lbh-empty">Set your name to join the table →</div></div>';lbHomeRender();return;}
    var myIdx=me?arr.findIndex(function(e){return dispName(e.name)===me;}):-1;
    var top=arr.slice(0,3).map(function(e,i){var medal=['🥇','🥈','🥉'][i];return '<div class="lbh-row"><span>'+medal+' '+esc(maskBad(dispName(e.name)))+'</span><b>$'+(e.bankroll||0).toLocaleString()+'</b></div>';}).join("");
    var you=myIdx>=0?'<div class="lbh-you">You\'re #'+(myIdx+1)+' of '+arr.length+'</div>':'<div class="lbh-you" style="color:var(--teal2)">Tap to post your score →</div>';
@@ -4209,7 +4357,8 @@ function renderCompare(){var el=document.getElementById("compare");if(!el)return
  function nxt(c){var m=gMatches(TG[c]).filter(function(x){return !tccOfficialFinal(x.num)&&(x.home===c||x.away===c);}).sort(function(x,y){return matchClock(x)-matchClock(y)||x.num-y.num;})[0];if(!m)return 'Group complete';var o=m.home===c?m.away:m.home;return shortDate(m.date)+' vs '+nm(o);}
  var stats='<div class="h2-stats">'+row('Record',rec(ta),rec(tb),(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Points',ta.Pts||0,tb.Pts||0,(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Goal difference',(ta.GD>0?'+':'')+(ta.GD||0),(tb.GD>0?'+':'')+(tb.GD||0),(ta.GD||0)>(tb.GD||0),(tb.GD||0)>(ta.GD||0))+row('Goals for',ta.GF||0,tb.GF||0,(ta.GF||0)>(tb.GF||0),(tb.GF||0)>(ta.GF||0))+'<div class="h2-row single">'+esc(nm(a))+': '+esc((sa&&(sa.headline+' · '+sa.label))||'Still alive')+' · next '+esc(nxt(a))+'</div><div class="h2-row single">'+esc(nm(b))+': '+esc((sb&&(sb.headline+' · '+sb.label))||'Still alive')+' · next '+esc(nxt(b))+'</div></div>';
  var note=(a===b)?'<div class="bethint">Pick two different teams to compare.</div>':'';
- el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>';}
+ var routes='';try{routes=routeExplorerLiteHTML(a)+(a!==b?routeExplorerLiteHTML(b):'');}catch(e){routes='';}
+ el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>'+routes;}
 function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
  MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
@@ -4949,6 +5098,8 @@ function tccScenarioSheet(g){
   var html='<div class="grab"></div><div class="sh-rnd">Group '+g+' scenarios</div><div class="sh-when">Highest-value upcoming results</div>';
   if(official.length>=4)html+='<div class="tcc-sheet-lead"><b>Group '+g+' points snapshot:</b> '+esc(nm(official[0].code))+' '+official[0].Pts+' pts, '+esc(nm(official[1].code))+' '+official[1].Pts+', '+esc(nm(official[2].code))+' '+official[2].Pts+', '+esc(nm(official[3].code))+' '+official[3].Pts+'. Positions and qualification remain pending official finals and tie-breakers.</div>';
   html+='<div class="tcc-prov">⚠ Scenario, not confirmed · pending official finals</div>';
+  var routeCards='';try{official.forEach(function(r){if(routeCards.split('rel-card').length>4)return;var rc=routeExplorerLiteHTML(r.code);if(rc)routeCards+=rc;});}catch(e){routeCards='';}
+  if(routeCards)html+='<div class="rel-wrap">'+routeCards+'</div>';
   if(!scns.length)html+='<div class="tcc-sheet-lead">Group '+g+' is complete — no fixtures remain.</div>';
   scns.forEach(function(s){
     html+='<div class="tcc-scn"><div class="tcc-scn-top"><span class="tcc-scn-n">Match #'+s.num+'</span><span class="tcc-scn-when">'+esc(s.when)+'</span></div>'+
@@ -4957,6 +5108,77 @@ function tccScenarioSheet(g){
     html+='<button class="tcc-scn-go" onclick="closeSheet();sheet('+s.num+')">Open this fixture →</button></div>';
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');
+}
+/* ===== Route Explorer Lite =====================================================
+   A compact "What this means" route card. Pure read-off of the SHARED tournament
+   -status resolver (tccTeamTournamentStatus) + the existing bracket mapping
+   (teamEntryR32 / koParts / raw M slot strings). It never invents an opponent and
+   never claims more certainty than the resolver allows. Status vocabulary comes
+   straight from the resolver headline: Confirmed · Mathematically locked · As it
+   stands · Still alive · Pending official final. R32 opponent labels: Confirmed
+   opponent · Possible opponent · Opponent to be decided · Qualification slot
+   pending · Pending official final. */
+function reLiteToneClass(ts){var t=ts&&ts.tone;return t==='confirmed'?'rel-confirmed':t==='locked'?'rel-locked':t==='pending'?'rel-pending':t==='as_it_stands'?'rel-stands':'rel-alive';}
+/* Win / draw / lose route pressure — only when the team has a meaningful remaining
+   group match whose result can still move its final position. */
+function reLiteOutcomes(code){
+  var g=TG[code],ts=tccTeamTournamentStatus(code);if(!g||!ts)return null;
+  if(ts.minPossiblePosition===ts.maxPossiblePosition)return null; // position already fixed → no meaningful swing
+  var nextM=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num)&&!tccLiveState(m.num)&&(m.home===code||m.away===code);})
+    .sort(function(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;})[0];
+  if(!nextM)return null;
+  var winPos=tccPosAfter(g,nextM.num,code),opp=(nextM.home===code)?nextM.away:nextM.home,N=nm(code);
+  var win;
+  if(ts.lockedQualified&&ts.groupVictoryStillPossible)win='Win and '+N+' controls first place.';
+  else if(winPos===1)win='Win and '+N+' controls first place, pending other results.';
+  else if(winPos<=2)win='A win lifts '+N+' into a qualifying place, pending other results.';
+  else win='A win keeps '+N+' alive but may still need other results.';
+  var draw;
+  if(ts.currentPosition<=2&&ts.possibleTopTwoFinish)draw='A draw keeps multiple routes open.';
+  else if(ts.qualificationStillPossible)draw='A draw leaves qualification pending other results.';
+  else draw='A draw may not be enough — other results would have to fall right.';
+  var lose;
+  if(ts.lockedQualified)lose='A loss can’t undo qualification, but it can cost top spot and seeding.';
+  else if(ts.possibleThirdPlaceFinish)lose='Third place would depend on the global best-third-place race.';
+  else if(ts.qualificationStillPossible)lose='A loss risks '+N+'’s place and opens an alternate route.';
+  else lose='A loss would likely end '+N+'’s run.';
+  return {next:nextM,opp:opp,win:win,draw:draw,lose:lose};
+}
+/* R32 opponent read-off — surfaced ONLY when bracket mapping + group status can
+   support it. Confirmed only when BOTH groups are officially final. */
+function reLiteR32(code){
+  var ts=tccTeamTournamentStatus(code);if(!ts)return null;
+  if(ts.eliminated)return {label:'Eliminated',text:nm(code)+' are not projected into the Round of 32.'};
+  if(!ts.lockedQualified)return {label:(ts.tone==='pending')?'Pending official final':'Qualification slot pending',
+    text:(ts.tone==='pending')?nm(code)+'’s Round of 32 place is pending the official final.':nm(code)+'’s Round of 32 slot is not secured yet.'};
+  var e=teamEntryR32(code);
+  if(e==null)return {label:'Opponent to be decided',text:nm(code)+'’s Round of 32 slot is locked. Opponent to be decided.'};
+  var parts=koParts(e),oppCode=(parts[0]===code)?parts[1]:parts[0],oppRaw=(parts[0]===code)?M[e].away:M[e].home;
+  var meConfirmed=ts.complete&&ts.tone==='confirmed';
+  if(oppCode){var os=tccTeamTournamentStatus(oppCode),oppConfirmed=os&&os.complete&&os.tone==='confirmed'&&os.lockedQualified;
+    if(meConfirmed&&oppConfirmed)return {label:'Confirmed opponent',text:'Round of 32: '+nm(code)+' meet '+nm(oppCode)+'.',opp:oppCode};
+    return {label:'Possible opponent',text:'Round of 32 likely against '+nm(oppCode)+' — pending official finals.',opp:oppCode};}
+  if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0)return {label:'Qualification slot pending',text:nm(code)+'’s slot is locked. The third-place qualifier is still to be confirmed.'};
+  return {label:'Opponent to be decided',text:nm(code)+'’s Round of 32 slot is locked. Opponent to be decided.'};
+}
+function routeExplorerLiteHTML(code){
+  if(typeof activeMode==='function'&&activeMode()!=='real')return '';
+  var ts=tccTeamTournamentStatus(code);if(!ts)return '';
+  var oc=reLiteOutcomes(code),r32=reLiteR32(code);
+  if(!oc&&!r32)return '';
+  var h='<div class="rel-card"><div class="rel-head"><span class="rel-k">What this means · '+esc(nm(code))+'</span><span class="rel-status '+reLiteToneClass(ts)+'">'+esc(ts.headline)+'</span></div>';
+  if(oc){
+    var sub=oc.next?('Next · vs '+esc(nm(oc.opp))+' · '+esc(shortDate(oc.next.date))):'';
+    if(sub)h+='<div class="rel-sub">'+sub+'</div>';
+    h+='<div class="rel-rows">'+
+      '<div class="rel-row rel-win"><span class="rel-ic">▲</span><div class="rel-tx"><b>If they win</b><span>'+esc(oc.win)+'</span></div></div>'+
+      '<div class="rel-row rel-draw"><span class="rel-ic">＝</span><div class="rel-tx"><b>If they draw</b><span>'+esc(oc.draw)+'</span></div></div>'+
+      '<div class="rel-row rel-lose"><span class="rel-ic">▼</span><div class="rel-tx"><b>If they lose</b><span>'+esc(oc.lose)+'</span></div></div>'+
+    '</div>';
+  }
+  if(r32)h+='<div class="rel-r32"><span class="rel-r32-lab">'+esc(r32.label)+'</span><span class="rel-r32-tx">'+esc(r32.text)+'</span></div>';
+  h+='<div class="rel-foot">Routes update only from official results · pending official finals.</div>';
+  return h+'</div>';
 }
 /* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
 function tccTieState(num){var p=koParts(num);
@@ -5021,7 +5243,8 @@ function matchDay(m){return m.date;}
 function wdCode(d){try{return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00Z").getUTCDay()];}catch(e){return "";}}
 function renderSchedule(){const sel=S._schedFilter||"";
   const teamCodes=Object.keys(T).sort((a,b)=>nm(a).localeCompare(nm(b)));
-  const opts='<option value="">🔍 All teams · 104 matches</option>'+teamCodes.map(c=>`<option value="${c}"${c===sel?' selected':''}>${T[c][1]} ${nm(c)}</option>`).join("");
+  /* native <option> can't host a badge span, so use plain text (code · name) — never a raw flag emoji that could tofu to a white box */
+  const opts='<option value="">All teams · 104 matches</option>'+teamCodes.map(c=>`<option value="${c}"${c===sel?' selected':''}>${esc(c)} · ${esc(nm(c))}</option>`).join("");
   const bar=`<div class="sched-filter"><select id="schedTeam" onchange="setSchedFilter(this.value)" aria-label="Filter fixtures by team">${opts}</select>${sel?`<button class="sf-clear" onclick="setSchedFilter('')">✕</button>`:''}</div>`;
   const inv=m=>{if(!sel)return true;if(m.stage==="group")return m.home===sel||m.away===sel;const p=koParts(m.num);return p[0]===sel||p[1]===sel;};
   var feat=sel?null:tccFeatured();var featNum=feat?feat.num:null;
