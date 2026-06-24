@@ -2342,13 +2342,23 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .phl.ko .phl-k>span:first-child{color:var(--gold)}
 .phl-tag{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);border:1px solid var(--line);border-radius:20px;padding:3px 9px;white-space:nowrap}
 .phl-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:11px 0 8px}
+.phl-pair{display:grid;gap:8px;margin:11px 0 8px}
+.phl-groupctx{margin-top:9px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.45px;color:rgba(255,204,112,.9)}
+.phl-fixture{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.phl-fixture.live{border-color:rgba(100,210,255,.25);background:rgba(100,210,255,.08)}
+.phl-fixture.hold,.phl-fixture.pending_official_feed{border-color:rgba(255,159,10,.25);background:rgba(255,159,10,.08)}
 .phl-tm{font-size:13px;font-weight:800;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .phl-tm.r{text-align:right}
 .phl-mid{font-size:16px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+.phl-fixture .phl-mid{min-width:56px;text-align:center;font-size:14px;line-height:1.05}
+.phl-state{display:block;margin-top:2px;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.35px;color:var(--mut3)}
+.phl-fixture.live .phl-state{color:var(--blue2)}
+.phl-fixture.hold .phl-state,.phl-fixture.pending_official_feed .phl-state{color:var(--orange)}
 .phl-sub{font-size:11.5px;color:var(--mut);font-weight:600;line-height:1.4}
 .phl-tickets{margin-top:9px;font-size:11px;font-weight:800;color:var(--gold);background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.24);border-radius:10px;padding:7px 10px}
 .phl-go{margin-top:11px;width:100%;min-height:44px;border:none;border-radius:12px;padding:11px;font-weight:900;font-size:12.5px;cursor:pointer;color:#10164a;background:linear-gradient(180deg,#ffd60a,#f5b400)}
 .phl.final .phl-go{background:linear-gradient(180deg,#ff9f0a,#e8860a);color:#1a1100}
+@media(max-width:400px){.phl-fixture{grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);gap:6px;padding:8px}.phl-fixture .phl-mid{min-width:54px;font-size:13px}.phl-tm{font-size:12px}}
 @media(min-width:560px){.fmd-fxs{flex-direction:row}.fmd-fxs .fmd-fx{flex:1}.fmd-tables{flex-direction:row}.fmd-tables .fmd-tbl{flex:1}}
 /* ===== Phase 7 — Cinematic Ticket Simulation 2.0 (presentation layer) ===== */
 .ts2{position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;
@@ -3680,16 +3690,41 @@ function phlNextKOFixture(){
   for(var i=0;i<nums.length;i++){var n=nums[i];if(S.realko&&S.realko[n])continue;var p;try{p=koParts(n);}catch(e){p=[null,null];}if(p[0]&&p[1])return {num:n,h:p[0],a:p[1]};}
   return null;
 }
+function phlFixtureStatusText(fx){
+  if(!fx)return '';
+  if(fx.kind==='official_final')return 'Full time';
+  if(fx.kind==='live')return fx.min!=null?('LIVE · '+fx.min+"'"):'LIVE';
+  if(fx.kind==='hold')return fx.label||'Paused';
+  if(fx.kind==='pending_official_feed')return 'Awaiting feed';
+  if(fx.time)return to12(fx.time)+' ET';
+  return 'Scheduled';
+}
+function phlFixtureMidHTML(fx){
+  if(!fx)return '<span class="phl-mid">v<span class="phl-state">Scheduled</span></span>';
+  var score=fx.score?(fx.score.h+'–'+fx.score.a):'v';
+  return '<span class="phl-mid">'+esc(score)+'<span class="phl-state">'+esc(phlFixtureStatusText(fx))+'</span></span>';
+}
+function phlFinalFixtureRowHTML(fx){
+  if(!fx)return '';
+  return '<div class="phl-fixture '+esc(fx.kind||'scheduled')+'"><span class="phl-tm">'+fl(fx.home)+' '+nm(fx.home)+'</span>'+phlFixtureMidHTML(fx)+'<span class="phl-tm r">'+nm(fx.away)+' '+fl(fx.away)+'</span></div>';
+}
+function phlPickFinalModel(groups){
+  var rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4},picked=null,pickedRank=9;
+  (groups||[]).forEach(function(g){var m;try{m=finalMatchdayGroupModel(g);}catch(e){m=null;}if(!m||!m.fixtures||m.fixtures.length<2)return;
+    var r=9;m.fixtures.forEach(function(fx){r=Math.min(r,Object.prototype.hasOwnProperty.call(rank,fx.kind)?rank[fx.kind]:5);});
+    if(!picked||r<pickedRank){picked=m;pickedRank=r;}
+  });
+  return picked;
+}
 function phaseLeadHTML(){
   var ph=fdSafePhase();
   if(ph.phase==='final_matchday'){
     var gs=ph.finalMatchdayGroups||[];if(!gs.length)return '';
-    var lead=null,stakeLine='',rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4};
-    gs.forEach(function(g){var m;try{m=finalMatchdayGroupModel(g);}catch(e){m=null;}if(!m)return;
-      m.fixtures.forEach(function(fx){if(!lead||rank[fx.kind]<rank[lead.kind])lead=fx;});
-      if(!stakeLine&&m.stakes&&m.stakes.length)stakeLine=m.stakes[0];});
-    var body=lead?('<div class="phl-row"><span class="phl-tm">'+fl(lead.home)+' '+nm(lead.home)+'</span><span class="phl-mid">'+(lead.score?lead.score.h+'–'+lead.score.a:'v')+'</span><span class="phl-tm r">'+nm(lead.away)+' '+fl(lead.away)+'</span></div>'):'';
-    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+gs.length+' group'+(gs.length>1?'s':'')+' deciding</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine||'Deciding fixtures kick off together — watch the table move live.')+'</div><button class="phl-go" onclick="goStandings()">Open the command center →</button></div>';
+    var model=phlPickFinalModel(gs);if(!model)return '';
+    var stakeLine=(model.stakes&&model.stakes[0])||'Deciding fixtures kick off together — watch the table move live.';
+    var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div><div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
+    var tag='Group '+model.group+(gs.length>1?' · +'+(gs.length-1)+' more':'');
+    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go" onclick="goStandings()">Open the command center →</button></div>';
   }
   if(ph.prioritizeBracket){
     var nx=phlNextKOFixture(),tickets=(S.bets||[]).filter(function(b){return !b.settled;}).length;

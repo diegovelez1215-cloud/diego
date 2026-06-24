@@ -33,6 +33,7 @@ function loadApp() {
       gMatches: gMatches,
       fdFixtureState: fdFixtureState,
       finalMatchdayGroupModel: finalMatchdayGroupModel,
+      phaseLeadHTML: phaseLeadHTML,
       tournamentPhaseState: tournamentPhaseState,
       r32FixtureStates: r32FixtureStates,
       knockoutRouteForTeam: knockoutRouteForTeam,
@@ -54,6 +55,7 @@ function loadApp() {
       editorialItems: editorialItems,
       activeMode: activeMode,
       koParts: koParts,
+      nm: nm,
       M: M,
       MATCHES: MATCHES,
       GROUPS: GROUPS,
@@ -255,6 +257,20 @@ test('final group matchday model tracks two simultaneous deciders', () => withAp
   assert.deepEqual(model.fixtures.map((f) => f.num), deciders.map((m) => m.num));
   assert.equal(model.asItStands, true);
   assert.equal(model.fixtures.every((f) => f.kind === 'live'), true);
+}));
+
+test('Home final matchday lead renders both simultaneous group deciders', () => withApp((app) => {
+  const { deciders } = makeFinalMatchday(app, 'K');
+  const html = app.phaseLeadHTML();
+  assert.match(html, /Final Matchday/);
+  assert.match(html, /Group K/);
+  assert.equal((html.match(/class="phl-fixture live"/g) || []).length, 2);
+  deciders.forEach((m) => {
+    assert.ok(html.includes(app.nm(app.M[m.num].home)), `missing home team for fixture ${m.num}`);
+    assert.ok(html.includes(app.nm(app.M[m.num].away)), `missing away team for fixture ${m.num}`);
+  });
+  assert.match(html, /simultaneous deciders/);
+  assert.match(html, /LIVE · 63(&#39;|')/);
 }));
 
 test('live final-day scores produce projected standings without overwriting official table', () => withApp((app) => {
