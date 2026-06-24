@@ -2101,6 +2101,91 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .rel-r32-lab{align-self:flex-start;font-size:8.5px;font-weight:950;letter-spacing:.5px;text-transform:uppercase;color:#cfe0ff;background:rgba(10,132,255,.14);border:1px solid rgba(94,158,255,.32);border-radius:20px;padding:2px 8px}
 .rel-r32-tx{font-size:12.5px;font-weight:700;color:var(--txt);line-height:1.35}
 .rel-foot{margin-top:9px;font-size:9.5px;font-weight:800;letter-spacing:.3px;color:var(--mut3);text-transform:uppercase}
+/* ===== Full Route Explorer — broadcast-intelligence UI ===== */
+.fre{--cy:#64d2ff;--cy-soft:rgba(100,210,255,.13);--cy-line:rgba(100,210,255,.4);margin-top:6px}
+.fre *{box-sizing:border-box}
+.fre-head{display:flex;align-items:center;gap:11px;padding:13px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(155deg,rgba(20,30,90,.6),rgba(10,16,46,.5));box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.fre-fl{flex:none;font-size:21px;line-height:1}
+.fre-fl-lg{font-size:30px}
+.fre-htx{flex:1;min-width:0}
+.fre-hnm{font-family:"Space Grotesk",sans-serif;font-size:19px;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-.2px}
+.fre-hmeta{font-size:11px;font-weight:800;color:var(--mut2);margin-top:2px}
+.fre-stchip{flex:none;font-size:9px;font-weight:950;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:20px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.fre-stchip.fre-confirmed{color:#ffe08a;border-color:rgba(255,214,10,.42);background:rgba(255,214,10,.12)}
+.fre-stchip.fre-locked{color:#ffe08a;border-color:rgba(255,214,10,.4);background:rgba(255,214,10,.1)}
+.fre-stchip.fre-stands{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-stchip.fre-pending{color:var(--mut);border-color:var(--line2)}
+.fre-stchip.fre-alive{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-emph{font-size:13.5px;font-weight:750;color:var(--txt);line-height:1.45;margin:12px 4px 13px;padding-left:11px;border-left:2px solid var(--cy)}
+.fre-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.fre-tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:54px;justify-content:center;padding:8px 4px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03);color:var(--mut);cursor:pointer;transition:transform .18s var(--spring),border-color .18s,background .18s}
+.fre-tab b{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:900;color:var(--txt);letter-spacing:-.1px}
+.fre-tab span{font-size:8.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--mut3)}
+.fre-tab.on{border-color:var(--cy-line);background:linear-gradient(160deg,var(--cy-soft),rgba(100,210,255,.04));box-shadow:0 0 0 1px var(--cy-line) inset,0 6px 18px -10px rgba(100,210,255,.7)}
+.fre-tab.on b{color:var(--cy)}.fre-tab.on span{color:var(--cy)}
+.fre-tab:active{transform:scale(.96)}
+.fre-tab-off{opacity:.42;cursor:default}
+.fre-tab-off b{color:var(--mut2)}
+.fre-panel{min-height:60px}
+.fre-swap{animation:freSwap .26s var(--ease)}
+@keyframes freSwap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fre-srow{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px}
+.fre-qchip{font-size:9.5px;font-weight:950;letter-spacing:.3px;text-transform:uppercase;padding:4px 9px;border-radius:20px;border:1px solid var(--line2);color:var(--mut)}
+.fre-q-ok{color:var(--green);border-color:rgba(48,209,88,.4);background:rgba(48,209,88,.12)}
+.fre-q-pend{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-q-out{color:var(--red);border-color:rgba(255,69,58,.36);background:rgba(255,69,58,.1)}
+.fre-r32line{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025);margin-bottom:12px}
+.fre-r32k{font-size:10px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--mut2)}
+.fre-r32v{font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:900;color:var(--cy);font-variant-numeric:tabular-nums}
+.fre-ladder{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.fre-node{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.028)}
+.fre-node-self{border-color:var(--cy-line);background:linear-gradient(150deg,var(--cy-soft),rgba(100,210,255,.03))}
+.fre-node-path{opacity:.78;border-style:dashed}
+.fre-node-tbd{border-style:dashed}
+.fre-arr{align-self:center;color:var(--cy);font-size:14px;font-weight:900;line-height:1;padding:5px 0;opacity:.85}
+.fre-dot{flex:none;width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:950;letter-spacing:.3px;color:var(--mut);background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.fre-dot-cy{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-nbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fre-nrd{font-size:11px;font-weight:900;color:var(--mut);letter-spacing:.2px}
+.fre-nopp{font-size:13px;font-weight:850;color:#fff;line-height:1.3;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fre-mut{color:var(--mut2);font-weight:750}
+.fre-op-lab{font-size:8.5px;font-weight:950;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:16px;border:1px solid var(--line2);color:var(--mut2)}
+.fre-op-confirmed{color:#ffe08a;border-color:rgba(255,214,10,.42);background:rgba(255,214,10,.12)}
+.fre-op-pending{color:var(--mut);border-color:var(--line2)}
+.fre-op-open{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:850;color:#fff;padding:2px 7px 2px 4px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.04)}
+.fre-chip-more{color:var(--mut2)}
+.fre-explain{font-size:12.5px;font-weight:650;color:var(--mut);line-height:1.5;margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(29,42,114,.26)}
+.fre-na{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px dashed var(--line2);border-radius:14px;background:rgba(255,255,255,.02)}
+.fre-na-ic{flex:none;width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:var(--mut2);background:rgba(255,255,255,.05)}
+.fre-na b{display:block;font-size:13.5px;color:#fff;font-weight:900}
+.fre-na span{display:block;font-size:12px;color:var(--mut2);margin-top:3px;line-height:1.45}
+.fre-elim-top{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.fre-elim-h{font-size:12px;font-weight:900;color:var(--mut);letter-spacing:.2px}
+.fre-elim-card{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.028)}
+.fre-foot{margin-top:13px;font-size:9.5px;font-weight:850;letter-spacing:.3px;color:var(--mut3);text-transform:uppercase;line-height:1.5}
+.fre-moments{display:flex;flex-direction:column;gap:8px;margin:11px 0 4px}
+.fre-mom{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03);animation:freSwap .3s var(--ease)}
+.fre-mom-ic{flex:none;font-size:18px;line-height:1}
+.fre-mom b{display:block;font-size:12.5px;font-weight:900;color:#fff}
+.fre-mom span{display:block;font-size:11px;font-weight:700;color:var(--mut);margin-top:1px}
+.fre-mom-gold{border-color:rgba(255,214,10,.3);background:linear-gradient(155deg,rgba(255,214,10,.1),rgba(255,255,255,.02))}
+.fre-mom-gold b{color:#ffe08a}
+.fre-mom-cy{border-color:var(--cy-line);background:linear-gradient(155deg,var(--cy-soft),rgba(255,255,255,.02))}
+/* Route Explorer entry points */
+.fre-entry{display:flex;align-items:center;gap:12px;margin:11px 0;padding:13px 14px;border:1px solid var(--cy-line,rgba(100,210,255,.4));border-radius:16px;background:linear-gradient(135deg,rgba(100,210,255,.12),rgba(20,30,90,.4));cursor:pointer;transition:transform .18s var(--spring),box-shadow .2s;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.fre-entry:active{transform:scale(.985)}
+.fre-entry-ic{flex:none;width:38px;height:38px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;background:rgba(100,210,255,.16);border:1px solid rgba(100,210,255,.34)}
+.fre-entry-tx{flex:1;min-width:0}
+.fre-entry-tx b{display:block;font-family:"Space Grotesk",sans-serif;font-size:14.5px;font-weight:900;color:#fff;letter-spacing:-.1px}
+.fre-entry-tx span{display:block;font-size:11.5px;font-weight:700;color:var(--mut);margin-top:2px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fre-entry-go{flex:none;color:#64d2ff;font-size:18px;font-weight:900}
+.fre-launch{margin:10px 0;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(29,42,114,.3)}
+.fre-launch-h{font-size:10px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#64d2ff;margin-bottom:9px}
+.fre-launch-row{display:flex;flex-wrap:wrap;gap:7px}
+.fre-tchip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:1px solid var(--line2);border-radius:20px;background:rgba(255,255,255,.04);color:#fff;font-size:12px;font-weight:850;cursor:pointer;transition:transform .15s var(--spring),border-color .15s}
+.fre-tchip:active{transform:scale(.95)}
+.fre-tchip:hover{border-color:var(--cy-line,rgba(100,210,255,.4))}
 /* bottom-sheet shared bits */
 .tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
 .tcc-sheet-lead b{color:var(--txt);font-weight:800}
@@ -5091,7 +5176,9 @@ function tccGroupStakesHTML(g){
   s.stands.forEach(function(t){h+='<div class="tcc-st-row stands"><span class="tcc-st-ic">●</span><span>'+esc(t)+'<span class="tcc-st-tag">As it stands</span></span></div>';});
   s.scen.forEach(function(t){h+='<div class="tcc-st-row scen"><span class="tcc-st-ic">→</span><span>'+esc(t)+'<span class="tcc-st-tag">Scenario</span></span></div>';});
   if(s.hasScenarios)h+='<button class="tcc-scn-btn" onclick="tccScenarioSheet(\''+g+'\')">See scenarios →</button>';
-  return h+'</div>';
+  h+='</div>';
+  try{var _order=(tccOffTable(g)||[]).map(function(r){return r.code;});if(!_order.length)_order=(GROUPS[g]||[]).slice();h+=freEntryChipsHTML(_order);}catch(e){}
+  return h;
 }
 function tccScenarioSheet(g){
   var scns=tccGroupScenarios(g),official=tccOffTable(g);
@@ -5100,6 +5187,7 @@ function tccScenarioSheet(g){
   html+='<div class="tcc-prov">⚠ Scenario, not confirmed · pending official finals</div>';
   var routeCards='';try{official.forEach(function(r){if(routeCards.split('rel-card').length>4)return;var rc=routeExplorerLiteHTML(r.code);if(rc)routeCards+=rc;});}catch(e){routeCards='';}
   if(routeCards)html+='<div class="rel-wrap">'+routeCards+'</div>';
+  try{html+=freEntryChipsHTML((official||[]).map(function(r){return r.code;}));}catch(e){}
   if(!scns.length)html+='<div class="tcc-sheet-lead">Group '+g+' is complete — no fixtures remain.</div>';
   scns.forEach(function(s){
     html+='<div class="tcc-scn"><div class="tcc-scn-top"><span class="tcc-scn-n">Match #'+s.num+'</span><span class="tcc-scn-when">'+esc(s.when)+'</span></div>'+
@@ -5227,6 +5315,172 @@ function routeExplorerLiteHTML(code){
   if(r32)h+='<div class="rel-r32"><span class="rel-r32-lab">'+esc(r32.label)+'</span><span class="rel-r32-tx">'+esc(r32.text)+'</span></div>';
   h+='<div class="rel-foot">Routes update only from official results · pending official finals.</div>';
   return h+'</div>';
+}
+/* ===== Full Route Explorer — Experience layer =================================
+   Premium, mobile-first read-off of fullRouteExplorerEngine(). It NEVER invents
+   an opponent or claims certainty the engine doesn't return: every label comes
+   straight from the engine's scenario.opponent.state / qualificationStatus /
+   status. Tap 1st / 2nd / 3rd to swap the route view in place (no reload). */
+var _freSel={};
+function freToneClass(tone){return tone==='confirmed'?'fre-confirmed':tone==='locked'?'fre-locked':tone==='pending'?'fre-pending':tone==='as_it_stands'?'fre-stands':'fre-alive';}
+function freOppLabelClass(state){return state==='confirmed opponent'?'fre-op-confirmed':state==='pending official final'?'fre-op-pending':state==='qualification slot pending'?'fre-op-pending':'fre-op-open';}
+function freTitle(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+/* Which finish positions are mathematically in play (have an engine scenario). */
+function freHasPos(route,pos){return !!(route&&route.scenarios&&route.scenarios.some(function(s){return s.finishPositionNumber===pos;}));}
+function freScenarioFor(route,pos){return route&&route.scenarios?route.scenarios.filter(function(s){return s.finishPositionNumber===pos;})[0]:null;}
+/* One-sentence current-route emphasis — straight from the resolver, no filler. */
+function freEmphasis(code){
+  var ts=tccTeamTournamentStatus(code);if(!ts)return '';var N=nm(code);
+  if(ts.eliminated)return N+' have been eliminated — their group-stage run is complete.';
+  if(ts.lockedWinner)return N+' currently controls first place — group win clinched.';
+  if(ts.lockedQualified){
+    if(ts.groupVictoryStillPossible)return N+' are through. A win still keeps top spot in reach.';
+    return N+'’s Round of 32 slot is locked. Opponent to be decided.';}
+  if(ts.tone==='pending')return N+'’s place is pending the official final.';
+  if(ts.currentPosition===1&&ts.groupVictoryStillPossible)return N+' currently controls first place.';
+  if(ts.possibleThirdPlaceFinish&&!ts.possibleTopTwoFinish)return 'Third place depends on the global best-third-place race.';
+  if(ts.possibleTopTwoFinish&&ts.currentPosition<=2)return 'A draw keeps multiple routes open.';
+  if(ts.qualificationStillPossible)return N+' are still alive — the next result decides the route.';
+  return N+'’s route is still taking shape.';
+}
+/* Short, honest explanation of what a given finish means. */
+function freScenarioExplain(code,s){
+  var N=nm(code),slot=s.roundOf32Slot,op=s.opponent;
+  var oppTail=(op.state==='confirmed opponent'&&op.confirmedOpponent)?(', meeting '+nm(op.confirmedOpponent)+'.')
+    :(op.state==='possible opponents')?' — the opponent is one of a few teams until the other group finishes.'
+    :(op.state==='pending official final')?' — opponent pending the official final.'
+    :(op.state==='qualification slot pending')?' — the qualifying slot is still to be confirmed.'
+    :' — opponent to be decided.';
+  if(s.finishPositionNumber===1)return 'Win the group and '+N+' carry the '+(slot?slot.slot:'group-winner')+' seed into the Round of 32'+oppTail;
+  if(s.finishPositionNumber===2)return 'Finish second and '+N+' enter the Round of 32 as the '+(slot?slot.slot:'runner-up')+' seed'+oppTail;
+  if(s.qualificationStatus==='qualified_best_third')return 'A top-eight third place sends '+N+' through via the best-third-place route'+oppTail;
+  return N+'’s third-place route depends on the global best-third-place race across all groups. If they make the top eight thirds, this is where they enter'+oppTail;
+}
+/* Compact, vertical mini-bracket ladder: Team -> R32 -> R16 -> QF. Never invents a
+   knockout opponent: downstream rounds are shown as the structural path only. */
+function freLadderHTML(code,s){
+  var op=s.opponent,slot=s.roundOf32Slot;
+  var h='<div class="fre-ladder">';
+  // team node
+  h+='<div class="fre-node fre-node-self"><span class="fre-fl">'+fl(code)+'</span><div class="fre-nbody"><span class="fre-nrd">Group '+TG[code]+'</span><span class="fre-nopp">'+esc(nm(code))+' · finish '+esc(s.finishPosition)+'</span></div></div>';
+  if(!slot){
+    h+='<div class="fre-arr">↓</div><div class="fre-node fre-node-tbd"><span class="fre-dot">R32</span><div class="fre-nbody"><span class="fre-nrd">Round of 32</span><span class="fre-nopp">Qualification slot pending</span></div></div></div>';
+    return h;}
+  // R32 node — opponent state straight from engine
+  h+='<div class="fre-arr">↓</div>';
+  var oppInner;
+  if(op.state==='confirmed opponent'&&op.confirmedOpponent){
+    oppInner='<span class="fre-fl">'+fl(op.confirmedOpponent)+'</span><span class="fre-nopp">'+esc(nm(op.confirmedOpponent))+'</span>';}
+  else if(op.state==='possible opponents'&&op.possibleOpponents&&op.possibleOpponents.length){
+    var chips=op.possibleOpponents.slice(0,4).map(function(c){return '<span class="fre-chip">'+fl(c)+esc(nm(c))+'</span>';}).join('');
+    var more=op.possibleOpponents.length>4?('<span class="fre-chip fre-chip-more">+'+(op.possibleOpponents.length-4)+'</span>'):'';
+    oppInner='<span class="fre-nopp">vs '+chips+more+'</span>';}
+  else oppInner='<span class="fre-nopp fre-mut">'+freTitle(op.state)+'</span>';
+  h+='<div class="fre-node"><span class="fre-dot fre-dot-cy">R32</span><div class="fre-nbody"><span class="fre-nrd"><span class="fre-op-lab '+freOppLabelClass(op.state)+'">'+esc(freTitle(op.state))+'</span></span>'+oppInner+'</div></div>';
+  // downstream structural path (R16, QF) — no invented opponents
+  (s.nextRoundRouteSlots||[]).slice(0,2).forEach(function(r){
+    h+='<div class="fre-arr">↓</div><div class="fre-node fre-node-path"><span class="fre-dot">'+esc(roundShort(r.matchNum))+'</span><div class="fre-nbody"><span class="fre-nrd">'+esc(r.round)+'</span><span class="fre-nopp fre-mut">Route continues vs the winner of that tie</span></div></div>';
+  });
+  return h+'</div>';
+}
+/* The per-finish route panel (re-rendered in place on tab switch). */
+function frePanelHTML(code,pos){
+  var route=fullRouteExplorerEngine(code);if(!route)return '<div class="fre-empty">Route data unavailable.</div>';
+  var s=freScenarioFor(route,pos);
+  if(!s)return '<div class="fre-na"><span class="fre-na-ic">—</span><div><b>Finish '+freOrdinal(pos)+' is not in play.</b><span>'+esc(nm(code))+' can no longer reach this position from their current group standing.</span></div></div>';
+  var qmap={qualified:'Qualifies directly',qualified_best_third:'Qualifies · best third place',conditional_best_third:'Conditional · best-third race',not_qualified:'Qualification pending',eliminated:'Eliminated'};
+  var qtone=(s.qualificationStatus==='qualified'||s.qualificationStatus==='qualified_best_third')?'fre-q-ok':(s.qualificationStatus==='eliminated'?'fre-q-out':'fre-q-pend');
+  var stoneClass=s.status==='Confirmed'?'fre-locked':s.status==='Mathematically locked'?'fre-locked':s.status==='Pending official final'?'fre-pending':s.status==='As it stands'?'fre-stands':'fre-alive';
+  var h='<div class="fre-pin">';
+  h+='<div class="fre-srow"><span class="fre-qchip '+qtone+'">'+esc(qmap[s.qualificationStatus]||'Qualification pending')+'</span><span class="fre-stchip '+stoneClass+'">'+esc(s.status)+'</span></div>';
+  h+='<div class="fre-r32line"><span class="fre-r32k">Round of 32 slot</span><span class="fre-r32v">'+(s.roundOf32Slot?('#'+s.roundOf32Slot.matchNum+' · '+esc(s.roundOf32Slot.slot)):'Slot pending')+'</span></div>';
+  h+=freLadderHTML(code,s);
+  h+='<div class="fre-explain">'+esc(freScenarioExplain(code,s))+'</div>';
+  return h+'</div>';
+}
+/* Eliminated-team state: status + concise recap, never a fake knockout path. */
+function freEliminatedHTML(code){
+  var g=TG[code],me=null;try{me=withTour(liveTour(),function(){var t=standings(g),i=t.findIndex(function(x){return x.code===code;});return i<0?null:t[i];});}catch(e){me=null;}
+  var rec=me?(me.W+'W · '+me.D+'D · '+me.L+'L · '+me.GF+':'+me.GA+' · '+me.Pts+' pts'):'';
+  var pos=null;try{pos=withTour(liveTour(),function(){var t=standings(g);return t.findIndex(function(x){return x.code===code;})+1;});}catch(e){pos=null;}
+  var h='<div class="fre-elim">';
+  h+='<div class="fre-elim-top"><span class="fre-stchip fre-confirmed">Eliminated</span><span class="fre-elim-h">Group stage complete</span></div>';
+  h+='<div class="fre-elim-card"><span class="fre-fl">'+fl(code)+'</span><div class="fre-nbody"><span class="fre-nopp">'+esc(nm(code))+(pos?' · '+ordinal(pos)+' in Group '+g:'')+'</span>'+(rec?'<span class="fre-nrd fre-mut">'+esc(rec)+'</span>':'')+'</div></div>';
+  h+='<div class="fre-explain">'+esc(nm(code))+' did not advance from Group '+g+'. There is no knockout route to show — their tournament ends at the group stage.</div>';
+  return h+'</div>';
+}
+/* Matchday Moments — tiny, only when real app state supports them. */
+function freMomentsHTML(code){
+  var cards=[];
+  // winning virtual ticket
+  try{var best=null;(S.bets||[]).forEach(function(b){if(b&&b.settled&&b.win&&typeof b.net==='number'&&(!best||b.net>best.net))best=b;});
+    if(best&&best.net>0)cards.push('<div class="fre-mom fre-mom-gold"><span class="fre-mom-ic">🎟️</span><div><b>Ticket won</b><span>+$'+best.net.toLocaleString()+' settled · a Tournament Moment</span></div></div>');
+  }catch(e){}
+  // qualification locked for this team (real mode truth)
+  try{if(typeof activeMode==='function'&&activeMode()==='real'){var ts=tccTeamTournamentStatus(code);
+    if(ts&&ts.lockedQualified&&!ts.eliminated)cards.push('<div class="fre-mom fre-mom-gold"><span class="fre-mom-ic">✅</span><div><b>Qualification locked</b><span>'+esc(nm(code))+(ts.lockedWinner?' top their group':' are through to the Round of 32')+'</span></div></div>');
+  }}catch(e){}
+  // biggest official upset by power rating
+  try{if(typeof activeMode==='function'&&activeMode()==='real'){var up=null;
+    MATCHES.forEach(function(m){if(m.stage!=='group'||!tccOfficialFinal(m.num))return;var s=S.sc[m.num];if(!s||s.h===s.a)return;
+      var w=s.h>s.a?m.home:m.away,l=s.h>s.a?m.away:m.home,gap=(RAT[l]||70)-(RAT[w]||70);if(gap>=8&&(!up||gap>up.gap))up={w:w,l:l,gap:gap,s:s,m:m};});
+    if(up)cards.push('<div class="fre-mom fre-mom-cy"><span class="fre-mom-ic">🚨</span><div><b>Upset of the round</b><span>'+esc(nm(up.w))+' stunned '+esc(nm(up.l))+'</span></div></div>');
+  }}catch(e){}
+  if(!cards.length)return '';
+  return '<div class="fre-moments">'+cards.slice(0,2).join('')+'</div>';
+}
+/* Tab strip: 1st / 2nd / 3rd. In-play positions are tappable; the rest read "Not in play". */
+function freTabsHTML(code,route,sel){
+  var h='<div class="fre-tabs" role="tablist">';
+  [1,2,3].forEach(function(pos){var ok=freHasPos(route,pos);
+    h+='<button class="fre-tab'+(ok?'':' fre-tab-off')+(pos===sel?' on':'')+'" data-pos="'+pos+'" role="tab"'+(ok?(' onclick="freSelectFinish(\''+code+'\','+pos+')"'):' disabled')+'>'+
+      '<b>Finish '+freOrdinal(pos)+'</b><span>'+(ok?'In play':'Not in play')+'</span></button>';});
+  return h+'</div>';
+}
+/* Full sheet body. */
+function freExplorerHTML(code){
+  code=teamCode?teamCode(code):code;var route=fullRouteExplorerEngine(code);
+  var ts=tccTeamTournamentStatus(code);
+  var h='<div class="grab"></div><div class="sh-rnd">Route Explorer</div><div class="sh-when">'+esc(nm(code))+' · Group '+TG[code]+' · what each finish means</div>';
+  h+=freMomentsHTML(code);
+  h+='<div class="fre" id="fre-'+code+'">';
+  h+='<div class="fre-head"><span class="fre-fl fre-fl-lg">'+fl(code)+'</span><div class="fre-htx"><div class="fre-hnm">'+esc(nm(code))+'</div><div class="fre-hmeta">Group '+TG[code]+(RAT[code]?(' · Power '+RAT[code]):'')+'</div></div>'+(ts?('<span class="fre-stchip '+freToneClass(ts.tone)+'">'+esc(ts.headline)+'</span>'):'')+'</div>';
+  h+='<div class="fre-emph">'+esc(freEmphasis(code))+'</div>';
+  if(!route||route.eliminated||(ts&&ts.eliminated)){
+    h+=freEliminatedHTML(code);
+  }else{
+    var avail=[1,2,3].filter(function(p){return freHasPos(route,p);});
+    var sel=_freSel[code];if(!sel||!freHasPos(route,sel))sel=(ts&&freHasPos(route,ts.currentPosition))?ts.currentPosition:(avail[0]||1);_freSel[code]=sel;
+    h+=freTabsHTML(code,route,sel);
+    h+='<div id="fre-panel" class="fre-panel">'+frePanelHTML(code,sel)+'</div>';
+  }
+  h+='<div class="fre-foot">Routes update only from official results · no opponent is shown as confirmed until both groups are final.</div>';
+  return h+'</div>';
+}
+function freSelectFinish(code,pos){
+  _freSel[code]=pos;var panel=document.getElementById('fre-panel');
+  if(panel){panel.innerHTML=frePanelHTML(code,pos);panel.classList.remove('fre-swap');void panel.offsetWidth;panel.classList.add('fre-swap');}
+  var wrap=document.getElementById('fre-'+code);if(wrap){var tabs=wrap.querySelectorAll('.fre-tab');for(var i=0;i<tabs.length;i++){tabs[i].classList.toggle('on',+tabs[i].getAttribute('data-pos')===pos);}}
+  try{haptic('tap');}catch(e){}
+}
+function openRouteExplorer(code){
+  code=teamCode?teamCode(code):code;if(!code||!T[code])return;
+  var sh=document.getElementById('sheet');if(!sh)return;
+  sh.innerHTML=freExplorerHTML(code);document.getElementById('scrim').classList.add('on');
+  try{haptic('tap');}catch(e){}
+}
+/* Compact launcher card for team profiles. */
+function freEntryCardHTML(code){
+  if(!code||!T[code])return '';
+  var sub=freEmphasis(code);
+  return '<div class="fre-entry" onclick="openRouteExplorer(\''+code+'\')" role="button" tabindex="0"><div class="fre-entry-ic">🧭</div><div class="fre-entry-tx"><b>Route Explorer</b><span>'+esc(sub)+'</span></div><span class="fre-entry-go">→</span></div>';
+}
+/* Wrapping team chips for the scenarios / stakes surfaces. */
+function freEntryChipsHTML(codes){
+  var seen={},chips=(codes||[]).filter(function(c){if(!c||!T[c]||seen[c])return false;seen[c]=1;var ts=tccTeamTournamentStatus(c);return !!ts;}).slice(0,6)
+    .map(function(c){return '<button class="fre-tchip" onclick="openRouteExplorer(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
+  if(!chips)return '';
+  return '<div class="fre-launch"><div class="fre-launch-h">🧭 Route Explorer</div><div class="fre-launch-row">'+chips+'</div></div>';
 }
 /* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
 function tccTieState(num){var p=koParts(num);
@@ -5382,6 +5636,7 @@ function renderRoad(){let h=`<div class="picker"><div class="pkt">Choose a natio
     <div class="ratbar"><div class="rl"><span>POWER RATING</span><span>${rat}/100</span></div><div class="rt2"><div class="rf" style="width:${rat}%"></div></div></div></div></div>`;
   h+=`<div id="tblurb"></div>`;
   h+=`<div id="tfacts" class="tfacts-slot"></div>`;
+  try{h+=freEntryCardHTML(code);}catch(e){}
   // timeline
   var tmc=S._tmc&&S._tmc[code];
   if(tmc){h+='<div class="ttc" onclick="runTeamMC()"><div class="ttc-h">🔮 Supercomputer · '+tmc.N+' sims · tap to re-run</div><div class="ttc-g"><div><b>'+ttp(tmc.c)+'</b><span>Win it all</span></div><div><b>'+ttp(tmc.f)+'</b><span>Reach final</span></div><div><b>'+ttp(tmc.sf)+'</b><span>Reach semis</span></div></div></div>';}
