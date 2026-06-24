@@ -1,0 +1,35 @@
+.vercel/
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*secret*
+*secrets*
+
+# Backups and local agent artifacts
+.codex-backups/
+world cup app-stabilization-backups/
+*-backups/
+.playwright-cli/
+
+# Temporary extracted scripts / scratch files
+tmp/
+temp/
+*.tmp
+*.temp
+*.log
+worldcup-*.js
+*-extracted.js
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
