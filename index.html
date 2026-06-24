@@ -1465,6 +1465,9 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .home-action{width:100%;min-height:44px;margin-top:11px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--teal2));color:#041326;font-size:13px;font-weight:950}.home-card.play .home-action{background:linear-gradient(135deg,var(--gold),#ff9f0a);color:#1b1200}
 .home-sub{font-size:12px;color:var(--mut);font-weight:700;line-height:1.35}.home-sub b{color:#fff}
 .home-fresh{font-size:10.5px;font-weight:800;color:var(--mut2);margin:8px 0 2px;letter-spacing:.2px}
+.home-livepick{display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;margin:2px 0 10px;padding:10px 11px;border-radius:12px;background:rgba(10,132,255,.12);border:1px solid rgba(100,210,255,.28);font-size:11.5px;font-weight:750;color:var(--mut);line-height:1.3;cursor:pointer}
+.home-livepick b{color:#fff;font-weight:900}
+.hlp-dot{flex:0 0 auto;width:7px;height:7px;border-radius:999px;background:var(--teal2);box-shadow:0 0 0 3px rgba(100,210,255,.18)}
 .home-picks{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}.home-pick-stat{background:rgba(255,255,255,.045);border:1px solid var(--hair);border-radius:12px;padding:9px}.home-pick-stat span{display:block;font-size:9px;color:var(--mut2);font-weight:900;text-transform:uppercase}.home-pick-stat b{display:block;margin-top:2px;font-size:15px;color:#fff;font-weight:950}
 .home-upcoming{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.home-upcoming::-webkit-scrollbar{display:none}
 .home-fixture{min-width:225px;border:1px solid var(--hair);border-radius:14px;padding:11px;background:rgba(255,255,255,.045)}.home-fixture b{display:block;font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-fixture span{display:block;margin-top:4px;font-size:10.5px;color:var(--mut);font-weight:800}
@@ -1536,6 +1539,32 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .you-s span{display:block;margin-top:5px;font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--mut2)}
 .you-sep{width:1px;height:30px;background:rgba(255,255,255,.10)}
 .you-meta{position:relative;margin-top:13px;font-size:11px;font-weight:700;color:var(--mut2);line-height:1.45}
+.you-perf-k{margin-bottom:10px}
+/* compact 3-stat personal snapshot */
+.you-snap{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:12px 4px}
+.you-snap .you-s{border-left:1px solid rgba(255,255,255,.09)}
+.you-snap .you-s:first-child{border-left:0}
+/* compact performance summary card */
+.you-sum{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.10);box-shadow:var(--shadow-1)}
+.you-sum-ic{flex:0 0 auto;width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:rgba(100,210,255,.12);border:1px solid rgba(100,210,255,.26);font-size:15px}
+.you-sum-tx{min-width:0;flex:1}
+.you-sum-tx b{display:block;font-size:12.5px;font-weight:850;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.you-sum-tx span{display:block;font-size:10.5px;font-weight:700;color:var(--mut2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* compact segmented nav strip */
+.you-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.you-nav button{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:14px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#fff;font-size:10.5px;font-weight:850;padding:6px 4px;min-width:0;transition:background .18s var(--ease)}
+.you-nav button .yn-ic{font-size:16px;line-height:1}
+.you-nav button>span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.you-nav button:active{background:rgba(255,255,255,.1)}
+/* optional progress drawer (XP ladder) — compact, secondary */
+.you-prog{border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.03);overflow:hidden}
+.you-prog>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:50px;padding:0 14px;color:#fff}
+.you-prog>summary::-webkit-details-marker{display:none}
+.you-prog>summary b{font-size:12.5px;font-weight:850}
+.you-prog>summary span{font-size:10.5px;font-weight:750;color:var(--mut2)}
+.you-prog[open]>summary{border-bottom:1px solid var(--line)}
+.you-prog-body{padding:10px}
+.you-prog-body .weekly-card{margin:0;border:0;border-radius:0;box-shadow:none;background:transparent;padding:0}
 /* next-action card — vivid, single CTA. Gold = Play/pick action · cyan = tournament/explore */
 .you-next{position:relative;overflow:hidden;border-radius:20px;padding:16px;border:1px solid rgba(255,214,10,.30);background:linear-gradient(155deg,rgba(255,214,10,.15),rgba(16,22,74,.62) 62%);box-shadow:0 16px 40px -26px rgba(0,0,0,.85),0 1px 0 rgba(255,255,255,.06) inset}
 .you-next::before{content:"";position:absolute;inset:0;background:radial-gradient(92% 80% at 0 0,rgba(255,214,10,.13),transparent 56%);pointer-events:none}
@@ -2809,7 +2838,7 @@ function dataStatusHTML(){
  return '<div class="data-status '+cls+'"><span class="data-dot"></span><div class="data-copy"><div class="data-title">'+esc(title)+'</div><div class="data-sub">'+esc(sub)+'</div></div><button class="data-refresh" onclick="refreshOfficialData()">Refresh</button></div>';}
 function refreshOfficialData(){try{fetchResults();fetchRealWorldData();toast('Syncing official data…');}catch(e){toast('Could not refresh right now');}}
 function todayRailHTML(){
- var today=curISO();var rows=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num];return !done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,6);
+ var today=curISO();var rows=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num];return !done&&!(S.real&&S.real[m.num])&&!matchLiveState(m.num)&&matchDay(m)>=today;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,6);
  if(!rows.length)return '';
  var cards=rows.map(function(m){var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),o=(p[0]&&p[1])?matchOddsFor(m.num,p[0],p[1],m.stage!=='group'):null,st=matchLiveState(m.num),tag=st?(st.label||'Official status'):(m.stage==='group'?('Group '+m.group):roundShort(m.num));return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+(p[0]?fl(p[0])+' '+nm(p[0]):slotLabel(m.home))+' v '+(p[1]?nm(p[1])+' '+fl(p[1]):slotLabel(m.away))+'</b><span>'+shortDate(m.date)+' · '+to12(m.time)+' ET · '+esc(tag)+'</span><span>'+(o?('Market odds · '+fmtAmer(o.h)+' / '+fmtAmer(o.d)+' / '+fmtAmer(o.a)):'Market odds unavailable')+'</span></div>';}).join('');
  return '<div class="home-card"><div class="today-rail-head"><b>Today & next</b><button onclick="goSchedule()">All fixtures</button></div><div class="home-upcoming">'+cards+'<div class="home-fixture all" onclick="goSchedule()"><b>All fixtures</b><span>Open the full Tournament match list</span></div></div></div>';}
@@ -2831,7 +2860,7 @@ function goSocial(){TAB='h2h';if(typeof pushTab==="function")pushTab();switchTab
 function homeLiveNowHTML(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
  if(S.live){var L=S.live;return '<div class="home-card hero play"><div class="home-k"><span>Live Now</span><span class="home-status">My Sim</span></div><div class="home-live-row"><div class="home-team">'+fl(L.h)+' '+nm(L.h)+'</div><div class="home-score">'+L.sh+'–'+L.sa+'</div><div class="home-team r">'+nm(L.a)+' '+fl(L.a)+'</div></div><div class="home-sub">Sim minute '+L.min+"' · "+esc(L.comm||'Match running')+'</div><button class="home-action" onclick="openSheet('+L.num+')">Open Match Center</button></div>';}
- if(states.length){var st=states[0],m=M[st.num],hold=st.kind==='hold',h=m&&m.home,a=m&&m.away;return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(st.label||'Live')+'</span></div><div class="home-live-row"><div class="home-team">'+fl(h)+' '+nm(h)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+nm(a)+' '+fl(a)+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div><button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
+ if(states.length){var st=states[0],m=M[st.num],hold=st.kind==='hold',h=m&&m.home,a=m&&m.away;var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(st.label||'Live')+'</span></div><div class="home-live-row"><div class="home-team">'+fl(h)+' '+nm(h)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+nm(a)+' '+fl(a)+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
  var pending=null,pnow=Date.now(),pt=Infinity;MATCHES.forEach(function(mm){if(!livePendingOfficial(mm.num))return;var d=koDateTime(mm);if(!d)return;var t=d.getTime();if(t<=pnow&&t<pt){pt=t;pending=mm.num;}});
  if(pending!=null){var pm=M[pending],pp=pm.stage==='group'?[pm.home,pm.away]:koParts(pm.num);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+fl(pp[0])+' '+nm(pp[0])+'</div><div class="home-score">–</div><div class="home-team r">'+nm(pp[1])+' '+fl(pp[1])+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
@@ -2843,7 +2872,9 @@ function activePicksHTML(){
  var open=S.bets.filter(function(b){return !b.settled;});if(!open.length&&!(S.slip&&S.slip.length)&&!S.live)return '';
  var ret=open.reduce(function(t,b){return t+Math.round((b.stake||0)*amerToDec(b.odds||100));},0);
  var delayed=open.filter(function(b){return b.num&&matchHoldState(b.num);}).length;
- return '<div class="home-card play"><div class="home-k"><span>Your Active Picks</span><span class="home-status '+(delayed?'hold':'')+'">'+(delayed?'Delayed':'Play')+'</span></div><div class="home-picks"><div class="home-pick-stat"><span>Open</span><b>'+open.length+'</b></div><div class="home-pick-stat"><span>Possible return</span><b>$'+ret.toLocaleString()+'</b></div><button class="home-action" style="margin:0" onclick="goSlip()">'+(open.length?'Open Slip':'Bet Slip')+'</button></div><div class="home-sub" style="margin-top:8px">'+(delayed?delayed+' pick'+(delayed>1?'s':'')+' awaiting official restart/result. Nothing settles early.':(open.length?'Track unsettled picks and parlays from one place.':'No active picks yet. Quick picks are waiting in upcoming matches.'))+'</div></div>';
+ var liveBet=open.find(function(b){return b.num&&matchLiveState(b.num)&&matchLiveState(b.num).kind==='live';});
+ var livePick=liveBet?('<div class="home-livepick" onclick="goSlip()"><span class="hlp-dot"></span><b>Your live pick</b> · '+youMatchLine(liveBet.num)+' · markets closed</div>'):'';
+ return '<div class="home-card play"><div class="home-k"><span>Your Active Picks</span><span class="home-status '+(delayed?'hold':'')+'">'+(delayed?'Delayed':'Play')+'</span></div>'+livePick+'<div class="home-picks"><div class="home-pick-stat"><span>Open</span><b>'+open.length+'</b></div><div class="home-pick-stat"><span>Possible return</span><b>$'+ret.toLocaleString()+'</b></div><button class="home-action" style="margin:0" onclick="goSlip()">'+(open.length?'Open Slip':'Bet Slip')+'</button></div><div class="home-sub" style="margin-top:8px">'+(delayed?delayed+' pick'+(delayed>1?'s':'')+' awaiting official restart/result. Nothing settles early.':(open.length?'Track unsettled picks and parlays from one place.':'No active picks yet. Quick picks are waiting in upcoming matches.'))+'</div></div>';
 }
 function tournamentPulseHomeHTML(){
  var today=curISO(),pulse=knockoutPulseHTML(),next=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num];return !done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
@@ -2897,7 +2928,10 @@ function renderHome(){
    [['','Normal'],['chaos','🌀 Chaos'],['laser','⚡ Laser Boots'],['bus','🧱 Park the Bus']].map(function(o){return '<button class="sbx-b'+(((S.simMode||'')===o[0])?' on':'')+'" onclick="setSimMode(\''+o[0]+'\')">'+o[1]+'</button>';}).join('')+
    '</div><div class="sbx-note">Bends future sims — upsets, goal floods or lockdowns. Never touches real results.</div></div></div></details>';
  var _hype="";try{_hype=hypeHTML();}catch(e){}var _pick="";try{_pick=pickemHTML();}catch(e){}
- document.getElementById("home").innerHTML=dataStatusHTML()+'<div id="realwire">'+(typeof _realwire==="string"?_realwire:"")+'</div><div class="home-stack">'+homeLiveNowHTML()+todayRailHTML()+activePicksHTML()+tournamentPulseHomeHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
+ // Phase 3A refine: ONE primary live hero (homeLiveNowHTML). The old standalone
+ // data-status/refresh card and the separate #realwire "Live now" block were
+ // duplicate live surfaces — removed. Live data still flows via S.rwState + render().
+ document.getElementById("home").innerHTML='<div class="home-stack">'+homeLiveNowHTML()+todayRailHTML()+activePicksHTML()+tournamentPulseHomeHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
 }
 /* ===== The Athletic Newsroom — editorial feed (Gemini #6) ===== */
 var _activeNewsTab="Storylines";
@@ -3928,20 +3962,31 @@ function youPolishHTML(){
  /* truthful status line — never implies login / cloud sync */
  var status=open.length?(open.length+' active pick'+(open.length===1?'':'s')):(settled.length?'Tournament tracker':'Ready for matchday');
  var head='<div class="you-head"><div class="you-av">'+esc(initial)+'</div><div class="you-id"><div class="you-nm">'+name+'</div><div class="you-status"><i></i>'+esc(status)+'</div></div><button class="you-edit" onclick="lbPostSheet()">'+(me?'Edit profile':'Set name')+'</button></div>';
- /* performance block — primary: virtual balance · supporting: win rate + simulated P/L (data unchanged) */
+ /* 1 · profile + compact personal snapshot (balance / win rate / sim P/L — data unchanged) */
  var wr=settled.length?Math.round(st.winRate)+'%':'—';
  var wrCls=settled.length?(st.winRate>=50?'g':''):'';
  var plTxt=settled.length?((pnl>=0?'+':'−')+'$'+Math.abs(pnl).toLocaleString()):'—';
  var plCls=settled.length?(pnl>=0?'g':'r'):'';
- var metaLine=(total===0)?'No picks yet — your tournament starts with the next match.':((settled.length===0)?(total+' active pick'+(total===1?'':'s')+' · completed picks appear here after official results.'):(total+' picks placed · '+settled.length+' settled'));
- var perf='<div class="you-perf-k"><span>Your simulated season</span><span class="you-pill">Simulated $</span></div>'
-   +'<div class="you-prim">$'+(S.bank||0).toLocaleString()+'</div>'
-   +'<div class="you-prim-sub">Virtual balance · play money, never real funds</div>'
-   +'<div class="you-sub2"><div class="you-s"><b class="'+wrCls+'">'+wr+'</b><span>Win rate</span></div><div class="you-sep"></div><div class="you-s"><b class="'+plCls+'">'+plTxt+'</b><span>Sim P/L</span></div></div>'
-   +'<div class="you-meta">'+esc(metaLine)+'</div>';
- /* profile header + performance composed as one frosted hero unit, divided */
- var hero='<div class="you-hero">'+head+'<div class="you-div"></div>'+perf+'</div>';
- return '<div class="you-stack">'+hero+youNextHTML(open)+'</div>';}
+ var snap='<div class="you-perf-k"><span>Your season · simulated</span><span class="you-pill">Play money</span></div>'
+   +'<div class="you-snap"><div class="you-s"><b>$'+(S.bank||0).toLocaleString()+'</b><span>Balance</span></div>'
+   +'<div class="you-s"><b class="'+wrCls+'">'+wr+'</b><span>Win rate</span></div>'
+   +'<div class="you-s"><b class="'+plCls+'">'+plTxt+'</b><span>Sim P/L</span></div></div>';
+ var hero='<div class="you-hero">'+head+'<div class="you-div"></div>'+snap+'</div>';
+ /* 3 · compact performance summary (record / picks / ROI · truthful, with empty states) */
+ var wins=settled.filter(function(b){return b.win;}).length,losses=settled.length-wins;
+ var roiTxt=settled.length?((st.roi>=0?'+':'')+Math.round(st.roi)+'%'):'—';
+ var sumMain=(total===0)?'No picks placed yet':(wins+'–'+losses+' record · '+total+' pick'+(total===1?'':'s')+' placed');
+ var sumSub=(total===0)?'Your completed picks appear here after official results.':(settled.length?('ROI '+roiTxt+' · '+settled.length+' settled'):(open.length+' active · awaiting official results'));
+ var summary='<div class="you-sum"><div class="you-sum-ic">📊</div><div class="you-sum-tx"><b>'+esc(sumMain)+'</b><span>'+esc(sumSub)+'</span></div></div>';
+ /* 4 · compact navigation strip — fast routes to Record / Leaderboard / Leagues / Progress */
+ var nav='<div class="you-nav">'
+   +'<button onclick="goMyBets()"><span class="yn-ic">📊</span><span>Record</span></button>'
+   +'<button onclick="goLeaderboard()"><span class="yn-ic">🏆</span><span>Leaders</span></button>'
+   +'<button onclick="syndicateSheet()"><span class="yn-ic">👥</span><span>Leagues</span></button>'
+   +'<button onclick="youOpenProgress()"><span class="yn-ic">⚡</span><span>Progress</span></button></div>';
+ /* order: 1 profile+snapshot · 2 your next move · 3 compact performance · 4 nav strip */
+ return '<div class="you-stack">'+hero+youNextHTML(open)+summary+nav+'</div>';}
+function youOpenProgress(){var d=document.getElementById('youProgress');if(d){try{d.open=true;}catch(e){}try{d.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}}}
 function socialHubHTML(){var st=bettorStats(),open=S.bets.filter(function(b){return !b.settled;}).length,settled=S.bets.filter(function(b){return b.settled;});
  var me=lbName(),roi=st.settled?((st.roi>=0?'+':'')+st.roi.toFixed(1)+'%'):'—',wr=st.settled?Math.round(st.winRate)+'%':'—';
  var pnl=settled.reduce(function(t,b){return t+(b.net||0);},0),style=playStyle(st.roi||0,S.bank||0),initial=me?me.charAt(0).toUpperCase():'U';
@@ -3951,7 +3996,12 @@ function socialHubHTML(){var st=bettorStats(),open=S.bets.filter(function(b){ret
     weekly challenges and story below are preserved unchanged. */
  var story=S.lastStory?'<div class="social-league-card" style="margin:12px 0"><b>How your run is going</b><span>'+esc(S.lastStory)+'</span><button onclick="goMyBets()">View tickets</button></div>':'';
  var leagueCard='<div class="social-league"><div class="social-league-card"><b>'+league+'</b><span>Private standings for your friends, powered by the same live score posts.</span><button onclick="syndicateSheet()">League hub</button></div><div class="social-league-card"><b>'+(open||0)+' open bet'+(open===1?'':'s')+'</b><span>'+(pnl>=0?'Up ':'Down ')+'$'+Math.abs(pnl).toLocaleString()+' settled P/L · '+(st.bestTeam?fl(st.bestTeam)+' '+nm(st.bestTeam):'pick a lucky team')+'</span><button onclick="goSlip()">Open slip</button></div></div>';
- return '<div class="social-stage">'+youPolishHTML()+weeklyChallengesHTML()+story+socialLeaderboardHTML('socialLbBoard')+leagueCard+'</div>';}
+ /* Phase 3A refine — progressive disclosure: youPolishHTML() carries profile snapshot,
+    Your next move, compact performance and the nav strip (above the fold). Detailed
+    surfaces (leaderboard, leagues) sit below; XP/progress is collapsed into a compact,
+    optional drawer so it no longer dominates the first viewport. Data behaviour unchanged. */
+ var progress='<details class="you-prog" id="youProgress"><summary><b>Progress &amp; weekly challenges</b><span>Optional · XP ladder</span></summary><div class="you-prog-body">'+weeklyChallengesHTML()+'</div></details>';
+ return '<div class="social-stage">'+youPolishHTML()+socialLeaderboardHTML('socialLbBoard')+leagueCard+progress+story+'</div>';}
 function renderCompare(){var el=document.getElementById("compare");if(!el)return;var a=S.h2hA||"ARG",b=S.h2hB||"BRA";
  var ra=RAT[a]||70,rb=RAT[b]||70,o=matchOdds(a,b),sim=h2hSim(a,b,600);
  var pa=Math.round(sim.aw*100),pd=Math.round(sim.d*100),pb=100-pa-pd;
@@ -5139,6 +5189,9 @@ function fetchScorers(){
 var _resFetching=false;
 var _lastSync=0;
 function fmtAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/1000));if(s<45)return"just now";var m=Math.round(s/60);if(m<1)return"just now";if(m<60)return m+"m ago";var h=Math.round(m/60);return h+"h ago";}
+/* Freshness for the single live hero — phrased for the official feed ("updated just now / N min ago"). */
+function fmtFeedAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/1000));if(s<45)return"just now";var m=Math.round(s/60);if(m<1)return"just now";if(m<60)return m+" min ago";var h=Math.round(m/60);return h+" hr ago";}
+function liveFeedTs(){var x=(typeof ApiBus!=="undefined"&&ApiBus.last)?ApiBus.last['/api/live']:null;var t=(x&&x.t)?x.t:0;return Math.max(t,_lastSync||0);}
 function fetchResults(){
   if(_resFetching||document.hidden)return;_resFetching=true;
   try{apiGet('/api/results',10*60000).then(function(d){
