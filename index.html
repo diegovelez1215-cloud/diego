@@ -4706,7 +4706,7 @@ function tccGroupScenarios(g){
 }
 function tccGroupStakes(g){
   var official=tccOffTable(g),remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
-  var complete=remaining.length===0,confirm=[],elim=[],stands=[];
+  var complete=remaining.length===0,confirm=[],elim=[],stands=[],scenarioNotes=[];
   if(complete){
     confirm.push(nm(official[0].code)+' won Group '+g+'.');
     confirm.push(nm(official[1].code)+' qualified in second.');
@@ -4716,14 +4716,14 @@ function tccGroupStakes(g){
     official.forEach(function(r){
       var floor=r.Pts,ceil=r.Pts+3*(rem[r.code]||0);
       var canExceedFloor=official.filter(function(o){return o.code!==r.code&&(o.Pts+3*(rem[o.code]||0))>=floor;}).length;
-      if(canExceedFloor<=1)confirm.push(nm(r.code)+' have qualified for the Round of 32.');
+      if(canExceedFloor<=1)scenarioNotes.push(nm(r.code)+' are in a strong position, but qualification is not yet confirmed.');
       var aboveCeil=official.filter(function(o){return o.code!==r.code&&o.Pts>ceil;}).length;
-      if(aboveCeil>=3)elim.push(nm(r.code)+' can no longer finish in the top three — eliminated.');
+      if(aboveCeil>=3)scenarioNotes.push(nm(r.code)+' need help to stay in contention; elimination is not yet confirmed.');
     });
   }
   var scens=complete?[]:tccGroupScenarios(g);
   if(tccGroupLive(g)){var live=tccRealTable(g);stands.push('As it stands, '+nm(live[0].code)+' top the group and '+nm(live[1].code)+' hold second.');}
-  var scen=scens.length?[scens[0].teaser]:[];
+  var scen=scenarioNotes.concat(scens.length?[scens[0].teaser]:[]);
   return {confirm:confirm,elim:elim,stands:stands,scen:scen,hasScenarios:scens.length>0};
 }
 function tccGroupStakesHTML(g){
@@ -4740,7 +4740,7 @@ function tccGroupStakesHTML(g){
 function tccScenarioSheet(g){
   var scns=tccGroupScenarios(g),official=tccOffTable(g);
   var html='<div class="grab"></div><div class="sh-rnd">Group '+g+' scenarios</div><div class="sh-when">Highest-value upcoming results</div>';
-  if(official.length>=4)html+='<div class="tcc-sheet-lead">In <b>Group '+g+'</b>, '+esc(nm(official[0].code))+' lead on '+official[0].Pts+' pts, ahead of '+esc(nm(official[1].code))+' ('+official[1].Pts+'), '+esc(nm(official[2].code))+' ('+official[2].Pts+') and '+esc(nm(official[3].code))+' ('+official[3].Pts+').</div>';
+  if(official.length>=4)html+='<div class="tcc-sheet-lead"><b>Group '+g+' points snapshot:</b> '+esc(nm(official[0].code))+' '+official[0].Pts+' pts, '+esc(nm(official[1].code))+' '+official[1].Pts+', '+esc(nm(official[2].code))+' '+official[2].Pts+', '+esc(nm(official[3].code))+' '+official[3].Pts+'. Positions and qualification remain pending official finals and tie-breakers.</div>';
   html+='<div class="tcc-prov">⚠ Scenario, not confirmed · pending official finals</div>';
   if(!scns.length)html+='<div class="tcc-sheet-lead">Group '+g+' is complete — no fixtures remain.</div>';
   scns.forEach(function(s){
@@ -4776,8 +4776,12 @@ function tccRoadSheet(code){if(!code||!T[code])return;var g=TG[code];
     chain.forEach(function(mnum,ci){var m=M[mnum],p=koParts(mnum),opp;
       if(ci===0)opp=(p[0]===code)?p[1]:p[0];
       else{var feeder=chain[ci-1],fs=FEEDERS[mnum],other=fs[0]===feeder?fs[1]:fs[0];opp=winner(other);}
-      var oppHtml=opp?('<span class="fl">'+fl(opp)+'</span>'+esc(nm(opp))):'<span class="ph">opponent to be decided</span>';
-      var official=S.realko&&S.realko[mnum];var cls=official?(official===code?'win':'out'):'';
+      var official=S.realko&&S.realko[mnum];
+      var dt=koDateTime(m);
+      var pending=!official&&dt&&Date.now()>=dt.getTime();
+      var oppLabel=official?'confirmed opponent':(pending?'pending official final':(opp?'possible opponent':'unresolved slot'));
+      var oppHtml=opp?('<span class="fl">'+fl(opp)+'</span>'+esc(nm(opp))+' <span class="ph">'+oppLabel+'</span>'):'<span class="ph">'+oppLabel+'</span>';
+      var cls=official?(official===code?'win':'out'):'';
       var last=ci===chain.length-1;
       html+='<div class="tcc-rnode '+cls+'"><div class="tcc-rn-rail"><div class="tcc-rn-dot">'+(mnum===104?'🏆':esc(roundShort(mnum)))+'</div>'+(last?'':'<div class="tcc-rn-line"></div>')+'</div>'+
         '<div class="tcc-rn-body"><div class="tcc-rn-rd">'+esc(roundName(mnum))+'</div><div class="tcc-rn-opp"><span style="font-size:11px;color:var(--mut3);font-weight:800">vs</span> '+oppHtml+'</div><div class="tcc-rn-meta">'+esc(VEN[m.venue][1]+' · '+shortDate(m.date)+' · '+to12(m.time))+'</div></div></div>';
