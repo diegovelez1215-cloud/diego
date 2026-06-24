@@ -102,6 +102,15 @@ nav button.on .e{opacity:1}
 .strow .tm{display:flex;align-items:center;gap:7px;font-weight:700;min-width:0;cursor:pointer}
 .strow .tm .fl{font-size:16px;flex-shrink:0}
 .strow .tm .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.strow .tm .nmwrap{display:flex;flex-direction:column;min-width:0;gap:1px}
+.st-chip{align-self:flex-start;font-size:8px;font-weight:900;letter-spacing:.4px;text-transform:uppercase;padding:1px 5px;border-radius:999px;border:1px solid transparent;line-height:1.45;white-space:nowrap}
+.st-chip.win{color:#06150c;background:linear-gradient(135deg,#36db82,#1fb867)}
+.st-chip.q{color:var(--blue2);background:rgba(59,130,255,.16);border:1px solid rgba(59,130,255,.32)}
+.st-chip.out{color:#ff8077;background:rgba(255,69,58,.13);border:1px solid rgba(255,69,58,.28)}
+.st-chip.pend{color:var(--gold);background:rgba(255,203,61,.12);border:1px solid rgba(255,203,61,.26)}
+/* Flag fallback badge — shown whenever a flag emoji cannot render, so no blank
+   white tofu block ever appears (subdivision flags, non-Apple platforms, etc.) */
+.flbadge{display:inline-flex;align-items:center;justify-content:center;min-width:1.7em;height:1.18em;padding:0 .26em;border-radius:4px;background:linear-gradient(135deg,rgba(255,255,255,.17),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.2);color:#e6edf6;font-size:.6em;font-weight:900;letter-spacing:.2px;line-height:1;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;vertical-align:middle;font-variant-emoji:text;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 .strow .n{text-align:center;color:var(--mut);font-variant-numeric:tabular-nums;font-weight:800;min-width:0}
 .strow .pts{text-align:center;font-weight:900;color:var(--txt);font-variant-numeric:tabular-nums;min-width:0}
 .strow.q1{background:linear-gradient(90deg,rgba(43,221,134,.16),transparent)}.strow.q1 .pos{color:var(--green)}
@@ -1127,6 +1136,18 @@ footer{font-size:12px;color:var(--mut3)}
 .tk-chips{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
 .tk-chips button{padding:9px 2px;border-radius:10px;border:1px solid var(--line2);background:var(--card);color:var(--txt);font-size:12px;font-weight:800}
 .tk-chips button:active{background:rgba(10,132,255,.16);border-color:var(--blue)}
+/* Dynamic stake presets — scale with the player's virtual bankroll */
+.tk-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+.tk-preset{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px;padding:8px 3px;border-radius:13px;border:1px solid var(--line2);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));color:var(--txt);cursor:pointer;transition:.14s;overflow:hidden}
+.tk-preset .tkp-l{font-size:8.5px;font-weight:900;letter-spacing:.3px;text-transform:uppercase;color:var(--mut2);white-space:nowrap}
+.tk-preset .tkp-v{font-size:13px;font-weight:950;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tk-preset:active{transform:scale(.95)}
+.tk-preset.sel{border-color:transparent;background:linear-gradient(135deg,#0a84ff,#15e0c0);box-shadow:0 7px 20px -7px rgba(10,132,255,.65)}
+.tk-preset.sel .tkp-l{color:rgba(255,255,255,.9)}.tk-preset.sel .tkp-v{color:#fff}
+.tk-preset.allin{border-color:rgba(255,159,10,.38)}
+.tk-preset.allin .tkp-l{color:var(--gold)}
+.tk-preset.allin.sel{background:linear-gradient(135deg,#ff9f0a,#ff375f);box-shadow:0 7px 20px -7px rgba(255,120,30,.7)}
+.tk-preset.allin.sel .tkp-l{color:#fff}
 .tk-stakebox{position:relative;display:flex;align-items:center;gap:8px;min-height:58px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:10px 16px;margin-bottom:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 .tk-stakebox::before,.tk-stakebox::after{content:"";position:absolute;left:12px;right:12px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);pointer-events:none}.tk-stakebox::before{top:11px}.tk-stakebox::after{bottom:11px}
 .tk-stakebox span{position:relative;font-size:22px;font-weight:800;color:var(--mut2)}
@@ -1644,12 +1665,13 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .brk-vert .tie.path,.brk-vert .fcard.path{position:relative;overflow:hidden}
 .brk-vert .tie.path::after,.brk-vert .fcard.path::after{content:"";position:absolute;top:0;left:-60%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);animation:pathSheen 3.4s var(--ease) infinite;pointer-events:none}
 @keyframes pathSheen{0%{left:-60%}55%,100%{left:130%}}
-.brk-vert .tslot{padding:11px 14px;font-size:14.5px}
+.brk-vert .tie,.brk-vert .fcard{padding-left:2px;padding-right:2px}
+.brk-vert .tslot{padding:11px 16px;font-size:14.5px}
 .tslot .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tslot-tick{margin-left:auto;color:var(--green);font-size:13px;font-weight:900;flex:none}
 .brk-vert .tslot .fl{font-size:19px}
 .brk-vert .tslot .nm.ph{font-size:12px}
-.brk-vert .mlbl{font-size:9px;padding:5px 11px}
+.brk-vert .mlbl{font-size:9px;padding:5px 14px}
 .brk-locked{background:linear-gradient(135deg,rgba(255,159,10,.14),rgba(0,0,0,.4));border:1px solid rgba(255,159,10,.34);border-radius:14px;padding:14px 15px;margin-bottom:6px}
 .brk-locked .bl-t{font-size:13.5px;font-weight:900}
 .brk-locked .bl-s{font-size:12px;color:var(--mut);font-weight:600;line-height:1.5;margin-top:4px}
@@ -2056,13 +2078,16 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .tcc-scn-line b{color:var(--txt);font-weight:800}
 .tcc-scn-go{display:block;width:100%;min-height:44px;margin-top:8px;border-radius:11px;border:1px solid var(--line2);background:rgba(10,132,255,.12);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
 /* bracket tie state + stakes */
-.tcc-tie-state{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+/* state/stake live INSIDE a rounded, overflow-hidden .tie card, so they need
+   horizontal padding that clears the 13px corner radius — otherwise the first
+   letter is clipped by the rounded corner. */
+.tcc-tie-state{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:9px 15px 3px;margin:0}
 .tcc-tie-state .tcc-ts-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--mut2)}
 .tcc-tie-state.confirm{color:var(--green)}.tcc-tie-state.confirm .tcc-ts-dot{background:var(--green)}
 .tcc-tie-state.stands{color:var(--blue2)}.tcc-tie-state.stands .tcc-ts-dot{background:var(--blue2)}
 .tcc-tie-state.await{color:var(--mut2)}.tcc-tie-state.await .tcc-ts-dot{background:var(--mut3)}
 .tcc-tie-state.pending{color:var(--gold)}.tcc-tie-state.pending .tcc-ts-dot{background:var(--gold)}
-.tcc-tie-stake{font-size:10.5px;font-weight:700;color:var(--mut);margin-top:7px;line-height:1.35}
+.tcc-tie-stake{font-size:10.5px;font-weight:700;color:var(--mut);margin:0;padding:2px 15px 12px;line-height:1.35}
 .tcc-tie-stake b{color:#cfe0ff;font-weight:800}
 .tcc-road-btn{display:block;width:100%;min-height:44px;margin:10px 0 2px;border-radius:12px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
 /* team road sheet */
@@ -2193,7 +2218,19 @@ const FEEDERS={89:[74,77],90:[73,75],91:[76,78],92:[79,80],93:[83,84],94:[81,82]
 /* Official FIFA 2026 Annex C: all 495 third-place allocation combinations (key=sorted 8 qualifying groups, value=3rd-group per winner-slot in order 1A,1B,1D,1E,1G,1I,1K,1L). */
 var TP3={"EFGHIJKL":"EJIFHGLK","DFGHIJKL":"HGIDJFLK","DEGHIJKL":"EJIDHGLK","DEFHIJKL":"EJIDHFLK","DEFGIJKL":"EGIDJFLK","DEFGHJKL":"EGJDHFLK","DEFGHIKL":"EGIDHFLK","DEFGHIJL":"EGJDHFLI","DEFGHIJK":"EGJDHFIK","CFGHIJKL":"HGICJFLK","CEGHIJKL":"EJICHGLK","CEFHIJKL":"EJICHFLK","CEFGIJKL":"EGICJFLK","CEFGHJKL":"EGJCHFLK","CEFGHIKL":"EGICHFLK","CEFGHIJL":"EGJCHFLI","CEFGHIJK":"EGJCHFIK","CDGHIJKL":"HGICJDLK","CDFHIJKL":"CJIDHFLK","CDFGIJKL":"CGIDJFLK","CDFGHJKL":"CGJDHFLK","CDFGHIKL":"CGIDHFLK","CDFGHIJL":"CGJDHFLI","CDFGHIJK":"CGJDHFIK","CDEHIJKL":"EJICHDLK","CDEGIJKL":"EGICJDLK","CDEGHJKL":"EGJCHDLK","CDEGHIKL":"EGICHDLK","CDEGHIJL":"EGJCHDLI","CDEGHIJK":"EGJCHDIK","CDEFIJKL":"CJEDIFLK","CDEFHJKL":"CJEDHFLK","CDEFHIKL":"CEIDHFLK","CDEFHIJL":"CJEDHFLI","CDEFHIJK":"CJEDHFIK","CDEFGJKL":"CGEDJFLK","CDEFGIKL":"CGEDIFLK","CDEFGIJL":"CGEDJFLI","CDEFGIJK":"CGEDJFIK","CDEFGHKL":"CGEDHFLK","CDEFGHJL":"CGJDHFLE","CDEFGHJK":"CGJDHFEK","CDEFGHIL":"CGEDHFLI","CDEFGHIK":"CGEDHFIK","CDEFGHIJ":"CGJDHFEI","BFGHIJKL":"HJBFIGLK","BEGHIJKL":"EJIBHGLK","BEFHIJKL":"EJBFIHLK","BEFGIJKL":"EJBFIGLK","BEFGHJKL":"EJBFHGLK","BEFGHIKL":"EGBFIHLK","BEFGHIJL":"EJBFHGLI","BEFGHIJK":"EJBFHGIK","BDGHIJKL":"HJBDIGLK","BDFHIJKL":"HJBDIFLK","BDFGIJKL":"IGBDJFLK","BDFGHJKL":"HGBDJFLK","BDFGHIKL":"HGBDIFLK","BDFGHIJL":"HGBDJFLI","BDFGHIJK":"HGBDJFIK","BDEHIJKL":"EJBDIHLK","BDEGIJKL":"EJBDIGLK","BDEGHJKL":"EJBDHGLK","BDEGHIKL":"EGBDIHLK","BDEGHIJL":"EJBDHGLI","BDEGHIJK":"EJBDHGIK","BDEFIJKL":"EJBDIFLK","BDEFHJKL":"EJBDHFLK","BDEFHIKL":"EIBDHFLK","BDEFHIJL":"EJBDHFLI","BDEFHIJK":"EJBDHFIK","BDEFGJKL":"EGBDJFLK","BDEFGIKL":"EGBDIFLK","BDEFGIJL":"EGBDJFLI","BDEFGIJK":"EGBDJFIK","BDEFGHKL":"EGBDHFLK","BDEFGHJL":"HGBDJFLE","BDEFGHJK":"HGBDJFEK","BDEFGHIL":"EGBDHFLI","BDEFGHIK":"EGBDHFIK","BDEFGHIJ":"HGBDJFEI","BCGHIJKL":"HJBCIGLK","BCFHIJKL":"HJBCIFLK","BCFGIJKL":"IGBCJFLK","BCFGHJKL":"HGBCJFLK","BCFGHIKL":"HGBCIFLK","BCFGHIJL":"HGBCJFLI","BCFGHIJK":"HGBCJFIK","BCEHIJKL":"EJBCIHLK","BCEGIJKL":"EJBCIGLK","BCEGHJKL":"EJBCHGLK","BCEGHIKL":"EGBCIHLK","BCEGHIJL":"EJBCHGLI","BCEGHIJK":"EJBCHGIK","BCEFIJKL":"EJBCIFLK","BCEFHJKL":"EJBCHFLK","BCEFHIKL":"EIBCHFLK","BCEFHIJL":"EJBCHFLI","BCEFHIJK":"EJBCHFIK","BCEFGJKL":"EGBCJFLK","BCEFGIKL":"EGBCIFLK","BCEFGIJL":"EGBCJFLI","BCEFGIJK":"EGBCJFIK","BCEFGHKL":"EGBCHFLK","BCEFGHJL":"HGBCJFLE","BCEFGHJK":"HGBCJFEK","BCEFGHIL":"EGBCHFLI","BCEFGHIK":"EGBCHFIK","BCEFGHIJ":"HGBCJFEI","BCDHIJKL":"HJBCIDLK","BCDGIJKL":"IGBCJDLK","BCDGHJKL":"HGBCJDLK","BCDGHIKL":"HGBCIDLK","BCDGHIJL":"HGBCJDLI","BCDGHIJK":"HGBCJDIK","BCDFIJKL":"CJBDIFLK","BCDFHJKL":"CJBDHFLK","BCDFHIKL":"CIBDHFLK","BCDFHIJL":"CJBDHFLI","BCDFHIJK":"CJBDHFIK","BCDFGJKL":"CGBDJFLK","BCDFGIKL":"CGBDIFLK","BCDFGIJL":"CGBDJFLI","BCDFGIJK":"CGBDJFIK","BCDFGHKL":"CGBDHFLK","BCDFGHJL":"CGBDHFLJ","BCDFGHJK":"HGBCJFDK","BCDFGHIL":"CGBDHFLI","BCDFGHIK":"CGBDHFIK","BCDFGHIJ":"HGBCJFDI","BCDEIJKL":"EJBCIDLK","BCDEHJKL":"EJBCHDLK","BCDEHIKL":"EIBCHDLK","BCDEHIJL":"EJBCHDLI","BCDEHIJK":"EJBCHDIK","BCDEGJKL":"EGBCJDLK","BCDEGIKL":"EGBCIDLK","BCDEGIJL":"EGBCJDLI","BCDEGIJK":"EGBCJDIK","BCDEGHKL":"EGBCHDLK","BCDEGHJL":"HGBCJDLE","BCDEGHJK":"HGBCJDEK","BCDEGHIL":"EGBCHDLI","BCDEGHIK":"EGBCHDIK","BCDEGHIJ":"HGBCJDEI","BCDEFJKL":"CJBDEFLK","BCDEFIKL":"CEBDIFLK","BCDEFIJL":"CJBDEFLI","BCDEFIJK":"CJBDEFIK","BCDEFHKL":"CEBDHFLK","BCDEFHJL":"CJBDHFLE","BCDEFHJK":"CJBDHFEK","BCDEFHIL":"CEBDHFLI","BCDEFHIK":"CEBDHFIK","BCDEFHIJ":"CJBDHFEI","BCDEFGKL":"CGBDEFLK","BCDEFGJL":"CGBDJFLE","BCDEFGJK":"CGBDJFEK","BCDEFGIL":"CGBDEFLI","BCDEFGIK":"CGBDEFIK","BCDEFGIJ":"CGBDJFEI","BCDEFGHL":"CGBDHFLE","BCDEFGHK":"CGBDHFEK","BCDEFGHJ":"HGBCJFDE","BCDEFGHI":"CGBDHFEI","AFGHIJKL":"HJIFAGLK","AEGHIJKL":"EJIAHGLK","AEFHIJKL":"EJIFAHLK","AEFGIJKL":"EJIFAGLK","AEFGHJKL":"EGJFAHLK","AEFGHIKL":"EGIFAHLK","AEFGHIJL":"EGJFAHLI","AEFGHIJK":"EGJFAHIK","ADGHIJKL":"HJIDAGLK","ADFHIJKL":"HJIDAFLK","ADFGIJKL":"IGJDAFLK","ADFGHJKL":"HGJDAFLK","ADFGHIKL":"HGIDAFLK","ADFGHIJL":"HGJDAFLI","ADFGHIJK":"HGJDAFIK","ADEHIJKL":"EJIDAHLK","ADEGIJKL":"EJIDAGLK","ADEGHJKL":"EGJDAHLK","ADEGHIKL":"EGIDAHLK","ADEGHIJL":"EGJDAHLI","ADEGHIJK":"EGJDAHIK","ADEFIJKL":"EJIDAFLK","ADEFHJKL":"HJEDAFLK","ADEFHIKL":"HEIDAFLK","ADEFHIJL":"HJEDAFLI","ADEFHIJK":"HJEDAFIK","ADEFGJKL":"EGJDAFLK","ADEFGIKL":"EGIDAFLK","ADEFGIJL":"EGJDAFLI","ADEFGIJK":"EGJDAFIK","ADEFGHKL":"HGEDAFLK","ADEFGHJL":"HGJDAFLE","ADEFGHJK":"HGJDAFEK","ADEFGHIL":"HGEDAFLI","ADEFGHIK":"HGEDAFIK","ADEFGHIJ":"HGJDAFEI","ACGHIJKL":"HJICAGLK","ACFHIJKL":"HJICAFLK","ACFGIJKL":"IGJCAFLK","ACFGHJKL":"HGJCAFLK","ACFGHIKL":"HGICAFLK","ACFGHIJL":"HGJCAFLI","ACFGHIJK":"HGJCAFIK","ACEHIJKL":"EJICAHLK","ACEGIJKL":"EJICAGLK","ACEGHJKL":"EGJCAHLK","ACEGHIKL":"EGICAHLK","ACEGHIJL":"EGJCAHLI","ACEGHIJK":"EGJCAHIK","ACEFIJKL":"EJICAFLK","ACEFHJKL":"HJECAFLK","ACEFHIKL":"HEICAFLK","ACEFHIJL":"HJECAFLI","ACEFHIJK":"HJECAFIK","ACEFGJKL":"EGJCAFLK","ACEFGIKL":"EGICAFLK","ACEFGIJL":"EGJCAFLI","ACEFGIJK":"EGJCAFIK","ACEFGHKL":"HGECAFLK","ACEFGHJL":"HGJCAFLE","ACEFGHJK":"HGJCAFEK","ACEFGHIL":"HGECAFLI","ACEFGHIK":"HGECAFIK","ACEFGHIJ":"HGJCAFEI","ACDHIJKL":"HJICADLK","ACDGIJKL":"IGJCADLK","ACDGHJKL":"HGJCADLK","ACDGHIKL":"HGICADLK","ACDGHIJL":"HGJCADLI","ACDGHIJK":"HGJCADIK","ACDFIJKL":"CJIDAFLK","ACDFHJKL":"HJFCADLK","ACDFHIKL":"HFICADLK","ACDFHIJL":"HJFCADLI","ACDFHIJK":"HJFCADIK","ACDFGJKL":"CGJDAFLK","ACDFGIKL":"CGIDAFLK","ACDFGIJL":"CGJDAFLI","ACDFGIJK":"CGJDAFIK","ACDFGHKL":"HGFCADLK","ACDFGHJL":"CGJDAFLH","ACDFGHJK":"HGJCAFDK","ACDFGHIL":"HGFCADLI","ACDFGHIK":"HGFCADIK","ACDFGHIJ":"HGJCAFDI","ACDEIJKL":"EJICADLK","ACDEHJKL":"HJECADLK","ACDEHIKL":"HEICADLK","ACDEHIJL":"HJECADLI","ACDEHIJK":"HJECADIK","ACDEGJKL":"EGJCADLK","ACDEGIKL":"EGICADLK","ACDEGIJL":"EGJCADLI","ACDEGIJK":"EGJCADIK","ACDEGHKL":"HGECADLK","ACDEGHJL":"HGJCADLE","ACDEGHJK":"HGJCADEK","ACDEGHIL":"HGECADLI","ACDEGHIK":"HGECADIK","ACDEGHIJ":"HGJCADEI","ACDEFJKL":"CJEDAFLK","ACDEFIKL":"CEIDAFLK","ACDEFIJL":"CJEDAFLI","ACDEFIJK":"CJEDAFIK","ACDEFHKL":"HEFCADLK","ACDEFHJL":"HJFCADLE","ACDEFHJK":"HJECAFDK","ACDEFHIL":"HEFCADLI","ACDEFHIK":"HEFCADIK","ACDEFHIJ":"HJECAFDI","ACDEFGKL":"CGEDAFLK","ACDEFGJL":"CGJDAFLE","ACDEFGJK":"CGJDAFEK","ACDEFGIL":"CGEDAFLI","ACDEFGIK":"CGEDAFIK","ACDEFGIJ":"CGJDAFEI","ACDEFGHL":"HGFCADLE","ACDEFGHK":"HGECAFDK","ACDEFGHJ":"HGJCAFDE","ACDEFGHI":"HGECAFDI","ABGHIJKL":"HJBAIGLK","ABFHIJKL":"HJBAIFLK","ABFGIJKL":"IJBFAGLK","ABFGHJKL":"HJBFAGLK","ABFGHIKL":"HGBAIFLK","ABFGHIJL":"HJBFAGLI","ABFGHIJK":"HJBFAGIK","ABEHIJKL":"EJBAIHLK","ABEGIJKL":"EJBAIGLK","ABEGHJKL":"EJBAHGLK","ABEGHIKL":"EGBAIHLK","ABEGHIJL":"EJBAHGLI","ABEGHIJK":"EJBAHGIK","ABEFIJKL":"EJBAIFLK","ABEFHJKL":"EJBFAHLK","ABEFHIKL":"EIBFAHLK","ABEFHIJL":"EJBFAHLI","ABEFHIJK":"EJBFAHIK","ABEFGJKL":"EJBFAGLK","ABEFGIKL":"EGBAIFLK","ABEFGIJL":"EJBFAGLI","ABEFGIJK":"EJBFAGIK","ABEFGHKL":"EGBFAHLK","ABEFGHJL":"HJBFAGLE","ABEFGHJK":"HJBFAGEK","ABEFGHIL":"EGBFAHLI","ABEFGHIK":"EGBFAHIK","ABEFGHIJ":"HJBFAGEI","ABDHIJKL":"IJBDAHLK","ABDGIJKL":"IJBDAGLK","ABDGHJKL":"HJBDAGLK","ABDGHIKL":"IGBDAHLK","ABDGHIJL":"HJBDAGLI","ABDGHIJK":"HJBDAGIK","ABDFIJKL":"IJBDAFLK","ABDFHJKL":"HJBDAFLK","ABDFHIKL":"HIBDAFLK","ABDFHIJL":"HJBDAFLI","ABDFHIJK":"HJBDAFIK","ABDFGJKL":"FJBDAGLK","ABDFGIKL":"IGBDAFLK","ABDFGIJL":"FJBDAGLI","ABDFGIJK":"FJBDAGIK","ABDFGHKL":"HGBDAFLK","ABDFGHJL":"HGBDAFLJ","ABDFGHJK":"HGBDAFJK","ABDFGHIL":"HGBDAFLI","ABDFGHIK":"HGBDAFIK","ABDFGHIJ":"HGBDAFIJ","ABDEIJKL":"EJBAIDLK","ABDEHJKL":"EJBDAHLK","ABDEHIKL":"EIBDAHLK","ABDEHIJL":"EJBDAHLI","ABDEHIJK":"EJBDAHIK","ABDEGJKL":"EJBDAGLK","ABDEGIKL":"EGBAIDLK","ABDEGIJL":"EJBDAGLI","ABDEGIJK":"EJBDAGIK","ABDEGHKL":"EGBDAHLK","ABDEGHJL":"HJBDAGLE","ABDEGHJK":"HJBDAGEK","ABDEGHIL":"EGBDAHLI","ABDEGHIK":"EGBDAHIK","ABDEGHIJ":"HJBDAGEI","ABDEFJKL":"EJBDAFLK","ABDEFIKL":"EIBDAFLK","ABDEFIJL":"EJBDAFLI","ABDEFIJK":"EJBDAFIK","ABDEFHKL":"HEBDAFLK","ABDEFHJL":"HJBDAFLE","ABDEFHJK":"HJBDAFEK","ABDEFHIL":"HEBDAFLI","ABDEFHIK":"HEBDAFIK","ABDEFHIJ":"HJBDAFEI","ABDEFGKL":"EGBDAFLK","ABDEFGJL":"EGBDAFLJ","ABDEFGJK":"EGBDAFJK","ABDEFGIL":"EGBDAFLI","ABDEFGIK":"EGBDAFIK","ABDEFGIJ":"EGBDAFIJ","ABDEFGHL":"HGBDAFLE","ABDEFGHK":"HGBDAFEK","ABDEFGHJ":"HGBDAFEJ","ABDEFGHI":"HGBDAFEI","ABCHIJKL":"IJBCAHLK","ABCGIJKL":"IJBCAGLK","ABCGHJKL":"HJBCAGLK","ABCGHIKL":"IGBCAHLK","ABCGHIJL":"HJBCAGLI","ABCGHIJK":"HJBCAGIK","ABCFIJKL":"IJBCAFLK","ABCFHJKL":"HJBCAFLK","ABCFHIKL":"HIBCAFLK","ABCFHIJL":"HJBCAFLI","ABCFHIJK":"HJBCAFIK","ABCFGJKL":"CJBFAGLK","ABCFGIKL":"IGBCAFLK","ABCFGIJL":"CJBFAGLI","ABCFGIJK":"CJBFAGIK","ABCFGHKL":"HGBCAFLK","ABCFGHJL":"HGBCAFLJ","ABCFGHJK":"HGBCAFJK","ABCFGHIL":"HGBCAFLI","ABCFGHIK":"HGBCAFIK","ABCFGHIJ":"HGBCAFIJ","ABCEIJKL":"EJBAICLK","ABCEHJKL":"EJBCAHLK","ABCEHIKL":"EIBCAHLK","ABCEHIJL":"EJBCAHLI","ABCEHIJK":"EJBCAHIK","ABCEGJKL":"EJBCAGLK","ABCEGIKL":"EGBAICLK","ABCEGIJL":"EJBCAGLI","ABCEGIJK":"EJBCAGIK","ABCEGHKL":"EGBCAHLK","ABCEGHJL":"HJBCAGLE","ABCEGHJK":"HJBCAGEK","ABCEGHIL":"EGBCAHLI","ABCEGHIK":"EGBCAHIK","ABCEGHIJ":"HJBCAGEI","ABCEFJKL":"EJBCAFLK","ABCEFIKL":"EIBCAFLK","ABCEFIJL":"EJBCAFLI","ABCEFIJK":"EJBCAFIK","ABCEFHKL":"HEBCAFLK","ABCEFHJL":"HJBCAFLE","ABCEFHJK":"HJBCAFEK","ABCEFHIL":"HEBCAFLI","ABCEFHIK":"HEBCAFIK","ABCEFHIJ":"HJBCAFEI","ABCEFGKL":"EGBCAFLK","ABCEFGJL":"EGBCAFLJ","ABCEFGJK":"EGBCAFJK","ABCEFGIL":"EGBCAFLI","ABCEFGIK":"EGBCAFIK","ABCEFGIJ":"EGBCAFIJ","ABCEFGHL":"HGBCAFLE","ABCEFGHK":"HGBCAFEK","ABCEFGHJ":"HGBCAFEJ","ABCEFGHI":"HGBCAFEI","ABCDIJKL":"IJBCADLK","ABCDHJKL":"HJBCADLK","ABCDHIKL":"HIBCADLK","ABCDHIJL":"HJBCADLI","ABCDHIJK":"HJBCADIK","ABCDGJKL":"CJBDAGLK","ABCDGIKL":"IGBCADLK","ABCDGIJL":"CJBDAGLI","ABCDGIJK":"CJBDAGIK","ABCDGHKL":"HGBCADLK","ABCDGHJL":"HGBCADLJ","ABCDGHJK":"HGBCADJK","ABCDGHIL":"HGBCADLI","ABCDGHIK":"HGBCADIK","ABCDGHIJ":"HGBCADIJ","ABCDFJKL":"CJBDAFLK","ABCDFIKL":"CIBDAFLK","ABCDFIJL":"CJBDAFLI","ABCDFIJK":"CJBDAFIK","ABCDFHKL":"HFBCADLK","ABCDFHJL":"CJBDAFLH","ABCDFHJK":"HJBCAFDK","ABCDFHIL":"HFBCADLI","ABCDFHIK":"HFBCADIK","ABCDFHIJ":"HJBCAFDI","ABCDFGKL":"CGBDAFLK","ABCDFGJL":"CGBDAFLJ","ABCDFGJK":"CGBDAFJK","ABCDFGIL":"CGBDAFLI","ABCDFGIK":"CGBDAFIK","ABCDFGIJ":"CGBDAFIJ","ABCDFGHL":"CGBDAFLH","ABCDFGHK":"HGBCAFDK","ABCDFGHJ":"HGBCAFDJ","ABCDFGHI":"HGBCAFDI","ABCDEJKL":"EJBCADLK","ABCDEIKL":"EIBCADLK","ABCDEIJL":"EJBCADLI","ABCDEIJK":"EJBCADIK","ABCDEHKL":"HEBCADLK","ABCDEHJL":"HJBCADLE","ABCDEHJK":"HJBCADEK","ABCDEHIL":"HEBCADLI","ABCDEHIK":"HEBCADIK","ABCDEHIJ":"HJBCADEI","ABCDEGKL":"EGBCADLK","ABCDEGJL":"EGBCADLJ","ABCDEGJK":"EGBCADJK","ABCDEGIL":"EGBCADLI","ABCDEGIK":"EGBCADIK","ABCDEGIJ":"EGBCADIJ","ABCDEGHL":"HGBCADLE","ABCDEGHK":"HGBCADEK","ABCDEGHJ":"HGBCADEJ","ABCDEGHI":"HGBCADEI","ABCDEFKL":"CEBDAFLK","ABCDEFJL":"CJBDAFLE","ABCDEFJK":"CJBDAFEK","ABCDEFIL":"CEBDAFLI","ABCDEFIK":"CEBDAFIK","ABCDEFIJ":"CJBDAFEI","ABCDEFHL":"HFBCADLE","ABCDEFHK":"HEBCAFDK","ABCDEFHJ":"HJBCAFDE","ABCDEFHI":"HEBCAFDI","ABCDEFGL":"CGBDAFLE","ABCDEFGK":"CGBDAFEK","ABCDEFGJ":"CGBDAFEJ","ABCDEFGI":"CGBDAFEI","ABCDEFGH":"HGBCAFDE"};var TP3C=[79,85,81,74,82,77,87,80];
 
-function fl(c){return (T[c]&&T[c][1])||"·";}
+function teamInitials(c){var n=(T[c]&&T[c][0])||String(c||'Team');return n.split(/\s+/).filter(Boolean).slice(0,2).map(function(x){return x.charAt(0).toUpperCase();}).join('')||String(c||'T').slice(0,2).toUpperCase();}
+/* Country-code normalization + reliable flag-emoji support detection. We measure
+   how many distinct colours the platform actually paints for a flag glyph; an
+   unsupported flag renders as plain letters / a tofu box (≤2 colours), so we
+   swap in a clean initials badge instead of a blank white block. Cached per glyph. */
+var _flagSupport={};
+function _glyphColors(s){try{var sz=22,cv=document.createElement('canvas');if(!cv||!cv.getContext)return-1;cv.width=cv.height=sz;var x=cv.getContext('2d');if(!x||!x.getImageData)return-1;x.textBaseline='middle';x.textAlign='center';x.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.clearRect(0,0,sz,sz);x.fillText(s,sz/2,sz/2);var d=x.getImageData(0,0,sz,sz).data,c={};for(var i=0;i<d.length;i+=4){if(d[i+3]>20)c[(d[i]>>5)+'.'+(d[i+1]>>5)+'.'+(d[i+2]>>5)]=1;}return Object.keys(c).length;}catch(e){return-1;}}
+function flagRenders(s){if(s in _flagSupport)return _flagSupport[s];var ok=true;var n=_glyphColors(s);if(n>=0){var ref=_glyphColors('A');ok=n>ref+1&&n>=3;}return _flagSupport[s]=ok;}
+function flBadge(c){var t=(T[c]&&/^[A-Za-z]{2,3}$/.test(String(c)))?String(c).toUpperCase():teamInitials(c);return '<span class="flbadge">'+esc(t)+'</span>';}
+function fl(c){var f=T[c]&&T[c][1];if(f&&String(f).trim()&&f!=="·"&&flagRenders(f))return f;return flBadge(c);}
+/* render a raw flag emoji (e.g. host-nation flag) with the same no-tofu guarantee */
+var _flEmojiCode={'🇨🇦':'CA','🇺🇸':'US','🇲🇽':'MX'};
+function flStr(emoji){if(emoji&&String(emoji).trim()&&flagRenders(emoji))return emoji;return '<span class="flbadge">'+esc(_flEmojiCode[emoji]||'•')+'</span>';}
 function nm(c){return (T[c]&&T[c][0])||c;}
 
 /* Sandbox engine modes — bend the simulator (future sims only; never real results).
@@ -2305,12 +2342,17 @@ function baseTable(g,subset){const st={};GROUPS[g].forEach(t=>st[t]=blankStat())
     const h=st[m.home],a=st[m.away];h.Pl++;a.Pl++;h.GF+=r.h;h.GA+=r.a;a.GF+=r.a;a.GA+=r.h;
     if(r.h>r.a){h.W++;a.L++;h.Pts+=3;}else if(r.h<r.a){a.W++;h.L++;a.Pts+=3;}else{h.D++;a.D++;h.Pts++;a.Pts++;}});
   Object.values(st).forEach(s=>s.GD=s.GF-s.GA);return st;}
+/* FIFA 2026 tiebreakers (official order): equal points are first split by
+   head-to-head (points, then GD, then goals among the tied teams), and only
+   THEN by overall goal difference / goals / seeding. This head-to-head-first
+   order is what mathematically locks group winners and eliminates teams while
+   fixtures remain (e.g. a side that lost to everyone it could tie with). */
 function standings(g){const st=baseTable(g),ord=S.order[g],idx={};ord.forEach((t,i)=>idx[t]=i);
   let arr=ord.map(t=>({code:t,...st[t]}));
-  arr.sort((a,b)=>b.Pts-a.Pts||b.GD-a.GD||b.GF-a.GF||idx[a.code]-idx[b.code]);
-  let i=0;while(i<arr.length){let j=i+1;while(j<arr.length&&arr[j].Pts===arr[i].Pts&&arr[j].GD===arr[i].GD&&arr[j].GF===arr[i].GF)j++;
+  arr.sort((a,b)=>b.Pts-a.Pts||idx[a.code]-idx[b.code]);
+  let i=0;while(i<arr.length){let j=i+1;while(j<arr.length&&arr[j].Pts===arr[i].Pts)j++;
     if(j-i>1){const codes=arr.slice(i,j).map(x=>x.code),h2h=baseTable(g,codes);
-      const seg=arr.slice(i,j).sort((a,b)=>{const A=h2h[a.code],B=h2h[b.code];return B.Pts-A.Pts||B.GD-A.GD||B.GF-A.GF||idx[a.code]-idx[b.code];});
+      const seg=arr.slice(i,j).sort((a,b)=>{const A=h2h[a.code],B=h2h[b.code];return B.Pts-A.Pts||B.GD-A.GD||B.GF-A.GF||b.GD-a.GD||b.GF-a.GF||idx[a.code]-idx[b.code];});
       for(let k=i;k<j;k++)arr[k]=seg[k-i];}
     i=j;}return arr;}
 
@@ -2335,16 +2377,16 @@ function loser(n){const w=S.ko[n];if(!w)return null;const[h,a]=koParts(n);if(w!=
 // team path
 function teamEntryR32(code){for(let n=73;n<=88;n++){const[h,a]=koParts(n);if(h===code||a===code)return n;}return null;}
 function pathChain(code){const e=teamEntryR32(code);if(e==null)return[];let chain=[e],m=e;while(NEXTWIN[m]){m=NEXTWIN[m];chain.push(m);}return chain;}
-function teamStatus(code){const g=TG[code];if(!gComplete(g))return{s:"pre"};
-  const st=standings(g),pos=st.findIndex(x=>x.code===code)+1;let q=pos<=2;
-  if(pos===3&&allDone()){const Q=qualThirds(),as=assignThirds();q=Q.includes(g)&&as&&Object.values(as).includes(g);}
-  if(!q)return{s:"out-group",pos};
-  if(!allDone())return{s:"through",pos};
-  let m=teamEntryR32(code);if(m==null)return{s:"through",pos};
+function teamStatus(code){const g=TG[code],ts=(typeof tccTeamTournamentStatus==="function")?tccTeamTournamentStatus(code):null;if(!ts)return{s:"pre",truth:ts};
+  const pos=ts.currentPosition;
+  if(ts.eliminated)return{s:"out-group",pos,truth:ts};
+  if(!ts.lockedQualified)return{s:"pre",pos,truth:ts};
+  if(!allDone())return{s:"through",pos,truth:ts};
+  let m=teamEntryR32(code);if(m==null)return{s:"through",pos,truth:ts};
   while(true){const pick=S.ko[m],[h,a]=koParts(m);
-    if(!pick)return{s:"alive",pos,next:m};
-    if(pick!==code){if(m===104)return{s:"runner",pos};return{s:"out",pos,round:m};}
-    if(m===104)return{s:"champion",pos};m=NEXTWIN[m];}}
+    if(!pick)return{s:"alive",pos,next:m,truth:ts};
+    if(pick!==code){if(m===104)return{s:"runner",pos,truth:ts};return{s:"out",pos,round:m,truth:ts};}
+    if(m===104)return{s:"champion",pos,truth:ts};m=NEXTWIN[m];}}
 
 // realistic sim
 function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
@@ -2726,7 +2768,7 @@ function sheetExtra(num,h,a,ko){const real=S.real&&S.real[num];const played=ko?S
   else out+='<div class="bethint">↑ Tap a price above to place a bet</div>';
   if(canBet&&!ko){try{out+=sgpSuggestionsHTML(num,h,a);}catch(e){}out+='<div class="mlh" style="margin-top:13px">More markets · tap a price (adds to your slip too)</div>'+marketAccordions(num,h,a);}
   if(!real&&!played&&!(S.live&&S.live.num===num))out+='<button class="tbtn purp" style="width:100%;justify-content:center;margin-top:11px" onclick="playLive('+num+')">▶ Play Simulation · SIMULATED $</button>';
-  out+='<div class="fatblk"><div class="mlh">Squad condition</div>'+condMeter(h)+condMeter(a)+'</div>';
+  out+='<div class="fatblk"><div class="mlh">Form &amp; fatigue · estimated from match load</div>'+condMeter(h)+condMeter(a)+'</div>';
   return out;}
 
 function poisson(l){let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return Math.min(k-1,7);}
@@ -3705,16 +3747,18 @@ function sheetProbViz(num,h,a,ko){var o=matchOddsFor(num,h,a,ko),mid=ko?'KO · '
 function matchActionZone(num,h,a,ko){var open=S.bets.filter(function(b){return !b.settled&&((b.num===num)||(b.kind==='mkt'&&b.num===num)||(b.kind==='par'&&b.legs&&b.legs.some(function(l){return l.num===num;})));}).length;
  var closed=playMatchClosedReason(num),live=matchLiveState(num);
  if(closed){var officialFinished=(S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]),finished=officialFinished||(S.sc&&S.sc[num])||(ko&&S.ko&&S.ko[num]),isLive=live&&live.kind==='live',hold=live&&live.kind==='hold';
-  var title=finished?'Match recap':(isLive?'Live match':'Match command zone');
+  var title=finished?'View result':(isLive?'Live match':'Match command zone');
   var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((live.label||'Delayed')+' · markets closed'):(closed||'Markets closed')));
+  /* These buttons live INSIDE the match sheet, so they must navigate somewhere
+     real — never re-open the same sheet (which looked like "nothing happened"). */
   return '<div class="action-zone"><div class="az-k">'+title+'</div><div class="az-status">'+esc(pill)+'</div><div class="az-row">'
-   +'<button class="primary" onclick="openMatchDetails('+num+')">'+(finished?'View result':'Open Match Center')+'</button>'
-   +(isLive?'<button onclick="openMatchDetails('+num+')">Follow live match</button>':'<button onclick="openMatchDetails('+num+')">Match Details</button>')
-   +'<button onclick="goSchedule()">All fixtures</button>'
+   +(finished
+      ?'<button class="primary" onclick="openMatchResult('+num+')">View result</button><button onclick="closeThenGoSchedule()">All fixtures</button>'
+      :'<button class="primary" onclick="refreshOfficialData()">Refresh status</button><button onclick="closeThenGoSchedule()">All fixtures</button>')
    +'</div></div>';}
- if(ko){return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Knockout markets open once both teams are officially set.</div><div class="az-row"><button class="primary" onclick="openMatchDetails('+num+')">Match Details</button><button onclick="goSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';}
+ if(ko){return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Knockout markets open once both teams are officially set.</div><div class="az-row"><button class="primary" onclick="closeThenGoSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';}
  var o=matchOddsFor(num,h,a,false),ok=isFinite(o.h)&&isFinite(o.d)&&isFinite(o.a);
- if(!ok)return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Market odds are unavailable right now.</div><div class="az-row"><button class="primary" onclick="openMatchDetails('+num+')">Match Details</button><button onclick="goSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';
+ if(!ok)return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Market odds are unavailable right now.</div><div class="az-row"><button class="primary" onclick="closeThenGoSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';
  return '<div class="action-zone"><div class="az-k">'+(open?open+' open bet'+(open>1?'s':'')+' on this match':'Match Result · 1X2')+'</div><div class="az-market">'
   +'<button class="az-pick" onclick="openMatchTicket('+num+',\'h\')"><span>'+esc(nm(h))+' win</span><b class="odd">'+fmtAmer(o.h)+'</b></button>'
   +'<button class="az-pick" onclick="openMatchTicket('+num+',\'d\')"><span>Draw</span><b class="odd">'+fmtAmer(o.d)+'</b></button>'
@@ -3724,6 +3768,35 @@ function matchOddsFor(num,h,a,ko){var ro=(!ko)&&((S._odds&&S._odds[num])||REALOD
   if(ro){var ih=impFromAmer(ro[0]),id=impFromAmer(ro[1]),ia=impFromAmer(ro[2]),sm=ih+id+ia;
     return {h:ro[0],d:ro[1],a:ro[2],pH:ih/sm,pD:id/sm,pA:ia/sm,real:true};}
   return ko?koOdds(h,a):matchOdds(h,a);}
+function closeThenGoSchedule(){closeSheet();goSchedule();}
+/* Normalize a finished match into safe, render-ready fields. Never returns
+   undefined/null score text; flags incomplete data so callers can show
+   "Final result unavailable" instead of "undefined – undefined". */
+function normFinishedMatch(num){var m=M[num];if(!m)return null;var ko=m.stage!=='group';
+  var pr=ko?koParts(num):[m.home,m.away];
+  var raw=ko?S.sc[num]:((S.real&&S.real[num])?{h:S.real[num][0],a:S.real[num][1]}:S.sc[num]);
+  var sh=(raw&&typeof raw.h==='number'&&isFinite(raw.h))?raw.h:null,
+      sa=(raw&&typeof raw.a==='number'&&isFinite(raw.a))?raw.a:null;
+  var haveScore=(sh!=null&&sa!=null),official=!!((S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]));
+  var hCode=pr[0]||null,aCode=pr[1]||null;
+  return {m:m,ko:ko,hCode:hCode,aCode:aCode,sh:sh,sa:sa,haveScore:haveScore,official:official,
+    hName:hCode?nm(hCode):slotLabel(m.home),aName:aCode?nm(aCode):slotLabel(m.away),
+    hFlag:hCode?fl(hCode):'<span class="flbadge">?</span>',aFlag:aCode?fl(aCode):'<span class="flbadge">?</span>'};}
+function openMatchResult(num){var d=normFinishedMatch(num);if(!d)return;
+  var scoreTxt=d.haveScore?(d.sh+' – '+d.sa):'—';
+  var outcome;
+  if(d.haveScore)outcome=d.sh>d.sa?d.hName+' win':(d.sa>d.sh?d.aName+' win':'Draw');
+  else if(d.ko&&S.ko&&S.ko[num]&&T[S.ko[num]])outcome=nm(S.ko[num])+' advanced — final score unavailable';
+  else outcome='Final result unavailable';
+  var statusLine=d.haveScore?(d.official?'Confirmed by official final data.':'Recorded result — not an official final until the provider confirms it.'):'No confirmed score is available for this match yet.';
+  var related=(S.bets||[]).filter(function(b){return (b.num===num)||(b.kind==='mkt'&&b.num===num)||(b.kind==='par'&&b.legs&&b.legs.some(function(l){return l.num===num;}));});
+  var tickets=related.length?'<div class="panel" style="margin-top:12px;padding:12px"><div class="bsec" style="margin:0 0 8px">Your tickets on this match</div>'+related.map(function(b){var st=canonicalBetState(b),cls=st==='won'?'g':(st==='lost'?'r':'o'),net=b.settled?(b.net||0):0;return '<div class="brow"><div class="br-tm">'+esc(betLabel(b))+' <span class="br-v2">'+fmtAmer(b.odds)+'</span></div><span class="'+cls+'">'+(b.settled?(net>=0?'+$'+net.toLocaleString():'−$'+Math.abs(net).toLocaleString()):esc(st))+'</span></div>';}).join('')+'</div>':'<div class="bethint" style="margin-top:12px">No simulated ticket was attached to this match.</div>';
+  var html='<div class="grab"></div><div class="sh-rnd'+(d.ko?' ko':'')+'">View result</div><div class="sh-when">'+esc(roundName(num))+' · '+(d.official?'Official final':(d.haveScore?'Recorded result':'Result pending'))+'</div>'+
+    '<div class="sh-vs"><div class="sh-side"><span class="fl">'+d.hFlag+'</span><div class="nm">'+esc(d.hName)+'</div></div><div class="sh-score">'+esc(scoreTxt)+'</div><div class="sh-side"><span class="fl">'+d.aFlag+'</span><div class="nm">'+esc(d.aName)+'</div></div></div>'+
+    '<div class="bethint" style="text-align:left"><b>'+esc(outcome)+'</b> · '+esc(statusLine)+'</div>'+tickets+
+    (d.haveScore?'<button class="tbtn accent" style="width:100%;justify-content:center;margin-top:12px" onclick="openMatchDetails('+num+')">Open Match Center</button>':'')+
+    '<button class="tbtn" style="width:100%;justify-content:center;margin-top:8px;background:var(--solid)" onclick="closeThenGoSchedule()">All fixtures</button>';
+  document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
 /* ===== unified multi-market engine (Poisson grid) =====
    One function turns expected goals into ML, totals, BTTS, handicap,
    correct-score and player-prop prices — exactly what Gemini asked for. */
@@ -3867,11 +3940,20 @@ function betLabel(b){
  if(b.kind==='mkt')return mktLabel(b);
  var m=M[b.num];var pr=m.stage==="group"?[m.home,m.away]:koParts(b.num);return (b.pick==='h'?nm(pr[0]):b.pick==='d'?'Draw':nm(pr[1]))+' · '+roundShort(b.num)+' #'+b.num;}
 var _tk=null,_lastStake=100;
+/* Dynamic stake presets that scale with the player's current virtual bankroll.
+   Four tiers — Warm-up / Confident / Big Call / All In — make quick stakes feel
+   meaningful in this virtual-money game. All In always equals the full balance.
+   Settlement, odds, ticket-history and wallet rules are untouched. */
+function niceStake(v){v=Math.floor(v);if(v<=0)return 0;if(v<=20)return v;var mag=Math.pow(10,Math.max(0,Math.floor(Math.log10(v))-1));return Math.round(v/mag)*mag;}
+function tkPresetAmts(){var B=Math.max(0,Math.floor(S.bank));return [Math.min(B,Math.max(B>0?5:0,niceStake(B*0.05))),Math.min(B,Math.max(1,niceStake(B*0.20))),Math.min(B,Math.max(1,niceStake(B*0.40))),B];}
+function tkPresets(){var labels=['Warm-up','Confident','Big Call','All In'],a=tkPresetAmts();
+  return '<div class="tk-presets">'+labels.map(function(l,i){var amt=a[i];return '<button class="tk-preset'+(i===3?' allin':'')+'" data-amt="'+amt+'" onclick="tkChip('+amt+')"><span class="tkp-l">'+l+'</span><b class="tkp-v">$'+amt.toLocaleString()+'</b></button>';}).join('')+'</div>';}
+function tkDefaultStake(){return _lastStake||Math.max(25,niceStake(S.bank*0.20))||25;}
 function betTicket(t){_tk=t;
  var html='<div class="grab"></div><div class="tk"><div class="tk-h">Simulated pick</div><div class="tk-summary"><span>Selected outcome</span><b>'+esc(t.line)+'</b><em>'+esc(t.title||'')+' · '+fmtAmer(t.odds)+' · MARKET ODDS</em></div>'
   +'<div class="tk-bal">SIMULATED $ · NO CASH VALUE · Balance $'+S.bank.toLocaleString()+'</div><div id="tkAlert" class="slip-alert"></div>'
-  +'<div class="tk-chips"><button onclick="tkChip(5)">$5</button><button onclick="tkChip(10)">$10</button><button onclick="tkChip(25)">$25</button><button onclick="tkChip(50)">$50</button><button onclick="tkChip(\'clear\')">Clear</button><button onclick="tkChip(\'max\')">Max</button></div>'
-  +'<div class="tk-stakebox"><span>$</span><input id="tkStake" type="number" inputmode="numeric" min="1" value="'+(_lastStake||25)+'" oninput="tkUpd()"></div>'
+  +tkPresets()
+  +'<div class="tk-stakebox"><span>$</span><input id="tkStake" type="number" inputmode="numeric" min="1" value="'+tkDefaultStake()+'" oninput="tkUpd()"></div>'
   +'<div class="tk-payout"><div><span>Potential profit</span><b id="tkWin">$0</b></div><div><span>Potential return</span><b id="tkRet">$0</b></div></div>'
   +'<div class="legal-micro" style="margin:2px 0 10px">This is a simulated-dollar pick. Outcomes are never guaranteed.</div>'
   +'<button class="tk-place" id="tkPlace" onclick="tkPlace()">Place simulated pick</button>'+(t.leg?'<button class="tk-slip" onclick="addToSlip(_tk.leg)">Add to parlay slip</button>':'')+'<button class="tk-remove" onclick="closeSheet()">Keep browsing</button></div>';
@@ -3879,6 +3961,7 @@ function betTicket(t){_tk=t;
 function tkChip(v){var inp=document.getElementById("tkStake");if(!inp)return;if(v==='clear')inp.value='';else if(v==='max')inp.value=Math.floor(S.bank);else inp.value=Math.min(v,Math.floor(S.bank));try{haptic('tap');}catch(e){}tkUpd();}
 function tkUpd(){var inp=document.getElementById("tkStake");if(!inp||!_tk)return;var st=Math.floor(+inp.value)||0,block=ticketBlockedReason(_tk);var ret=isFinite(_tk.odds)?Math.round(st*amerToDec(_tk.odds)):0,win=ret-st;
  var W=document.getElementById("tkWin"),R=document.getElementById("tkRet"),P=document.getElementById("tkPlace");if(W)W.textContent='$'+Math.max(0,win).toLocaleString();if(R)R.textContent='$'+Math.max(0,ret).toLocaleString();
+ try{document.querySelectorAll('#sheet .tk-preset').forEach(function(b){b.classList.toggle('sel',(+b.dataset.amt===st)&&st>0);});}catch(e){}
  var msg=block||(st>0&&st>S.bank?'Insufficient simulated balance.':(!(st>0)?'Enter a stake to continue.':''));if(msg)tkError(msg);else tkClearError();
  if(P){var bad=!!msg;P.classList.toggle("dis",bad);P.textContent=bad?msg:((_tk&&_tk.parlay)?'Place simulated parlay':'Place simulated pick')+' · $'+st.toLocaleString();}}
 var _betDoneCtx=null;
@@ -4118,15 +4201,15 @@ function socialHubHTML(){var st=bettorStats(),open=S.bets.filter(function(b){ret
  var progress='<details class="you-prog" id="youProgress"><summary><b>Progress &amp; weekly challenges</b><span>Optional · XP ladder</span></summary><div class="you-prog-body">'+weeklyChallengesHTML()+'</div></details>';
  return '<div class="social-stage">'+youPolishHTML()+socialLeaderboardHTML('socialLbBoard')+leagueCard+progress+story+'</div>';}
 function renderCompare(){var el=document.getElementById("compare");if(!el)return;var a=S.h2hA||"ARG",b=S.h2hB||"BRA";
- var ra=RAT[a]||70,rb=RAT[b]||70,o=matchOdds(a,b),sim=h2hSim(a,b,600);
- var pa=Math.round(sim.aw*100),pd=Math.round(sim.d*100),pb=100-pa-pd;
+ var sa=tccTeamTournamentStatus(a),sb=tccTeamTournamentStatus(b),ga=TG[a],gb=TG[b],ta=tccOffTable(ga).filter(function(x){return x.code===a;})[0]||{},tb=tccOffTable(gb).filter(function(x){return x.code===b;})[0]||{};
  var sel='<div class="h2-pick"><select onchange="setH2H(\'a\',this.value)">'+teamOptionsHTML(a)+'</select><span class="h2-vs">VS</span><select onchange="setH2H(\'b\',this.value)">'+teamOptionsHTML(b)+'</select></div>';
- var hero='<div class="h2-hero"><div class="h2-side"><div class="h2-fl">'+fl(a)+'</div><div class="h2-nm">'+nm(a)+'</div></div><div class="h2-mid"><b>'+pa+'%</b><span>'+pd+'% draw</span><b>'+pb+'%</b></div><div class="h2-side"><div class="h2-fl">'+fl(b)+'</div><div class="h2-nm">'+nm(b)+'</div></div></div>';
- var bar='<div class="probbar" style="margin-top:4px"><i style="width:'+pa+'%;background:var(--blue)"></i><i style="width:'+pd+'%;background:var(--mut3)"></i><i style="width:'+pb+'%;background:var(--gold)"></i></div><div class="problbl"><span>'+nm(a)+'</span><span>Draw</span><span>'+nm(b)+'</span></div>';
+ var hero='<div class="h2-hero"><div class="h2-side"><div class="h2-fl">'+fl(a)+'</div><div class="h2-nm">'+nm(a)+'</div></div><div class="h2-mid"><b>Group '+esc(ga||'–')+'</b><span>official data only</span><b>Group '+esc(gb||'–')+'</b></div><div class="h2-side"><div class="h2-fl">'+fl(b)+'</div><div class="h2-nm">'+nm(b)+'</div></div></div>';
  function row(lbl,av,bv,aw,bw){return '<div class="h2-row"><b class="'+(aw?'win':'')+'">'+av+'</b><span>'+lbl+'</span><b class="'+(bw?'win':'')+'">'+bv+'</b></div>';}
- var stats='<div class="h2-stats">'+row('Power rating',ra,rb,ra>rb,rb>ra)+row('Win probability',pa+'%',pb+'%',pa>pb,pb>pa)+row('Avg goals (600 sims)',sim.gf.toFixed(1),sim.ga.toFixed(1),sim.gf>sim.ga,sim.ga>sim.gf)+row('Moneyline',fmtAmer(o.h),fmtAmer(o.a),false,false)+'<div class="h2-row single">Most likely score · '+nm(a)+' '+sim.top+' '+nm(b)+'</div></div>';
+ function rec(t){return (t.W||0)+'-'+(t.D||0)+'-'+(t.L||0);}
+ function nxt(c){var m=gMatches(TG[c]).filter(function(x){return !tccOfficialFinal(x.num)&&(x.home===c||x.away===c);}).sort(function(x,y){return matchClock(x)-matchClock(y)||x.num-y.num;})[0];if(!m)return 'Group complete';var o=m.home===c?m.away:m.home;return shortDate(m.date)+' vs '+nm(o);}
+ var stats='<div class="h2-stats">'+row('Record',rec(ta),rec(tb),(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Points',ta.Pts||0,tb.Pts||0,(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Goal difference',(ta.GD>0?'+':'')+(ta.GD||0),(tb.GD>0?'+':'')+(tb.GD||0),(ta.GD||0)>(tb.GD||0),(tb.GD||0)>(ta.GD||0))+row('Goals for',ta.GF||0,tb.GF||0,(ta.GF||0)>(tb.GF||0),(tb.GF||0)>(ta.GF||0))+'<div class="h2-row single">'+esc(nm(a))+': '+esc((sa&&(sa.headline+' · '+sa.label))||'Still alive')+' · next '+esc(nxt(a))+'</div><div class="h2-row single">'+esc(nm(b))+': '+esc((sb&&(sb.headline+' · '+sb.label))||'Still alive')+' · next '+esc(nxt(b))+'</div></div>';
  var note=(a===b)?'<div class="bethint">Pick two different teams to compare.</div>':'';
- el.innerHTML='<div class="cmd-card"><div class="cmd-k">Matchup Lab</div><div class="cmd-h">Compare any two nations.</div><div class="cmd-s">Power, odds, model probability and a quick neutral-site sim in one clean scouting surface.</div></div><div class="panel">'+sel+hero+bar+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div><button class="chalbtn go" onclick="h2hQuick()">⚽ Simulate this matchup</button>';}
+ el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>';}
 function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
  MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
@@ -4309,8 +4392,8 @@ function openSlip(){if(!S.slip||!S.slip.length)return;var dec=slipDec(),od=decTo
   +'<div class="tk-bal">SIMULATED $ · NO CASH VALUE · Balance $'+S.bank.toLocaleString()+'</div><div id="tkAlert" class="slip-alert"></div>'
   +parlayLabHTML(dec,S.slip.length)
   +(slipHasSGP()?(function(){var naive=1;S.slip.forEach(function(l){naive*=amerToDec(l.odds);});var nA=decToAmer(naive);return '<div class="sgp-note">🔗 <b>Same Game Parlay</b><span>Legs in the same match are correlated, so we price the true joint outcome from the match model — not a naive multiply.</span><div class="sgp-cmp"><span>Naive multiply <i>'+fmtAmer(nA)+'</i></span><span class="sgp-arrow">→</span><span>Correlated <i class="sgp-real">'+fmtAmer(od)+'</i></span></div></div>';})():'')
-  +'<div class="tk-chips"><button onclick="tkChip(5)">$5</button><button onclick="tkChip(10)">$10</button><button onclick="tkChip(25)">$25</button><button onclick="tkChip(50)">$50</button><button onclick="tkChip(\'clear\')">Clear</button><button onclick="tkChip(\'max\')">Max</button></div>'
-  +'<div class="tk-stakebox"><span>$</span><input id="tkStake" type="number" inputmode="numeric" min="1" value="'+(_lastStake||25)+'" oninput="tkUpd()"></div>'
+  +tkPresets()
+  +'<div class="tk-stakebox"><span>$</span><input id="tkStake" type="number" inputmode="numeric" min="1" value="'+tkDefaultStake()+'" oninput="tkUpd()"></div>'
   +'<div class="tk-payout"><div><span>Potential profit</span><b id="tkWin">$0</b></div><div><span>Potential return</span><b id="tkRet">$0</b></div></div>'
   +'<button class="tk-place" id="tkPlace" onclick="placeParlay()">Place simulated parlay</button>'
   +'<button class="tbtn" style="width:100%;justify-content:center;margin-top:8px;background:var(--solid)" onclick="clearSlip()">Clear slip</button></div>';
@@ -4571,7 +4654,7 @@ function renderGroups(){const GOD=groupOfDeath();let h=groupsOverviewHTML()+'<bu
   h+=`<div id="grp-${g}" class="gcard ${god?'god':''}"><div class="ghead"><div class="gbadge">${g}</div><div class="gt">GROUP ${g}${god?'<span class="skull">💀</span>':''}</div><div class="gp">${gpl}/6</div>${gpl<6?`<button class="gsim" onclick="simGroup('${g}')">⚡ Sim</button>`:''}</div>`;
   h+=`<div class="stbl"><div class="strow head"><div class="pos">#</div><div class="tm">Team</div><div class="n">Pl</div><div class="n">GD</div><div class="n">Pts</div><div></div></div>`;
   st.forEach((r,i)=>{const q=["q1","q2","q3","q4"][i],gd=(r.GD>0?"+":"")+r.GD;
-    h+=`<div class="strow ${q}"><div class="pos">${i+1}</div><div class="tm" onclick="focusTeam('${r.code}')"><span class="fl">${fl(r.code)}</span><span class="nm">${nm(r.code)}</span></div><div class="n">${r.Pl}</div><div class="n">${gd}</div><div class="pts">${r.Pts}</div><div class="arrows"><button onclick="mv('${g}',${i},-1)">▲</button><button onclick="mv('${g}',${i},1)">▼</button></div></div>`;});
+    h+=`<div class="strow ${q}"><div class="pos">${i+1}</div><div class="tm" onclick="focusTeam('${r.code}')"><span class="fl">${fl(r.code)}</span><span class="nmwrap"><span class="nm">${nm(r.code)}</span>${tccRowChip(r.code)}</span></div><div class="n">${r.Pl}</div><div class="n">${gd}</div><div class="pts">${r.Pts}</div><div class="arrows"><button onclick="mv('${g}',${i},-1)">▲</button><button onclick="mv('${g}',${i},1)">▼</button></div></div>`;});
   h+=`</div><div class="qkey"><span><span class="dot" style="background:var(--green)"></span>1st</span><span><span class="dot" style="background:var(--blue)"></span>2nd</span><span><span class="dot" style="background:var(--gold)"></span>3rd → pool</span><span style="opacity:.5">4th out</span></div>`;
   h+=asItStandsHTML(g)+tccGroupStakesHTML(g);
   h+=`<details class="fixtures gfx"><summary class="fxttl">Group ${g} fixtures (${gpl}/6) — tap to ${activeMode()==='sim'?'set / predict':'view'}</summary><div class="fxhint">${activeMode()==='sim'?'Tap a team to pick the winner · adjust the score with − / +':'Real results stay read-only · <button class="qbtn" style="margin-top:7px;width:100%" onclick="event.stopPropagation();startGroupsFlow()">Open My Sim picks</button>'}</div>`;gMatches(g).forEach(m=>h+=fxCard(m));h+=`</details></div>`;});
@@ -4615,6 +4698,113 @@ function tccRealTable(g){return withTour(liveTour(),function(){
   if(S._rwlive)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&S._rwlive[m.num]&&S._rwlive[m.num].sh!=null)S.sc[m.num]={h:S._rwlive[m.num].sh,a:S._rwlive[m.num].sa};});
   return standings(g);});}
 function tccOffTable(g){return withTour(liveTour(),function(){return standings(g);});}
+function tccAdjacentTieRisk(table,pos){var r=table[pos-1];if(!r)return false;return table.some(function(o,i){return i!==pos-1&&o.Pts===r.Pts&&o.GD===r.GD&&o.GF===r.GF&&Math.abs((i+1)-pos)<=1;});}
+var _tccOutCache={};
+function tccGroupOutcomeSig(g){return g+'|'+gMatches(g).map(function(m){var v=tccOfficialFinal(m.num)?(REAL[m.num][0]+'-'+REAL[m.num][1]):'_';return m.num+':'+v;}).join(',');}
+function tccGroupOutcomeTables(g){
+  var sig=tccGroupOutcomeSig(g);if(_tccOutCache[sig])return _tccOutCache[sig];
+  var rem=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);}),R=liveTour(),out=[];
+  /* include blowout margins so goal-difference-decided ties surface as multiple
+     possible positions (and stay provisional), while head-to-head-decided
+     outcomes resolve to a single position (and lock). Cap breadth for speed. */
+  var vals=rem.length<=4?[{h:3,a:0},{h:1,a:0},{h:0,a:0},{h:0,a:1},{h:0,a:3}]:[{h:1,a:0},{h:0,a:0},{h:0,a:1}];
+  function rec(i){if(i>=rem.length){out.push(withTour(R,function(){return standings(g).map(function(x){return {code:x.code,Pts:x.Pts,GD:x.GD,GF:x.GF,Pl:x.Pl};});}));return;}
+    var m=rem[i],old=R.sc[m.num];
+    vals.forEach(function(v){R.sc[m.num]=v;rec(i+1);});
+    if(old)R.sc[m.num]=old;else delete R.sc[m.num];}
+  rec(0);_tccOutCache[sig]=out;return out;}
+/* Guaranteed-minimum points of a group's eventual third-place team, across all
+   remaining outcomes — used for a sound best-third elimination check. */
+function tccGuaranteedThirdPts(g){var outs=tccGroupOutcomeTables(g),mn=Infinity;outs.forEach(function(t){var p=t[2]?t[2].Pts:0;if(p<mn)mn=p;});return mn===Infinity?0:mn;}
+function tccBestThirdEliminated(g,bestPts){var n=0;"ABCDEFGHIJKL".split("").forEach(function(g2){if(g2!==g&&tccGuaranteedThirdPts(g2)>bestPts)n++;});return n>=8;}
+/* ---- Sound lock / elimination via points + FIFA head-to-head (no goal-margin
+   guessing). For each team we count how many rivals CAN finish above it (worst
+   case) and how many are GUARANTEED above it (best case). This is exact at the
+   points level and respects the already-decided head-to-head when points tie,
+   so it never over-claims a lock nor a false elimination. ---- */
+function tccRemFor(g,code){return gMatches(g).filter(function(m){return !tccOfficialFinal(m.num)&&(m.home===code||m.away===code);}).length;}
+function tccPairCmp(g,a,b){var mutual=gMatches(g).filter(function(m){return (m.home===a&&m.away===b)||(m.home===b&&m.away===a);});
+  var playedAll=mutual.length>0&&mutual.every(function(m){return tccOfficialFinal(m.num);});
+  var tab=withTour(liveTour(),function(){return baseTable(g,[a,b]);}),A=tab[a],B=tab[b];
+  return {cmp:(A.Pts-B.Pts)||(A.GD-B.GD)||(A.GF-B.GF),playedAll:playedAll};}
+function tccAboveCounts(g){var rows=tccOffTable(g),info={};
+  rows.forEach(function(r){var rem=tccRemFor(g,r.code);info[r.code]={Pts:r.Pts,maxPts:r.Pts+3*rem,minPts:r.Pts};});
+  var out={};
+  rows.forEach(function(t){var ti=info[t.code],canAbove=0,gAbove=0;
+    rows.forEach(function(rr){if(rr.code===t.code)return;var ri=info[rr.code];
+      var ca;if(ri.maxPts>ti.minPts)ca=true;else if(ri.maxPts<ti.minPts)ca=false;else{var p=tccPairCmp(g,rr.code,t.code);ca=p.playedAll?(p.cmp>0?true:(p.cmp<0?false:true)):true;}
+      if(ca)canAbove++;
+      var ga;if(ri.minPts>ti.maxPts)ga=true;else if(ri.minPts<ti.maxPts)ga=false;else{var p2=tccPairCmp(g,rr.code,t.code);ga=p2.playedAll&&p2.cmp>0;}
+      if(ga)gAbove++;});
+    out[t.code]={canAbove:canAbove,gAbove:gAbove};});
+  return out;}
+function tccThirdPlaceSafeStatus(g,code){
+  if(!withTour(liveTour(),function(){return allDone();}))return {known:false,qual:false,ambiguous:false};
+  var ranked=withTour(liveTour(),function(){return thirdsRanked();}),idx=ranked.findIndex(function(x){return x.g===g&&x.code===code;});
+  if(idx<0)return {known:false,qual:false,ambiguous:false};
+  var row=ranked[idx],near=ranked.filter(function(x,i){return Math.abs(i-idx)<=1&&i!==idx&&x.Pts===row.Pts&&x.GD===row.GD&&x.GF===row.GF;});
+  return {known:true,qual:idx<8,ambiguous:near.length>0};
+}
+/* Shared tournament-status resolver. Every surface (standings, stakes,
+   scenarios, team profiles, compare, bracket labels, More) derives truth from
+   here: completed results + remaining fixtures + FIFA head-to-head order +
+   best-third format. A team is only ever "Confirmed"/"Mathematically locked"
+   when it genuinely cannot move from that outcome. Status vocabulary:
+   Confirmed · Mathematically locked · As it stands · Still alive · Pending official final. */
+function tccResolveGroupStatus(g){
+  var table=tccOffTable(g),remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);}),complete=!remaining.length,live=tccGroupLive(g),counts=complete?null:tccAboveCounts(g),map={};
+  table.forEach(function(r,i){var rem=remaining.filter(function(m){return m.home===r.code||m.away===r.code;}).length,pos=i+1;
+    var thirdSafe=tccThirdPlaceSafeStatus(g,r.code);
+    var maxPts=r.Pts+rem*3,minPts=r.Pts;
+    var cc=counts?counts[r.code]:{canAbove:0,gAbove:0};
+    /* min position = 1 + rivals guaranteed above; max position = 1 + rivals that
+       could finish above. Equal min/max ⇒ the position is mathematically fixed. */
+    var minPos=complete?pos:(1+cc.gAbove),maxPos=complete?pos:(1+cc.canAbove);
+    var possibleTopTwo=complete?(pos<=2):(cc.gAbove<2),possibleThird=(!complete)&&cc.canAbove>=2&&cc.gAbove<=2,canWin=(!complete)&&cc.gAbove===0;
+    var lockedWinner=(!complete)&&cc.canAbove===0;
+    var lockedTopTwo=(!complete)&&cc.canAbove<=1;
+    var eliminatedTopTwo=(!complete)&&cc.gAbove>=2;
+    var cannotMakeThird=(!complete)&&(cc.gAbove>=3||(eliminatedTopTwo&&possibleThird&&tccBestThirdEliminated(g,maxPts)));
+    var lockedEliminated=(!complete)&&eliminatedTopTwo&&cannotMakeThird;
+    var lockedQualified=lockedTopTwo;
+    var tieRisk,type,label,tone,headline,detail;
+    if(complete){
+      tieRisk=(tccAdjacentTieRisk(table,pos)||thirdSafe.ambiguous);
+      if(pos===1&&!tieRisk){type='officially_confirmed';label='Group winners';detail='Group winners';lockedWinner=true;lockedQualified=true;}
+      else if(pos<=2&&!tieRisk){type='officially_confirmed';label='Qualified for Round of 32';detail='Through to the Round of 32';lockedQualified=true;}
+      else if(pos===3){
+        if(thirdSafe.known&&!thirdSafe.ambiguous&&thirdSafe.qual){type='officially_confirmed';label='Qualified via third-place route';detail='Best third-place qualifier';lockedQualified=true;}
+        else if(thirdSafe.known&&!thirdSafe.ambiguous&&!thirdSafe.qual){type='officially_confirmed';label='Eliminated';detail='Eliminated';lockedEliminated=true;}
+        else {type='pending_official_final';label='Third-place route still open';detail='Third-place route — pending official final';}
+      } else if(pos===4&&!tieRisk){type='officially_confirmed';label='Eliminated';detail='Eliminated';lockedEliminated=true;}
+      else {type='pending_official_final';label='Pending official final';detail='Pending official final';}
+      tone=(type==='officially_confirmed')?'confirmed':'pending';headline=(tone==='confirmed')?'Confirmed':'Pending official final';
+    } else if(lockedWinner){type='mathematically_locked';tone='locked';headline='Mathematically locked';label='Group winners';detail='Group winners — clinched';lockedQualified=true;}
+    else if(lockedQualified){type='mathematically_locked';tone='locked';headline='Mathematically locked';label='Qualified for Round of 32';detail=canWin?'Through to the Round of 32 — group win still live':'Through to the Round of 32';}
+    else if(lockedEliminated){type='mathematically_confirmed';tone='confirmed';headline='Confirmed';label='Eliminated';detail='Eliminated';}
+    else if(live){type='as_it_stands';tone='as_it_stands';headline='As it stands';label=pos===1?'Group leaders (as it stands)':pos<=2?'In the top two (as it stands)':pos===3?'Third place (as it stands)':'Outside qualification (as it stands)';detail=label;}
+    else if(eliminatedTopTwo){type='still_alive';tone='still_alive';headline='Still alive';label='Third-place route still open';detail='Out of the top two — third-place route still open';}
+    else {type='still_alive';tone='still_alive';headline='Still alive';label=canWin?'In contention':'Still in the hunt';detail=pos<=2?'Holding a top-two place — not yet secured':'Fighting to qualify';}
+    map[r.code]={type:type,tone:tone,headline:headline,label:label,detail:detail,
+      currentPoints:r.Pts,matchesPlayed:r.Pl,matchesRemaining:rem,maximumPossiblePoints:maxPts,minimumGuaranteedPoints:minPts,
+      possibleTopTwoFinish:possibleTopTwo,possibleThirdPlaceFinish:possibleThird,bestThirdPlaceEligibility:complete?(pos===3):(possibleThird||possibleTopTwo),
+      qualificationStillPossible:!lockedEliminated&&(possibleTopTwo||possibleThird),
+      groupVictoryStillPossible:canWin&&!lockedEliminated,
+      lockedWinner:!!lockedWinner,lockedQualified:!!lockedQualified,lockedTopTwo:!!lockedTopTwo,
+      eliminated:!!lockedEliminated,eliminatedFromTopTwo:!!(eliminatedTopTwo||lockedEliminated),
+      eliminationCertain:!!lockedEliminated,provisionalByTiebreaker:!!(complete&&tieRisk),
+      currentPosition:pos,minPossiblePosition:minPos,maxPossiblePosition:maxPos,complete:complete};
+  });
+  return map;
+}
+function tccTeamTournamentStatus(code){var g=TG[code];return g?tccResolveGroupStatus(g)[code]:null;}
+/* compact truth chip for a standings row (only for settled/locked states) */
+function tccRowChip(code){if(typeof activeMode==='function'&&activeMode()!=='real')return '';var ts=tccTeamTournamentStatus(code);if(!ts)return '';
+  if(ts.lockedWinner)return '<span class="st-chip win">'+(ts.complete?'Winners':'Winners · locked')+'</span>';
+  if(ts.lockedQualified)return '<span class="st-chip q">'+(ts.complete?'Qualified':'Qualified · locked')+'</span>';
+  if(ts.eliminated)return '<span class="st-chip out">Eliminated</span>';
+  if(ts.tone==='pending')return '<span class="st-chip pend">Pending final</span>';
+  return '';}
 function tccTeamLivePos(code,g){var t=tccRealTable(g),i=t.findIndex(function(x){return x.code===code;});return i<0?0:i+1;}
 function tccPosAfter(g,num,winnerCode){var m=M[num];return withTour(liveTour(),function(){S.sc[num]={h:(m.home===winnerCode?1:0),a:(m.away===winnerCode?1:0)};var t=standings(g);return t.findIndex(function(x){return x.code===winnerCode;})+1;});}
 /* ---- Featured match: live > next major upcoming > most recent finished ---- */
@@ -4722,33 +4912,33 @@ function tccGroupScenarios(g){
   });
 }
 function tccGroupStakes(g){
-  var official=tccOffTable(g),remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
-  var complete=remaining.length===0,confirm=[],elim=[],stands=[],scenarioNotes=[];
-  if(complete){
-    confirm.push(nm(official[0].code)+' won Group '+g+'.');
-    confirm.push(nm(official[1].code)+' qualified in second.');
-    elim.push(nm(official[3].code)+' finished bottom and are out.');
-  } else {
-    var rem={};official.forEach(function(r){rem[r.code]=remaining.filter(function(m){return m.home===r.code||m.away===r.code;}).length;});
-    official.forEach(function(r){
-      var floor=r.Pts,ceil=r.Pts+3*(rem[r.code]||0);
-      var canExceedFloor=official.filter(function(o){return o.code!==r.code&&(o.Pts+3*(rem[o.code]||0))>=floor;}).length;
-      if(canExceedFloor<=1)scenarioNotes.push(nm(r.code)+' are in a strong position, but qualification is not yet confirmed.');
-      var aboveCeil=official.filter(function(o){return o.code!==r.code&&o.Pts>ceil;}).length;
-      if(aboveCeil>=3)scenarioNotes.push(nm(r.code)+' need help to stay in contention; elimination is not yet confirmed.');
+  var official=tccOffTable(g),status=tccResolveGroupStatus(g),remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
+  var complete=remaining.length===0,live=tccGroupLive(g),confirm=[],elim=[],stands=[],scenarioNotes=[];
+  official.forEach(function(r){
+    var st=status[r.code];if(!st)return;
+    if(st.lockedWinner)confirm.push({t:nm(r.code)+' have won Group '+g+'.',tag:st.headline});
+    else if(st.lockedQualified)confirm.push({t:nm(r.code)+(st.complete?' are through to the Round of 32.':' are mathematically through to the Round of 32.'),tag:st.headline});
+    else if(st.eliminated)elim.push({t:nm(r.code)+' are eliminated.',tag:st.headline});
+  });
+  if(!complete&&!live){
+    official.forEach(function(r){var st=status[r.code];if(!st||st.lockedWinner||st.lockedQualified||st.eliminated)return;
+      if(st.eliminatedFromTopTwo)scenarioNotes.push(nm(r.code)+': out of the top two — third-place route still open.');
+      else if(st.groupVictoryStillPossible&&st.currentPosition===1)scenarioNotes.push(nm(r.code)+': leading, but the group win is not yet secured.');
+      else if(st.currentPosition<=2)scenarioNotes.push(nm(r.code)+': in a qualifying place — not yet confirmed.');
+      else scenarioNotes.push(nm(r.code)+': still alive, fighting to qualify.');
     });
   }
   var scens=complete?[]:tccGroupScenarios(g);
   if(tccGroupLive(g)){var live=tccRealTable(g);stands.push('As it stands, '+nm(live[0].code)+' top the group and '+nm(live[1].code)+' hold second.');}
-  var scen=scenarioNotes.concat(scens.length?[scens[0].teaser]:[]);
+  var scen=scenarioNotes.concat(scens.length?[scens[0].teaser]:[]).slice(0,4);
   return {confirm:confirm,elim:elim,stands:stands,scen:scen,hasScenarios:scens.length>0};
 }
 function tccGroupStakesHTML(g){
   var s=tccGroupStakes(g);
   if(!s.confirm.length&&!s.elim.length&&!s.stands.length&&!s.scen.length&&!s.hasScenarios)return '';
   var h='<div class="tcc-stakes"><div class="tcc-stakes-h">Group '+g+' stakes</div>';
-  s.confirm.forEach(function(t){h+='<div class="tcc-st-row confirm"><span class="tcc-st-ic">✓</span><span><b>'+esc(t)+'</b><span class="tcc-st-tag">Confirmed</span></span></div>';});
-  s.elim.forEach(function(t){h+='<div class="tcc-st-row elim"><span class="tcc-st-ic">✕</span><span><b>'+esc(t)+'</b><span class="tcc-st-tag">Confirmed</span></span></div>';});
+  s.confirm.forEach(function(t){h+='<div class="tcc-st-row confirm"><span class="tcc-st-ic">✓</span><span><b>'+esc(t.t)+'</b><span class="tcc-st-tag">'+esc(t.tag||'Confirmed')+'</span></span></div>';});
+  s.elim.forEach(function(t){h+='<div class="tcc-st-row elim"><span class="tcc-st-ic">✕</span><span><b>'+esc(t.t)+'</b><span class="tcc-st-tag">'+esc(t.tag||'Confirmed')+'</span></span></div>';});
   s.stands.forEach(function(t){h+='<div class="tcc-st-row stands"><span class="tcc-st-ic">●</span><span>'+esc(t)+'<span class="tcc-st-tag">As it stands</span></span></div>';});
   s.scen.forEach(function(t){h+='<div class="tcc-st-row scen"><span class="tcc-st-ic">→</span><span>'+esc(t)+'<span class="tcc-st-tag">Scenario</span></span></div>';});
   if(s.hasScenarios)h+='<button class="tcc-scn-btn" onclick="tccScenarioSheet(\''+g+'\')">See scenarios →</button>';
@@ -4796,7 +4986,7 @@ function tccRoadSheet(code){if(!code||!T[code])return;var g=TG[code];
       var official=S.realko&&S.realko[mnum];
       var dt=koDateTime(m);
       var pending=!official&&dt&&Date.now()>=dt.getTime();
-      var oppLabel=official?'confirmed opponent':(pending?'pending official final':(opp?'possible opponent':'unresolved slot'));
+      var oppLabel=official?'confirmed opponent':(pending?'Pending official final':(opp?'possible opponent':'Opponent to be decided'));
       var oppHtml=opp?('<span class="fl">'+fl(opp)+'</span>'+esc(nm(opp))+' <span class="ph">'+oppLabel+'</span>'):'<span class="ph">'+oppLabel+'</span>';
       var cls=official?(official===code?'win':'out'):'';
       var last=ci===chain.length-1;
@@ -4814,7 +5004,8 @@ function tccThirdsSheet(){
   html+='<div class="tcc-prov">'+(complete?'✓ Final third-place order':'📡 As it stands · provisional until all groups finish')+'</div>';
   if(!anyPlayed)html+='<div class="tcc-sheet-lead">No group results yet — the third-place race opens once matches are played.</div>';
   ranked.forEach(function(x,i){
-    html+='<div class="tcc-thirds-row '+(qSet[x.g]?'in':'')+'"><span class="tcc-th-rk">'+(i+1)+'</span><span class="fl">'+fl(x.code)+'</span><span class="tcc-th-nm">'+esc(nm(x.code))+'</span><span class="tcc-th-g">Grp '+x.g+'</span><span class="tcc-th-v">'+x.Pts+'p · '+(x.GD>0?'+':'')+x.GD+'</span><span class="tcc-th-q">'+(qSet[x.g]?'✓':'·')+'</span></div>';
+    var inNow=complete&&qSet[x.g];
+    html+='<div class="tcc-thirds-row '+(inNow?'in':'')+'"><span class="tcc-th-rk">'+(i+1)+'</span><span class="fl">'+fl(x.code)+'</span><span class="tcc-th-nm">'+esc(nm(x.code))+'</span><span class="tcc-th-g">Grp '+x.g+'</span><span class="tcc-th-v">'+x.Pts+'p · '+(x.GD>0?'+':'')+x.GD+'</span><span class="tcc-th-q">'+(inNow?'✓':'·')+'</span></div>';
     if(i===7)html+='<div class="tcc-cut">Qualification cut-off</div>';
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
@@ -4871,10 +5062,10 @@ function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koPa
 function lnHTML(code,ph,score,win,lose){const sc=score!=null?`<span class="sc">${score}</span>`:``;
   if(ph||!T[code])return `<div class="ln"><span class="fl">·</span><span class="nm ph">${slotLabel(code)}</span></div>`;
   return `<div class="ln ${win?'w':(lose?'l':'')}"><span class="fl">${fl(code)}</span><span class="nm">${nm(code)}</span>${sc}</div>`;}
-function slotLabel(s){if(!s)return "TBD";let m;
+function slotLabel(s){if(!s)return "Opponent to be decided";let m;
   if(m=s.match(/^([12])([A-L])$/))return (m[1]==="1"?"Winner":"Runner-up")+" Group "+m[2];
-  if(m=s.match(/^3:/))return "3rd place · "+s.slice(2).split("").join("/");
-  if(m=s.match(/^W(\d+)$/))return "Winner #"+m[1];if(m=s.match(/^L(\d+)$/))return "Loser #"+m[1];return s;}
+  if(m=s.match(/^3:/))return "Qualification slot pending";
+  if(m=s.match(/^W(\d+)$/))return "Winner #"+m[1];if(m=s.match(/^L(\d+)$/))return "Loser #"+m[1];return s==='TBD'?'Opponent to be decided':s;}
 
 const CGRAD={West:"linear-gradient(120deg,#0e7490,#155e75)",Central:"linear-gradient(120deg,#9a3412,#7c2d12)",East:"linear-gradient(120deg,#5b21b6,#1e3a8a)"};
 function renderCities(){let h="";["West","Central","East"].forEach(reg=>{h+=`<div class="regttl">${REGION[reg]}</div>`;
@@ -4891,7 +5082,7 @@ function cityCard(v){const[fifaN,realN,loc,flag,reg,cap]=VEN[v];const ms=MATCHES
   const kos=ms.filter(m=>m.stage!=="group");let roles=[];
   if(ms.some(m=>m.num===104))roles.push(["★ FINAL","star"]);if(ms.some(m=>m.num===1))roles.push(["Opening Match","star"]);
   if(ms.some(m=>m.num===103))roles.push(["Bronze Final",""]);if(ms.some(m=>[101,102].includes(m.num)))roles.push(["Semi-final",""]);
-  let h=`<div class="ccard" id="${venueDomId(v)}"><div class="cbanner">${stadiumSVG(v,reg)}<div class="ct"><span class="cflag">${flag}</span><div><div class="cn">${v}</div><div class="cs">${realN}</div><div class="cloc">${loc} · ~${cap.toLocaleString()} cap · FIFA: ${fifaN}</div></div></div>
+  let h=`<div class="ccard" id="${venueDomId(v)}"><div class="cbanner">${stadiumSVG(v,reg)}<div class="ct"><span class="cflag">${flStr(flag)}</span><div><div class="cn">${v}</div><div class="cs">${realN}</div><div class="cloc">${loc} · ~${cap.toLocaleString()} cap · FIFA: ${fifaN}</div></div></div>
     <div class="cmeta"><span class="cchip">${ms.length} matches</span>${kos.length?`<span class="cchip">${kos.length} knockout</span>`:``}${roles.map(r=>`<span class="cchip ${r[1]}">${r[0]}</span>`).join("")}<span id="${wxId(v)}" class="cwx-slot"></span></div></div><div class="cmatches">`;
   ms.forEach(m=>{let inner,played=false,sc=null;
     if(m.stage==="group"){const s=S.sc[m.num];played=!!s;if(s)sc=`${s.h}<i>–</i>${s.a}`;
@@ -4920,7 +5111,6 @@ function renderRoad(){let h=`<div class="picker"><div class="pkt">Choose a natio
     <div class="ratbar"><div class="rl"><span>POWER RATING</span><span>${rat}/100</span></div><div class="rt2"><div class="rf" style="width:${rat}%"></div></div></div></div></div>`;
   h+=`<div id="tblurb"></div>`;
   h+=`<div id="tfacts" class="tfacts-slot"></div>`;
-  try{h+=squadHTML(code);}catch(e){}
   // timeline
   var tmc=S._tmc&&S._tmc[code];
   if(tmc){h+='<div class="ttc" onclick="runTeamMC()"><div class="ttc-h">🔮 Supercomputer · '+tmc.N+' sims · tap to re-run</div><div class="ttc-g"><div><b>'+ttp(tmc.c)+'</b><span>Win it all</span></div><div><b>'+ttp(tmc.f)+'</b><span>Reach final</span></div><div><b>'+ttp(tmc.sf)+'</b><span>Reach semis</span></div></div></div>';}
@@ -4972,8 +5162,8 @@ function thirdsTableHTML(){
   var anyPlayed=MATCHES.some(function(m){return m.stage==="group"&&S.sc[m.num];});
   if(!anyPlayed)return '';
   var ranked=thirdsRanked();if(!ranked||!ranked.length)return '';
-  var qual=qualThirds(),qSet={};qual.forEach(function(g){qSet[g]=1;});
-  var rows=ranked.map(function(x,i){var q=qSet[x.g]?1:0;
+  var complete=allDone(),qual=qualThirds(),qSet={};qual.forEach(function(g){qSet[g]=1;});
+  var rows=ranked.map(function(x,i){var q=complete&&qSet[x.g]?1:0;
     return '<div class="th-row'+(q?' q':'')+'"><span class="th-rk">'+(i+1)+'</span><span class="fl">'+fl(x.code)+'</span><span class="th-nm">'+nm(x.code)+'</span><span class="th-g">'+x.g+'</span><span class="th-pts">'+x.Pts+'</span><span class="th-gd">'+(x.GD>0?'+':'')+x.GD+'</span><span class="th-q">'+(q?'✓':'·')+'</span></div>';}).join("");
   return '<div class="th-wrap"><div class="th-h">🥉 Best third-placed teams<span class="th-sub">top 8 reach the Round of 32</span></div>'+
     '<div class="th-row hd"><span class="th-rk">#</span><span class="fl"></span><span class="th-nm">Team</span><span class="th-g">Grp</span><span class="th-pts">Pts</span><span class="th-gd">GD</span><span class="th-q">In</span></div>'+
@@ -5195,8 +5385,20 @@ function factsHTML(code){var f=FACTS[code];if(!f)return"";
     '<div class="tf-i"><span>👥</span><b>'+f[1]+'</b><em>Population</em></div>'+
     '<div class="tf-i"><span>🌍</span><b>'+f[2]+'</b><em>Confederation</em></div></div>';}
 function loadFacts(code){var el=document.getElementById("tfacts");if(el)el.innerHTML=factsHTML(code);}
+/* ---- Body scroll-lock while a sheet/modal is open ----
+   Prevents the page behind a sheet from scrolling, and restores the exact
+   scroll position when the sheet closes (so closing returns you where you were).
+   Driven by a MutationObserver on #scrim so every open/close path is covered. */
+var _scrollLockY=0,_scrollLocked=false;
+function lockBodyScroll(){if(_scrollLocked)return;_scrollLockY=window.scrollY||window.pageYOffset||0;_scrollLocked=true;var b=document.body;b.style.position='fixed';b.style.top=(-_scrollLockY)+'px';b.style.left='0';b.style.right='0';b.style.width='100%';b.classList.add('sheet-open');}
+function unlockBodyScroll(){if(!_scrollLocked)return;_scrollLocked=false;var b=document.body;b.style.position='';b.style.top='';b.style.left='';b.style.right='';b.style.width='';b.classList.remove('sheet-open');try{window.scrollTo(0,_scrollLockY);}catch(e){}}
 function closeSheet(){_openSheetNum=null;_matchcastOpen=false;_matchcastNum=null;_matchcastBet=null;document.getElementById("scrim").classList.remove("on");var sh=document.getElementById("sheet");if(sh)sh.style.transform="";}
 document.getElementById("scrim").onclick=e=>{if(e.target.id==="scrim")closeSheet();};
+(function(){var scrim=document.getElementById("scrim");if(!scrim||typeof MutationObserver==="undefined")return;
+  new MutationObserver(function(){var on=scrim.classList.contains("on");
+    if(on){lockBodyScroll();var sh=document.getElementById("sheet");if(sh){try{sh.scrollTop=0;}catch(e){}}}
+    else{unlockBodyScroll();}
+  }).observe(scrim,{attributes:true,attributeFilter:["class"]});})();
 /* swipe-to-dismiss bottom sheet */
 (function(){var sh=document.getElementById("sheet");if(!sh)return;var y0=null,dy=0,drag=false;
  sh.addEventListener("touchstart",function(e){if(sh.scrollTop>2)return;y0=e.touches[0].clientY;dy=0;drag=true;sh.classList.add("dragging");},{passive:true});
@@ -5379,7 +5581,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 
 function goStats(){TAB='stats';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#stats','Stats opened',40);}
 function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-rnd">Tournament reference</div><div class="sh-when">Calm, factual World Cup reference</div><div class="tour-more-grid">'+
- '<button onclick="closeSheet();goCompare()">Teams<span>Every nation’s squad, group and results.<span class="tmg-eg">Squad · group · results · route to the final</span></span></button>'+
+ '<button onclick="closeSheet();goCompare()">Teams<span>Compare real tournament records and routes.<span class="tmg-eg">Group · record · points · goals · route/status</span></span></button>'+
  '<button onclick="closeSheet();goStats()">Stats<span>Tournament leaders from official data.<span class="tmg-eg">Goals · assists · clean sheets · leaderboards</span></span></button>'+
  '<button onclick="closeSheet();goVenues()">Venues<span>Where the matches are played.<span class="tmg-eg">Host city · stadium · upcoming matches</span></span></button>'+
  '<button onclick="closeSheet();goRoad()">Scenarios<span>Qualification and knockout stakes.<span class="tmg-eg">Roads to the final · what-it-takes · third-place race</span></span></button>'+
@@ -5405,7 +5607,12 @@ function switchTab(){
 function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   /* Safety: if a full-screen overlay (celebration / supercomputer) ever leaked a scroll-lock, clear it on any navigation so the page is never stuck. */
   if(!document.getElementById("godTierOverlay")&&!document.getElementById("superOverlay")){document.body.style.overflow="";}
+  /* No sheet should be left open across a tab/subview switch, and the page must
+     never stay scrolled down from the previous view: release any lock and snap
+     to the top so every top-level tab and internal subview starts at the top. */
+  if(!document.getElementById("scrim")||!document.getElementById("scrim").classList.contains("on")){if(typeof unlockBodyScroll==="function")unlockBodyScroll();}
   document.querySelectorAll(".screen").forEach(function(sc){sc.classList.toggle("on",sc.id==="scr-"+m[0]);});
+  try{window.scrollTo(0,0);}catch(e){}
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
   try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
@@ -5439,9 +5646,9 @@ function tick(){ctx.clearRect(0,0,cv.width,cv.height);parts.forEach(p=>{p.vy+=p.
 function pushTab(){try{history.pushState({tab:TAB},"");}catch(e){}}
 document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=function(){try{haptic('tap');}catch(e){}
   var screen=b.dataset.screen,curScreen=(SCRMAP[TAB]||["home"])[0];
-  if(screen===curScreen){closeSheet();arriveAt({home:"#home",matches:"#schedule",bet:"#betting",teams:"#h2h"}[screen]||"body",null,0);return;} // re-tap the active tab → jump to top/reveal the section
+  if(screen===curScreen){closeSheet();try{window.scrollTo({top:0,behavior:"smooth"});}catch(e){}return;} // re-tap the active tab → jump to the top
   endLive();if(screen==="bet"){_betCat='matches';}
-  TAB=({home:"home",matches:"schedule",bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();arriveAt({home:"#home",matches:"#schedule",bet:"#betting",teams:"#h2h"}[screen]||"body",null,40);};});
+  TAB=({home:"home",matches:"schedule",bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
 window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();TAB=(e.state&&e.state.tab)||"home";switchTab();render();window.scrollTo({top:0});});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
