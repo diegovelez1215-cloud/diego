@@ -1511,6 +1511,32 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .social-league-card b{display:block;font-size:13px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.social-league-card span{display:block;font-size:11px;color:var(--mut);font-weight:700;margin-top:3px;line-height:1.35}
 .social-league-card button{width:100%;margin-top:10px;border:1px solid var(--line2);background:rgba(255,255,255,.06);color:#fff;border-radius:11px;padding:10px 8px;font-size:11px;font-weight:900}
 @media (max-width:430px){.social-metrics{grid-template-columns:repeat(2,1fr)}.social-league{grid-template-columns:1fr}.social-profile{align-items:flex-start}.social-cta{padding:9px 10px}}
+/* ===== Phase 3A Lite · You-tab polish (profile header, performance card, next-action card) ===== */
+.you-head{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;background:linear-gradient(150deg,rgba(10,132,255,.16),rgba(8,13,31,.55));border:1px solid rgba(255,255,255,.11);box-shadow:var(--shadow-1)}
+.you-av{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#0a84ff,#5e5ce6);color:#fff;font-size:20px;font-weight:900;flex:0 0 auto;box-shadow:0 10px 24px -14px rgba(10,132,255,.85)}
+.you-id{min-width:0;flex:1}
+.you-nm{font-size:16px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.you-status{font-size:11.5px;font-weight:700;color:var(--mut);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.you-edit{flex:0 0 auto;min-height:44px;border-radius:12px;padding:0 14px;background:rgba(255,255,255,.07);border:1px solid var(--line2);color:#fff;font-size:11.5px;font-weight:800}
+.you-perf{padding:16px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11);box-shadow:var(--shadow-1)}
+.you-perf-k{font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);margin-bottom:10px}
+.you-prim{display:flex;flex-direction:column;gap:3px;margin-bottom:14px}
+.you-prim b{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;line-height:1}
+.you-prim span{font-size:11px;font-weight:700;color:var(--mut)}
+.you-sub2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.you-s{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:11px 10px;text-align:center;min-width:0}
+.you-s b{display:block;font-size:17px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.you-s b.g{color:var(--green)}.you-s b.r{color:var(--red)}
+.you-s span{display:block;font-size:10.5px;font-weight:700;color:var(--mut2);margin-top:3px}
+.you-meta{margin-top:12px;font-size:11px;font-weight:700;color:var(--mut2);line-height:1.45}
+.you-next{position:relative;padding:15px;border-radius:18px;border:1px solid rgba(255,214,10,.26);background:linear-gradient(150deg,rgba(255,214,10,.11),rgba(8,13,31,.5));box-shadow:var(--shadow-1)}
+.you-next-k{font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.you-next-t{font-size:15px;font-weight:900;color:#fff}
+.you-next-s{font-size:12px;font-weight:700;color:var(--mut);margin-top:4px;line-height:1.4;overflow-wrap:anywhere}
+.you-next-btn{margin-top:12px;width:100%;min-height:46px;border:0;border-radius:13px;background:linear-gradient(135deg,#ffd60a,#ff9f0a);color:#1a1200;font-size:13px;font-weight:900}
+.you-next.neutral{border-color:rgba(255,255,255,.11);background:rgba(255,255,255,.045)}
+.you-next.neutral .you-next-k{color:var(--blue2)}
+.you-next.neutral .you-next-btn{background:rgba(255,255,255,.08);border:1px solid var(--line2);color:#fff}
 .lbh-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0}
 .lbh-row b{font-family:'Space Grotesk',sans-serif;color:var(--green);font-variant-numeric:tabular-nums}
 .lbh-you{margin-top:7px;font-size:11.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.06);border-radius:9px;padding:7px 10px;text-align:center}
@@ -3847,16 +3873,67 @@ function h2hSim(a,b,N){var aw=0,d=0,bw=0,gf=0,ga=0,sc={};for(var i=0;i<N;i++){va
 function teamOptionsHTML(sel){return Object.keys(RAT).sort(function(a,b){return nm(a).localeCompare(nm(b));}).map(function(c){return '<option value="'+c+'"'+(c===sel?' selected':'')+'>'+nm(c)+'</option>';}).join("");}
 function setH2H(side,code){if(side==='a')S.h2hA=code;else S.h2hB=code;renderCompare();}
 function h2hQuick(){var a=S.h2hA,b=S.h2hB;if(a===b)return toast("Pick two different teams");var s=simScore(a,b);var pen=(s.h===s.a)?(" · "+nm(Math.random()<shootoutProb(a,b)?a:b)+" on penalties"):"";if(SOUND)sfxWhistle();toast("⚽ "+fl(a)+" "+s.h+"–"+s.a+" "+fl(b)+pen);}
+/* ===== Phase 3A Lite · You-tab polish =====
+   All three cards read ONLY existing local state (S.bank, S.bets, bettorStats(),
+   lbName(), live match state). No new storage keys, no fabricated data. */
+function youGoTournament(){TAB='schedule';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#schedule','Tournament opened',40);}
+function youActionCard(cls,k,t,subHtml,btn,fn){
+ return '<div class="you-next'+(cls==='neutral'?' neutral':'')+'"><div class="you-next-k">'+esc(k)+'</div><div class="you-next-t">'+esc(t)+'</div><div class="you-next-s">'+subHtml+'</div><button class="you-next-btn" onclick="'+fn+'">'+esc(btn)+'</button></div>';}
+function youMatchLine(num){var m=M[num];if(!m)return '';var pr=m.stage==='group'?[m.home,m.away]:koParts(num);if(!(pr[0]&&pr[1]))return '';return fl(pr[0])+' '+esc(nm(pr[0]))+' v '+esc(nm(pr[1]))+' '+fl(pr[1]);}
+/* Single contextual next-action card — priority: live pick > upcoming pick > open market > explore */
+function youNextHTML(open){
+ open=open||S.bets.filter(function(b){return !b.settled;});
+ /* 1) a pick on a match that is live right now */
+ var liveNum=null;
+ for(var i=0;i<open.length&&liveNum==null;i++){var ns=betMatchNums([open[i]]);for(var j=0;j<ns.length;j++){var ls=matchLiveState(ns[j]);if(ls&&ls.kind==='live'){liveNum=ns[j];break;}}}
+ if(liveNum!=null){var lsx=matchLiveState(liveNum),line=youMatchLine(liveNum);
+   return youActionCard('gold','Live now','Follow your live pick',(line||'Your pick is in play')+' · '+esc(lsx.label||'In play'),'Follow match','openMatchDetails('+liveNum+')');}
+ /* 2) an active upcoming pick */
+ if(open.length){
+   var firstNum=null;for(var k=0;k<open.length;k++){var nn=betMatchNums([open[k]]);if(nn.length){firstNum=nn[0];break;}}
+   if(firstNum!=null){var ml=youMatchLine(firstNum),m2=M[firstNum],kin=kickoffIn(m2),when=kin?(kin.charAt(0).toUpperCase()+kin.slice(1)):('Kickoff '+to12(m2.time));
+     return youActionCard('gold','Your next move','Review your active pick',(ml||'Your active pick')+' · '+esc(when),'Open ticket','goMyBets()');}
+   return youActionCard('gold','Your next move','Review your active picks','You have '+open.length+' open ticket'+(open.length===1?'':'s')+' awaiting results.','Open tickets','goMyBets()');
+ }
+ /* 3) no picks, but a market is open */
+ var po=(typeof playOpenMatches==='function')?playOpenMatches():[];
+ if(po.length){var mp=po[0],pl=youMatchLine(mp.num);
+   return youActionCard('gold','Your next move','Make your next pick',(pl?pl+' · ':'')+esc(to12(mp.time))+' · markets open','Make a pick','goPlay()');}
+ /* 4) nothing live, no open market */
+ return youActionCard('neutral','Your next move','Explore the tournament','No markets are open right now. Follow groups, standings and the bracket.','Open Tournament','youGoTournament()');}
+function youPolishHTML(){
+ var st=bettorStats();
+ var open=S.bets.filter(function(b){return !b.settled;});
+ var settled=S.bets.filter(function(b){return b.settled;});
+ var total=S.bets.length;
+ var pnl=settled.reduce(function(t,b){return t+(b.net||0);},0);
+ var me=lbName();
+ var name=me?esc(me):'Guest Manager';
+ var initial=me?me.charAt(0).toUpperCase():'G';
+ /* truthful status line — never implies login / cloud sync */
+ var status=open.length?(open.length+' active pick'+(open.length===1?'':'s')):(settled.length?'Tournament tracker':'Ready for matchday');
+ var head='<div class="you-head"><div class="you-av">'+esc(initial)+'</div><div class="you-id"><div class="you-nm">'+name+'</div><div class="you-status">'+esc(status)+'</div></div><button class="you-edit" onclick="lbPostSheet()">'+(me?'Edit profile':'Set name')+'</button></div>';
+ /* performance card — primary: virtual balance · supporting: win rate + simulated P/L */
+ var wr=settled.length?Math.round(st.winRate)+'%':'—';
+ var wrCls=settled.length?(st.winRate>=50?'g':''):'';
+ var plTxt=settled.length?((pnl>=0?'+':'−')+'$'+Math.abs(pnl).toLocaleString()):'—';
+ var plCls=settled.length?(pnl>=0?'g':'r'):'';
+ var metaLine=(total===0)?'No picks yet — your tournament starts with the next match.':((settled.length===0)?(total+' active pick'+(total===1?'':'s')+' · completed picks appear here after official results.'):(total+' picks placed · '+settled.length+' settled'));
+ var perf='<div class="you-perf"><div class="you-perf-k">Your simulated season</div>'
+   +'<div class="you-prim"><b>$'+(S.bank||0).toLocaleString()+'</b><span>Virtual balance · simulated funds, not real money</span></div>'
+   +'<div class="you-sub2"><div class="you-s"><b class="'+wrCls+'">'+wr+'</b><span>Win rate</span></div><div class="you-s"><b class="'+plCls+'">'+plTxt+'</b><span>Simulated P/L</span></div></div>'
+   +'<div class="you-meta">'+esc(metaLine)+'</div></div>';
+ return head+perf+youNextHTML(open);}
 function socialHubHTML(){var st=bettorStats(),open=S.bets.filter(function(b){return !b.settled;}).length,settled=S.bets.filter(function(b){return b.settled;});
  var me=lbName(),roi=st.settled?((st.roi>=0?'+':'')+st.roi.toFixed(1)+'%'):'—',wr=st.settled?Math.round(st.winRate)+'%':'—';
  var pnl=settled.reduce(function(t,b){return t+(b.net||0);},0),style=playStyle(st.roi||0,S.bank||0),initial=me?me.charAt(0).toUpperCase():'U';
  var league=S.syndicate?esc(S.syndicate.name):'Create or join a league',best=st.biggest>0?'+$'+st.biggest.toLocaleString():'—';
- var profileBtn=me?'Edit profile':'Join board';
- var hero='<div class="social-hero"><div class="social-k">United Social</div><div class="social-title">Leaderboard, leagues, rivals.</div><div class="social-sub">A clean sports-game social layer: public rank, private friend leagues, tap-in profiles, ROI flex and automatic score sync once your name is set.</div><div class="social-profile"><div class="social-avatar">'+esc(initial)+'</div><div><div class="social-name">'+(me?esc(me):'Your public profile')+'</div><div class="social-style">'+style[0]+' '+style[1]+' · '+style[2]+'</div></div><button class="social-cta '+(me?'':'primary')+'" onclick="lbPostSheet()">'+profileBtn+'</button></div></div>';
- var metrics='<div class="social-metrics"><div class="social-metric"><b>$'+S.bank.toLocaleString()+'</b><span>Bankroll</span></div><div class="social-metric"><b class="'+((st.roi||0)>=0?'g':'r')+'">'+roi+'</b><span>ROI</span></div><div class="social-metric"><b>'+wr+'</b><span>Win rate</span></div><div class="social-metric"><b class="g">'+best+'</b><span>Biggest hit</span></div></div>';
+ /* Phase 3A Lite: profile header + performance + next-action now rendered by youPolishHTML().
+    The old social-hero / social-metrics blocks were replaced by it. Leaderboard, leagues,
+    weekly challenges and story below are preserved unchanged. */
  var story=S.lastStory?'<div class="social-league-card" style="margin:12px 0"><b>How your run is going</b><span>'+esc(S.lastStory)+'</span><button onclick="goMyBets()">View tickets</button></div>':'';
  var leagueCard='<div class="social-league"><div class="social-league-card"><b>'+league+'</b><span>Private standings for your friends, powered by the same live score posts.</span><button onclick="syndicateSheet()">League hub</button></div><div class="social-league-card"><b>'+(open||0)+' open bet'+(open===1?'':'s')+'</b><span>'+(pnl>=0?'Up ':'Down ')+'$'+Math.abs(pnl).toLocaleString()+' settled P/L · '+(st.bestTeam?fl(st.bestTeam)+' '+nm(st.bestTeam):'pick a lucky team')+'</span><button onclick="goSlip()">Open slip</button></div></div>';
- return '<div class="social-stage">'+hero+metrics+weeklyChallengesHTML()+story+socialLeaderboardHTML('socialLbBoard')+leagueCard+'</div>';}
+ return '<div class="social-stage">'+youPolishHTML()+weeklyChallengesHTML()+story+socialLeaderboardHTML('socialLbBoard')+leagueCard+'</div>';}
 function renderCompare(){var el=document.getElementById("compare");if(!el)return;var a=S.h2hA||"ARG",b=S.h2hB||"BRA";
  var ra=RAT[a]||70,rb=RAT[b]||70,o=matchOdds(a,b),sim=h2hSim(a,b,600);
  var pa=Math.round(sim.aw*100),pd=Math.round(sim.d*100),pb=100-pa-pd;
