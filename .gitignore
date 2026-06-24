@@ -25,6 +25,9 @@ temp/
 *.log
 worldcup-*.js
 *-extracted.js
+_relite_test.js
+*_test.scratch.js
+node_modules/
 
 # OS / editor junk
 .DS_Store

@@ -2075,6 +2075,32 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .tcc-st-row.scen .tcc-st-ic{color:var(--mut3)}
 .tcc-st-tag{display:inline-block;font-size:8.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:1px 6px;border-radius:10px;border:1px solid var(--line2);color:var(--mut2);margin-left:6px;vertical-align:1px}
 .tcc-scn-btn{display:block;width:100%;min-height:44px;margin-top:9px;border-radius:11px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
+/* Route Explorer Lite — compact "What this means" route card */
+.rel-wrap{display:flex;flex-direction:column;gap:10px;margin:4px 0 12px}
+.rel-card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(29,42,114,.34),rgba(255,255,255,.018));padding:12px 13px;margin-top:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.rel-wrap .rel-card{margin-top:0}
+.rel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
+.rel-k{font-size:9.5px;font-weight:950;letter-spacing:.8px;text-transform:uppercase;color:var(--gold)}
+.rel-status{flex:none;font-size:9px;font-weight:950;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--mut2);white-space:nowrap}
+.rel-status.rel-confirmed{color:var(--green);border-color:rgba(48,209,88,.4);background:rgba(48,209,88,.12)}
+.rel-status.rel-locked{color:#cfe0ff;border-color:rgba(94,158,255,.4);background:rgba(10,132,255,.14)}
+.rel-status.rel-stands{color:var(--blue2);border-color:rgba(94,158,255,.3);background:rgba(10,132,255,.08)}
+.rel-status.rel-alive{color:var(--gold);border-color:rgba(255,203,61,.34);background:rgba(255,203,61,.1)}
+.rel-status.rel-pending{color:var(--mut);border-color:var(--line2)}
+.rel-sub{font-size:11px;font-weight:700;color:var(--mut);margin:1px 0 9px}
+.rel-rows{display:flex;flex-direction:column;gap:7px}
+.rel-row{display:flex;gap:9px;align-items:flex-start}
+.rel-row .rel-ic{flex:none;width:18px;height:18px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;margin-top:1px}
+.rel-win .rel-ic{color:var(--green);background:rgba(48,209,88,.14)}
+.rel-draw .rel-ic{color:var(--mut2);background:rgba(255,255,255,.07)}
+.rel-lose .rel-ic{color:var(--red);background:rgba(255,69,58,.14)}
+.rel-tx{min-width:0;line-height:1.34}
+.rel-tx b{display:block;font-size:10px;font-weight:900;letter-spacing:.3px;text-transform:uppercase;color:var(--mut2);margin-bottom:1px}
+.rel-tx span{display:block;font-size:12.5px;font-weight:650;color:var(--txt)}
+.rel-r32{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.rel-r32-lab{align-self:flex-start;font-size:8.5px;font-weight:950;letter-spacing:.5px;text-transform:uppercase;color:#cfe0ff;background:rgba(10,132,255,.14);border:1px solid rgba(94,158,255,.32);border-radius:20px;padding:2px 8px}
+.rel-r32-tx{font-size:12.5px;font-weight:700;color:var(--txt);line-height:1.35}
+.rel-foot{margin-top:9px;font-size:9.5px;font-weight:800;letter-spacing:.3px;color:var(--mut3);text-transform:uppercase}
 /* bottom-sheet shared bits */
 .tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
 .tcc-sheet-lead b{color:var(--txt);font-weight:800}
@@ -2242,13 +2268,30 @@ var _flagSupport={};
    white "tofu" box — lots of white, ~no saturated pixels. We use the
    saturation signal to reject those so Germany (and any flag) never shows
    as an empty white block — it falls back to a clean initials badge. */
-function _glyphScan(s){try{var sz=24,cv=document.createElement('canvas');if(!cv||!cv.getContext)return null;cv.width=cv.height=sz;var x=cv.getContext('2d');if(!x||!x.getImageData)return null;x.textBaseline='middle';x.textAlign='center';x.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.clearRect(0,0,sz,sz);x.fillText(s,sz/2,sz/2);var d=x.getImageData(0,0,sz,sz).data,c={},ink=0,sat=0;for(var i=0;i<d.length;i+=4){if(d[i+3]<=24)continue;var r=d[i],g=d[i+1],b=d[i+2];ink++;c[(r>>5)+'.'+(g>>5)+'.'+(b>>5)]=1;if(Math.max(r,g,b)-Math.min(r,g,b)>40)sat++;}return {n:Object.keys(c).length,ink:ink,sat:sat};}catch(e){return null;}}
+function _glyphScan(s){try{var sz=24,cv=document.createElement('canvas');if(!cv||!cv.getContext)return null;cv.width=cv.height=sz;var x=cv.getContext('2d');if(!x||!x.getImageData)return null;x.textBaseline='middle';x.textAlign='center';x.font=sz+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';x.clearRect(0,0,sz,sz);x.fillText(s,sz/2,sz/2);var d=x.getImageData(0,0,sz,sz).data,c={},ink=0,sat=0,white=0;for(var i=0;i<d.length;i+=4){if(d[i+3]<=24)continue;var r=d[i],g=d[i+1],b=d[i+2];ink++;c[(r>>5)+'.'+(g>>5)+'.'+(b>>5)]=1;if(Math.max(r,g,b)-Math.min(r,g,b)>40)sat++;if(r>=228&&g>=228&&b>=228)white++;}return {n:Object.keys(c).length,ink:ink,sat:sat,white:white};}catch(e){return null;}}
 function _glyphColors(s){var sc=_glyphScan(s);return sc?sc.n:-1;}
-function flagRenders(s){if(s in _flagSupport)return _flagSupport[s];var ok=true,sc=_glyphScan(s);if(sc){var ref=_glyphScan('A'),refN=ref?ref.n:1;ok=sc.ink>=6&&sc.n>=Math.max(3,refN+1)&&sc.sat>=3;}return _flagSupport[s]=ok;}
+/* Decide ONCE whether this platform's canvas can actually measure emoji glyphs.
+   We scan a reference flag that is colourful on every flag-capable platform
+   (🇧🇷 Brazil — green/yellow/blue). If even that comes back blank/unreadable,
+   canvas read-back is blocked here (some privacy modes), so we must TRUST native
+   emoji rendering — badging every flag would be the worse failure. When canvas
+   IS readable we measure each flag and badge only the ones that paint as a
+   blank / white "tofu" box. */
+var _canvasFlagReadable=null;
+function _flagCanvasReadable(){if(_canvasFlagReadable!=null)return _canvasFlagReadable;var ref=_glyphScan('🇧🇷');_canvasFlagReadable=!!(ref&&ref.ink>=6&&ref.sat>=3&&ref.n>=4);return _canvasFlagReadable;}
+function flagRenders(s){if(s in _flagSupport)return _flagSupport[s];
+  if(!_flagCanvasReadable())return _flagSupport[s]=true;            // can't measure → trust the native emoji
+  var sc=_glyphScan(s),ok=false;
+  if(sc){var ref=_glyphScan('A'),refN=ref?ref.n:1;
+    var whiteHeavy=sc.ink>0&&(sc.white/sc.ink)>=0.85;               // dominated by white = blank/tofu box
+    ok=sc.ink>=6&&sc.n>=Math.max(3,refN+1)&&sc.sat>=3&&!whiteHeavy; // real flag: colourful, saturated, not white-block
+  }
+  return _flagSupport[s]=ok;}
 /* Emoji/color fonts can finish loading after first paint; a flag checked too
    early may be mis-cached. Re-check once fonts are ready and re-render. */
-function recheckFlags(){try{_flagSupport={};if(typeof render==='function')render();}catch(e){}}
+function recheckFlags(){try{_flagSupport={};_canvasFlagReadable=null;if(typeof render==='function')render();}catch(e){}}
 try{if(document.fonts&&document.fonts.ready&&document.fonts.ready.then)document.fonts.ready.then(function(){setTimeout(recheckFlags,30);});else setTimeout(recheckFlags,400);}catch(e){setTimeout(function(){try{recheckFlags();}catch(e){}},400);}
+try{window.addEventListener('load',function(){setTimeout(recheckFlags,60);});}catch(e){}
 function flBadge(c){var t=(T[c]&&/^[A-Za-z]{2,3}$/.test(String(c)))?String(c).toUpperCase():teamInitials(c);return '<span class="flbadge">'+esc(t)+'</span>';}
 function fl(c){var f=T[c]&&T[c][1];if(f&&String(f).trim()&&f!=="·"&&flagRenders(f))return f;return flBadge(c);}
 /* render a raw flag emoji (e.g. host-nation flag) with the same no-tofu guarantee */
@@ -2938,16 +2981,23 @@ function pkemPickLabel(m,p){return p==='h'?nm(m.home):p==='d'?'Draw':p==='a'?nm(
    remove, reorder-out or duplicate a fixture the user is engaging with.
    - every OPEN group match the user already picked is always kept
    - the next open group matches fill the card (up to a cap)
-   - any picked match that has since started/finished stays, shown as locked/result */
+   - any picked match that has since started/finished stays, shown as locked/result
+   - a match that JUST kicked off (within the recency window) stays even if the
+     user never picked it, so a fixture they were looking at transitions to a
+     locked/result row instead of silently disappearing the moment it locks. */
 function pickemList(){
  var P=S.preds||{},seen={},out=[];
  function add(m){if(!m||seen[m.num])return;seen[m.num]=1;out.push(m);}
- var open=MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away&&pkemMatchOpen(m.num);}).sort(pkemSort);
+ function koMs(m){var d=koDateTime(m);return d?d.getTime():0;}
+ function byKoDesc(x,y){return koMs(y)-koMs(x);}
+ var grp=MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away;});
+ var open=grp.filter(function(m){return pkemMatchOpen(m.num);}).sort(pkemSort);
  open.forEach(function(m){if(P[m.num]!=null)add(m);});      // never drop an open pick
  open.forEach(function(m){if(out.length<5)add(m);});        // fill with next upcoming
- MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away&&P[m.num]!=null&&!seen[m.num];})
-   .sort(function(x,y){return y.num-x.num;}).slice(0,4)      // recent picked matches that have started/finished
-   .forEach(add);
+ var locked=grp.filter(function(m){return !seen[m.num]&&!pkemMatchOpen(m.num);});
+ locked.filter(function(m){return P[m.num]!=null;}).sort(byKoDesc).slice(0,4).forEach(add); // their own picks → keep as result rows
+ var now=Date.now(),RECENT=36*3600000;                     // recently kicked-off, even if unpicked → don't let it vanish
+ locked.filter(function(m){return P[m.num]==null&&koMs(m)&&(now-koMs(m))<=RECENT;}).sort(byKoDesc).slice(0,3).forEach(add);
  return out.sort(pkemSort);
 }
 function pickem(num,pick){if(!S.preds)S.preds={};if(!pkemMatchOpen(num)){try{toast("That match is locked — pick before kickoff");}catch(e){}return;}S.preds[num]=pick;try{haptic('pick');}catch(e){}saveState();renderHome();}
@@ -3368,16 +3418,28 @@ var SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 function supaReady(){return /^https?:\/\//.test(SUPA_URL)&&SUPA_KEY.length>20;}
 function supaHeaders(){return {apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY,'Content-Type':'application/json'};}
 function lbName(){try{return localStorage.getItem('wc26_name')||'';}catch(e){return '';}}
-/* ===== Active roster (Phase 5A leaderboard cleanup) =====
-   The board only surfaces real, active people. Random/seeded/test rows in the
-   shared table are hidden from view (never deleted destructively from here).
-   To add a future real participant, just add their display name below. The
-   current user is always shown as themselves even before they're added here. */
-var LB_ACTIVE=["Dingus","Diego","Ana"];
+/* ===== Competition reset (Phase 5A leaderboard) =====
+   This is a RESET, not a permanent cap. Old fake/inactive seeded rows (created
+   before the reset) are hidden from view (never deleted destructively here), but
+   the board is NOT whitelisted to a fixed set of names. A row is shown when it is:
+     • part of the reset cohort (Dingus, Diego, Ana — kept visible after reset), OR
+     • the current user (always shown as themselves), OR
+     • a genuine post-reset record (created at/after the reset epoch) — so any
+       future real player appears automatically the moment they become active
+       through real participation, profile activation, a ticket, a Pick'em entry
+       or any post-reset leaderboard post (each of those auto-posts a fresh row).
+   Because post-reset records pass on their own, we never have to whitelist new
+   people by hand. */
+var LB_RESET_COHORT=["Dingus","Diego","Ana"];
+var LB_ACTIVE=LB_RESET_COHORT;                                  // back-compat alias
+var LB_RESET_EPOCH=Date.parse("2026-06-24T00:00:00Z");          // competition reset moment
 function _lbKey(s){return (s||"").trim().toLowerCase();}
-function lbActiveSet(){var m={};LB_ACTIVE.forEach(function(n){m[_lbKey(n)]=1;});var me=lbName();if(me)m[_lbKey(me)]=1;return m;}
-function lbIsActive(name){return !!lbActiveSet()[_lbKey(dispName(name))];}
-function lbCurate(arr){var set=lbActiveSet();return (arr||[]).filter(function(e){return set[_lbKey(dispName(e.name))];});}
+function lbCohortSet(){var m={};LB_RESET_COHORT.forEach(function(n){m[_lbKey(n)]=1;});var me=lbName();if(me)m[_lbKey(me)]=1;return m;}
+function lbActiveSet(){return lbCohortSet();}                   // back-compat alias
+function lbPostReset(e){var t=Date.parse((e&&e.created_at)||0)||0;return t>=LB_RESET_EPOCH;}
+function lbVisible(e){return !!lbCohortSet()[_lbKey(dispName(e&&e.name))]||lbPostReset(e);}
+function lbIsActive(name){return !!lbCohortSet()[_lbKey(dispName(name))];}
+function lbCurate(arr){return (arr||[]).filter(lbVisible);}
 /* One-time, non-destructive backup of leaderboard-related local data (identity +
    wallet/tickets/picks/history live in wc26_v1). Never overwrites an existing
    backup, so Diego's data is preserved before any cleanup. */
@@ -3471,7 +3533,7 @@ function lbFetch(){var els=[].slice.call(document.querySelectorAll("#lbBoard,#so
  fetch(SUPA_URL+'/rest/v1/scores?select=*&order=bankroll.desc&limit=300',{headers:supaHeaders()})
   .then(function(r){return r.ok?r.json():[];}).then(function(arr){
    arr=lbCurate(dedupBoard(arr)).slice(0,100);_lbData=arr;
-   if(!arr.length){paint('<div class="emptyst"><div class="ei">🏆</div><div class="et">No active players yet</div><div class="es">Set your name to join — Dingus, Diego and Ana show here once their scores post.</div></div>');return;}
+   if(!arr.length){paint('<div class="emptyst"><div class="ei">🏆</div><div class="et">No active players yet</div><div class="es">Set your name to join — every new player shows up here automatically once they post a score.</div></div>');return;}
    var myIdx=me?arr.findIndex(function(e){return dispName(e.name)===me;}):-1;
    var banner='<div class="lbd-live">🟢 Live · auto-updating · tap anyone for their profile</div>'+lbRaceHTML(arr,myIdx)+(myIdx>=0?'<div class="lbd-you">🎯 You\'re <b>#'+(myIdx+1)+'</b> of '+arr.length+(myIdx===0?' — top of the table':'')+'</div>':'');
    paint(banner+arr.map(function(e,i){var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1),roiVal=+(e.roi||0);var roi=(e.roi!=null&&e.roi!==0)?'<span class="lbd-roi '+(roiVal>=0?'g':'r')+'">'+(roiVal>=0?'+':'')+roiVal+'% ROI</span>':'';var dn=maskBad(dispName(e.name));
@@ -4292,7 +4354,8 @@ function renderCompare(){var el=document.getElementById("compare");if(!el)return
  function nxt(c){var m=gMatches(TG[c]).filter(function(x){return !tccOfficialFinal(x.num)&&(x.home===c||x.away===c);}).sort(function(x,y){return matchClock(x)-matchClock(y)||x.num-y.num;})[0];if(!m)return 'Group complete';var o=m.home===c?m.away:m.home;return shortDate(m.date)+' vs '+nm(o);}
  var stats='<div class="h2-stats">'+row('Record',rec(ta),rec(tb),(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Points',ta.Pts||0,tb.Pts||0,(ta.Pts||0)>(tb.Pts||0),(tb.Pts||0)>(ta.Pts||0))+row('Goal difference',(ta.GD>0?'+':'')+(ta.GD||0),(tb.GD>0?'+':'')+(tb.GD||0),(ta.GD||0)>(tb.GD||0),(tb.GD||0)>(ta.GD||0))+row('Goals for',ta.GF||0,tb.GF||0,(ta.GF||0)>(tb.GF||0),(tb.GF||0)>(ta.GF||0))+'<div class="h2-row single">'+esc(nm(a))+': '+esc((sa&&(sa.headline+' · '+sa.label))||'Still alive')+' · next '+esc(nxt(a))+'</div><div class="h2-row single">'+esc(nm(b))+': '+esc((sb&&(sb.headline+' · '+sb.label))||'Still alive')+' · next '+esc(nxt(b))+'</div></div>';
  var note=(a===b)?'<div class="bethint">Pick two different teams to compare.</div>':'';
- el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>';}
+ var routes='';try{routes=routeExplorerLiteHTML(a)+(a!==b?routeExplorerLiteHTML(b):'');}catch(e){routes='';}
+ el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>'+routes;}
 function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
  MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
@@ -5032,6 +5095,8 @@ function tccScenarioSheet(g){
   var html='<div class="grab"></div><div class="sh-rnd">Group '+g+' scenarios</div><div class="sh-when">Highest-value upcoming results</div>';
   if(official.length>=4)html+='<div class="tcc-sheet-lead"><b>Group '+g+' points snapshot:</b> '+esc(nm(official[0].code))+' '+official[0].Pts+' pts, '+esc(nm(official[1].code))+' '+official[1].Pts+', '+esc(nm(official[2].code))+' '+official[2].Pts+', '+esc(nm(official[3].code))+' '+official[3].Pts+'. Positions and qualification remain pending official finals and tie-breakers.</div>';
   html+='<div class="tcc-prov">⚠ Scenario, not confirmed · pending official finals</div>';
+  var routeCards='';try{official.forEach(function(r){if(routeCards.split('rel-card').length>4)return;var rc=routeExplorerLiteHTML(r.code);if(rc)routeCards+=rc;});}catch(e){routeCards='';}
+  if(routeCards)html+='<div class="rel-wrap">'+routeCards+'</div>';
   if(!scns.length)html+='<div class="tcc-sheet-lead">Group '+g+' is complete — no fixtures remain.</div>';
   scns.forEach(function(s){
     html+='<div class="tcc-scn"><div class="tcc-scn-top"><span class="tcc-scn-n">Match #'+s.num+'</span><span class="tcc-scn-when">'+esc(s.when)+'</span></div>'+
@@ -5040,6 +5105,76 @@ function tccScenarioSheet(g){
     html+='<button class="tcc-scn-go" onclick="closeSheet();sheet('+s.num+')">Open this fixture →</button></div>';
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');
+}
+/* ===== Route Explorer Lite =====================================================
+   A compact "What this means" route card. Pure read-off of the SHARED tournament
+   -status resolver (tccTeamTournamentStatus) + the existing bracket mapping
+   (teamEntryR32 / koParts / raw M slot strings). It never invents an opponent and
+   never claims more certainty than the resolver allows. Status vocabulary comes
+   straight from the resolver headline: Confirmed · Mathematically locked · As it
+   stands · Still alive · Pending official final. R32 opponent labels: Confirmed
+   opponent · Possible opponent · Opponent to be decided · Qualification slot
+   pending · Pending official final. */
+function reLiteToneClass(ts){var t=ts&&ts.tone;return t==='confirmed'?'rel-confirmed':t==='locked'?'rel-locked':t==='pending'?'rel-pending':t==='as_it_stands'?'rel-stands':'rel-alive';}
+/* Win / draw / lose route pressure — only when the team has a meaningful remaining
+   group match whose result can still move its final position. */
+function reLiteOutcomes(code){
+  var g=TG[code],ts=tccTeamTournamentStatus(code);if(!g||!ts)return null;
+  if(ts.minPossiblePosition===ts.maxPossiblePosition)return null; // position already fixed → no meaningful swing
+  var nextM=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num)&&!tccLiveState(m.num)&&(m.home===code||m.away===code);})
+    .sort(function(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;})[0];
+  if(!nextM)return null;
+  var winPos=tccPosAfter(g,nextM.num,code),opp=(nextM.home===code)?nextM.away:nextM.home,N=nm(code);
+  var win;
+  if(ts.lockedQualified&&ts.groupVictoryStillPossible)win='Win and '+N+' controls first place.';
+  else if(winPos===1)win='Win and '+N+' controls first place, pending other results.';
+  else if(winPos<=2)win='A win lifts '+N+' into a qualifying place, pending other results.';
+  else win='A win keeps '+N+' alive but may still need other results.';
+  var draw;
+  if(ts.currentPosition<=2&&ts.possibleTopTwoFinish)draw='A draw keeps multiple routes open.';
+  else if(ts.qualificationStillPossible)draw='A draw leaves qualification pending other results.';
+  else draw='A draw may not be enough — other results would have to fall right.';
+  var lose;
+  if(ts.lockedQualified)lose='A loss can’t undo qualification, but it can cost top spot and seeding.';
+  else if(ts.possibleThirdPlaceFinish)lose='Third place would depend on the global best-third-place race.';
+  else if(ts.qualificationStillPossible)lose='A loss risks '+N+'’s place and opens an alternate route.';
+  else lose='A loss would likely end '+N+'’s run.';
+  return {next:nextM,opp:opp,win:win,draw:draw,lose:lose};
+}
+/* R32 opponent read-off — surfaced ONLY when bracket mapping + group status can
+   support it. Confirmed only when BOTH groups are officially final. */
+function reLiteR32(code){
+  var ts=tccTeamTournamentStatus(code);if(!ts)return null;
+  if(!ts.lockedQualified)return {label:(ts.tone==='pending')?'Pending official final':'Qualification slot pending',
+    text:(ts.tone==='pending')?nm(code)+'’s Round of 32 place is pending the official final.':nm(code)+'’s Round of 32 slot is not secured yet.'};
+  var e=teamEntryR32(code);
+  if(e==null)return {label:'Opponent to be decided',text:nm(code)+'’s Round of 32 slot is locked. Opponent to be decided.'};
+  var parts=koParts(e),oppCode=(parts[0]===code)?parts[1]:parts[0],oppRaw=(parts[0]===code)?M[e].away:M[e].home;
+  var meConfirmed=ts.complete&&ts.tone==='confirmed';
+  if(oppCode){var os=tccTeamTournamentStatus(oppCode),oppConfirmed=os&&os.complete&&os.tone==='confirmed'&&os.lockedQualified;
+    if(meConfirmed&&oppConfirmed)return {label:'Confirmed opponent',text:'Round of 32: '+nm(code)+' meet '+nm(oppCode)+'.',opp:oppCode};
+    return {label:'Possible opponent',text:'Round of 32 likely against '+nm(oppCode)+' — pending official finals.',opp:oppCode};}
+  if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0)return {label:'Qualification slot pending',text:nm(code)+'’s slot is locked. The third-place qualifier is still to be confirmed.'};
+  return {label:'Opponent to be decided',text:nm(code)+'’s Round of 32 slot is locked. Opponent to be decided.'};
+}
+function routeExplorerLiteHTML(code){
+  if(typeof activeMode==='function'&&activeMode()!=='real')return '';
+  var ts=tccTeamTournamentStatus(code);if(!ts)return '';
+  var oc=reLiteOutcomes(code),r32=reLiteR32(code);
+  if(!oc&&!r32)return '';
+  var h='<div class="rel-card"><div class="rel-head"><span class="rel-k">What this means · '+esc(nm(code))+'</span><span class="rel-status '+reLiteToneClass(ts)+'">'+esc(ts.headline)+'</span></div>';
+  if(oc){
+    var sub=oc.next?('Next · vs '+esc(nm(oc.opp))+' · '+esc(shortDate(oc.next.date))):'';
+    if(sub)h+='<div class="rel-sub">'+sub+'</div>';
+    h+='<div class="rel-rows">'+
+      '<div class="rel-row rel-win"><span class="rel-ic">▲</span><div class="rel-tx"><b>If they win</b><span>'+esc(oc.win)+'</span></div></div>'+
+      '<div class="rel-row rel-draw"><span class="rel-ic">＝</span><div class="rel-tx"><b>If they draw</b><span>'+esc(oc.draw)+'</span></div></div>'+
+      '<div class="rel-row rel-lose"><span class="rel-ic">▼</span><div class="rel-tx"><b>If they lose</b><span>'+esc(oc.lose)+'</span></div></div>'+
+    '</div>';
+  }
+  if(r32)h+='<div class="rel-r32"><span class="rel-r32-lab">'+esc(r32.label)+'</span><span class="rel-r32-tx">'+esc(r32.text)+'</span></div>';
+  h+='<div class="rel-foot">Routes update only from official results · pending official finals.</div>';
+  return h+'</div>';
 }
 /* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
 function tccTieState(num){var p=koParts(num);
