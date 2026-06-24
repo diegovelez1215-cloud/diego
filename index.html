@@ -1992,6 +1992,104 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .ac-v{font-size:12px;font-weight:800;color:var(--txt);min-width:24px;font-variant-numeric:tabular-nums}.ac-v.r{text-align:right}
 .ac-mid{flex:1}.ac-lbl{font-size:8.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--mut3);text-align:center;margin-bottom:3px}
 .ac-bar{height:5px;border-radius:3px;background:var(--gold);overflow:hidden}.ac-bar i{display:block;height:100%;background:var(--blue2);border-radius:3px}
+/* ===== Phase 4: Tournament Command Center — calm, factual, navy/blue/white ===== */
+.tcc-strip{display:flex;align-items:center;gap:9px;background:linear-gradient(120deg,rgba(40,52,118,.55),rgba(29,42,114,.45));border:1px solid var(--line);border-radius:15px;padding:11px 13px;margin-bottom:13px;min-height:48px}
+.tcc-strip .tcc-dot{width:9px;height:9px;border-radius:50%;background:var(--blue2);flex:none}
+.tcc-strip.live .tcc-dot{background:var(--green);box-shadow:0 0 0 0 rgba(48,209,88,.55);animation:tccPulse 1.8s infinite}
+@keyframes tccPulse{0%{box-shadow:0 0 0 0 rgba(48,209,88,.5)}70%{box-shadow:0 0 0 7px rgba(48,209,88,0)}100%{box-shadow:0 0 0 0 rgba(48,209,88,0)}}
+.tcc-strip .tcc-cp{min-width:0;flex:1}
+.tcc-strip .tcc-k{font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--blue2)}
+.tcc-strip.live .tcc-k{color:var(--green)}
+.tcc-strip .tcc-s{font-size:12px;font-weight:600;color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+.tcc-feat{background:var(--card);border:1px solid var(--line2);border-radius:18px;padding:14px 14px 12px;margin-bottom:12px;box-shadow:0 10px 26px rgba(0,0,0,.22)}
+.tcc-feat.live{border-color:rgba(48,209,88,.45)}
+.tcc-feat-k{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2)}
+.tcc-feat-k .tcc-tag{margin-left:auto;font-size:9.5px;font-weight:900;letter-spacing:.5px;padding:3px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--blue2)}
+.tcc-feat-k .tcc-tag.live{color:var(--green);border-color:rgba(48,209,88,.5)}
+.tcc-feat-k .tcc-tag.ft{color:var(--mut)}
+.tcc-feat-match{display:flex;align-items:center;gap:8px;margin:11px 0 4px}
+.tcc-feat-team{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.tcc-feat-team.r{justify-content:flex-end;text-align:right}
+.tcc-feat-team .fl{font-size:23px;flex:none}
+.tcc-feat-team .tcc-nm{font-size:14.5px;font-weight:800;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcc-feat-mid{flex:none;text-align:center;min-width:52px}
+.tcc-feat-mid .tcc-sc{font-size:19px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--txt)}
+.tcc-feat-mid .tcc-vs{font-size:13px;font-weight:900;color:var(--mut3)}
+.tcc-feat-mid .tcc-rd{font-size:9px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--blue2);margin-top:1px}
+.tcc-feat-when{font-size:11.5px;color:var(--mut);font-weight:600;text-align:center;margin-top:3px}
+.tcc-mean{display:flex;gap:8px;align-items:flex-start;background:rgba(10,132,255,.10);border:1px solid rgba(94,158,255,.28);border-radius:12px;padding:9px 11px;margin-top:11px}
+.tcc-mean .tcc-mi{flex:none;font-size:13px;line-height:1.3}
+.tcc-mean .tcc-mt{font-size:12px;font-weight:600;color:#dbe5ff;min-width:0}
+.tcc-mean .tcc-mt b{color:#fff;font-weight:800}
+.tcc-feat-cta{display:block;width:100%;min-height:44px;margin-top:11px;border-radius:12px;border:1px solid var(--line2);background:rgba(10,132,255,.14);color:#cfe0ff;font-size:13px;font-weight:800;cursor:pointer}
+.tcc-feat-cta:active{transform:scale(.99)}
+.tcc-other-h{font-size:11px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2);margin:4px 2px 9px}
+/* group stakes */
+.tcc-stakes{margin-top:11px;border:1px solid var(--line);border-radius:14px;background:rgba(29,42,114,.32);padding:10px 12px}
+.tcc-stakes-h{font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2);margin-bottom:8px}
+.tcc-st-row{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;font-weight:600;color:var(--txt);padding:4px 0;line-height:1.35}
+.tcc-st-row .tcc-st-ic{flex:none;width:15px;text-align:center;font-size:11px;margin-top:1px}
+.tcc-st-row b{font-weight:850}
+.tcc-st-row.confirm .tcc-st-ic{color:var(--green)}
+.tcc-st-row.confirm b{color:var(--green)}
+.tcc-st-row.elim .tcc-st-ic{color:var(--red)}
+.tcc-st-row.elim b{color:var(--red)}
+.tcc-st-row.stands .tcc-st-ic{color:var(--blue2)}
+.tcc-st-row.scen{color:var(--mut)}
+.tcc-st-row.scen .tcc-st-ic{color:var(--mut3)}
+.tcc-st-tag{display:inline-block;font-size:8.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:1px 6px;border-radius:10px;border:1px solid var(--line2);color:var(--mut2);margin-left:6px;vertical-align:1px}
+.tcc-scn-btn{display:block;width:100%;min-height:44px;margin-top:9px;border-radius:11px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
+/* bottom-sheet shared bits */
+.tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
+.tcc-sheet-lead b{color:var(--txt);font-weight:800}
+.tcc-prov{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--blue2);background:rgba(10,132,255,.1);border:1px solid rgba(94,158,255,.28);border-radius:20px;padding:4px 10px;margin:0 2px 12px}
+.tcc-scn{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:11px 13px;margin-bottom:10px}
+.tcc-scn-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.tcc-scn-top .tcc-scn-n{font-size:11px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--blue2)}
+.tcc-scn-top .tcc-scn-when{margin-left:auto;font-size:11px;color:var(--mut2);font-weight:700}
+.tcc-scn-fix{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:var(--txt);margin-bottom:7px}
+.tcc-scn-fix .tcc-scn-v{font-size:11px;color:var(--mut3);font-weight:800}
+.tcc-scn-line{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;font-weight:600;color:var(--mut);padding:3px 0;line-height:1.4}
+.tcc-scn-line .tcc-scn-d{flex:none;color:var(--blue2);font-weight:900}
+.tcc-scn-line b{color:var(--txt);font-weight:800}
+.tcc-scn-go{display:block;width:100%;min-height:44px;margin-top:8px;border-radius:11px;border:1px solid var(--line2);background:rgba(10,132,255,.12);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
+/* bracket tie state + stakes */
+.tcc-tie-state{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.tcc-tie-state .tcc-ts-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--mut2)}
+.tcc-tie-state.confirm{color:var(--green)}.tcc-tie-state.confirm .tcc-ts-dot{background:var(--green)}
+.tcc-tie-state.stands{color:var(--blue2)}.tcc-tie-state.stands .tcc-ts-dot{background:var(--blue2)}
+.tcc-tie-state.await{color:var(--mut2)}.tcc-tie-state.await .tcc-ts-dot{background:var(--mut3)}
+.tcc-tie-state.pending{color:var(--gold)}.tcc-tie-state.pending .tcc-ts-dot{background:var(--gold)}
+.tcc-tie-stake{font-size:10.5px;font-weight:700;color:var(--mut);margin-top:7px;line-height:1.35}
+.tcc-tie-stake b{color:#cfe0ff;font-weight:800}
+.tcc-road-btn{display:block;width:100%;min-height:44px;margin:10px 0 2px;border-radius:12px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:#cfe0ff;font-size:12.5px;font-weight:800;cursor:pointer}
+/* team road sheet */
+.tcc-road-hero{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,rgba(40,52,118,.6),rgba(29,42,114,.4));border:1px solid var(--line);border-radius:16px;padding:13px;margin-bottom:13px}
+.tcc-road-hero .fl{font-size:34px;flex:none}
+.tcc-road-hero .tcc-rh-nm{font-size:18px;font-weight:900;color:#fff}
+.tcc-road-hero .tcc-rh-s{font-size:12px;font-weight:700;color:var(--mut);margin-top:2px}
+.tcc-rnode{display:flex;gap:11px;padding:2px 0}
+.tcc-rnode .tcc-rn-rail{display:flex;flex-direction:column;align-items:center;flex:none}
+.tcc-rnode .tcc-rn-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;background:var(--solid);border:1.5px solid var(--line2);color:#fff}
+.tcc-rnode.win .tcc-rn-dot{background:rgba(48,209,88,.2);border-color:var(--green);color:var(--green)}
+.tcc-rnode.out .tcc-rn-dot{background:rgba(255,69,58,.16);border-color:var(--red);color:var(--red)}
+.tcc-rnode .tcc-rn-line{width:2px;flex:1;background:var(--line);margin:3px 0;min-height:10px}
+.tcc-rnode .tcc-rn-body{padding-bottom:13px;min-width:0;flex:1}
+.tcc-rnode .tcc-rn-rd{font-size:10px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--mut2)}
+.tcc-rnode .tcc-rn-opp{font-size:13.5px;font-weight:800;color:var(--txt);margin-top:2px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.tcc-rnode .tcc-rn-opp .ph{color:var(--mut2);font-weight:700}
+.tcc-rnode .tcc-rn-meta{font-size:11px;font-weight:700;color:var(--mut2);margin-top:3px}
+.tcc-thirds-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line);border-radius:12px;margin-bottom:7px;background:var(--card)}
+.tcc-thirds-row.in{border-color:rgba(48,209,88,.4)}
+.tcc-thirds-row .tcc-th-rk{font-size:12px;font-weight:900;color:var(--mut2);width:20px;flex:none;text-align:center}
+.tcc-thirds-row .fl{font-size:18px;flex:none}
+.tcc-thirds-row .tcc-th-nm{font-size:13px;font-weight:800;color:var(--txt);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcc-thirds-row .tcc-th-g{font-size:11px;font-weight:700;color:var(--mut2);flex:none}
+.tcc-thirds-row .tcc-th-v{font-size:11px;font-weight:800;color:var(--mut);flex:none;font-variant-numeric:tabular-nums}
+.tcc-thirds-row .tcc-th-q{flex:none;font-size:12px;width:16px;text-align:center}
+.tcc-thirds-row.in .tcc-th-q{color:var(--green)}
+.tcc-cut{border-top:1px dashed var(--line2);margin:2px 0 9px;text-align:center;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--mut3);padding-top:7px}
+.tour-more-grid button span.tmg-eg{display:block;font-size:11px;color:var(--mut2);font-weight:600;margin-top:3px}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -4451,14 +4549,14 @@ function groupsOverviewHTML(){
     h+='</div>';});
   return h+'</div><div class="grpov-key"><span><i class="dot" style="background:var(--green)"></i>Win</span><span><i class="dot" style="background:var(--blue)"></i>Runner-up</span><span><i class="dot" style="background:var(--gold)"></i>3rd→pool</span><span style="opacity:.5">4th out</span></div>';}
 function jumpGroup(g){var el=document.getElementById("grp-"+g);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
-function renderGroups(){const GOD=groupOfDeath();let h=groupsOverviewHTML();"ABCDEFGHIJKL".split("").forEach(g=>{const st=standings(g);
+function renderGroups(){const GOD=groupOfDeath();let h=groupsOverviewHTML()+'<button class="tcc-scn-btn" style="margin:0 0 14px" onclick="tccThirdsSheet()">🥉 Best third-place race →</button>';"ABCDEFGHIJKL".split("").forEach(g=>{const st=standings(g);
   const gpl=gMatches(g).filter(m=>S.sc[m.num]).length;const god=g===GOD;
   h+=`<div id="grp-${g}" class="gcard ${god?'god':''}"><div class="ghead"><div class="gbadge">${g}</div><div class="gt">GROUP ${g}${god?'<span class="skull">💀</span>':''}</div><div class="gp">${gpl}/6</div>${gpl<6?`<button class="gsim" onclick="simGroup('${g}')">⚡ Sim</button>`:''}</div>`;
   h+=`<div class="stbl"><div class="strow head"><div class="pos">#</div><div class="tm">Team</div><div class="n">Pl</div><div class="n">GD</div><div class="n">Pts</div><div></div></div>`;
   st.forEach((r,i)=>{const q=["q1","q2","q3","q4"][i],gd=(r.GD>0?"+":"")+r.GD;
     h+=`<div class="strow ${q}"><div class="pos">${i+1}</div><div class="tm" onclick="focusTeam('${r.code}')"><span class="fl">${fl(r.code)}</span><span class="nm">${nm(r.code)}</span></div><div class="n">${r.Pl}</div><div class="n">${gd}</div><div class="pts">${r.Pts}</div><div class="arrows"><button onclick="mv('${g}',${i},-1)">▲</button><button onclick="mv('${g}',${i},1)">▼</button></div></div>`;});
   h+=`</div><div class="qkey"><span><span class="dot" style="background:var(--green)"></span>1st</span><span><span class="dot" style="background:var(--blue)"></span>2nd</span><span><span class="dot" style="background:var(--gold)"></span>3rd → pool</span><span style="opacity:.5">4th out</span></div>`;
-  h+=asItStandsHTML(g);
+  h+=asItStandsHTML(g)+tccGroupStakesHTML(g);
   h+=`<details class="fixtures gfx"><summary class="fxttl">Group ${g} fixtures (${gpl}/6) — tap to ${activeMode()==='sim'?'set / predict':'view'}</summary><div class="fxhint">${activeMode()==='sim'?'Tap a team to pick the winner · adjust the score with − / +':'Real results stay read-only · <button class="qbtn" style="margin-top:7px;width:100%" onclick="event.stopPropagation();startGroupsFlow()">Open My Sim picks</button>'}</div>`;gMatches(g).forEach(m=>h+=fxCard(m));h+=`</details></div>`;});
   h+=renderThirds();document.getElementById("groups").innerHTML=h;}
 function fxCard(m){const s=S.sc[m.num],isr=S.real[m.num];let res=null;if(s){res=s.h>s.a?"h":(s.a>s.h?"a":"d");}
@@ -4481,6 +4579,224 @@ function renderThirds(){let h=`<div class="panel"><h3>🥉 Best Third-Placed Tea
   h+=`</div>`;if(Q.size!==8)h+=`<div class="warn">Select exactly 8 teams — ${Q.size} chosen.</div>`;else if(!assignThirds())h+=`<div class="warn">This mix can't fill the bracket slots. Adjust your picks.</div>`;
   h+=`</div>`;return h;}
 
+/* ===== Phase 4: Tournament Command Center helpers =====
+   STRICT DATA RULE: these read ONLY official results (REAL map / S.realko) and the
+   existing provider live-status (S.rwState / S._rwlive). Nothing is invented; every
+   provisional statement is visibly labelled (As it stands / Live projection /
+   Scenario, not confirmed / Pending official final). */
+function tccOfficialFinal(num){return !!(REAL&&REAL[num]&&REAL[num][0]!=null&&REAL[num][1]!=null);}
+function tccLiveState(num){var st=S.rwState&&S.rwState[num];return (st&&(st.kind==='live'||st.kind==='hold')&&!tccOfficialFinal(num))?st:null;}
+function tccLiveNums(){var out=[];if(S.rwState)Object.keys(S.rwState).forEach(function(k){if(tccLiveState(+k))out.push(+k);});return out;}
+function tccPlayed(num){var m=M[num];if(!m)return false;return m.stage==='group'?tccOfficialFinal(num):!!(S.realko&&S.realko[num]);}
+function gCompleteOfficial(g){return gMatches(g).every(function(m){return tccOfficialFinal(m.num);});}
+function tccGroupLive(g){return gMatches(g).some(function(m){return tccLiveState(m.num);});}
+function tccGroupDeciders(g){var ms=gMatches(g);if(!ms.length)return [];var maxd=ms.map(function(m){return m.date;}).sort().slice(-1)[0];return ms.filter(function(m){return m.date===maxd;});}
+function tccIsDecider(num){var m=M[num];if(!m||m.stage!=='group')return false;if(gCompleteOfficial(m.group))return false;return tccGroupDeciders(m.group).some(function(x){return x.num===num;});}
+function tccProfile(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);var r=(RAT[pr[0]]||60)+(RAT[pr[1]]||60);if(m.stage!=='group')r+=40;return r;}
+/* official(+live) standings, independent of My-Sim sandbox or active mode */
+function tccRealTable(g){return withTour(liveTour(),function(){
+  if(S._rwlive)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&S._rwlive[m.num]&&S._rwlive[m.num].sh!=null)S.sc[m.num]={h:S._rwlive[m.num].sh,a:S._rwlive[m.num].sa};});
+  return standings(g);});}
+function tccOffTable(g){return withTour(liveTour(),function(){return standings(g);});}
+function tccTeamLivePos(code,g){var t=tccRealTable(g),i=t.findIndex(function(x){return x.code===code;});return i<0?0:i+1;}
+function tccPosAfter(g,num,winnerCode){var m=M[num];return withTour(liveTour(),function(){S.sc[num]={h:(m.home===winnerCode?1:0),a:(m.away===winnerCode?1:0)};var t=standings(g);return t.findIndex(function(x){return x.code===winnerCode;})+1;});}
+/* ---- Featured match: live > next major upcoming > most recent finished ---- */
+function tccFeatured(){
+  var live=tccLiveNums();
+  if(live.length){live.sort(function(a,b){var da=koDateTime(M[a]),db=koDateTime(M[b]);return (da?da.getTime():0)-(db?db.getTime():0);});
+    var pure=live.filter(function(n){return S.rwState[n].kind==='live';});
+    return {num:(pure.length?pure[0]:live[0]),kind:'live'};}
+  var now=Date.now();
+  var up=MATCHES.filter(function(m){if(tccPlayed(m.num))return false;var d=koDateTime(m);return d&&d.getTime()>=now-3*3600000;});
+  if(up.length){up.sort(function(a,b){var da=koDateTime(a),db=koDateTime(b);return (da?da.getTime():0)-(db?db.getTime():0);});
+    var day=up[0].date,sameDay=up.filter(function(m){return m.date===day;});
+    sameDay.sort(function(a,b){return tccProfile(b)-tccProfile(a)||matchClock(a)-matchClock(b);});
+    return {num:sameDay[0].num,kind:'upcoming'};}
+  var fin=MATCHES.filter(function(m){return tccPlayed(m.num);});
+  if(fin.length){fin.sort(function(a,b){var da=koDateTime(a),db=koDateTime(b);return (db?db.getTime():0)-(da?da.getTime():0);});return {num:fin[0].num,kind:'recent'};}
+  return null;
+}
+function tccLiveSummary(nums){var n=nums[0],st=S.rwState[n],m=M[n],pr=m.stage==='group'?[m.home,m.away]:koParts(n);
+  var sc=(st.sh!=null&&st.sa!=null)?(st.sh+'–'+st.sa):'';
+  var min=(st.kind==='hold')?(st.label||'Delayed'):(st.min!=null?st.min+"'":(st.label||'Live'));
+  var base=nm(pr[0]||m.home)+(sc?' '+sc+' ':' v ')+nm(pr[1]||m.away);
+  return base+' · '+min+(nums.length>1?(' · +'+(nums.length-1)+' more live'):'');}
+function tccContext(){
+  var live=tccLiveNums();
+  if(live.length){var ko=live.some(function(n){return M[n].stage!=='group';});
+    return {cls:'live',k:ko?'Knockout round · live':'Live matchday',s:tccLiveSummary(live)};}
+  var today=curISO();
+  var todays=MATCHES.filter(function(m){return m.date===today&&!tccPlayed(m.num);});
+  if(todays.length){
+    todays.sort(function(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;});
+    var allKo=todays.every(function(m){return m.stage!=='group';});
+    var decider=todays.some(function(m){return tccIsDecider(m.num);});
+    var ki=kickoffIn(todays[0]);var s=todays.length+' fixture'+(todays.length>1?'s':'')+' today'+(ki?' · first '+ki:'');
+    if(allKo)return {cls:'',k:'Knockout round day',s:s};
+    if(decider)return {cls:'',k:'Group-deciding day',s:s};
+    return {cls:'',k:'Upcoming matchday',s:s};
+  }
+  // nothing today — find next day with unplayed fixtures
+  var future=MATCHES.filter(function(m){return m.date>today&&!tccPlayed(m.num);}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
+  if(future.length){var nd=future[0].date,cnt=future.filter(function(m){return m.date===nd;}).length;
+    return {cls:'',k:'No live matches',s:'Next: '+fullDay(wdCode(nd))+' '+longDate(nd)+' · '+cnt+' fixture'+(cnt>1?'s':'')};}
+  return {cls:'',k:'No live matches',s:'The tournament schedule is complete.'};
+}
+function tccMatchMeaning(num,kind){var m=M[num];if(!m)return '';
+  if(m.stage!=='group'){
+    if(num===104)return 'The <b>winner are crowned World Champions</b>.';
+    if(num===103)return 'Decides the <b>third-place finish</b>.';
+    var nx=NEXTWIN[num];if(!nx)return '';
+    var fs=FEEDERS[nx],other=fs&&(fs[0]===num?fs[1]:fs[0]);
+    var ow=other&&S.realko&&S.realko[other]?S.realko[other]:null;
+    return 'Winner advances to the <b>'+esc(roundName(nx))+'</b>'+(ow?', to face <b>'+esc(nm(ow))+'</b>':(other?', to face the winner of match #'+other:''))+'.';
+  }
+  var g=m.group;if(gCompleteOfficial(g))return '';
+  if(kind==='live'){var p=tccTeamLivePos(m.home,g),q=tccTeamLivePos(m.away,g);
+    if(p&&q)return 'As it stands, <b>'+esc(nm(m.home))+'</b> are '+ordinal(p)+' and <b>'+esc(nm(m.away))+'</b> are '+ordinal(q)+' in Group '+g+'.';}
+  if(tccIsDecider(num))return 'This result could help decide <b>Group '+g+'</b>.';
+  var hPos=tccPosAfter(g,num,m.home),aPos=tccPosAfter(g,num,m.away);
+  if(hPos<=2)return 'A win would move <b>'+esc(nm(m.home))+'</b> into '+(hPos===1?'first':'second')+' place, pending the other result.';
+  if(aPos<=2)return 'A win would move <b>'+esc(nm(m.away))+'</b> into '+(aPos===1?'first':'second')+' place, pending the other result.';
+  return '';
+}
+function tccFeaturedHTML(feat){var f=feat||tccFeatured();if(!f)return '';
+  var num=f.num,m=M[num],ko=m.stage!=='group',pr=ko?koParts(num):[m.home,m.away],st=tccLiveState(num);
+  var tagCls=f.kind==='live'?'live':(f.kind==='recent'?'ft':'');
+  var tagTxt=f.kind==='live'?(st&&st.kind==='hold'?esc(st.label||'Delayed'):'Live'):(f.kind==='recent'?'Full time':'Up next');
+  var kicker=f.kind==='live'?'Featured · happening now':(f.kind==='recent'?'Featured · latest result':'Featured match');
+  var mid;
+  if(f.kind==='live'&&st)mid='<div class="tcc-sc">'+(st.sh!=null?st.sh+'–'+st.sa:'–')+'</div><div class="tcc-rd">'+(st.kind==='hold'?esc(st.label||'Hold'):(st.min!=null?st.min+"'":'Live'))+'</div>';
+  else if(f.kind==='recent'){var r=REAL[num];mid='<div class="tcc-sc">'+(r?r[0]+'–'+r[1]:'–')+'</div><div class="tcc-rd">FT</div>';}
+  else mid='<div class="tcc-vs">v</div><div class="tcc-rd">'+esc(roundShort(num))+'</div>';
+  var whenTxt;
+  if(f.kind==='live')whenTxt=roundName(num)+' · '+VEN[m.venue][1];
+  else if(f.kind==='recent')whenTxt=roundName(num)+' · '+VEN[m.venue][1];
+  else {var ki=kickoffIn(m);whenTxt=fullDay(m.wd)+' '+to12(m.time)+' ET'+(ki?' · '+ki:'')+' · '+roundName(num);}
+  function team(code,slot,right){if(!code)return '<div class="tcc-feat-team'+(right?' r':'')+'"><span class="fl">·</span><span class="tcc-nm ph">'+esc(slotLabel(slot))+'</span></div>';
+    return '<div class="tcc-feat-team'+(right?' r':'')+'"><span class="fl">'+fl(code)+'</span><span class="tcc-nm">'+esc(nm(code))+'</span></div>';}
+  var mean=tccMatchMeaning(num,f.kind);
+  return '<div class="tcc-feat'+(f.kind==='live'?' live':'')+'">'+
+    '<div class="tcc-feat-k">'+esc(kicker)+'<span class="tcc-tag '+tagCls+'">'+tagTxt+'</span></div>'+
+    '<div class="tcc-feat-match">'+team(pr[0],m.home,false)+'<div class="tcc-feat-mid">'+mid+'</div>'+team(pr[1],m.away,true)+'</div>'+
+    '<div class="tcc-feat-when">'+esc(whenTxt)+'</div>'+
+    (mean?'<div class="tcc-mean"><span class="tcc-mi">🧭</span><span class="tcc-mt">'+mean+'</span></div>':'')+
+    '<button class="tcc-feat-cta" onclick="sheet('+num+')">Open Match Center →</button></div>';
+}
+function tccCommandCenterHTML(feat){var ctx=tccContext();
+  var strip='<div class="tcc-strip '+(ctx.cls||'')+'"><span class="tcc-dot"></span><div class="tcc-cp"><div class="tcc-k">'+esc(ctx.k)+'</div><div class="tcc-s">'+esc(ctx.s)+'</div></div></div>';
+  return strip+(feat?tccFeaturedHTML(feat):'');
+}
+/* ---- Group stakes (3 levels) + scenarios ---- */
+function tccGroupScenarios(g){
+  var remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
+  if(!remaining.length)return [];
+  var official=tccOffTable(g),ptsOf={};official.forEach(function(r){ptsOf[r.code]=r.Pts;});
+  remaining.forEach(function(m){m._val=(ptsOf[m.home]+ptsOf[m.away])*2+((RAT[m.home]||60)+(RAT[m.away]||60))/20+(tccIsDecider(m.num)?10:0);});
+  remaining.sort(function(a,b){return b._val-a._val||matchClock(a)-matchClock(b);});
+  return remaining.slice(0,4).map(function(m){
+    var hWinPos=tccPosAfter(g,m.num,m.home),aWinPos=tccPosAfter(g,m.num,m.away);
+    var hPts=ptsOf[m.home]+3,aPts=ptsOf[m.away]+3,hDraw=ptsOf[m.home]+1,aDraw=ptsOf[m.away]+1,lines=[];
+    lines.push('A win takes <b>'+esc(nm(m.home))+'</b> to '+hPts+' pts'+(hWinPos<=2?' and '+ordinal(hWinPos)+' place':'')+', pending other results.');
+    lines.push('A win takes <b>'+esc(nm(m.away))+'</b> to '+aPts+' pts'+(aWinPos<=2?' and '+ordinal(aWinPos)+' place':'')+', pending other results.');
+    lines.push('A draw would leave them on '+hDraw+' and '+aDraw+' points respectively.');
+    var teaser=tccIsDecider(m.num)?('Group '+g+' could be decided when '+nm(m.home)+' meet '+nm(m.away)+'.'):('A win would lift '+nm(ptsOf[m.home]>=ptsOf[m.away]?m.home:m.away)+' up Group '+g+'.');
+    return {num:m.num,teaser:teaser,lines:lines,when:shortDate(m.date)+' · '+to12(m.time),home:m.home,away:m.away};
+  });
+}
+function tccGroupStakes(g){
+  var official=tccOffTable(g),remaining=gMatches(g).filter(function(m){return !tccOfficialFinal(m.num);});
+  var complete=remaining.length===0,confirm=[],elim=[],stands=[];
+  if(complete){
+    confirm.push(nm(official[0].code)+' won Group '+g+'.');
+    confirm.push(nm(official[1].code)+' qualified in second.');
+    elim.push(nm(official[3].code)+' finished bottom and are out.');
+  } else {
+    var rem={};official.forEach(function(r){rem[r.code]=remaining.filter(function(m){return m.home===r.code||m.away===r.code;}).length;});
+    official.forEach(function(r){
+      var floor=r.Pts,ceil=r.Pts+3*(rem[r.code]||0);
+      var canExceedFloor=official.filter(function(o){return o.code!==r.code&&(o.Pts+3*(rem[o.code]||0))>=floor;}).length;
+      if(canExceedFloor<=1)confirm.push(nm(r.code)+' have qualified for the Round of 32.');
+      var aboveCeil=official.filter(function(o){return o.code!==r.code&&o.Pts>ceil;}).length;
+      if(aboveCeil>=3)elim.push(nm(r.code)+' can no longer finish in the top three — eliminated.');
+    });
+  }
+  var scens=complete?[]:tccGroupScenarios(g);
+  if(tccGroupLive(g)){var live=tccRealTable(g);stands.push('As it stands, '+nm(live[0].code)+' top the group and '+nm(live[1].code)+' hold second.');}
+  var scen=scens.length?[scens[0].teaser]:[];
+  return {confirm:confirm,elim:elim,stands:stands,scen:scen,hasScenarios:scens.length>0};
+}
+function tccGroupStakesHTML(g){
+  var s=tccGroupStakes(g);
+  if(!s.confirm.length&&!s.elim.length&&!s.stands.length&&!s.scen.length&&!s.hasScenarios)return '';
+  var h='<div class="tcc-stakes"><div class="tcc-stakes-h">Group '+g+' stakes</div>';
+  s.confirm.forEach(function(t){h+='<div class="tcc-st-row confirm"><span class="tcc-st-ic">✓</span><span><b>'+esc(t)+'</b><span class="tcc-st-tag">Confirmed</span></span></div>';});
+  s.elim.forEach(function(t){h+='<div class="tcc-st-row elim"><span class="tcc-st-ic">✕</span><span><b>'+esc(t)+'</b><span class="tcc-st-tag">Confirmed</span></span></div>';});
+  s.stands.forEach(function(t){h+='<div class="tcc-st-row stands"><span class="tcc-st-ic">●</span><span>'+esc(t)+'<span class="tcc-st-tag">As it stands</span></span></div>';});
+  s.scen.forEach(function(t){h+='<div class="tcc-st-row scen"><span class="tcc-st-ic">→</span><span>'+esc(t)+'<span class="tcc-st-tag">Scenario</span></span></div>';});
+  if(s.hasScenarios)h+='<button class="tcc-scn-btn" onclick="tccScenarioSheet(\''+g+'\')">See scenarios →</button>';
+  return h+'</div>';
+}
+function tccScenarioSheet(g){
+  var scns=tccGroupScenarios(g),official=tccOffTable(g);
+  var html='<div class="grab"></div><div class="sh-rnd">Group '+g+' scenarios</div><div class="sh-when">Highest-value upcoming results</div>';
+  if(official.length>=4)html+='<div class="tcc-sheet-lead">In <b>Group '+g+'</b>, '+esc(nm(official[0].code))+' lead on '+official[0].Pts+' pts, ahead of '+esc(nm(official[1].code))+' ('+official[1].Pts+'), '+esc(nm(official[2].code))+' ('+official[2].Pts+') and '+esc(nm(official[3].code))+' ('+official[3].Pts+').</div>';
+  html+='<div class="tcc-prov">⚠ Scenario, not confirmed · pending official finals</div>';
+  if(!scns.length)html+='<div class="tcc-sheet-lead">Group '+g+' is complete — no fixtures remain.</div>';
+  scns.forEach(function(s){
+    html+='<div class="tcc-scn"><div class="tcc-scn-top"><span class="tcc-scn-n">Match #'+s.num+'</span><span class="tcc-scn-when">'+esc(s.when)+'</span></div>'+
+      '<div class="tcc-scn-fix"><span class="fl">'+fl(s.home)+'</span>'+esc(nm(s.home))+' <span class="tcc-scn-v">v</span> <span class="fl">'+fl(s.away)+'</span>'+esc(nm(s.away))+'</div>';
+    s.lines.forEach(function(l){html+='<div class="tcc-scn-line"><span class="tcc-scn-d">›</span><span>'+l+'</span></div>';});
+    html+='<button class="tcc-scn-go" onclick="closeSheet();sheet('+s.num+')">Open this fixture →</button></div>';
+  });
+  document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');
+}
+/* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
+function tccTieState(num){var p=koParts(num);
+  if(S.realko&&S.realko[num])return {cls:'confirm',txt:'Confirmed'};
+  if(!p[0]||!p[1])return {cls:'await',txt:'Awaiting group result'};
+  if(tccLiveState(num))return {cls:'pending',txt:'Live · pending official final'};
+  var dt=koDateTime(M[num]);if(dt&&Date.now()>=dt.getTime())return {cls:'pending',txt:'Pending official final'};
+  return {cls:'stands',txt:'As it stands'};}
+function tccTieStake(num){
+  if(num===104)return 'Winner are <b>World Champions</b>.';
+  if(num===103)return 'Decides <b>third place</b>.';
+  var nx=NEXTWIN[num];if(!nx)return '';
+  var fs=FEEDERS[nx],other=fs&&(fs[0]===num?fs[1]:fs[0]);
+  var ow=other&&S.realko&&S.realko[other]?S.realko[other]:null;
+  return 'Winner advances to the <b>'+esc(roundName(nx))+'</b>'+(ow?', to face <b>'+esc(nm(ow))+'</b>':(other?', to face the winner of #'+other:''))+'.';}
+function tccRoadSheet(code){if(!code||!T[code])return;var g=TG[code];
+  var html='<div class="grab"></div><div class="sh-rnd">Road to the final</div><div class="sh-when">'+esc(nm(code))+' · Group '+g+'</div>';
+  html+='<div class="tcc-road-hero"><span class="fl">'+fl(code)+'</span><div><div class="tcc-rh-nm">'+esc(nm(code))+'</div><div class="tcc-rh-s">Group '+g+' · Power '+(RAT[code]||'–')+'</div></div></div>';
+  var allOff=withTour(liveTour(),function(){return allDone();});
+  html+='<div class="tcc-prov">'+(allOff?'📡 Official bracket path':'📡 Live projection · provisional until groups finish')+'</div>';
+  withTour(liveTour(),function(){
+    var chain=pathChain(code);
+    if(!chain.length){html+='<div class="tcc-sheet-lead">'+esc(nm(code))+' are not currently projected into the Round of 32. Their knockout road appears once results put them through.</div>';return;}
+    chain.forEach(function(mnum,ci){var m=M[mnum],p=koParts(mnum),opp;
+      if(ci===0)opp=(p[0]===code)?p[1]:p[0];
+      else{var feeder=chain[ci-1],fs=FEEDERS[mnum],other=fs[0]===feeder?fs[1]:fs[0];opp=winner(other);}
+      var oppHtml=opp?('<span class="fl">'+fl(opp)+'</span>'+esc(nm(opp))):'<span class="ph">opponent to be decided</span>';
+      var official=S.realko&&S.realko[mnum];var cls=official?(official===code?'win':'out'):'';
+      var last=ci===chain.length-1;
+      html+='<div class="tcc-rnode '+cls+'"><div class="tcc-rn-rail"><div class="tcc-rn-dot">'+(mnum===104?'🏆':esc(roundShort(mnum)))+'</div>'+(last?'':'<div class="tcc-rn-line"></div>')+'</div>'+
+        '<div class="tcc-rn-body"><div class="tcc-rn-rd">'+esc(roundName(mnum))+'</div><div class="tcc-rn-opp"><span style="font-size:11px;color:var(--mut3);font-weight:800">vs</span> '+oppHtml+'</div><div class="tcc-rn-meta">'+esc(VEN[m.venue][1]+' · '+shortDate(m.date)+' · '+to12(m.time))+'</div></div></div>';
+    });
+  });
+  document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
+function tccThirdsSheet(){
+  var ranked=withTour(liveTour(),function(){return thirdsRanked();});
+  var qual=withTour(liveTour(),function(){return qualThirds();}),qSet={};qual.forEach(function(g){qSet[g]=1;});
+  var complete=withTour(liveTour(),function(){return allDone();});
+  var anyPlayed=MATCHES.some(function(m){return m.stage==='group'&&tccOfficialFinal(m.num);});
+  var html='<div class="grab"></div><div class="sh-rnd">Best third-place race</div><div class="sh-when">Top 8 of 12 third-placed teams reach the Round of 32</div>';
+  html+='<div class="tcc-prov">'+(complete?'✓ Final third-place order':'📡 As it stands · provisional until all groups finish')+'</div>';
+  if(!anyPlayed)html+='<div class="tcc-sheet-lead">No group results yet — the third-place race opens once matches are played.</div>';
+  ranked.forEach(function(x,i){
+    html+='<div class="tcc-thirds-row '+(qSet[x.g]?'in':'')+'"><span class="tcc-th-rk">'+(i+1)+'</span><span class="fl">'+fl(x.code)+'</span><span class="tcc-th-nm">'+esc(nm(x.code))+'</span><span class="tcc-th-g">Grp '+x.g+'</span><span class="tcc-th-v">'+x.Pts+'p · '+(x.GD>0?'+':'')+x.GD+'</span><span class="tcc-th-q">'+(qSet[x.g]?'✓':'·')+'</span></div>';
+    if(i===7)html+='<div class="tcc-cut">Qualification cut-off</div>';
+  });
+  document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
 function setSchedFilter(c){S._schedFilter=c||null;renderSchedule();var sc=document.getElementById("scr-matches");if(sc)sc.scrollIntoView?0:0;}
 /* Smart matchday logic: a late-night kickoff (00:00–05:59) is the "nightcap" of
    the PREVIOUS day's slate — it belongs after that evening's games, not at the top
@@ -4496,9 +4812,11 @@ function renderSchedule(){const sel=S._schedFilter||"";
   const opts='<option value="">🔍 All teams · 104 matches</option>'+teamCodes.map(c=>`<option value="${c}"${c===sel?' selected':''}>${T[c][1]} ${nm(c)}</option>`).join("");
   const bar=`<div class="sched-filter"><select id="schedTeam" onchange="setSchedFilter(this.value)" aria-label="Filter fixtures by team">${opts}</select>${sel?`<button class="sf-clear" onclick="setSchedFilter('')">✕</button>`:''}</div>`;
   const inv=m=>{if(!sel)return true;if(m.stage==="group")return m.home===sel||m.away===sel;const p=koParts(m.num);return p[0]===sel||p[1]===sel;};
-  let h=(sel?"":playDiscoveryHTML())+bar+(sel?"":pulseHTML());let any=false;
+  var feat=sel?null:tccFeatured();var featNum=feat?feat.num:null;
+  let h=(sel?"":tccCommandCenterHTML(feat))+bar+(sel?"":pulseHTML())+(sel?"":playDiscoveryHTML());let any=false;
+  if(!sel)h+='<div class="tcc-other-h">'+(featNum?'Other matches':'All matches')+'</div>';
   const days=[...new Set(MATCHES.map(m=>matchDay(m)))].sort();
-  days.forEach(d=>{const dm=MATCHES.filter(m=>matchDay(m)===d&&inv(m)).sort((a,b)=>(matchClock(a)-matchClock(b)||a.num-b.num));if(!dm.length)return;any=true;
+  days.forEach(d=>{const dm=MATCHES.filter(m=>matchDay(m)===d&&inv(m)&&m.num!==featNum).sort((a,b)=>(matchClock(a)-matchClock(b)||a.num-b.num));if(!dm.length)return;any=true;
     h+=`<div class="daygrp" id="day-${d}"><div class="dayhd"><span class="dw">${fullDay(wdCode(d))}</span><span class="dd">${longDate(d)}</span><span class="md">${roundName(dm[0].num)}</span></div>`;
     dm.forEach(m=>h+=mrow(m));h+=`</div>`;});
   if(sel&&!any)h+=`<div class="roadempty"><div class="big">📭</div>No confirmed matches for ${nm(sel)} yet — knockout games appear once they qualify.</div>`;
@@ -4678,9 +4996,9 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
     b+='<div class="brk-vert" id="brkVert">';
     if(m!=='live'&&sel.k==='r32'&&!allDone())b+='<div class="brk-proj">✏️ <b>Tap a team</b> to send them through.</div>';
     else if(!anyTeams)b+='<div class="brk-locked"><div class="bl-t">🔒 Pick the earlier round first</div><div class="bl-s">Choose winners in the previous round, then tap a team here.</div></div>';
-    sel.nums.forEach(function(n){b+=tieCard(n,(n===104?'final':n===103?'bronze':''),pathSet,tappable);});
+    sel.nums.forEach(function(n){b+=tieCard(n,(n===104?'final':n===103?'bronze':''),pathSet,tappable,(m==='live'));});
     b+='</div>';
-    if(m==='live')b+=thirdsTableHTML();
+    if(m==='live'){b+='<button class="tcc-road-btn" onclick="tccThirdsSheet()">🥉 Best third-place race →</button>';b+=thirdsTableHTML();}
     b+='<details class="mkacc" style="margin-top:14px"><summary>⇄ See the full bracket (wide view)</summary><div class="brkscroll"><div class="brk">'+brkCol("Round of 32",r32,pathSet,tappable)+brkCol("Round of 16",r16,pathSet,tappable)+brkCol("Quarter-finals",qf,pathSet,tappable)+brkCol("Semi-finals",sf,pathSet,tappable)+'<div class="finalwrap"><div class="rndt">Final</div>'+tieCard(104,"final",pathSet,tappable)+'<div class="rndt" style="margin-top:4px">3rd Place</div>'+tieCard(103,"bronze",pathSet,tappable)+'</div></div></div></details>';
     return b;
   }
@@ -4700,13 +5018,17 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   if(m!=='live')h+=bracketBetHTML();
   document.getElementById("bracket").innerHTML=h;}
 function brkCol(t,nums,ps,tappable){let h=`<div class="rnd"><div class="rndt">${t}</div>`;nums.forEach(n=>h+=tieCard(n,"",ps,tappable));return h+`</div>`;}
-function tieCard(num,kind,ps,tappable){var canTap=(tappable!==false);const mt=M[num];const[h,a]=koParts(num);const w=S.ko[num];
+function tieCard(num,kind,ps,tappable,full){var canTap=(tappable!==false);const mt=M[num];const[h,a]=koParts(num);const w=S.ko[num];
   const onpath=ps&&ps.has(num);const cls=(kind==="final"?"tie fcard":(kind==="bronze"?"tie fcard bronze":"tie"))+(onpath?" path":"");
   function slot(code,side){const ph=!code;const isw=w&&code&&w===code,isl=w&&code&&w!==code,foc=code&&code===S.focus;
     var mark=isw?(kind==="final"?'<span class="tslot-crown">👑</span>':'<span class="tslot-tick">✓</span>'):'';
-    return `<div class="tslot ${isw?'win':''} ${isl?'lose':''} ${foc?'foc':''}" ${(code&&canTap)?`onclick="setKo(${num},'${code}')"`:''}><span class="fl">${ph?'·':fl(code)}</span><span class="nm ${ph?'ph':''}">${ph?slotLabel(side==="h"?mt.home:mt.away):nm(code)}</span>${(code&&code===cinderella()&&cinderellaIn())?'<span class="cind" title="Cinderella run">🦄</span>':''}${mark}</div>`;}
+    var click=(code&&canTap)?`onclick="setKo(${num},'${code}')"`:((code&&full)?`onclick="tccRoadSheet('${code}')"`:'');
+    return `<div class="tslot ${isw?'win':''} ${isl?'lose':''} ${foc?'foc':''}" ${click}><span class="fl">${ph?'·':fl(code)}</span><span class="nm ${ph?'ph':''}">${ph?slotLabel(side==="h"?mt.home:mt.away):nm(code)}</span>${(code&&code===cinderella()&&cinderellaIn())?'<span class="cind" title="Cinderella run">🦄</span>':''}${mark}</div>`;}
   var wpbar='';if(h&&a){var hp=Math.round(koProb(h,a)*100);wpbar=`<div class="tie-wp" title="win chance"><i style="width:${hp}%"></i><span class="twp-l">${hp}%</span><span class="twp-r">${100-hp}%</span></div>`;}
-  return `<div class="${cls}"><div class="mlbl"><span>#${num} ${roundShort(num)}</span><span>${shortDate(mt.date)}</span></div>${slot(h,"h")}${slot(a,"a")}${wpbar}</div>`;}
+  var stateHTML='',stakeHTML='';
+  if(full){var ts=tccTieState(num);stateHTML=`<div class="tcc-tie-state ${ts.cls}"><span class="tcc-ts-dot"></span>${esc(ts.txt)}</div>`;
+    var stk=tccTieStake(num);if(stk)stakeHTML=`<div class="tcc-tie-stake">${stk}</div>`;}
+  return `<div class="${cls}">${stateHTML}<div class="mlbl"><span>#${num} ${roundShort(num)}</span><span>${shortDate(mt.date)}</span></div>${slot(h,"h")}${slot(a,"a")}${wpbar}${stakeHTML}</div>`;}
 
 // MATCH SHEET
 /* ===== Live extras: kickoff countdown · in-play win prob · crests · blurbs ===== */
@@ -5035,11 +5357,11 @@ function haptic(kind){try{if(!navigator.vibrate)return;var p={tap:10,pick:8,bet:
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
 function goStats(){TAB='stats';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#stats','Stats opened',40);}
-function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-rnd">Tournament More</div><div class="sh-when">Calm factual reference surfaces</div><div class="tour-more-grid">'+
- '<button onclick="closeSheet();goRoad()">Scenarios<span>Roads, qualification paths and what-it-takes views</span></button>'+ 
- '<button onclick="closeSheet();goCompare()">Teams<span>Team comparison and matchup lab</span></button>'+ 
- '<button onclick="closeSheet();goStats()">Stats<span>Player leaders and modeled rankings when labeled</span></button>'+ 
- '<button onclick="closeSheet();goVenues()">Venues<span>Host cities, stadiums and weather context</span></button>'+ 
+function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-rnd">Tournament reference</div><div class="sh-when">Calm, factual World Cup reference</div><div class="tour-more-grid">'+
+ '<button onclick="closeSheet();goCompare()">Teams<span>Every nation’s squad, group and results.<span class="tmg-eg">Squad · group · results · route to the final</span></span></button>'+
+ '<button onclick="closeSheet();goStats()">Stats<span>Tournament leaders from official data.<span class="tmg-eg">Goals · assists · clean sheets · leaderboards</span></span></button>'+
+ '<button onclick="closeSheet();goVenues()">Venues<span>Where the matches are played.<span class="tmg-eg">Host city · stadium · upcoming matches</span></span></button>'+
+ '<button onclick="closeSheet();goRoad()">Scenarios<span>Qualification and knockout stakes.<span class="tmg-eg">Roads to the final · what-it-takes · third-place race</span></span></button>'+
  '</div>';document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
 // tabs
 const SCRMAP={home:["home",null],schedule:["matches","schedule"],groups:["matches","groups"],compare:["matches","compare"],stats:["matches","stats"],cities:["matches","cities"],bracket:["matches","bracket"],road:["matches","road"],bet:["bet",null],h2h:["teams","h2h"]};
