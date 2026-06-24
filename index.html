@@ -5201,11 +5201,58 @@ function freOrdinal(pos){return pos===1?'1st':pos===2?'2nd':pos===3?'3rd':String
 function freDirectSlot(g,pos){var raw=String(pos)+g;for(var n=73;n<=88;n++){var m=M[n];if(m.home===raw)return{matchNum:n,side:'home',slot:raw};if(m.away===raw)return{matchNum:n,side:'away',slot:raw};}return null;}
 function freThirdCandidateSlots(g){var out=[];for(var n=73;n<=88;n++){var m=M[n],raw=(typeof m.home==='string'&&m.home.indexOf('3:')===0)?m.home:((typeof m.away==='string'&&m.away.indexOf('3:')===0)?m.away:null);if(raw&&raw.slice(2).indexOf(g)>=0)out.push({matchNum:n,side:m.home===raw?'home':'away',slot:raw});}return out;}
 function freConfirmedThirdSlot(g){var as=withTour(liveTour(),function(){return assignThirds();});if(!as)return null;for(var n in as){if(as[n]===g){var m=M[+n],raw=(typeof m.home==='string'&&m.home.indexOf('3:')===0)?m.home:m.away;return{matchNum:+n,side:m.home===raw?'home':'away',slot:raw};}}return null;}
+/* ===== Matrix-based third-place opponent resolution ============================
+   The Round-of-32 "3:..." slots are NOT a loose "any current third of these
+   groups" list. Which group's third-placed team actually lands in a given slot
+   is governed by the official FIFA third-place allocation matrix (TP3 / TP3C),
+   the SAME matrix assignThirds() uses once all eight qualifying thirds are known.
+   To derive the live possible-opponent set we (1) enumerate the qualifying-group
+   combinations still mathematically reachable from current standings, (2) read,
+   per combination, exactly which group the matrix routes into this slot, and
+   (3) collect those groups' current third-placed teams. This is sound: a combo
+   is only dropped when it is mathematically impossible, so no genuinely
+   reachable opponent is ever excluded. */
+/* Min / max possible points of a group's eventual third-placed team across all
+   remaining group outcomes (points-level bounds — never over-claims). */
+function freThirdPtsBounds(g){var outs=withTour(liveTour(),function(){return tccGroupOutcomeTables(g);}),mn=Infinity,mx=-Infinity;outs.forEach(function(t){var p=t[2]?t[2].Pts:0;if(p<mn)mn=p;if(p>mx)mx=p;});if(mn===Infinity){mn=0;mx=0;}return{min:mn,max:mx};}
+var _freComboCache={};
+/* Third-place qualifying-group combinations (TP3 matrix keys) still
+   mathematically possible given current standings. */
+function freValidThirdCombos(){
+  var groups="ABCDEFGHIJKL".split(""),b={};groups.forEach(function(g){b[g]=freThirdPtsBounds(g);});
+  var sig=groups.map(function(g){return b[g].min+'/'+b[g].max;}).join(',');if(_freComboCache[sig])return _freComboCache[sig];
+  var keys=Object.keys(TP3),out=[];
+  for(var ki=0;ki<keys.length;ki++){var combo=keys[ki],inSet={};for(var i=0;i<combo.length;i++)inSet[combo.charAt(i)]=1;var ok=true;
+    for(var gi=0;gi<groups.length&&ok;gi++){var g=groups[gi];
+      if(inSet[g]){ // g claims a top-eight third
+        var above=0;for(var hi=0;hi<groups.length;hi++){var h=groups[hi];if(h===g)continue;if(b[h].min>b[g].max){above++;if(!inSet[h]){ok=false;break;}}}
+        if(ok&&above>=8)ok=false; // mathematically impossible for g to be a top-eight third
+      } else { // g excluded from the qualifying thirds
+        var reach=0;for(var hj=0;hj<groups.length;hj++){var h2=groups[hj];if(h2!==g&&b[h2].max>=b[g].min)reach++;}
+        if(reach<8)ok=false; // g is guaranteed top-eight, so it cannot be excluded
+      }
+    }
+    if(ok)out.push(combo);
+  }
+  _freComboCache[sig]=out;return out;
+}
+/* Match number that hosts a given raw slot string (73..88 = Round of 32). */
+function freSlotMatchNum(raw){for(var n=73;n<=88;n++){var mm=M[n];if(mm.home===raw||mm.away===raw)return n;}return null;}
 function frePossibleTeamsForSlot(raw){
   if(!raw)return[];
   if(T[raw])return[raw];
   var m=String(raw).match(/^([12])([A-L])$/);if(m){var g=m[2],pos=+m[1],done=withTour(liveTour(),function(){return gComplete(g);});if(done){var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return row?[row.code]:[];}return (GROUPS[g]||[]).slice();}
-  if(String(raw).indexOf('3:')===0){var gs=String(raw).slice(2).split(''),done=withTour(liveTour(),function(){return allDone();});if(done){var as=withTour(liveTour(),function(){return assignThirds();});if(as){var n=73;for(;n<=88;n++){var mm=M[n];if(mm.home===raw||mm.away===raw)break;}var g=as&&as[n],row=g&&withTour(liveTour(),function(){return standings(g)[2];});return row?[row.code]:[];}}return gs.map(function(g){var row=withTour(liveTour(),function(){return standings(g)[2];});return row&&row.code;}).filter(Boolean);}
+  if(String(raw).indexOf('3:')===0){
+    var n3=freSlotMatchNum(raw);if(n3==null)return[];
+    var ki=TP3C.indexOf(n3);if(ki<0)return[];
+    var done=withTour(liveTour(),function(){return allDone();});
+    if(done){var as=withTour(liveTour(),function(){return assignThirds();});if(as){var ag=as[n3],arow=ag&&withTour(liveTour(),function(){return standings(ag)[2];});return arow?[arow.code]:[];}return[];}
+    /* Live: derive valid groups for THIS slot from the matrix, not the raw label. */
+    var combos=freValidThirdCombos();if(!combos.length)return[];
+    var gset={};combos.forEach(function(c){gset[TP3[c].charAt(ki)]=1;});
+    var teams=[];Object.keys(gset).forEach(function(g){var row=withTour(liveTour(),function(){return standings(g)[2];});if(row&&row.code&&teams.indexOf(row.code)<0)teams.push(row.code);});
+    return teams;
+  }
   return[];
 }
 function freOpponentState(slot,scenarioStatus){
@@ -5213,7 +5260,7 @@ function freOpponentState(slot,scenarioStatus){
   var m=M[slot.matchNum],oppRaw=slot.side==='home'?m.away:m.home,possible=frePossibleTeamsForSlot(oppRaw),confirmed=null,state='opponent to be decided';
   if(possible.length===1){var os=tccTeamTournamentStatus(possible[0]);if(scenarioStatus===FRE_STATUS.confirmed&&os&&os.tone==='confirmed'&&os.lockedQualified){confirmed=possible[0];state='confirmed opponent';}else state='possible opponents';}
   else if(possible.length>1)state='possible opponents';
-  if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0&&!withTour(liveTour(),function(){return allDone();}))state='qualification slot pending';
+  if(typeof oppRaw==='string'&&oppRaw.indexOf('3:')===0&&!withTour(liveTour(),function(){return allDone();}))state=(possible&&possible.length)?'possible opponents':'qualification slot pending';
   var dt=M[slot.matchNum]&&koDateTime(M[slot.matchNum]);if(!confirmed&&dt&&Date.now()>=dt.getTime())state='pending official final';
   return{state:state,confirmedOpponent:confirmed,possibleOpponents:confirmed?[confirmed]:possible,sourceSlot:oppRaw};
 }
