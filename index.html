@@ -2771,9 +2771,14 @@ function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},
    mode it swaps in the reality-only tournament (liveTour) for the duration. */
 function activeMode(){return (S&&S.mode==='sim')?'sim':'real';}
 function inActiveTour(fn){return activeMode()==='real'?withTour(liveTour(),fn):fn();}
+/* Navigation token: bumped on every navigation (switchTab / popstate). Delayed
+   scroll work (arriveAt, recommitScroll) captures the token it was scheduled under
+   and aborts if navigation has changed since — so forward-navigation timers/rAF
+   can never fire after Back (or another move) and reset the page to the top. */
+var _navToken=0;
 function arriveAt(target,msg,delay){
-  var toasted=false;
-  function go(){try{
+  var toasted=false,tok=_navToken;
+  function go(){if(tok!==_navToken)return;try{
     var el=typeof target==="string"?document.querySelector(target):target;
     if(!el){window.scrollTo({top:0,behavior:"smooth"});if(msg&&!toasted){toast(msg);toasted=true;}return;}
     var y=el.getBoundingClientRect().top+window.pageYOffset-76;
@@ -2795,7 +2800,8 @@ function arriveAt(target,msg,delay){
    immediate. A 0 target is a no-op (already at top). */
 function recommitScroll(y){
   y=Math.max(0,y||0);if(!y)return;
-  function go(){try{window.scrollTo(0,y);}catch(e){}}
+  var tok=_navToken;
+  function go(){if(tok!==_navToken)return;try{window.scrollTo(0,y);}catch(e){}}
   go();try{requestAnimationFrame(go);}catch(e){}
   [50,160,340,600].forEach(function(t){setTimeout(go,t);});
 }
@@ -7262,6 +7268,13 @@ var _viewScroll={},_lastViewKey=null;
    per-view scroll restoration. The leaving view's scroll is still saved either way. */
 var _suppressScrollRestore=false;
 function switchTab(skipAnim){
+  // Every navigation invalidates pending delayed scroll work from the previous one.
+  _navToken++;
+  // Save the LEAVING view's scroll SYNCHRONOUSLY now — before a view transition can
+  // defer _switchTabNow and before the caller scrolls the new view to the top — so
+  // the saved value is the real prior scroll (not 0). TAB is already the destination
+  // here, so only save when actually leaving a different view.
+  try{if(_lastViewKey!=null){var _dm=SCRMAP[TAB]||["home",null];var _dk=_dm[0]+"/"+(_dm[1]||"");if(_lastViewKey!==_dk)_viewScroll[_lastViewKey]=window.scrollY||window.pageYOffset||0;}}catch(e){}
   // Animate the tab change, but never start a NEW view transition while one is
   // mid-flight (fast double-taps): that aborts the running one and logs a benign
   // InvalidStateError. Instead, just swap instantly — clean console, no jank.
@@ -7292,7 +7305,9 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
      switches; an explicit re-tap of the active tab still jumps to top (handled in
      the tabbar click handler). */
   var _vkey=m[0]+"/"+(m[1]||"");
-  if(typeof _lastViewKey!=="undefined"&&_lastViewKey!=null&&_lastViewKey!==_vkey){try{_viewScroll[_lastViewKey]=window.scrollY||window.pageYOffset||0;}catch(e){}}
+  // Note: the leaving view's scroll is saved synchronously in switchTab() (before any
+  // view transition / caller scroll-to-top), so it is NOT re-saved here — re-saving
+  // at this deferred point would capture 0 after the forward nav already reset scroll.
   if(_suppressScrollRestore){_suppressScrollRestore=false;try{window.scrollTo(0,0);}catch(e){}}
   else{try{window.scrollTo(0,(_viewScroll&&_viewScroll[_vkey])||0);}catch(e){}}
   _lastViewKey=_vkey;
