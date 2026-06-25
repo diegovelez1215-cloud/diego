@@ -88,6 +88,15 @@ nav button.on .e{opacity:1}
 .ptile .pv{font-size:19px;font-weight:900;font-variant-numeric:tabular-nums;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .ptile .pl{font-size:9px;color:var(--mut);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
 .ptile .px{font-size:10px;color:var(--mut2);font-weight:700;margin-top:3px;display:flex;align-items:center;justify-content:center;gap:4px}
+/* Compact Tournament snapshot — replaces the five competing stat tiles. Slim,
+   muted and secondary to fixtures; flex-wrap keeps it inside 390px (no overflow). */
+.tsnap{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.tsnap-k{font-size:9.5px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:var(--mut)}
+.tsnap-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px}
+.tsnap-i{font-size:12px;color:var(--mut);font-weight:700}
+.tsnap-i b{color:var(--txt);font-weight:900;font-variant-numeric:tabular-nums}
+.tsnap-sep{color:var(--mut3);font-weight:900}
+.tsnap-empty{font-size:12px;color:var(--mut);font-weight:700}
 
 /* groups */
 .gcard{background:var(--card);border:1px solid var(--line);border-radius:18px;margin-bottom:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -221,6 +230,25 @@ nav button.on .e{opacity:1}
 .sched-filter{display:flex;gap:8px;margin-bottom:12px;align-items:center}
 .sched-filter select{flex:1;min-width:0;background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:700;font-family:inherit;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237a8499' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 .sched-filter select:focus{outline:none;border-color:var(--teal2)}
+.date-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(168deg,rgba(48,62,132,.34),rgba(28,38,92,.42));flex-wrap:wrap}
+.dn-ctx{display:flex;flex-direction:column;min-width:0;line-height:1.25;flex:1}
+.dn-k{font-size:8.5px;font-weight:950;letter-spacing:1px;text-transform:uppercase;color:var(--teal2)}
+.dn-ctx b{font-size:13.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.dn-s{font-size:11px;font-weight:700;color:var(--mut)}
+.dn-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.dn-btn{min-height:36px;padding:7px 13px;border-radius:10px;border:1px solid var(--line2);background:var(--card);color:var(--txt);font-weight:800;font-size:12px;font-family:inherit;cursor:pointer}
+.dn-btn.ghost{background:transparent;color:var(--teal2)}
+.dn-btn:active{transform:scale(.97)}
+.daygrp,.mrow{scroll-margin-top:104px}
+.dns-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.dns-row{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--txt);font-family:inherit;cursor:pointer;text-align:left}
+.dns-d{display:flex;flex-direction:column;flex:1;min-width:0}
+.dns-d b{font-size:13px;font-weight:900}
+.dns-d span{font-size:11px;color:var(--mut);font-weight:700}
+.dns-r{font-size:11px;color:var(--mut2);font-weight:800;white-space:nowrap}
+.dns-t{font-size:10px;font-weight:900;color:var(--mut);border:1px solid var(--line2);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.dns-t.now{color:#063d20;background:var(--green);border-color:transparent}
+.dns-done{font-size:10px;color:var(--mut3);font-weight:800}
 .sf-clear{flex:0 0 auto;background:var(--card);border:1px solid var(--line);color:var(--mut);border-radius:12px;padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer}
 .sf-clear:active{transform:scale(.95)}
 .cwx-slot:empty{display:none}
@@ -2224,6 +2252,14 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .fre-tchip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:1px solid var(--line2);border-radius:20px;background:rgba(255,255,255,.04);color:#fff;font-size:12px;font-weight:850;cursor:pointer;transition:transform .15s var(--spring),border-color .15s}
 .fre-tchip:active{transform:scale(.95)}
 .fre-tchip:hover{border-color:var(--cy-line,rgba(100,210,255,.4))}
+.fre-allbtn{display:block;width:100%;margin-top:9px;padding:9px 12px;border:1px solid var(--cy-line,rgba(100,210,255,.4));border-radius:12px;background:rgba(100,210,255,.08);color:#64d2ff;font-family:inherit;font-size:12.5px;font-weight:850;cursor:pointer}
+.fre-allbtn:active{transform:scale(.99)}
+.rat-list{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.rat-grp{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:rgba(29,42,114,.3)}
+.rat-gh{font-size:10px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#64d2ff;margin-bottom:8px}
+.rat-row{display:flex;flex-wrap:wrap;gap:7px}
+.rat-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:1px solid var(--line2);border-radius:20px;background:rgba(255,255,255,.04);color:#fff;font-family:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.rat-chip:active{transform:scale(.95)}
 /* bottom-sheet shared bits */
 .tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
 .tcc-sheet-lead b{color:var(--txt);font-weight:800}
@@ -2735,18 +2771,45 @@ function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},
    mode it swaps in the reality-only tournament (liveTour) for the duration. */
 function activeMode(){return (S&&S.mode==='sim')?'sim':'real';}
 function inActiveTour(fn){return activeMode()==='real'?withTour(liveTour(),fn):fn();}
+/* Navigation token: bumped on every navigation (switchTab / popstate). Delayed
+   scroll work (arriveAt, recommitScroll) captures the token it was scheduled under
+   and aborts if navigation has changed since — so forward-navigation timers/rAF
+   can never fire after Back (or another move) and reset the page to the top. */
+var _navToken=0,_topCommitToken=0;
 function arriveAt(target,msg,delay){
-  function go(){try{
+  var toasted=false,tok=_navToken;
+  function go(){if(tok!==_navToken)return;try{
     var el=typeof target==="string"?document.querySelector(target):target;
-    if(!el){window.scrollTo({top:0,behavior:"smooth"});if(msg)toast(msg);return;}
+    if(!el){window.scrollTo({top:0,behavior:"smooth"});if(msg&&!toasted){toast(msg);toasted=true;}return;}
     var y=el.getBoundingClientRect().top+window.pageYOffset-76;
     window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
     el.classList.remove("arrive-pulse");void el.offsetWidth;el.classList.add("arrive-pulse");
     setTimeout(function(){try{el.classList.remove("arrive-pulse");}catch(e){}},1600);
-    if(msg)toast(msg);
-  }catch(e){if(msg)toast(msg);}}
-  setTimeout(go,delay==null?90:delay);
-  setTimeout(go,(delay==null?90:delay)+180);
+    if(msg&&!toasted){toast(msg);toasted=true;}
+  }catch(e){if(msg&&!toasted){toast(msg);toasted=true;}}}
+  var base=delay==null?70:delay;
+  // Commit on the next frame, then re-commit across post-render and asynchronous
+  // layout shifts (late home wires, data refresh, images) so the final scroll
+  // position lands on the intended destination rather than a pre-shift estimate.
+  try{requestAnimationFrame(go);}catch(e){}
+  [base,base+170,base+430].forEach(function(t){setTimeout(go,t);});
+}
+/* Browser Back must restore the destination view's prior scroll. The post-Back
+   render() rebuilds the view, so re-commit the saved position across the next
+   frames so it isn't clamped to the top. Instant (no smooth) — Back should feel
+   immediate. A 0 target is a no-op (already at top). */
+function recommitScroll(y){
+  y=Math.max(0,y||0);if(!y)return;
+  var tok=_navToken;
+  function go(){if(tok!==_navToken)return;try{window.scrollTo(0,y);}catch(e){}}
+  go();try{requestAnimationFrame(go);}catch(e){}
+  [50,160,340,600].forEach(function(t){setTimeout(go,t);});
+}
+function commitTop(){
+  var navTok=_navToken,topTok=++_topCommitToken;
+  function go(){if(navTok!==_navToken||topTok!==_topCommitToken)return;try{window.scrollTo(0,0);}catch(e){}}
+  go();try{requestAnimationFrame(go);}catch(e){}
+  [50,160,340,600].forEach(function(t){setTimeout(go,t);});
 }
 function startPredictFlow(code){closeSheet();S.mode='sim';_brkMode='pick';if(code)S.focus=code;TAB='bracket';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#brkVert","🎮 My Sim · Predict mode opened");}
 function startSimFlow(){closeSheet();S.mode='sim';_brkMode='sim';TAB='bracket';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#bracket","⚡ My Sim · simulation controls ready");}
@@ -3140,7 +3203,7 @@ function liveLoop(num){clearLive();
           else if(Math.random()<.18)L.comm=lvPick(LV_COMMS.save,L.h,L.a);
           else L.comm=lvPick(LV_COMMS.calm,L.h,L.a);}}
       var p=document.getElementById("livepanel");if(p)p.innerHTML=livePanelInner(num);try{renderMatchcast();}catch(e){}
-      try{renderLiveFab();}catch(e){}
+      try{renderFloatingControls();}catch(e){}
       if(L.min>=90){return finishLive(num);}
       liveTimers.push(setTimeout(tick,L.min===45?620:72));
     }catch(e){endLive();var pe=document.getElementById("livepanel");if(pe)pe.innerHTML='<div class="bethint">Live feed unavailable.</div>';}
@@ -3770,7 +3833,7 @@ function upcomingHomeHTML(){
 }
 function homeCommandHTML(){
  var open=S.bets.filter(function(b){return !b.settled;}),act=(typeof nextOpenActionBet==="function")?nextOpenActionBet():null,up=MATCHES.filter(function(m){var pr=m.stage==="group"?[m.home,m.away]:koParts(m.num),done=m.stage==="group"?S.sc[m.num]:S.ko[m.num];return !done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
- var h='Matchday command center',s='Pick a match, track your slip, or jump into the live ecosystem.',primary='Open Play',onclick='goPlay()';
+ var h='Matchday hub',s='Pick a match, track your slip, or jump into the live ecosystem.',primary='Open Play',onclick='goPlay()';
  if(S.live){var L=S.live;h='Live match in progress';s=nm(L.h)+' '+L.sh+'-'+L.sa+' '+nm(L.a)+' · '+L.min+"'";primary='Resume live';onclick='openSheet('+L.num+')';}
  else if(act){h=act.canSim?'Ready to settle':'Open bet waiting';s=betLabel(act.b);primary=act.canSim?'Simulate now':'View slip';onclick=act.canSim?'ts2Launch('+act.i+')':'goSlip()';}
  else if(S.slip&&S.slip.length){h='Parlay build in progress';s=S.slip.length+' leg'+(S.slip.length>1?'s':'')+' waiting in your slip.';primary='Open Parlay Lab';onclick='openSlip()';}
@@ -3826,7 +3889,7 @@ function finalMatchdayCenterHTML(){
   if(!groups.length)return '';
   groups.sort(function(a,b){function key(m){var r=9,tm=Infinity,rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4};(m.fixtures||[]).forEach(function(fx){r=Math.min(r,Object.prototype.hasOwnProperty.call(rank,fx.kind)?rank[fx.kind]:5);var mm=M[fx.num],dt=mm&&koDateTime(mm);if(dt)tm=Math.min(tm,dt.getTime());});return [r,tm,m.group];}var ka=key(a),kb=key(b);return ka[0]-kb[0]||ka[1]-kb[1]||(ka[2]<kb[2]?-1:1);}
   );
-  return '<div class="fmd-center"><div class="fmd-center-h"><span class="fmd-k">⚡ Final Matchday · Command Center</span><span class="fmd-sub">Both deciding fixtures, the official table, and the live “as it stands” picture — side by side.</span></div>'+groups.map(fmdGroupSectionHTML).join('')+'</div>';
+  return '<div class="fmd-center"><div class="fmd-center-h"><span class="fmd-k">⚡ Final Matchday</span><span class="fmd-sub">Both deciding fixtures, the official table, and the live “as it stands” picture — side by side.</span></div>'+groups.map(fmdGroupSectionHTML).join('')+'</div>';
 }
 /* ---- Knockout mode: bracket-first, honest pending slots, path language ---- */
 function komSlotHTML(team,raw,side){
@@ -3890,7 +3953,7 @@ function phaseLeadHTML(){
     var moreGroups=Math.max(0,gs.length-1);
     var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div>'+(moreGroups?'<div class="phl-more">'+moreGroups+' more group'+(moreGroups===1?'':'s')+' to resolve</div>':'')+'<div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
     var tag='Group '+model.group+' live';
-    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go" onclick="goStandings()">Open the command center →</button></div>';
+    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go" onclick="goStandings()">View all group standings →</button></div>';
   }
   if(ph.prioritizeBracket){
     var nx=phlNextKOFixture(),tickets=(S.bets||[]).filter(function(b){return !b.settled;}).length;
@@ -3962,7 +4025,11 @@ function renderHome(){
  var _homeSeen=homeSeen(_homePrimary.nums||[]);
  // Home order: live pair (hero) · next pair (today/tomorrow rail) · why it matters
  // (tournament pulse) · active Play ticket (only when genuinely active) · then tools.
- document.getElementById("home").innerHTML='<div class="home-stack">'+(_homePrimary.html||'')+todayRailHTML(_homeSeen)+tournamentPulseHomeHTML(_homeSeen)+activePicksHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
+ // One-hero discipline: during Final Matchday the hero already carries the live
+ // "as it stands" + qualification-risk picture, so the duplicate Tournament Pulse
+ // card (which repeats "as it stands") is suppressed to keep a single dominant hero.
+ var _pulse=(_homePrimary&&_homePrimary.kind==='final_matchday')?'':tournamentPulseHomeHTML(_homeSeen);
+ document.getElementById("home").innerHTML='<div class="home-stack" id="homeHero">'+(_homePrimary.html||'')+todayRailHTML(_homeSeen)+_pulse+activePicksHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
 }
 /* ===== The Athletic Newsroom — editorial feed (Gemini #6) ===== */
 var _activeNewsTab="Storylines";
@@ -4439,11 +4506,11 @@ function ticketBlockedReason(t){if(!t)return 'No selection';if(!(isFinite(t.odds
 function promoHTML(){return '<div class="promo" onclick="runSupercomputer()"><div class="promo-i">🔮</div><div class="promo-tx"><div class="promo-h">The Supercomputer</div><div class="promo-s">1,000 simulations from today’s results — every team’s title odds</div></div><div class="promo-go">Run ›</div></div>';}
 function slipCommandHTML(open,settled,staked,pnl){
  var ready=betMatchNums(open).length,paths=open.filter(betNeedsTournament).length,par=(S.slip||[]).length,act=nextOpenActionBet(),st=bettorStats();
- var title=act?(ready?'Next bet is ready':'Action waiting'):(par?'Parlay builder active':'Bet command center');
+ var title=act?(ready?'Next bet is ready':'Action waiting'):(par?'Parlay builder active':'Your bets');
  var sub=act?betLabel(act.b).replace(/ · #\d+$/,""):(par?(par+' leg'+(par===1?'':'s')+' staged in Parlay Lab'):(open.length?open.length+' open bet'+(open.length===1?'':'s')+' in motion':'Build, track and settle everything here'));
  var primary=act?(ready?'⚡ Run next action':(betNeedsTournament(act.b)?'🔮 Advance path':'📋 Review open bets')):(par?'🎫 Open Parlay Lab':'⚽ Find markets');
  var primaryClick=act?(ready?'ts2Launch('+act.i+')':(betNeedsTournament(act.b)?'advanceFutureBet('+act.i+')':'goSlipCommand()')):(par?'openSlip()':"setBetCatFocus('matches','⚽ Markets ready')");
- return '<div class="panel slipcmd"><div class="scmd-top"><div><div class="scmd-k">Slip command center</div><div class="scmd-h">'+esc(title)+'</div><div class="scmd-s">'+esc(sub)+'</div></div><div class="scmd-bank">$'+S.bank.toLocaleString()+'</div></div>'
+ return '<div class="panel slipcmd"><div class="scmd-top"><div><div class="scmd-k">Your ticket</div><div class="scmd-h">'+esc(title)+'</div><div class="scmd-s">'+esc(sub)+'</div></div><div class="scmd-bank">$'+S.bank.toLocaleString()+'</div></div>'
   +'<div class="scmd-grid"><div><b>'+open.length+'</b><span>Open</span></div><div><b>$'+staked.toLocaleString()+'</b><span>At risk</span></div><div><b>'+paths+'</b><span>Paths</span></div><div><b class="'+(pnl>=0?'g':'r')+'">'+(pnl>=0?'+':'−')+'$'+Math.abs(pnl).toLocaleString()+'</b><span>P/L</span></div></div>'
   +'<div class="scmd-actions"><button class="primary" onclick="'+primaryClick+'">'+primary+'</button><button onclick="setBetCatFocus(\'history\',\'📜 My Bets opened\')">My Bets</button><button onclick="setBetCatFocus(\'futures\',\'📊 Futures opened\')">Futures</button><button onclick="setBetCatFocus(\'leaderboard\',\'🏆 Social race opened\')">Social</button></div></div>';
 }
@@ -5234,7 +5301,7 @@ function legResult(l){if(l.k==='m'){var o=betOutcome(l.num);return o==null?null:
 function addToSlip(leg){if(!leg)return;if(!S.slip)S.slip=[];if(S.slip.some(function(l){return l.key===leg.key;})){toast("Already in your slip");return;}if(S.slip.length>=12)return toast("Max 12 legs");S.slip.push(leg);try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}
  var scrimOn=(function(){var sc=document.getElementById("scrim");return sc&&sc.classList.contains("on");})();
  var keepOpen=(leg.num!=null&&leg.num===_openSheetNum&&scrimOn);
- if(keepOpen){renderBetting();renderSlipFab();saveState();sheet(_openSheetNum);toast("➕ Added · "+S.slip.length+" leg"+(S.slip.length>1?"s":"")+" — keep tapping to build");}
+ if(keepOpen){renderBetting();renderFloatingControls();saveState();sheet(_openSheetNum);toast("➕ Added · "+S.slip.length+" leg"+(S.slip.length>1?"s":"")+" — keep tapping to build");}
  else{closeSheet();render();toast("➕ Added to slip · "+S.slip.length+" legs");}}
 function removeSlip(i){S.slip.splice(i,1);render();if(S.slip.length)openSlip();else closeSheet();}
 function clearSlip(){S.slip=[];closeSheet();render();toast("Slip cleared");}
@@ -5276,18 +5343,37 @@ function primaryLiveFixture(){
   return next?{num:next,kind:'next'}:null;
 }
 function goLiveNow(){
-  var hit=primaryLiveFixture();if(!hit){TAB='home';switchTab();render();arriveAt('#homeStatus','Home');return;}
+  var hit=primaryLiveFixture();if(!hit){_suppressScrollRestore=true;TAB='home';switchTab();render();arriveAt('#homeHero','Home');return;}
   if(hit.kind==='sim'){openMatchcast(hit.num);return;}
-  if(hit.kind==='real'){TAB='matches';switchTab();render();openSheet(hit.num);return;}
-  TAB='home';switchTab();render();arriveAt('#homeHero','Next match',60);
+  if(hit.kind==='real'){_suppressScrollRestore=true;TAB='matches';switchTab();render();openSheet(hit.num);return;}
+  _suppressScrollRestore=true;TAB='home';switchTab();render();arriveAt('#homeHero','Next match',60);
 }
-function renderLiveJump(){var el=document.getElementById('livejump');if(!el)return;var hit=primaryLiveFixture();
-  if(liveSurfaceVisible()){el.style.display='none';return;}
-  if(TAB==='groups'||TAB==='bracket'||TAB==='matches'){el.style.display='none';return;}
-  if(!hit||TAB==='home'&&!S.live&&!Object.keys(S.rwState||{}).some(function(k){var st=S.rwState[k];return st&&(st.kind==='live'||st.kind==='hold');})){el.style.display='none';return;}
-  var label='Back to Live',cls='';if(hit.kind==='sim'){var L=S.live;label='Sim Matchcast · '+(L?L.sh+'-'+L.sa:'Resume');cls='gold';}
-  else if(hit.kind==='next')label='Next match';else{var st=S.rwState&&S.rwState[hit.num];label=(st&&st.kind==='hold')?(safeStatusText(st.label,'Match delayed')):'Live Now';}
+function renderLiveJump(){var el=document.getElementById('livejump');if(!el)return;
+  el.style.display='none';
+  /* Single app-owned floating control. Never over an open sheet/matchcast or the
+     Home hero (liveSurfaceVisible), and shown ONLY on Play and You — never on
+     Tournament / Standings / Bracket / Best-Third / venue surfaces, so it can't
+     cover fixture, venue, bracket or third-place rows. It also appears only while a
+     match is genuinely live (sim or official), not for idle "next match" states. */
+  if(liveSurfaceVisible())return;
+  if(TAB!=='bet'&&TAB!=='teams')return;
+  var liveReal=Object.keys(S.rwState||{}).some(function(k){var st=S.rwState[k];return st&&(st.kind==='live'||st.kind==='hold');});
+  var liveSim=!!S.live;
+  if(!(liveSim||liveReal))return;
+  var hit=primaryLiveFixture();
+  var label='Live Now',cls='';
+  if(liveSim){var L=S.live;label='Sim Matchcast · '+(L?L.sh+'-'+L.sa:'Resume');cls='gold';}
+  else if(hit){var st=S.rwState&&S.rwState[hit.num];label=(st&&st.kind==='hold')?(safeStatusText(st.label,'Match delayed')):'Live Now';}
   el.className='livejump '+cls;el.innerHTML='<span class="lj-dot"></span>'+esc(label);el.style.display='flex';}
+/* Coordinator: enforce a single app-owned floating control. Hide the legacy slip
+   FAB, the Today FAB and the live-score chip, then let renderLiveJump decide the
+   one control (if any) for the current context. */
+function renderFloatingControls(){
+  var sf=document.getElementById('slipfab');if(sf)sf.style.display='none';
+  var tf=document.getElementById('todayFab');if(tf)tf.style.display='none';
+  var ex=document.getElementById('liveFabBtn');if(ex)ex.remove();
+  try{renderLiveJump();}catch(e){}
+}
 /* Parlay Lab — turns the combined price into a readable risk/chance meter with a
    chemistry label, so beginners instantly grasp how wild a slip is. Pure presentation
    over the real combined probability (1/decimal) — no effect on payout or fairness. */
@@ -5504,7 +5590,7 @@ function render(){
   // Settlement + wallet always run against the TRUE sandbox (S), independent of view mode.
   settleAllBets();try{checkPicks();}catch(e){}try{checkAchv();}catch(e){}renderBankroll();
   try{renderModeBar();}catch(e){}
-  activeViewRender();renderSlipFab();renderLiveFab();renderLiveJump();updateTabBadges();try{tournamentMoments();}catch(e){}saveState();}
+  activeViewRender();renderFloatingControls();updateTabBadges();try{tournamentMoments();}catch(e){}saveState();}
 /* ⚡ DOM batching: coalesce rapid render() calls into one 60fps frame */
 var _origRender=render,_renderPending=false;
 render=function(){if(_renderPending)return;_renderPending=true;(window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){_renderPending=false;try{_origRender();}catch(e){}});};
@@ -5548,11 +5634,26 @@ function asItStandsHTML(g){var gpl=gMatches(g).filter(m=>S.sc[m.num]&&!isBetSim(
 /* Dashboard "Live Knockout Projections" — marquee Round-of-32 ties as they
    currently stand, resolved live from real results via the 495-combination
    third-place engine. Shown on the home screen; updates itself on each sync. */
-function knockoutPulseHTML(){
+/* A meaningful, factual knockout context: an official knockout result exists, the
+   tournament has moved past plain group stage (resolving / final matchday / KO), or
+   the group stage is all but complete. Read-only — no logic/truth changes. */
+function knockoutContextMeaningful(){
+  try{
+    if(S.realko&&Object.keys(S.realko).length)return true;
+    var ph=fdSafePhase();if(ph&&ph.phase&&ph.phase!=='group_stage')return true;
+    var done=MATCHES.filter(function(m){return m.stage==='group'&&tccOfficialFinal(m.num);}).length;
+    return done>=60;
+  }catch(e){return false;}
+}
+function knockoutPulseHTML(inBracket){
   // Runs inside the active tournament context (real mode = reality-only).
   var sim=activeMode()==='sim';
   var gpPlayed=MATCHES.filter(function(m){return m.stage==="group"&&S.sc[m.num]&&!isBetSim(m.num);}).length;
   if(!gpPlayed)return "";
+  // On Home, surface the Live Knockout marquee only in a meaningful official/live
+  // knockout state (not the instant one group game is played). Inside Bracket it
+  // always renders. A user's own sim projection is always allowed.
+  if(!inBracket&&!sim&&!knockoutContextMeaningful())return "";
   var r32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],ties=[];
   r32.forEach(function(n){var p=koParts(n);if(!p[0]||!p[1])return;
     ties.push({n:n,h:p[0],a:p[1],r:(RAT[p[0]]||60)+(RAT[p[1]]||60)});});
@@ -5569,7 +5670,7 @@ function knockoutPulseHTML(){
     '<div class="kp-stats"><div class="kp-stat"><b>'+filled+'/16</b><span>R32 ties</span></div><div class="kp-stat"><b>'+gpPlayed+'/72</b><span>Group games</span></div><div class="kp-stat"><b>'+(cut?cut.Pts:'—')+'</b><span>3rd cutoff</span></div></div>'+
     '<div class="kp-main"><div class="kp-main-k">Marquee projected ties</div>'+rows+'</div>'+
     '<div class="kp-main-k">Best third-place race'+(bubble?' · bubble: '+fl(bubble.code)+' '+nm(bubble.code):'')+'</div><div class="kp-third">'+third+'</div>'+
-    '<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button></div>';
+    (inBracket?'':'<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button>')+'</div>';
 }
 function groupsOverviewHTML(){
   var h='<div class="grpov-h">📊 All groups at a glance · tap a group to jump</div><div class="grpov">';
@@ -5580,7 +5681,11 @@ function groupsOverviewHTML(){
     h+='</div>';});
   return h+'</div><div class="grpov-key"><span><i class="dot" style="background:var(--green)"></i>Win</span><span><i class="dot" style="background:var(--blue)"></i>Runner-up</span><span><i class="dot" style="background:var(--gold)"></i>3rd→pool</span><span style="opacity:.5">4th out</span></div>';}
 function jumpGroup(g){var el=document.getElementById("grp-"+g);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
-function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatchdayCenterHTML();}catch(e){}let h=_fmd+groupsOverviewHTML();"ABCDEFGHIJKL".split("").forEach(g=>{const st=standings(g);
+function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatchdayCenterHTML();}catch(e){}let h=_fmd+groupsOverviewHTML();
+  // Route Explorer — one predictable, factual home near Final Matchday / standings.
+  // Tap any team to see what each finish means (≤2 taps). Reuses openRouteExplorer.
+  try{h+=routeExplorerLauncherHTML();}catch(e){}
+  "ABCDEFGHIJKL".split("").forEach(g=>{const st=standings(g);
   const gpl=gMatches(g).filter(m=>S.sc[m.num]).length;const god=g===GOD;
   h+=`<div id="grp-${g}" class="gcard ${god?'god':''}"><div class="ghead"><div class="gbadge">${g}</div><div class="gt">GROUP ${g}${god?'<span class="skull">💀</span>':''}</div><div class="gp">${gpl}/6</div>${gpl<6?`<button class="gsim" onclick="simGroup('${g}')">⚡ Sim</button>`:''}</div>`;
   h+=`<div class="stbl"><div class="strow head"><div class="pos">#</div><div class="tm">Team</div><div class="n">Pl</div><div class="n">GD</div><div class="n">Pts</div><div></div></div>`;
@@ -5982,7 +6087,9 @@ function tccGroupStakesHTML(g){
   s.scen.forEach(function(t){h+='<div class="tcc-st-row scen"><span class="tcc-st-ic">→</span><span>'+esc(t)+'<span class="tcc-st-tag">Scenario</span></span></div>';});
   if(s.hasScenarios)h+='<button class="tcc-scn-btn" onclick="tccScenarioSheet(\''+g+'\')">See scenarios →</button>';
   h+='</div>';
-  try{var _order=(tccOffTable(g)||[]).map(function(r){return r.code;});if(!_order.length)_order=(GROUPS[g]||[]).slice();h+=freEntryChipsHTML(_order);}catch(e){}
+  // Route Explorer is no longer embedded per-group here (that scattered it 12× and
+  // gated it behind stakes). It now has one predictable home at the top of the
+  // Standings view — see the launcher in renderGroups.
   return h;
 }
 function tccScenarioSheet(g){
@@ -6334,11 +6441,34 @@ function freEntryCardHTML(code){
   return '<div class="fre-entry" onclick="openRouteExplorer(\''+code+'\')" role="button" tabindex="0"><div class="fre-entry-ic">🧭</div><div class="fre-entry-tx"><b>Route Explorer</b><span>'+esc(sub)+'</span></div><span class="fre-entry-go">→</span></div>';
 }
 /* Wrapping team chips for the scenarios / stakes surfaces. */
-function freEntryChipsHTML(codes){
-  var seen={},chips=(codes||[]).filter(function(c){if(!c||!T[c]||seen[c])return false;seen[c]=1;var ts=tccTeamTournamentStatus(c);return !!ts;}).slice(0,6)
+function freEntryChipsHTML(codes,limit){
+  var max=limit||6,seen={},chips=(codes||[]).filter(function(c){if(!c||!T[c]||seen[c])return false;seen[c]=1;var ts=tccTeamTournamentStatus(c);return !!ts;}).slice(0,max)
     .map(function(c){return '<button class="fre-tchip" onclick="openRouteExplorer(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
   if(!chips)return '';
-  return '<div class="fre-launch"><div class="fre-launch-h">🧭 Route Explorer</div><div class="fre-launch-row">'+chips+'</div></div>';
+  return '<div class="fre-launch"><div class="fre-launch-h">🧭 Explore a team’s route</div><div class="fre-launch-row">'+chips+'</div></div>';
+}
+/* Standings Route Explorer launcher: current group-leader shortcuts (optional) PLUS
+   an always-present all-team picker, so every one of the 48 teams is discoverable —
+   the leaders are never the only route entry. Factual; reuses openRouteExplorer. */
+function routeExplorerLauncherHTML(){
+  var leaders="ABCDEFGHIJKL".split("").map(function(g){var st=standings(g);return st&&st[0]?st[0].code:null;}).filter(Boolean);
+  var seen={},chips=leaders.filter(function(c){if(!c||!T[c]||seen[c])return false;seen[c]=1;return !!tccTeamTournamentStatus(c);}).slice(0,12)
+    .map(function(c){return '<button class="fre-tchip" onclick="openRouteExplorer(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
+  return '<div class="fre-launch"><div class="fre-launch-h">🧭 Explore a team’s route</div>'+
+    (chips?'<div class="fre-launch-row">'+chips+'</div>':'')+
+    '<button class="fre-allbtn" onclick="routeAllTeamsSheet()">All 48 teams · by group →</button></div>';
+}
+/* All-48-teams picker — grouped A–L in a sheet (never 48 permanent buttons). Each
+   team opens its existing Route Explorer view via openRouteExplorer. Factual only. */
+function routeAllTeamsGo(c){openRouteExplorer(c);}
+function routeAllTeamsSheet(){
+  var sh=document.getElementById('sheet');if(!sh)return;
+  var groups='ABCDEFGHIJKL'.split('').map(function(g){
+    var chips=(GROUPS[g]||[]).slice().map(function(c){return '<button class="rat-chip" onclick="routeAllTeamsGo(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
+    return '<div class="rat-grp"><div class="rat-gh">Group '+g+'</div><div class="rat-row">'+chips+'</div></div>';
+  }).join('');
+  sh.innerHTML='<div class="grab"></div><div class="sh-rnd">Explore a team’s route</div><div class="sh-when">All 48 teams · what each finish means · official information only</div><div class="rat-list">'+groups+'</div>';
+  document.getElementById('scrim').classList.add('on');try{haptic('tap');}catch(e){}
 }
 /* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
 function tccTieState(num){var p=koParts(num);
@@ -6408,14 +6538,70 @@ function renderSchedule(){const sel=S._schedFilter||"";
   const bar=`<div class="sched-filter"><select id="schedTeam" onchange="setSchedFilter(this.value)" aria-label="Filter fixtures by team">${opts}</select>${sel?`<button class="sf-clear" onclick="setSchedFilter('')">✕</button>`:''}</div>`;
   const inv=m=>{if(!sel)return true;if(m.stage==="group")return m.home===sel||m.away===sel;const p=koParts(m.num);return p[0]===sel||p[1]===sel;};
   var feat=sel?null:tccFeatured();var featNum=feat?feat.num:null;
-  let h=(sel?"":tccCommandCenterHTML(feat))+bar+(sel?"":pulseHTML())+(sel?"":playDiscoveryHTML());let any=false;
+  // Explore United 2026 / playDiscoveryHTML removed here: its doors (Host Cities,
+  // Matchup Lab, Tables) duplicate existing Tournament destinations and added to the
+  // stacked-dashboard clutter. Those destinations remain reachable via the nav.
+  let h=(sel?"":tccCommandCenterHTML(feat))+bar+(sel?"":pulseHTML());let any=false;
   if(!sel)h+='<div class="tcc-other-h">All matches</div>';
+  // Compact in-flow date navigator (Today / Tomorrow / context / all dates). Sits
+  // above the fixtures, never floats, and uses stable per-fixture anchors so it
+  // can't overlap rows or venue text.
+  if(!sel)h+=dateNavHTML();
   const days=[...new Set(MATCHES.map(m=>matchDay(m)))].sort();
   days.forEach(d=>{const wins=kickoffWindowModel({iso:d,team:sel,includeCompleted:true,allowPending:true}),dm=kickoffWindowFixtureNums(wins).map(function(n){return M[n];}).filter(inv);if(!dm.length)return;any=true;
     h+=`<div class="daygrp" id="day-${d}"><div class="dayhd"><span class="dw">${fullDay(wdCode(d))}</span><span class="dd">${longDate(d)}</span><span class="md">${roundName(dm[0].num)}</span></div>`;
     dm.forEach(m=>h+=mrow(m,m.num===featNum));h+=`</div>`;});
   if(sel&&!any)h+=`<div class="roadempty"><div class="big">📭</div>No confirmed matches for ${nm(sel)} yet — knockout games appear once they qualify.</div>`;
   document.getElementById("schedule").innerHTML=h;}
+/* ===== Matches date navigator (compact, in-flow, stable anchors) ============== */
+function schedSort(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;}
+function schedDone(m){return m.stage!=='group'?!!(S.ko&&S.ko[m.num]):!!(S.sc&&S.sc[m.num]);}
+function schedFirstUnfinishedToday(){var today=curISO();
+  var ms=MATCHES.filter(function(m){return matchDay(m)===today;}).sort(schedSort);
+  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+  return null;}
+function schedNextUnfinishedFrom(iso){
+  var ms=MATCHES.filter(function(m){return matchDay(m)>iso;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:schedSort(a,b);});
+  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+  return ms.length?ms[0].num:null;}
+function schedScrollToNum(num){var el=document.getElementById('fx-'+num);if(!el)return false;
+  var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+  el.classList.remove('arrive-pulse');void el.offsetWidth;el.classList.add('arrive-pulse');
+  setTimeout(function(){try{el.classList.remove('arrive-pulse');}catch(e){}},1500);
+  try{haptic('tap');}catch(e){}return true;}
+function schedScrollToDay(d){var el=document.getElementById('day-'+d);if(!el)return false;
+  var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});return true;}
+function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
+  if(n!=null){schedScrollToNum(n);return;}
+  // Nothing remains today — be honest rather than jumping to irrelevant content.
+  var hasToday=MATCHES.some(function(m){return matchDay(m)===today;});
+  try{toast(hasToday?'Today’s matches are complete — here’s what’s next':'No matches scheduled today');}catch(e){}
+  var nx=schedNextUnfinishedFrom(today);
+  if(nx!=null)schedScrollToNum(nx);else if(hasToday)schedScrollToDay(today);}
+function schedJumpTomorrow(){var tom=nextISO(curISO());
+  var ms=MATCHES.filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
+  if(!ms.length){try{toast('No matches scheduled tomorrow');}catch(e){}return;}
+  schedScrollToNum(ms[0].num);}
+function dateNavHTML(){
+  var today=curISO(),tom=nextISO(today);
+  var nowNum=schedFirstUnfinishedToday();var ctxNum=nowNum!=null?nowNum:schedNextUnfinishedFrom(today);
+  var label='Tournament',sub='Group Stage';
+  if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+to12(m.time)+' ET';}
+  var hasTom=MATCHES.some(function(x){return matchDay(x)===tom;});
+  return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(nowNum!=null?'Now':'Up next')+'</span><b>'+esc(label)+'</b><span class="dn-s">'+esc(sub)+'</span></div>'+
+   '<div class="dn-actions"><button class="dn-btn" onclick="schedJumpToday()">Today</button>'+
+   (hasTom?'<button class="dn-btn" onclick="schedJumpTomorrow()">Tomorrow</button>':'')+
+   '<button class="dn-btn ghost" onclick="schedDatesSheet()">All dates</button></div></div>';}
+function schedDatesGo(d){closeSheet();setTimeout(function(){schedScrollToDay(d);},80);}
+function schedDatesSheet(){
+  var today=curISO(),tom=nextISO(today);
+  var days=[...new Set(MATCHES.map(matchDay))].sort();
+  var rows=days.map(function(d){var ms=MATCHES.filter(function(m){return matchDay(m)===d;}).sort(schedSort);var rn=roundName(ms[0].num);var tag=d===today?'Today':(d===tom?'Tomorrow':'');
+    var remain=ms.some(function(m){return !schedDone(m);});
+    return '<button class="dns-row" onclick="schedDatesGo(\''+d+'\')"><span class="dns-d"><b>'+esc(fullDay(wdCode(d)))+'</b><span>'+esc(longDate(d))+'</span></span><span class="dns-r">'+esc(rn)+'</span>'+(tag?'<span class="dns-t'+(tag==='Today'?' now':'')+'">'+tag+'</span>':(remain?'':'<span class="dns-done">done</span>'))+'</button>';}).join('');
+  var sh=document.getElementById('sheet');if(!sh)return;
+  sh.innerHTML='<div class="grab"></div><div class="sh-rnd">Jump to a date</div><div class="sh-when">Every match day · Group Stage through the Final</div><div class="dns-list">'+rows+'</div>';
+  document.getElementById('scrim').classList.add('on');try{haptic('tap');}catch(e){}}
 function pulseHTML(){const gm=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]);const goals=gm.reduce((t,m)=>t+S.sc[m.num].h+S.sc[m.num].a,0);
   const avg=gm.length?(goals/gm.length).toFixed(2):"–";
   let big=null,bigd=0,team={};
@@ -6423,13 +6609,18 @@ function pulseHTML(){const gm=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]);
     const d=Math.abs(s.h-s.a);if(d>bigd){bigd=d;big=m;}
     team[m.home]=(team[m.home]||0)+s.h;team[m.away]=(team[m.away]||0)+s.a;});
   let topTeam=Object.keys(team).sort((a,b)=>team[b]-team[a])[0];
-  const bigTxt=big?`${fl(big.home)} ${S.sc[big.num].h}-${S.sc[big.num].a} ${fl(big.away)}`:"–";
-  return `<div class="pulse">
-    <div class="ptile"><div class="pv">${goals}</div><div class="pl">Goals</div><div class="px">${gm.length} games</div></div>
-    <div class="ptile"><div class="pv">${avg}</div><div class="pl">Per game</div><div class="px">avg</div></div>
-    <div class="ptile"><div class="pv" style="font-size:15px">${bigTxt}</div><div class="pl">Biggest win</div><div class="px">+${bigd||0}</div></div>
-    <div class="ptile"><div class="pv" style="font-size:16px">${topTeam?fl(topTeam)+' '+(team[topTeam]):'–'}</div><div class="pl">Most goals</div><div class="px">${topTeam?nm(topTeam):''}</div></div>
-    <div class="ptile"><div class="pv">${Object.keys(S.real).length}</div><div class="pl">Live results</div><div class="px">official</div></div></div>`;}
+  // Compact, clearly-labeled snapshot — one slim strip, secondary to fixtures. Each
+  // number carries its own unit so there are no ambiguous bare counts, and the
+  // duplicate "official results" tally is dropped (it just echoed games played).
+  if(!gm.length)return `<div class="tsnap"><span class="tsnap-k">Tournament snapshot</span><span class="tsnap-empty">Group-stage results appear here once matches kick off.</span></div>`;
+  const bigTxt=big?`${fl(big.home)} ${S.sc[big.num].h}–${S.sc[big.num].a} ${fl(big.away)}`:"–";
+  const items=[
+    `<span class="tsnap-i"><b>${gm.length}</b> group games played</span>`,
+    `<span class="tsnap-i"><b>${avg}</b> goals per game</span>`,
+    (big?`<span class="tsnap-i">Biggest win <b>${bigTxt}</b></span>`:''),
+    (topTeam?`<span class="tsnap-i">Most goals <b>${fl(topTeam)} ${nm(topTeam)}</b></span>`:'')
+  ].filter(Boolean).join('<span class="tsnap-sep">·</span>');
+  return `<div class="tsnap"><span class="tsnap-k">Tournament snapshot</span><div class="tsnap-row">${items}</div></div>`;}
 function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koParts(m.num):[m.home,m.away];const s=ko?null:S.sc[m.num];
   H=lnHTML(ph||m.home,!ph,s?s.h:null,s&&s.h>s.a,s&&s.a>s.h);A=lnHTML(pa||m.away,!pa,s?s.a:null,s&&s.a>s.h,s&&s.h>s.a);
   gtag=ko?`<span class="gtag ko">${roundName(m.num)}</span>`:`<span class="gtag">Grp ${m.group}</span>`;
@@ -6441,7 +6632,7 @@ function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koPa
   // 🔥 Sweat engine: glow the card if you have a live bet riding on this match
   var sweat="";if(S.live&&S.live.num===m.num){var ab=S.bets.find(function(b){return b.num===m.num&&!b.settled&&(b.pick==='h'||b.pick==='a'||b.pick==='d');});
     if(ab){var sh=S.live.sh,sa=S.live.sa;var winning=(ab.pick==='h'&&sh>sa)||(ab.pick==='a'&&sa>sh)||(ab.pick==='d'&&sh===sa);var tied=(sh===sa&&ab.pick!=='d');sweat=winning?' sweat-winning':(tied?' sweat-tied':' sweat-losing');}}
-  return `<div class="mrow ${ko?'ko':''} ${featured?'featured':''} ${foc?'foc':''}${sweat}${done?' played':''}" onclick="sheet(${m.num})"><div class="meta"><span class="tm">${tp.t}</span><span class="ap">${tp.ap}</span><span class="mn">#${m.num}</span></div><div class="teams">${H}${A}</div><div class="rt">${doneTag}${gtag}<span class="vn">${VEN[m.venue][1]}</span>${kIn?`<span class="cdown">⏱ ${kIn}</span>`:""}</div></div>`;}
+  return `<div class="mrow ${ko?'ko':''} ${featured?'featured':''} ${foc?'foc':''}${sweat}${done?' played':''}" id="fx-${m.num}" onclick="sheet(${m.num})"><div class="meta"><span class="tm">${tp.t}</span><span class="ap">${tp.ap}</span><span class="mn">#${m.num}</span></div><div class="teams">${H}${A}</div><div class="rt">${doneTag}${gtag}<span class="vn">${VEN[m.venue][1]}</span>${kIn?`<span class="cdown">⏱ ${kIn}</span>`:""}</div></div>`;}
 function lnHTML(code,ph,score,win,lose){const sc=score!=null?`<span class="sc">${score}</span>`:``;
   if(ph||!T[code])return `<div class="ln"><span class="fl">·</span><span class="nm ph">${slotLabel(code)}</span></div>`;
   return `<div class="ln ${win?'w':(lose?'l':'')}"><span class="fl">${fl(code)}</span><span class="nm">${nm(code)}</span>${sc}</div>`;}
@@ -6594,7 +6785,7 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   let h='';
   try{h+=knockoutModeHTML();}catch(e){}
   // mode switcher
-  if(realLife)h+=knockoutPulseHTML()+'<div class="brk-help" style="margin-top:0">📡 <b>Real life</b> — official results drive this projection automatically. API calls are cached through Vercel so the app stays current without burning your daily quota. <button class="qbtn primary" style="margin-top:9px;width:100%" onclick="startPredictFlow()">Open My Sim prediction bracket</button></div>';
+  if(realLife)h+=knockoutPulseHTML(true)+'<div class="brk-help" style="margin-top:0">📡 <b>Real life</b> — official results drive this projection automatically. API calls are cached through Vercel so the app stays current without burning your daily quota. <button class="qbtn primary" style="margin-top:9px;width:100%" onclick="startPredictFlow()">Open My Sim prediction bracket</button></div>';
   else h+='<div class="brk-mode"><button class="'+(m==='live'?'on':'')+'" onclick="setBrkMode(\'live\')">📡 As it stands</button><button class="'+(m==='pick'?'on':'')+'" onclick="setBrkMode(\'pick\')">✏️ Predict</button><button class="'+(m==='sim'?'on':'')+'" onclick="setBrkMode(\'sim\')">⚡ Simulate</button></div>';
   var note={live:'The real knockout bracket, live — it fills in as games finish.',pick:'Tap a team in any tie to send them through to the Final, then back your champion.',sim:'Roll a full realistic tournament, then bet your winner.'}[m];
   h+='<div class="brk-help">'+note+'</div>';
@@ -7075,12 +7266,70 @@ function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-
 // tabs
 const SCRMAP={home:["home",null],schedule:["matches","schedule"],groups:["matches","groups"],compare:["matches","compare"],stats:["matches","stats"],cities:["matches","cities"],bracket:["matches","bracket"],road:["matches","road"],bet:["bet",null],h2h:["teams","h2h"]};
 var _vtActive=false;
-var _viewScroll={},_lastViewKey=null;
-function switchTab(){
+var _viewScroll={},_lastViewKey=null,_viewScrollSeen={},_pendingRestoreScroll=null,_lastHomeScroll=0;
+function viewKeyForTab(tab){var m=SCRMAP[tab]||["home",null];return m[0]+"/"+(m[1]||"");}
+function readScrollY(){return Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));}
+function scrollMemoryViewKey(){return _lastViewKey||viewKeyForTab(TAB);}
+function writeScrollToHistory(k,y){
+  try{var st=history.state||{};if((st.viewKey||k)!==k)return;if(st.scroll===y&&st.viewKey===k)return;history.replaceState(Object.assign({},st,{tab:st.tab||TAB,viewKey:k,scroll:y}),"");}catch(e){}
+}
+function rememberPositiveScroll(y){
+  y=Math.max(0,Math.round(y||0));if(!y)return;
+  var k=scrollMemoryViewKey(),now=(performance&&performance.now)?performance.now():Date.now();
+  _topCommitToken++;
+  _viewScrollSeen[k]={y:y,at:now};_viewScroll[k]=y;writeScrollToHistory(k,y);
+  if(k==="home/"||(SCRMAP[TAB]&&SCRMAP[TAB][0]==="home"))_lastHomeScroll=y;
+}
+function noteScrollSnapshot(){
+  var y=readScrollY(),k=scrollMemoryViewKey(),now=(performance&&performance.now)?performance.now():Date.now();
+  if(y>0)rememberPositiveScroll(y);
+}
+try{window.addEventListener("scroll",noteScrollSnapshot,{passive:true});}catch(e){}
+try{var _nativeScrollTo=window.scrollTo.bind(window),_nativeScrollOk=!/jsdom/i.test((navigator&&navigator.userAgent)||"");window.scrollTo=function(){var a=arguments[0],y=typeof a==="object"&&a?a.top:arguments[1];if(y>0)rememberPositiveScroll(y);if(_nativeScrollOk)return _nativeScrollTo.apply(window,arguments);};}catch(e){}
+try{if(_nativeScrollOk)(function sampleScrollMemory(){try{var y=readScrollY();if(y>0)rememberPositiveScroll(y);}catch(e){}setTimeout(sampleScrollMemory,120);})();}catch(e){}
+function leavingScrollFor(k){
+  var y=readScrollY();if(y>0)return y;
+  var seen=_viewScrollSeen&&_viewScrollSeen[k];
+  if(seen&&seen.y>0)return seen.y;
+  return y;
+}
+function saveLeavingScroll(destKey,writeState){
+  var st=null;try{st=history.state||{};}catch(e){st={};}
+  var srcKey=_lastViewKey||st.viewKey||viewKeyForTab(st.tab||TAB);
+  if(!srcKey||srcKey===destKey)return;
+  var y=leavingScrollFor(srcKey);
+  if(!y&&st.viewKey===srcKey&&st.scroll>0)y=st.scroll;
+  if(srcKey==="home/"&&y<16&&_lastHomeScroll>0)y=_lastHomeScroll;
+  _viewScroll[srcKey]=y;
+  if(writeState){try{history.replaceState(Object.assign({},st,{tab:st.tab||TAB,viewKey:srcKey,scroll:y}),"");}catch(e){}}
+}
+function restoreScrollFor(k,st){
+  var y=st&&typeof st.scroll==="number"?st.scroll:0,mem=(_viewScroll&&_viewScroll[k])||0,seen=(_viewScrollSeen&&_viewScrollSeen[k]&&_viewScrollSeen[k].y)||0;
+  if(y<16)y=Math.max(mem||0,seen||0,y||0);
+  if(k==="home/"&&y<16&&_lastHomeScroll>0)y=_lastHomeScroll;
+  if(k==="home/"&&y<16){try{var max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);if(max>200)y=Math.min(360,max);}catch(e){}}
+  return y||0;
+}
+/* Explicit forward navigation (tab taps, segment taps, and the go-style arriveAt
+   destination helpers) sets this so _switchTabNow does NOT restore a stale saved
+   scroll for the destination — the destination owns its landing position (top, or
+   arriveAt's target). Browser Back (popstate) does not call pushTab, so it keeps
+   per-view scroll restoration. The leaving view's scroll is still saved either way. */
+var _suppressScrollRestore=false;
+function switchTab(skipAnim){
+  // Every navigation invalidates pending delayed scroll work from the previous one.
+  _navToken++;
+  // Save the LEAVING view's scroll SYNCHRONOUSLY now — before a view transition can
+  // defer _switchTabNow and before the caller scrolls the new view to the top — so
+  // the saved value is the real prior scroll (not 0). TAB is already the destination
+  // here, so only save when actually leaving a different view.
+  try{saveLeavingScroll(viewKeyForTab(TAB),false);}catch(e){}
   // Animate the tab change, but never start a NEW view transition while one is
   // mid-flight (fast double-taps): that aborts the running one and logs a benign
   // InvalidStateError. Instead, just swap instantly — clean console, no jank.
-  if(document.startViewTransition&&!_vtActive){
+  // skipAnim forces a synchronous swap (used by browser Back) so scroll
+  // restoration is deterministic and a same-document view transition can't reset it.
+  if(!skipAnim&&!_suppressScrollRestore&&document.startViewTransition&&!_vtActive){
     try{_vtActive=true;var _vt=document.startViewTransition(function(){_switchTabNow();});
       var _done=function(){_vtActive=false;};
       if(_vt){if(_vt.finished&&_vt.finished.then)_vt.finished.then(_done,_done);else _done();
@@ -7105,15 +7354,23 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
      switches; an explicit re-tap of the active tab still jumps to top (handled in
      the tabbar click handler). */
   var _vkey=m[0]+"/"+(m[1]||"");
-  if(typeof _lastViewKey!=="undefined"&&_lastViewKey!=null&&_lastViewKey!==_vkey){try{_viewScroll[_lastViewKey]=window.scrollY||window.pageYOffset||0;}catch(e){}}
-  try{window.scrollTo(0,(_viewScroll&&_viewScroll[_vkey])||0);}catch(e){}
+  // Note: the leaving view's scroll is saved synchronously in switchTab() (before any
+  // view transition / caller scroll-to-top), so it is NOT re-saved here — re-saving
+  // at this deferred point would capture 0 after the forward nav already reset scroll.
+  var _restore=_pendingRestoreScroll;
+  if(_restore&&_restore.key===_vkey){_pendingRestoreScroll=null;try{window.scrollTo(0,_restore.y||0);}catch(e){}}
+  else if(_suppressScrollRestore){_suppressScrollRestore=false;commitTop();}
+  else{try{window.scrollTo(0,(_viewScroll&&_viewScroll[_vkey])||0);}catch(e){}}
   _lastViewKey=_vkey;
+  noteScrollSnapshot();
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
   try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
   try{idleTask(function(){refreshVisibleData(false);},700);scheduleRefresh(refreshLiveInterval());}catch(e){}
   var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");void cur.offsetWidth;cur.classList.add("enter");}
-  var tf=document.getElementById("todayFab");if(tf)tf.style.display=(m[0]==="matches"&&m[1]==="schedule")?"flex":"none";}
+  /* Today is no longer a floating control (it overlapped schedule rows). An in-flow
+     "Jump to today" button lives in the schedule instead; keep the FAB hidden. */
+  var tf=document.getElementById("todayFab");if(tf)tf.style.display="none";}
 /* Matches tab: auto-scroll to today's games (or the next upcoming day). */
 function scrollToTodayMatches(){
   var m=SCRMAP[TAB]||[];if(m[0]!=="matches"||m[1]!=="schedule")return;
@@ -7138,16 +7395,26 @@ function tick(){ctx.clearRect(0,0,cv.width,cv.height);parts.forEach(p=>{p.vy+=p.
   parts=parts.filter(p=>p.life<130&&p.y<cv.height+40);if(parts.length)raf=requestAnimationFrame(tick);else{raf=null;ctx.clearRect(0,0,cv.width,cv.height);}}
 
 /* ---- History API: keep the device back button inside the app ---- */
-function pushTab(){try{history.pushState({tab:TAB},"");}catch(e){}}
+function pushTab(){_suppressScrollRestore=true;try{var k=viewKeyForTab(TAB);saveLeavingScroll(k,true);history.pushState({tab:TAB,viewKey:k,scroll:0},"");}catch(e){}}
 document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=function(){try{haptic('tap');}catch(e){}
   var screen=b.dataset.screen,curScreen=(SCRMAP[TAB]||["home"])[0];
   if(screen===curScreen){closeSheet();try{window.scrollTo({top:0,behavior:"smooth"});}catch(e){}return;} // re-tap the active tab → jump to the top
   endLive();if(screen==="bet"){_betCat='matches';}
   TAB=({home:"home",matches:"schedule",bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
-window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();TAB=(e.state&&e.state.tab)||"home";switchTab();render();/* scroll position is restored by the view's scroll memory — no surprise jump to top on back */});
+window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();
+  // Back is never explicit forward navigation: it must restore the destination
+  // view's prior scroll, never land at the top. Clear any leaked suppression flag,
+  // swap synchronously (skipAnim) so restoration is deterministic, then re-commit
+  // the saved scroll across the post-render rebuild.
+  _suppressScrollRestore=false;
+  TAB=(e.state&&e.state.tab)||"home";
+  try{var _pk=viewKeyForTab(TAB),_py=restoreScrollFor(_pk,e.state||{});_pendingRestoreScroll={key:_pk,y:_py};}catch(_e){}
+  switchTab(true);render();
+  try{var m=SCRMAP[TAB]||["home",null];var _vk=m[0]+"/"+(m[1]||"");recommitScroll(restoreScrollFor(_vk,e.state||{}));}catch(_e){}
+});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
-try{history.replaceState({tab:TAB},"");}catch(e){}
+try{history.replaceState({tab:TAB,viewKey:viewKeyForTab(TAB),scroll:0},"");}catch(e){}
 /* ---- PWA: service worker + Add to Home Screen ---- */
 if('serviceWorker' in navigator){window.addEventListener('load',function(){try{navigator.serviceWorker.register('sw.js');}catch(e){}});}
 /* ---- optional real-world live football strip (via secure /api/live proxy) ----
@@ -8117,7 +8384,7 @@ try{(function(){
     S=blankState();"ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=GROUPS[g].slice();});
     Object.keys(REAL).forEach(function(n){S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});
     S.mode=mode==='sim'?'sim':'real';S.rwState={};S._rwlive={};S.live=null;S.slip=[];S.bets=[];S.bank=10000;S.bankHist=[10000];
-    _betCat='matches';_betMode='single';_brkMode='live';_brkRound='r32';_viewScroll={};_lastViewKey=null;TAB='home';
+    _betCat='matches';_betMode='single';_brkMode='live';_brkRound='r32';_viewScroll={};_viewScrollSeen={};_pendingRestoreScroll=null;_lastHomeScroll=0;_lastViewKey=null;TAB='home';
     try{switchTab();render();window.scrollTo(0,0);}catch(e){try{render();}catch(x){}}
     return true;
   }
