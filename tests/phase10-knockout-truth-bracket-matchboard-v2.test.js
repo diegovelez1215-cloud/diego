@@ -1,0 +1,227 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
+
+const RAW = /\b(?:IN_PLAY|PENDING|SETTLED|VOID|CASHED|GRP)\b/;
+
+function loadApp() {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const dom = new JSDOM(html, { url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true });
+  const { window } = dom;
+  window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect(){}, fillRect(){}, save(){}, restore(){}, translate(){}, rotate(){}, fillText(){}, beginPath(){}, arc(){}, fill(){}, moveTo(){}, lineTo(){}, stroke(){}, closePath(){}, createLinearGradient(){return{addColorStop(){}}}, createRadialGradient(){return{addColorStop(){}}}, getImageData(){return{data:new Uint8ClampedArray(24*24*4)}} });
+  window.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
+  window.requestAnimationFrame = (fn) => window.setTimeout(fn, 16);
+  window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+  window.MutationObserver = class MutationObserver { observe() {} disconnect() {} };
+  window.AudioContext = function AudioContext() {};
+  window.webkitAudioContext = window.AudioContext;
+  window.eval(`${script}
+    window.__p10 = {
+      getState:function(){return S;}, setState:function(v){S=v;}, blankState:blankState,
+      MATCHES:MATCHES, GROUPS:GROUPS, REAL:REAL, M:M, gMatches:gMatches,
+      renderGroups:renderGroups, renderBracket:renderBracket, renderLiveJump:renderLiveJump,
+      knockoutSlotStatus:knockoutSlotStatus, knockoutPathCardHTML:knockoutPathCardHTML,
+      thirdsTableHTML:thirdsTableHTML, renderThirds:renderThirds,
+      kickoffWindowModel:kickoffWindowModel, kickoffWindowFixtureNums:kickoffWindowFixtureNums,
+      todayRailHTML:todayRailHTML, homeSeen:homeSeen, curISO:curISO, nextISO:nextISO,
+      styleText:function(){return document.querySelector('style').textContent;},
+      mountText:function(html){var d=document.createElement('div');d.innerHTML=html||'';return d.textContent;},
+      groupsHTML:function(){return document.getElementById('groups').innerHTML;},
+      bracketHTML:function(){return document.getElementById('bracket').innerHTML;},
+      setTab:function(v){TAB=v;}, liveJumpDisplay:function(){var el=document.getElementById('livejump');return el&&el.style.display;},
+      withReal:function(fn){return withTour(liveTour(),fn);}
+    };`);
+  return dom;
+}
+
+function withApp(fn) {
+  const dom = loadApp();
+  const errors = [];
+  dom.window.addEventListener('error', (e) => errors.push(e.message));
+  try { return fn(dom.window.__p10, dom.window, dom.window.__ts2, errors); }
+  finally { dom.window.close(); }
+}
+
+function resetOfficial(app) {
+  Object.keys(app.REAL).forEach((k) => delete app.REAL[k]);
+  const s = app.blankState();
+  s.mode = 'real';
+  Object.keys(app.GROUPS).forEach((g) => { s.order[g] = app.GROUPS[g].slice(); });
+  app.setState(s);
+  return s;
+}
+
+function setOfficial(app, state, num, h, a) {
+  app.REAL[num] = [h, a];
+  state.sc[num] = { h, a };
+  state.real[num] = 1;
+}
+
+function fillGroup(app, state, group) {
+  const order = app.GROUPS[group];
+  app.gMatches(group).forEach((m) => {
+    const hi = order.indexOf(m.home), ai = order.indexOf(m.away);
+    setOfficial(app, state, m.num, hi < ai ? 2 : 0, hi < ai ? 0 : 2);
+  });
+}
+
+function sampleLeg() {
+  const events = [
+    { minute: 12, type: 'goal', side: 'h', score: { h: 1, a: 0 }, headline: 'Goal' },
+    { minute: 45, type: 'halftime', score: { h: 1, a: 0 }, headline: 'Half-time' },
+    { minute: 63, type: 'red_card', side: 'a', score: { h: 1, a: 0 }, headline: 'Red card' },
+    { minute: 88, type: 'goal', side: 'h', score: { h: 2, a: 0 }, headline: 'Goal' },
+  ];
+  return { num: 1, pick: 'h', simple: true, label: 'Brazil win', finalState: 'win',
+    result: { teams: { h: 'BRA', a: 'CRO' }, score: { h: 2, a: 0 }, minute: 90, period: 'final', events } };
+}
+
+test('knockout matchup cannot be Confirmed unless both exact participants are officially final', () => withApp((app) => {
+  const s = resetOfficial(app);
+  fillGroup(app, s, 'A');
+  app.setState(s);
+  const firstR32 = [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].find((n) => {
+    const st = app.withReal(() => app.knockoutSlotStatus(n, true));
+    return st.home || st.away;
+  });
+  assert.ok(firstR32, 'test found an R32 slot with one projected/official side');
+  const status = app.withReal(() => app.knockoutSlotStatus(firstR32, true));
+  assert.notEqual(status.state, 'confirmed', 'partial group completion cannot produce a confirmed matchup');
+  assert.ok(['one', 'projected', 'pending'].includes(status.state), `safe state ${status.state}`);
+  const card = app.withReal(() => app.knockoutPathCardHTML(firstR32, new Set(), false, true));
+  assert.ok(!/Both teams officially locked/.test(card), 'card does not imply official certainty');
+}));
+
+test('live/provisional paths render Projected As It Stands, never Confirmed', () => withApp((app) => {
+  const s = resetOfficial(app);
+  app.setState(s);
+  const projected = app.withReal(() => app.knockoutPathCardHTML(73, new Set(), false, true));
+  assert.ok(/Projected · As it stands|Pending official final|One side confirmed/.test(projected), 'uses conservative status language');
+  assert.ok(!/Both teams officially locked/.test(projected), 'live projection is not styled as official confirmation');
+}));
+
+test('Home and Tournament share kickoff-window fixture sets and preserve simultaneous pairs', () => withApp((app) => {
+  const s = resetOfficial(app);
+  const today = app.curISO();
+  app.MATCHES.forEach((m) => { m.date = '2099-12-31'; m.time = '12:00'; });
+  const ms = app.MATCHES.filter((m) => m.stage === 'group').slice(0, 6);
+  ms.forEach((m, i) => { m.date = today; m.time = i < 2 ? '16:00' : (i < 4 ? '19:00' : '22:00'); });
+  app.setState(s);
+  const heroSeen = app.homeSeen([ms[0].num, ms[1].num]);
+  const homeHtml = app.todayRailHTML(heroSeen);
+  const homeNums = Array.from(homeHtml.matchAll(/openSheet\((\d+)\)/g)).map((m) => +m[1]);
+  const modelWins = app.kickoffWindowModel({ iso: today, seen: heroSeen });
+  const tournamentNums = Array.from(app.kickoffWindowFixtureNums(modelWins), Number);
+  assert.equal(homeNums.join(','), tournamentNums.join(','), 'Home remaining fixtures match the shared Tournament kickoff-window model');
+  assert.equal(new Set(homeNums).size, homeNums.length, 'Home does not repeat fixtures');
+  assert.equal(modelWins.map((w) => w.fixtures.length).join(','), '2,2', 'simultaneous fixtures stay paired after hero window');
+  assert.equal(modelWins.map((w) => w.time).join(','), '19:00,22:00', 'windows remain in kickoff order');
+  assert.ok(!/Market odds/i.test(homeHtml), 'factual Home schedule does not render market odds');
+}));
+
+test('Home schedule row keeps group label inset and team text truncates before it', () => withApp((app) => {
+  const css = app.styleText();
+  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) max-content/.test(css), 'team column can shrink before the group label');
+  assert.ok(/\.home-fixture\{[^}]*padding:9px 9px 9px 0/.test(css), 'row has a safe right inset');
+  assert.ok(/\.home-fixture b\{[^}]*text-overflow:ellipsis/.test(css), 'team text truncates safely');
+  assert.ok(/\.home-fixture span\{[^}]*padding-right:4px/.test(css), 'group/status label has a right inset');
+}));
+
+test('Tournament renders exactly one full best-third qualification module below the bracket', () => withApp((app) => {
+  const s = resetOfficial(app);
+  fillGroup(app, s, 'A');
+  app.setState(s);
+  app.renderGroups();
+  assert.ok(!/Best third-place race/.test(app.mountText(app.groupsHTML())), 'old race card is not duplicated on standings');
+  app.renderBracket();
+  const html = app.bracketHTML();
+  const text = app.mountText(html);
+  assert.equal((text.match(/Best third-place qualification/g) || []).length, 1, 'one best-third module heading');
+  assert.equal((text.match(/Best Third-Placed Teams/g) || []).length, 0, 'old duplicate heading is absent');
+  assert.ok(!/View full third-place table/.test(text), 'no hidden full-table action remains');
+  assert.equal((html.match(/third-qual-row/g) || []).length, 12, 'all 12 third-place teams render by default');
+  assert.equal((text.match(/Qualification line — top 8 advance/g) || []).length, 1, 'single qualification line renders after rank 8');
+  assert.ok(html.indexOf('id="knockoutPath"') < html.indexOf('id="bestThirdQualification"'), 'best-third table sits directly after the mobile bracket path');
+}));
+
+test('Tournament floating control hides on bracket, standings, and matches surfaces', () => withApp((app) => {
+  const s = resetOfficial(app);
+  s.rwState[1] = { kind: 'live', label: 'LIVE', sh: 1, sa: 0, min: 34 };
+  app.setState(s);
+  ['groups', 'bracket', 'matches'].forEach((tab) => {
+    app.setTab(tab);
+    app.renderLiveJump();
+    assert.equal(app.liveJumpDisplay(), 'none', `live jump hidden on ${tab}`);
+  });
+}));
+
+test('mobile bracket is vertical and text-safe at phone widths', () => withApp((app) => {
+  resetOfficial(app);
+  app.renderBracket();
+  const html = app.bracketHTML();
+  const css = app.styleText();
+  assert.ok(/id="knockoutPath"/.test(html), 'mobile knockout path is rendered');
+  assert.ok(/\.kpath\{[^}]*flex-direction:column/.test(css), 'bracket path is vertical');
+  assert.ok(/\.kpath-round\{[^}]*overflow:hidden/.test(css), 'round sections clip safely');
+  assert.ok(/\.kpath-team\{[^}]*text-overflow:ellipsis/.test(css), 'team labels cannot run into the edge');
+  assert.ok(/\.kpath-meta span\{[^}]*text-overflow:ellipsis/.test(css), 'status/stakes labels cannot overflow');
+}));
+
+test('Matchboard V3 moves ball and markers deterministically without creating events', () => withApp((app, window, ts2) => {
+  const leg = sampleLeg();
+  const stops = ts2.ts2BuildStops(leg);
+  const seqA = stops.map((ev) => ts2.ts2VisualEventState(leg, ev, ev.score || leg.result.score, ev.period || leg.result.period));
+  const seqB = stops.map((ev) => ts2.ts2VisualEventState(leg, ev, ev.score || leg.result.score, ev.period || leg.result.period));
+  assert.deepEqual(seqA, seqB, 'same event log gives same visual sequence');
+  assert.deepEqual(seqA.map((x) => x.type), stops.map((x) => x.type), 'visual layer creates no new events');
+  assert.ok(seqA.some((x) => x.cls === 'goal'), 'goal event gets goal visual state');
+  assert.ok(seqA.some((x) => x.cls === 'card'), 'red card gets spotlight visual state');
+  const goal = stops[0];
+  const f0 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', 0);
+  const f7 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .78);
+  const f9 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .9);
+  assert.notDeepEqual(f0.ball, f7.ball, 'ball position changes over an attacking/goal sequence');
+  assert.notDeepEqual(f0.markers.map((m) => [m.x, m.y]), f7.markers.map((m) => [m.x, m.y]), 'marker positions change over animation steps');
+  assert.ok(f7.ball.x >= 88 || f7.ball.x <= 12, 'goal path reaches the goal area before score reveal');
+  assert.equal(f7.scoreVisible, false, 'score is held until the ball reaches the goal');
+  assert.equal(f9.scoreVisible, true, 'score reveal follows the goal-path moment');
+  const card = stops.find((ev) => ev.type === 'red_card');
+  assert.ok(ts2.ts2VisualFrame(leg, card, card.score, 'second half', .6).markers.some((m) => m.spot), 'card sequence changes visual spotlight state');
+  const html = ts2.ts2MatchboardHTML(leg, stops[0], stops[0].score, 'first half');
+  assert.ok(/ts2-mb-svg/.test(html) && /ts2-mb-band/.test(html) && /ts2-ball/.test(html), 'SVG trace, attack band, and ball render');
+  assert.ok(!/player|xG|possession|official/i.test(html), 'no fake official stats or player claims');
+}));
+
+test('timing, speed-up, settlement safety, raw labels, and console stay clean', () => withApp((app, window, ts2, errors) => {
+  const one = [sampleLeg()], four = [sampleLeg(), sampleLeg(), sampleLeg(), sampleLeg()];
+  const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
+  const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
+  const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
+  assert.ok(oneWatch >= 18000 && oneWatch <= 28000, `one-leg Watch live was ${oneWatch}`);
+  assert.ok(fourWatch >= 30000 && fourWatch <= 50000, `four-leg Watch live was ${fourWatch}`);
+  assert.ok(oneWatch / oneFast >= 3, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
+  assert.deepEqual(ts2.ts2BuildStops(sampleLeg()).map((s) => s.type), ['goal', 'halftime', 'red_card', 'goal', 'final_whistle']);
+
+  const s = app.blankState();
+  s.mode = 'sim';
+  Object.keys(app.GROUPS).forEach((g) => { s.order[g] = app.GROUPS[g].slice(); });
+  s.bank = 1000;
+  s.bets = [{ id: 'p10-settle', num: 1, pick: 'h', stake: 20, odds: 120, settled: false, state: 'pending' }];
+  app.setState(s);
+  window.ts2Launch(0);
+  window.ts2CashOut();
+  const confirm = window.document.getElementById('ts2confirm');
+  if (confirm) window.ts2CashCancel();
+  window.ts2Skip();
+  const bank = app.getState().bank;
+  window.ts2Replay();
+  window.ts2Skip();
+  assert.equal(app.getState().bank, bank, 'replay/skip cannot duplicate settlement');
+  const visible = window.document.getElementById('ts2').textContent;
+  assert.ok(!RAW.test(visible), 'no raw enum leaks in the rendered simulation surface');
+  assert.equal(errors.length, 0, 'no console errors: ' + errors.join(' | '));
+}));
