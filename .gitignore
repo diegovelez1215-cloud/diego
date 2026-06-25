@@ -28,6 +28,8 @@ worldcup-*.js
 _relite_test.js
 *_test.scratch.js
 node_modules/
+playwright-report/
+test-results/
 
 # OS / editor junk
 .DS_Store
