@@ -1,0 +1,14 @@
+{
+  "name": "united-2026-mobile-release-gate",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test:logic": "node --test tests/*.test.js",
+    "test:ui": "playwright test",
+    "test:release": "npm run test:logic && npm run test:ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "jsdom": "^26.1.0"
+  }
+}

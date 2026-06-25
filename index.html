@@ -3871,7 +3871,7 @@ function phlFixtureMidHTML(fx){
 }
 function phlFinalFixtureRowHTML(fx){
   if(!fx)return '';
-  return '<div class="phl-fixture '+esc(fx.kind||'scheduled')+'"><span class="phl-tm">'+fl(fx.home)+' '+nm(fx.home)+'</span>'+phlFixtureMidHTML(fx)+'<span class="phl-tm r">'+nm(fx.away)+' '+fl(fx.away)+'</span></div>';
+  return '<div class="phl-fixture '+esc(fx.kind||'scheduled')+'" data-num="'+esc(fx.num||'')+'"><span class="phl-tm">'+fl(fx.home)+' '+nm(fx.home)+'</span>'+phlFixtureMidHTML(fx)+'<span class="phl-tm r">'+nm(fx.away)+' '+fl(fx.away)+'</span></div>';
 }
 function phlPickFinalModel(groups){
   var rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4},picked=null,pickedRank=9,pickedTime=Infinity;
@@ -3958,6 +3958,7 @@ function renderHome(){
  // data-status/refresh card and the separate #realwire "Live now" block were
  // duplicate live surfaces — removed. Live data still flows via S.rwState + render().
  var _homePrimary={html:'',nums:[]};try{_homePrimary=homePrimaryContext();}catch(e){_homePrimary={html:homeLiveNowHTML(),nums:[]};}
+ if((!_homePrimary.nums||!_homePrimary.nums.length)&&_homePrimary.html){try{_homePrimary.nums=Array.from(String(_homePrimary.html).matchAll(/data-num="(\d+)"/g)).map(function(m){return +m[1];}).filter(Boolean);}catch(e){}}
  var _homeSeen=homeSeen(_homePrimary.nums||[]);
  // Home order: live pair (hero) · next pair (today/tomorrow rail) · why it matters
  // (tournament pulse) · active Play ticket (only when genuinely active) · then tools.
@@ -8078,6 +8079,88 @@ try{window.__ts2={ts2Legs:ts2Legs,ts2Simple:ts2Simple,ts2StateAt:ts2StateAt,ts2F
   ts2EventHold:ts2EventHold,ts2LegScale:ts2LegScale,ts2ClockMs:ts2ClockMs,ts2IsKey:ts2IsKey,
   ts2VisualEventState:ts2VisualEventState,ts2VisualFrame:ts2VisualFrame,ts2MatchboardHTML:ts2MatchboardHTML,
   getCtx:function(){return _ts2;},setCtx:function(v){_ts2=v;}};}catch(e){}
+/* Localhost-only browser QA mode. It is inert unless the app is served from a
+   loopback host with ?__wc26_e2e=1, so production data and behavior are untouched. */
+try{(function(){
+  var host=String(location.hostname||'').toLowerCase();
+  var local=host==='localhost'||host==='127.0.0.1'||host==='::1';
+  var enabled=local&&/[?&]__wc26_e2e=1(?:&|$)/.test(location.search||'');
+  if(!enabled)return;
+  var e2eOriginalResults={};
+  function e2eSetOfficial(num,h,a){
+    var key=String(num);
+    if(!Object.prototype.hasOwnProperty.call(e2eOriginalResults,key)){
+      e2eOriginalResults[key]=Object.prototype.hasOwnProperty.call(REAL,key)?REAL[key]:null;
+    }
+    REAL[key]=[h,a];
+  }
+  function e2eRestoreResults(){
+    Object.keys(e2eOriginalResults).forEach(function(key){
+      if(e2eOriginalResults[key]===null)delete REAL[key];
+      else REAL[key]=e2eOriginalResults[key];
+    });
+    e2eOriginalResults={};
+  }
+  function e2eSeedFinalMatchday(){
+    [
+      [33,2,0],[34,1,1],[35,1,2],[36,0,2],
+      [37,2,1],[38,3,0],[39,2,1],[40,1,2],
+      [41,1,2],[42,2,0],[43,3,1],[44,1,1],
+      [45,2,0],[46,1,2],[47,2,0],[48,1,1],
+      [49,0,2],[50,1,0],[51,1,1],[52,2,0],
+      [53,1,2],[54,0,1]
+    ].forEach(function(r){e2eSetOfficial(r[0],r[1],r[2]);});
+  }
+  function cleanOverlay(){try{ts2Cancel();}catch(e){}var o=document.getElementById('ts2');if(o)o.remove();document.body.style.overflow='';}
+  function reset(mode){
+    cleanOverlay();e2eRestoreResults();if(mode==='final-matchday')e2eSeedFinalMatchday();
+    S=blankState();"ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=GROUPS[g].slice();});
+    Object.keys(REAL).forEach(function(n){S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});
+    S.mode=mode==='sim'?'sim':'real';S.rwState={};S._rwlive={};S.live=null;S.slip=[];S.bets=[];S.bank=10000;S.bankHist=[10000];
+    _betCat='matches';_betMode='single';_brkMode='live';_brkRound='r32';_viewScroll={};_lastViewKey=null;TAB='home';
+    try{switchTab();render();window.scrollTo(0,0);}catch(e){try{render();}catch(x){}}
+    return true;
+  }
+  function go(tab){TAB=tab;switchTab();render();return true;}
+  function makeResult(){
+    return {kind:'ticket_simulation_2',num:55,teams:{h:'CUW',a:'CIV'},seed:260625,replayKey:'e2e:matchboard',minute:121,period:'penalties',
+      score:{h:1,a:1},regulationScore:{h:1,a:1},extraTimeScore:{h:1,a:1},shootout:{h:5,a:4},advancingTeam:'CUW',redCards:{h:0,a:1},
+      state:{h:tseSideState(1,1,120,0,1),a:tseSideState(1,1,120,1,0)},
+      events:[
+        {minute:12,period:'first half',type:'goal',side:'h',team:'CUW',score:{h:1,a:0},headline:'Curaçao strike early'},
+        {minute:45,period:'halftime',type:'halftime',score:{h:1,a:0},headline:'Half-time · Curaçao lead'},
+        {minute:63,period:'second half',type:'red_card',side:'a',team:'CIV',score:{h:1,a:0},headline:"Côte d'Ivoire reduced to ten"},
+        {minute:86,period:'second half',type:'goal',side:'a',team:'CIV',score:{h:1,a:1},headline:"Côte d'Ivoire level late"},
+        {minute:90,period:'extra time',type:'extra_time',score:{h:1,a:1},headline:'Extra time begins'},
+        {minute:121,period:'penalties',type:'penalties',side:'h',team:'CUW',score:{h:1,a:1},shootout:{h:5,a:4},headline:'Curaçao advance on penalties'}
+      ],
+      metrics:{h:{attack:1,pressure:1},a:{attack:1,pressure:1}},eventHeadline:'Curaçao advance on penalties',playbackState:'complete'};
+  }
+  function startMatchboard(){
+    reset('sim');
+    var b={id:nextBetId(),num:55,pick:'d',stake:100,odds:150,settled:false,state:'pending',sourceMode:'sim'};
+    S.bank-=b.stake;S.bets=[b];
+    var res=makeResult(),lg={betIndex:0,num:55,pick:'d',label:'Draw · Group E #55',simple:true,result:res,finalState:'win'};
+    _ts2={idx:0,targets:[b],legs:[lg],results:{55:res},bankStart:S.bank,settled:false,speed:'cinematic',replayKey:res.replayKey,cur:0,phase:'play',
+      stakeTotal:100,maxPayout:Math.round(100*amerToDec(150)),_cashedOut:false,cashOutAmount:0,_cashPending:null,returnCtx:{type:'play',tab:'bet',cat:'matches',scroll:0}};
+    ts2OpenStage();return true;
+  }
+  function eventByType(type){var t=_ts2,lg=t&&t.legs&&t.legs[0];if(!lg)return null;return ts2BuildStops(lg).filter(function(ev){return ev.type===type;})[0]||null;}
+  function applyEvent(type){var ev=eventByType(type);if(!ev)return false;ts2ApplyEvent(0,ev,ts2Speeds().fast);return board();}
+  function board(){
+    var mb=document.querySelector('.ts2-matchboard'),ball=document.querySelector('.ts2-ball'),markers=[].slice.call(document.querySelectorAll('.ts2-mb-marker'));
+    var br=ball?ball.getBoundingClientRect():null,pr=mb?mb.getBoundingClientRect():null;
+    return {cls:mb?mb.className:'',event:mb?mb.getAttribute('data-event'):'',score:[document.getElementById('ts2sh')&&document.getElementById('ts2sh').textContent,document.getElementById('ts2sa')&&document.getElementById('ts2sa').textContent].join('-'),
+      ball:br&&pr?{x:Math.round(((br.left+br.width/2)-pr.left)/pr.width*100),y:Math.round(((br.top+br.height/2)-pr.top)/pr.height*100)}:null,
+      markers:markers.map(function(m){var r=m.getBoundingClientRect();return pr?{x:Math.round(((r.left+r.width/2)-pr.left)/pr.width*100),y:Math.round(((r.top+r.height/2)-pr.top)/pr.height*100),cls:m.className}:null;}),
+      cash:document.getElementById('ts2cash')?document.getElementById('ts2cash').getBoundingClientRect().toJSON():null,
+      pitch:pr?pr.toJSON():null,bank:S.bank,settled:S.bets.filter(function(b){return b.settled;}).length};
+  }
+  function speedRatio(){var t=_ts2;if(!t)return 0;return ts2EstimatePlayback(t.legs,'cinematic')/Math.max(1,ts2EstimatePlayback(t.legs,'fast'));}
+  function runFastToResult(){if(!_ts2)return false;var res=_ts2.legs&&_ts2.legs[0]&&_ts2.legs[0].result;if(res){S.sc[55]={h:res.score.h,a:res.score.a};S.betsim[55]=1;}ts2SetSpeed('fast');ts2Skip();return {bank:S.bank,settled:S.bets.filter(function(b){return b.settled;}).length,ratio:speedRatio()};}
+  function openTicketBuilder(){reset('sim');go('bet');betTicket({num:61,pick:'a',odds:-125,line:"France Win · Group I #61",title:"Norway v France",leg:{k:'m',num:61,pick:'a',odds:-125,label:"France · Group I #61",key:'m61a'},place:function(st){S.bets.push({id:nextBetId(),num:61,pick:'a',stake:st,odds:-125,settled:false,state:'pending',sourceMode:'sim'});}});return true;}
+  window.__wc26E2E={enabled:true,reset:reset,go:go,startMatchboard:startMatchboard,applyEvent:applyEvent,board:board,speedRatio:speedRatio,runFastToResult:runFastToResult,openTicketBuilder:openTicketBuilder};
+})();}catch(e){}
 render();
 try{handleDeepLink();}catch(e){}
 </script>
