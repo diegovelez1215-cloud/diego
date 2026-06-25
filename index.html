@@ -3856,7 +3856,7 @@ function tournamentPulseHomeHTML(seen){
  var pulse=knockoutPulseHTML(),next=homeNextFixture(seen);
  var note=next?('Next major match: '+(next.stage==="group"?nm(next.home)+' v '+nm(next.away):roundShort(next.num))+' · '+shortDate(next.date)):'Tournament complete';
  if(!next&&seen&&Object.keys(seen).length)note='Current match is shown above. Open the live knockout look for the route picture.';
- return '<div class="home-card official"><div class="home-k"><span>Tournament Pulse</span><span class="home-status">As it stands</span></div><div class="home-sub"><b>'+esc(note)+'</b><br>Live bracket paths and third-place race update only from valid official finals.</div><button class="home-action brk-home-go" onclick="goBracket()">🏆 Open Tournament Bracket →</button><button class="home-sublink" onclick="goLiveBracket()">Or open the live “as it stands” knockout look</button></div>'+pulse;
+ return '<div class="home-card official"><div class="home-k"><span>Tournament Pulse</span><span class="home-status">As it stands</span></div><div class="home-sub"><b>'+esc(note)+'</b><br>Live bracket paths and third-place race update only from valid official finals.</div><button class="home-action brk-home-go" aria-label="Open World Cup knockout bracket" onclick="goBracket()">🏆 Open Bracket →</button><button class="home-sublink" onclick="goLiveBracket()">Or open the live “as it stands” knockout look</button></div>'+pulse;
 }
 function upcomingHomeHTML(){
  var up=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num],pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);return !done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,4);
@@ -3985,12 +3985,12 @@ function phaseLeadHTML(){
     var moreGroups=Math.max(0,gs.length-1);
     var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div>'+(moreGroups?'<div class="phl-more">'+moreGroups+' more group'+(moreGroups===1?'':'s')+' to resolve</div>':'')+'<div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
     var tag='Group '+model.group+' live';
-    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go bracket" onclick="goBracket()">🏆 Open Tournament Bracket →</button><button class="phl-go ghost" onclick="goStandings()">View all group standings →</button></div>';
+    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go bracket" aria-label="Open World Cup knockout bracket" onclick="goBracket()">🏆 Open Bracket →</button><button class="phl-go ghost" onclick="goStandings()">View all group standings →</button></div>';
   }
   if(ph.prioritizeBracket){
     var nx=phlNextKOFixture(),tickets=(S.bets||[]).filter(function(b){return !b.settled;}).length;
     var body=nx?('<div class="phl-row"><span class="phl-tm">'+fl(nx.h)+' '+nm(nx.h)+'</span><span class="phl-mid">v</span><span class="phl-tm r">'+nm(nx.a)+' '+fl(nx.a)+'</span></div><div class="phl-sub">'+roundName(nx.num)+' · '+shortDate(M[nx.num].date)+' · Winner advances</div>'):'<div class="phl-sub">The bracket is forming from the official group finals.</div>';
-    return '<div class="phl ko"><div class="phl-k"><span>🏆 Knockout · Win or go home</span><span class="phl-tag">'+esc(fdPhaseLabel(ph.phase))+'</span></div>'+body+(tickets?'<div class="phl-tickets">🎟 '+tickets+' open ticket'+(tickets>1?'s':'')+' riding on the bracket</div>':'')+'<button class="phl-go" onclick="goBracket()">Open Tournament Bracket →</button></div>';
+    return '<div class="phl ko"><div class="phl-k"><span>🏆 Knockout · Win or go home</span><span class="phl-tag">'+esc(fdPhaseLabel(ph.phase))+'</span></div>'+body+(tickets?'<div class="phl-tickets">🎟 '+tickets+' open ticket'+(tickets>1?'s':'')+' riding on the bracket</div>':'')+'<button class="phl-go" aria-label="Open World Cup knockout bracket" onclick="goBracket()">🏆 Open Bracket →</button></div>';
   }
   return '';
 }
