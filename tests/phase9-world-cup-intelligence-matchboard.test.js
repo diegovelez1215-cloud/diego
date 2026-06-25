@@ -188,8 +188,8 @@ test('Phase 9 cinematic timing, event order, cash-out safety, and mobile stage c
   const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
   const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
   const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
-  assert.ok(oneWatch >= 22000 && oneWatch <= 32000, `one-leg Watch live was ${oneWatch}`);
-  assert.ok(fourWatch >= 35000 && fourWatch <= 60000, `four-leg Watch live was ${fourWatch}`);
+  assert.ok(oneWatch >= 18000 && oneWatch <= 28000, `one-leg Watch live was ${oneWatch}`);
+  assert.ok(fourWatch >= 30000 && fourWatch <= 50000, `four-leg Watch live was ${fourWatch}`);
   assert.ok(oneWatch / oneFast >= 3, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
   assert.deepEqual(ts2.ts2BuildStops(sampleLeg()).map((s) => s.type), ['goal', 'halftime', 'red_card', 'goal', 'final_whistle']);
 

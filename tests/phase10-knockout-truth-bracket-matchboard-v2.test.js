@@ -26,6 +26,8 @@ function loadApp() {
       renderGroups:renderGroups, renderBracket:renderBracket, renderLiveJump:renderLiveJump,
       knockoutSlotStatus:knockoutSlotStatus, knockoutPathCardHTML:knockoutPathCardHTML,
       thirdsTableHTML:thirdsTableHTML, renderThirds:renderThirds,
+      kickoffWindowModel:kickoffWindowModel, kickoffWindowFixtureNums:kickoffWindowFixtureNums,
+      todayRailHTML:todayRailHTML, homeSeen:homeSeen, curISO:curISO, nextISO:nextISO,
       styleText:function(){return document.querySelector('style').textContent;},
       mountText:function(html){var d=document.createElement('div');d.innerHTML=html||'';return d.textContent;},
       groupsHTML:function(){return document.getElementById('groups').innerHTML;},
@@ -102,18 +104,48 @@ test('live/provisional paths render Projected As It Stands, never Confirmed', ()
   assert.ok(!/Both teams officially locked/.test(projected), 'live projection is not styled as official confirmation');
 }));
 
-test('Tournament renders one best-third module by default and full table is behind an action', () => withApp((app) => {
+test('Home and Tournament share kickoff-window fixture sets and preserve simultaneous pairs', () => withApp((app) => {
+  const s = resetOfficial(app);
+  const today = app.curISO();
+  app.MATCHES.forEach((m) => { m.date = '2099-12-31'; m.time = '12:00'; });
+  const ms = app.MATCHES.filter((m) => m.stage === 'group').slice(0, 6);
+  ms.forEach((m, i) => { m.date = today; m.time = i < 2 ? '16:00' : (i < 4 ? '19:00' : '22:00'); });
+  app.setState(s);
+  const heroSeen = app.homeSeen([ms[0].num, ms[1].num]);
+  const homeHtml = app.todayRailHTML(heroSeen);
+  const homeNums = Array.from(homeHtml.matchAll(/openSheet\((\d+)\)/g)).map((m) => +m[1]);
+  const modelWins = app.kickoffWindowModel({ iso: today, seen: heroSeen });
+  const tournamentNums = Array.from(app.kickoffWindowFixtureNums(modelWins), Number);
+  assert.equal(homeNums.join(','), tournamentNums.join(','), 'Home remaining fixtures match the shared Tournament kickoff-window model');
+  assert.equal(new Set(homeNums).size, homeNums.length, 'Home does not repeat fixtures');
+  assert.equal(modelWins.map((w) => w.fixtures.length).join(','), '2,2', 'simultaneous fixtures stay paired after hero window');
+  assert.equal(modelWins.map((w) => w.time).join(','), '19:00,22:00', 'windows remain in kickoff order');
+  assert.ok(!/Market odds/i.test(homeHtml), 'factual Home schedule does not render market odds');
+}));
+
+test('Home schedule row keeps group label inset and team text truncates before it', () => withApp((app) => {
+  const css = app.styleText();
+  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) max-content/.test(css), 'team column can shrink before the group label');
+  assert.ok(/\.home-fixture\{[^}]*padding:8px 8px 8px 0/.test(css), 'row has a safe right inset');
+  assert.ok(/\.home-fixture b\{[^}]*text-overflow:ellipsis/.test(css), 'team text truncates safely');
+  assert.ok(/\.home-fixture span\{[^}]*padding-right:3px/.test(css), 'group/status label has a right inset');
+}));
+
+test('Tournament renders exactly one full best-third qualification module below the bracket', () => withApp((app) => {
   const s = resetOfficial(app);
   fillGroup(app, s, 'A');
   app.setState(s);
   app.renderGroups();
-  const html = app.groupsHTML();
+  assert.ok(!/Best third-place race/.test(app.mountText(app.groupsHTML())), 'old race card is not duplicated on standings');
+  app.renderBracket();
+  const html = app.bracketHTML();
   const text = app.mountText(html);
-  assert.equal((text.match(/Best third-place race/g) || []).length, 1, 'one default best-third module heading');
+  assert.equal((text.match(/Best third-place qualification/g) || []).length, 1, 'one best-third module heading');
   assert.equal((text.match(/Best Third-Placed Teams/g) || []).length, 0, 'old duplicate heading is absent');
-  assert.ok(/View full third-place table/.test(text), 'full table is hidden behind deliberate action');
-  assert.ok(!/th-wrap/.test(html), 'full 12-team table is not rendered by default');
-  assert.ok(/th-wrap/.test(app.thirdsTableHTML()), 'full table still exists for the detail sheet');
+  assert.ok(!/View full third-place table/.test(text), 'no hidden full-table action remains');
+  assert.equal((html.match(/third-qual-row/g) || []).length, 12, 'all 12 third-place teams render by default');
+  assert.equal((text.match(/Qualification line — top 8 advance/g) || []).length, 1, 'single qualification line renders after rank 8');
+  assert.ok(html.indexOf('id="knockoutPath"') < html.indexOf('id="bestThirdQualification"'), 'best-third table sits directly after the mobile bracket path');
 }));
 
 test('Tournament floating control hides on bracket, standings, and matches surfaces', () => withApp((app) => {
@@ -139,7 +171,7 @@ test('mobile bracket is vertical and text-safe at phone widths', () => withApp((
   assert.ok(/\.kpath-meta span\{[^}]*text-overflow:ellipsis/.test(css), 'status/stakes labels cannot overflow');
 }));
 
-test('Matchboard V2 remains deterministic and visualizes existing events only', () => withApp((app, window, ts2) => {
+test('Matchboard V3 moves ball and markers deterministically without creating events', () => withApp((app, window, ts2) => {
   const leg = sampleLeg();
   const stops = ts2.ts2BuildStops(leg);
   const seqA = stops.map((ev) => ts2.ts2VisualEventState(leg, ev, ev.score || leg.result.score, ev.period || leg.result.period));
@@ -148,8 +180,19 @@ test('Matchboard V2 remains deterministic and visualizes existing events only', 
   assert.deepEqual(seqA.map((x) => x.type), stops.map((x) => x.type), 'visual layer creates no new events');
   assert.ok(seqA.some((x) => x.cls === 'goal'), 'goal event gets goal visual state');
   assert.ok(seqA.some((x) => x.cls === 'card'), 'red card gets spotlight visual state');
+  const goal = stops[0];
+  const f0 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', 0);
+  const f7 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .78);
+  const f9 = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .9);
+  assert.notDeepEqual(f0.ball, f7.ball, 'ball position changes over an attacking/goal sequence');
+  assert.notDeepEqual(f0.markers.map((m) => [m.x, m.y]), f7.markers.map((m) => [m.x, m.y]), 'marker positions change over animation steps');
+  assert.ok(f7.ball.x >= 88 || f7.ball.x <= 12, 'goal path reaches the goal area before score reveal');
+  assert.equal(f7.scoreVisible, false, 'score is held until the ball reaches the goal');
+  assert.equal(f9.scoreVisible, true, 'score reveal follows the goal-path moment');
+  const card = stops.find((ev) => ev.type === 'red_card');
+  assert.ok(ts2.ts2VisualFrame(leg, card, card.score, 'second half', .6).markers.some((m) => m.spot), 'card sequence changes visual spotlight state');
   const html = ts2.ts2MatchboardHTML(leg, stops[0], stops[0].score, 'first half');
-  assert.ok(/ts2-mb-band/.test(html) && /ts2-ball/.test(html), 'attack band and ball render');
+  assert.ok(/ts2-mb-svg/.test(html) && /ts2-mb-band/.test(html) && /ts2-ball/.test(html), 'SVG trace, attack band, and ball render');
   assert.ok(!/player|xG|possession|official/i.test(html), 'no fake official stats or player claims');
 }));
 
@@ -158,8 +201,8 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
   const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
   const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
-  assert.ok(oneWatch >= 22000 && oneWatch <= 32000, `one-leg Watch live was ${oneWatch}`);
-  assert.ok(fourWatch >= 35000 && fourWatch <= 60000, `four-leg Watch live was ${fourWatch}`);
+  assert.ok(oneWatch >= 18000 && oneWatch <= 28000, `one-leg Watch live was ${oneWatch}`);
+  assert.ok(fourWatch >= 30000 && fourWatch <= 50000, `four-leg Watch live was ${fourWatch}`);
   assert.ok(oneWatch / oneFast >= 3, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
   assert.deepEqual(ts2.ts2BuildStops(sampleLeg()).map((s) => s.type), ['goal', 'halftime', 'red_card', 'goal', 'final_whistle']);
 
