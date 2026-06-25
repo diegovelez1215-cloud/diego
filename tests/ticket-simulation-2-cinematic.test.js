@@ -158,9 +158,11 @@ test('end-to-end: launch builds the one-screen stage, skip lands a recap, settle
   window.ts2Launch(0);
   const stage = window.document.getElementById('ts2');
   assert.ok(stage, 'matchday overlay mounted');
-  // top rail
-  assert.equal(window.document.querySelectorAll('#ts2top .ts2-speed button').length, 3, 'three playback speeds');
-  assert.ok(window.document.querySelector('#ts2top .ts2-skip'), 'skip control present');
+  // top controls: cinematic by default, no old Normal/Fast/Cinematic mode labels
+  const topText = window.document.getElementById('ts2top').textContent;
+  assert.ok(/Watch live/.test(topText), 'watch-live control present');
+  assert.ok(/Skip to result/.test(topText), 'skip-to-result control present');
+  ['Normal', 'Fast', 'Cinematic'].forEach((label) => assert.ok(!topText.includes(label), `old playback label leaked: ${label}`));
   assert.ok(window.document.querySelector('#ts2top .ts2-x'), 'close control present');
   // main stage
   assert.ok(window.document.querySelector('#ts2stage .ts2-board'), 'score board present');
@@ -172,7 +174,10 @@ test('end-to-end: launch builds the one-screen stage, skip lands a recap, settle
   // skip to result -> premium recap
   window.ts2Skip();
   assert.ok(window.document.getElementById('ts2recap'), 'recap shown after skip');
-  assert.ok(window.document.querySelectorAll('#ts2recap .ts2-rc-btn').length >= 2, 'recap actions present');
+  const recapText = window.document.getElementById('ts2recap').textContent;
+  assert.ok(/Reset to live/.test(recapText), 'reset-to-live recap action present');
+  assert.ok(/New slip/.test(recapText), 'new-slip recap action present');
+  assert.ok(!/Edit ticket/.test(recapText), 'completed recap never shows edit-ticket');
   const settledBank = app.getState().bank;
   // replaying must not move the wallet again
   window.ts2Replay();

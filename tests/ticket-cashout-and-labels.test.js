@@ -224,7 +224,9 @@ test('end-to-end: live cash control mounts, confirm settles once, skip cannot re
   const cashEl = window.document.querySelector('#ts2cash .ts2-cash');
   assert.ok(cashEl, 'live cash out control visible while in play');
   const btn = cashEl.querySelector('button');
-  assert.ok(btn && !btn.disabled, 'cash out button is enabled and reachable (in the always-visible header band)');
+  assert.ok(btn && !btn.disabled, 'cash out button is enabled and reachable in the lower stage action band');
+  const children = Array.from(window.document.getElementById('ts2').children).map((el) => el.id);
+  assert.deepEqual(children.slice(0, 4), ['ts2top', 'ts2stage', 'ts2cash', 'ts2rail'], 'cash out sits above the ticket rail in the thumb zone');
 
   // open the compact confirmation sheet
   window.ts2CashOut();
@@ -245,6 +247,9 @@ test('end-to-end: live cash control mounts, confirm settles once, skip cannot re
   const recap = window.document.getElementById('ts2recap');
   assert.ok(recap, 'recap shown after skip');
   assert.ok(/Cashed out/.test(recap.textContent), 'recap reflects the cash out');
+  assert.ok(/Reset to live/.test(recap.textContent), 'cashed-out recap prioritizes reset to live');
+  assert.ok(/New slip/.test(recap.textContent), 'cashed-out recap offers a new slip');
+  assert.ok(!/Edit ticket/.test(recap.textContent), 'cashed-out recap does not show edit slip');
   assert.equal(app.getState().bank, bankAfter, 'skip-to-result cannot settle again');
 
   // replay then skip again: still no re-pay
