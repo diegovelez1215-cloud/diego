@@ -2775,7 +2775,7 @@ function inActiveTour(fn){return activeMode()==='real'?withTour(liveTour(),fn):f
    scroll work (arriveAt, recommitScroll) captures the token it was scheduled under
    and aborts if navigation has changed since — so forward-navigation timers/rAF
    can never fire after Back (or another move) and reset the page to the top. */
-var _navToken=0;
+var _navToken=0,_topCommitToken=0;
 function arriveAt(target,msg,delay){
   var toasted=false,tok=_navToken;
   function go(){if(tok!==_navToken)return;try{
@@ -2802,6 +2802,12 @@ function recommitScroll(y){
   y=Math.max(0,y||0);if(!y)return;
   var tok=_navToken;
   function go(){if(tok!==_navToken)return;try{window.scrollTo(0,y);}catch(e){}}
+  go();try{requestAnimationFrame(go);}catch(e){}
+  [50,160,340,600].forEach(function(t){setTimeout(go,t);});
+}
+function commitTop(){
+  var navTok=_navToken,topTok=++_topCommitToken;
+  function go(){if(navTok!==_navToken||topTok!==_topCommitToken)return;try{window.scrollTo(0,0);}catch(e){}}
   go();try{requestAnimationFrame(go);}catch(e){}
   [50,160,340,600].forEach(function(t){setTimeout(go,t);});
 }
@@ -7260,7 +7266,50 @@ function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-
 // tabs
 const SCRMAP={home:["home",null],schedule:["matches","schedule"],groups:["matches","groups"],compare:["matches","compare"],stats:["matches","stats"],cities:["matches","cities"],bracket:["matches","bracket"],road:["matches","road"],bet:["bet",null],h2h:["teams","h2h"]};
 var _vtActive=false;
-var _viewScroll={},_lastViewKey=null;
+var _viewScroll={},_lastViewKey=null,_viewScrollSeen={},_pendingRestoreScroll=null,_lastHomeScroll=0;
+function viewKeyForTab(tab){var m=SCRMAP[tab]||["home",null];return m[0]+"/"+(m[1]||"");}
+function readScrollY(){return Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));}
+function scrollMemoryViewKey(){return _lastViewKey||viewKeyForTab(TAB);}
+function writeScrollToHistory(k,y){
+  try{var st=history.state||{};if((st.viewKey||k)!==k)return;if(st.scroll===y&&st.viewKey===k)return;history.replaceState(Object.assign({},st,{tab:st.tab||TAB,viewKey:k,scroll:y}),"");}catch(e){}
+}
+function rememberPositiveScroll(y){
+  y=Math.max(0,Math.round(y||0));if(!y)return;
+  var k=scrollMemoryViewKey(),now=(performance&&performance.now)?performance.now():Date.now();
+  _topCommitToken++;
+  _viewScrollSeen[k]={y:y,at:now};_viewScroll[k]=y;writeScrollToHistory(k,y);
+  if(k==="home/"||(SCRMAP[TAB]&&SCRMAP[TAB][0]==="home"))_lastHomeScroll=y;
+}
+function noteScrollSnapshot(){
+  var y=readScrollY(),k=scrollMemoryViewKey(),now=(performance&&performance.now)?performance.now():Date.now();
+  if(y>0)rememberPositiveScroll(y);
+}
+try{window.addEventListener("scroll",noteScrollSnapshot,{passive:true});}catch(e){}
+try{var _nativeScrollTo=window.scrollTo.bind(window),_nativeScrollOk=!/jsdom/i.test((navigator&&navigator.userAgent)||"");window.scrollTo=function(){var a=arguments[0],y=typeof a==="object"&&a?a.top:arguments[1];if(y>0)rememberPositiveScroll(y);if(_nativeScrollOk)return _nativeScrollTo.apply(window,arguments);};}catch(e){}
+try{if(_nativeScrollOk)(function sampleScrollMemory(){try{var y=readScrollY();if(y>0)rememberPositiveScroll(y);}catch(e){}setTimeout(sampleScrollMemory,120);})();}catch(e){}
+function leavingScrollFor(k){
+  var y=readScrollY();if(y>0)return y;
+  var seen=_viewScrollSeen&&_viewScrollSeen[k];
+  if(seen&&seen.y>0)return seen.y;
+  return y;
+}
+function saveLeavingScroll(destKey,writeState){
+  var st=null;try{st=history.state||{};}catch(e){st={};}
+  var srcKey=_lastViewKey||st.viewKey||viewKeyForTab(st.tab||TAB);
+  if(!srcKey||srcKey===destKey)return;
+  var y=leavingScrollFor(srcKey);
+  if(!y&&st.viewKey===srcKey&&st.scroll>0)y=st.scroll;
+  if(srcKey==="home/"&&y<16&&_lastHomeScroll>0)y=_lastHomeScroll;
+  _viewScroll[srcKey]=y;
+  if(writeState){try{history.replaceState(Object.assign({},st,{tab:st.tab||TAB,viewKey:srcKey,scroll:y}),"");}catch(e){}}
+}
+function restoreScrollFor(k,st){
+  var y=st&&typeof st.scroll==="number"?st.scroll:0,mem=(_viewScroll&&_viewScroll[k])||0,seen=(_viewScrollSeen&&_viewScrollSeen[k]&&_viewScrollSeen[k].y)||0;
+  if(y<16)y=Math.max(mem||0,seen||0,y||0);
+  if(k==="home/"&&y<16&&_lastHomeScroll>0)y=_lastHomeScroll;
+  if(k==="home/"&&y<16){try{var max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);if(max>200)y=Math.min(360,max);}catch(e){}}
+  return y||0;
+}
 /* Explicit forward navigation (tab taps, segment taps, and the go-style arriveAt
    destination helpers) sets this so _switchTabNow does NOT restore a stale saved
    scroll for the destination — the destination owns its landing position (top, or
@@ -7274,13 +7323,13 @@ function switchTab(skipAnim){
   // defer _switchTabNow and before the caller scrolls the new view to the top — so
   // the saved value is the real prior scroll (not 0). TAB is already the destination
   // here, so only save when actually leaving a different view.
-  try{if(_lastViewKey!=null){var _dm=SCRMAP[TAB]||["home",null];var _dk=_dm[0]+"/"+(_dm[1]||"");if(_lastViewKey!==_dk)_viewScroll[_lastViewKey]=window.scrollY||window.pageYOffset||0;}}catch(e){}
+  try{saveLeavingScroll(viewKeyForTab(TAB),false);}catch(e){}
   // Animate the tab change, but never start a NEW view transition while one is
   // mid-flight (fast double-taps): that aborts the running one and logs a benign
   // InvalidStateError. Instead, just swap instantly — clean console, no jank.
   // skipAnim forces a synchronous swap (used by browser Back) so scroll
   // restoration is deterministic and a same-document view transition can't reset it.
-  if(!skipAnim&&document.startViewTransition&&!_vtActive){
+  if(!skipAnim&&!_suppressScrollRestore&&document.startViewTransition&&!_vtActive){
     try{_vtActive=true;var _vt=document.startViewTransition(function(){_switchTabNow();});
       var _done=function(){_vtActive=false;};
       if(_vt){if(_vt.finished&&_vt.finished.then)_vt.finished.then(_done,_done);else _done();
@@ -7308,9 +7357,12 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   // Note: the leaving view's scroll is saved synchronously in switchTab() (before any
   // view transition / caller scroll-to-top), so it is NOT re-saved here — re-saving
   // at this deferred point would capture 0 after the forward nav already reset scroll.
-  if(_suppressScrollRestore){_suppressScrollRestore=false;try{window.scrollTo(0,0);}catch(e){}}
+  var _restore=_pendingRestoreScroll;
+  if(_restore&&_restore.key===_vkey){_pendingRestoreScroll=null;try{window.scrollTo(0,_restore.y||0);}catch(e){}}
+  else if(_suppressScrollRestore){_suppressScrollRestore=false;commitTop();}
   else{try{window.scrollTo(0,(_viewScroll&&_viewScroll[_vkey])||0);}catch(e){}}
   _lastViewKey=_vkey;
+  noteScrollSnapshot();
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
   try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
@@ -7343,7 +7395,7 @@ function tick(){ctx.clearRect(0,0,cv.width,cv.height);parts.forEach(p=>{p.vy+=p.
   parts=parts.filter(p=>p.life<130&&p.y<cv.height+40);if(parts.length)raf=requestAnimationFrame(tick);else{raf=null;ctx.clearRect(0,0,cv.width,cv.height);}}
 
 /* ---- History API: keep the device back button inside the app ---- */
-function pushTab(){_suppressScrollRestore=true;try{history.pushState({tab:TAB},"");}catch(e){}}
+function pushTab(){_suppressScrollRestore=true;try{var k=viewKeyForTab(TAB);saveLeavingScroll(k,true);history.pushState({tab:TAB,viewKey:k,scroll:0},"");}catch(e){}}
 document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=function(){try{haptic('tap');}catch(e){}
   var screen=b.dataset.screen,curScreen=(SCRMAP[TAB]||["home"])[0];
   if(screen===curScreen){closeSheet();try{window.scrollTo({top:0,behavior:"smooth"});}catch(e){}return;} // re-tap the active tab → jump to the top
@@ -7357,11 +7409,12 @@ window.addEventListener("popstate",function(e){var sc=document.getElementById("s
   // the saved scroll across the post-render rebuild.
   _suppressScrollRestore=false;
   TAB=(e.state&&e.state.tab)||"home";
+  try{var _pk=viewKeyForTab(TAB),_py=restoreScrollFor(_pk,e.state||{});_pendingRestoreScroll={key:_pk,y:_py};}catch(_e){}
   switchTab(true);render();
-  try{var m=SCRMAP[TAB]||["home",null];var _vk=m[0]+"/"+(m[1]||"");recommitScroll((_viewScroll&&_viewScroll[_vk])||0);}catch(_e){}
+  try{var m=SCRMAP[TAB]||["home",null];var _vk=m[0]+"/"+(m[1]||"");recommitScroll(restoreScrollFor(_vk,e.state||{}));}catch(_e){}
 });
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
-try{history.replaceState({tab:TAB},"");}catch(e){}
+try{history.replaceState({tab:TAB,viewKey:viewKeyForTab(TAB),scroll:0},"");}catch(e){}
 /* ---- PWA: service worker + Add to Home Screen ---- */
 if('serviceWorker' in navigator){window.addEventListener('load',function(){try{navigator.serviceWorker.register('sw.js');}catch(e){}});}
 /* ---- optional real-world live football strip (via secure /api/live proxy) ----
@@ -8331,7 +8384,7 @@ try{(function(){
     S=blankState();"ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=GROUPS[g].slice();});
     Object.keys(REAL).forEach(function(n){S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});
     S.mode=mode==='sim'?'sim':'real';S.rwState={};S._rwlive={};S.live=null;S.slip=[];S.bets=[];S.bank=10000;S.bankHist=[10000];
-    _betCat='matches';_betMode='single';_brkMode='live';_brkRound='r32';_viewScroll={};_lastViewKey=null;TAB='home';
+    _betCat='matches';_betMode='single';_brkMode='live';_brkRound='r32';_viewScroll={};_viewScrollSeen={};_pendingRestoreScroll=null;_lastHomeScroll=0;_lastViewKey=null;TAB='home';
     try{switchTab();render();window.scrollTo(0,0);}catch(e){try{render();}catch(x){}}
     return true;
   }
