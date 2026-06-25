@@ -230,8 +230,25 @@ nav button.on .e{opacity:1}
 .sched-filter{display:flex;gap:8px;margin-bottom:12px;align-items:center}
 .sched-filter select{flex:1;min-width:0;background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:700;font-family:inherit;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237a8499' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 .sched-filter select:focus{outline:none;border-color:var(--teal2)}
-.sched-today{display:block;width:100%;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(29,42,114,.34);color:var(--teal2);font-weight:800;font-size:12.5px;font-family:inherit;text-align:center;cursor:pointer}
-.sched-today:active{transform:scale(.99)}
+.date-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(168deg,rgba(48,62,132,.34),rgba(28,38,92,.42));flex-wrap:wrap}
+.dn-ctx{display:flex;flex-direction:column;min-width:0;line-height:1.25;flex:1}
+.dn-k{font-size:8.5px;font-weight:950;letter-spacing:1px;text-transform:uppercase;color:var(--teal2)}
+.dn-ctx b{font-size:13.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.dn-s{font-size:11px;font-weight:700;color:var(--mut)}
+.dn-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.dn-btn{min-height:36px;padding:7px 13px;border-radius:10px;border:1px solid var(--line2);background:var(--card);color:var(--txt);font-weight:800;font-size:12px;font-family:inherit;cursor:pointer}
+.dn-btn.ghost{background:transparent;color:var(--teal2)}
+.dn-btn:active{transform:scale(.97)}
+.daygrp,.mrow{scroll-margin-top:104px}
+.dns-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.dns-row{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--txt);font-family:inherit;cursor:pointer;text-align:left}
+.dns-d{display:flex;flex-direction:column;flex:1;min-width:0}
+.dns-d b{font-size:13px;font-weight:900}
+.dns-d span{font-size:11px;color:var(--mut);font-weight:700}
+.dns-r{font-size:11px;color:var(--mut2);font-weight:800;white-space:nowrap}
+.dns-t{font-size:10px;font-weight:900;color:var(--mut);border:1px solid var(--line2);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.dns-t.now{color:#063d20;background:var(--green);border-color:transparent}
+.dns-done{font-size:10px;color:var(--mut3);font-weight:800}
 .sf-clear{flex:0 0 auto;background:var(--card);border:1px solid var(--line);color:var(--mut);border-radius:12px;padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer}
 .sf-clear:active{transform:scale(.95)}
 .cwx-slot:empty{display:none}
@@ -2235,6 +2252,14 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .fre-tchip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:1px solid var(--line2);border-radius:20px;background:rgba(255,255,255,.04);color:#fff;font-size:12px;font-weight:850;cursor:pointer;transition:transform .15s var(--spring),border-color .15s}
 .fre-tchip:active{transform:scale(.95)}
 .fre-tchip:hover{border-color:var(--cy-line,rgba(100,210,255,.4))}
+.fre-allbtn{display:block;width:100%;margin-top:9px;padding:9px 12px;border:1px solid var(--cy-line,rgba(100,210,255,.4));border-radius:12px;background:rgba(100,210,255,.08);color:#64d2ff;font-family:inherit;font-size:12.5px;font-weight:850;cursor:pointer}
+.fre-allbtn:active{transform:scale(.99)}
+.rat-list{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.rat-grp{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:rgba(29,42,114,.3)}
+.rat-gh{font-size:10px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#64d2ff;margin-bottom:8px}
+.rat-row{display:flex;flex-wrap:wrap;gap:7px}
+.rat-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px 6px 8px;border:1px solid var(--line2);border-radius:20px;background:rgba(255,255,255,.04);color:#fff;font-family:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.rat-chip:active{transform:scale(.95)}
 /* bottom-sheet shared bits */
 .tcc-sheet-lead{font-size:13px;font-weight:600;color:var(--mut);line-height:1.5;margin:4px 2px 12px}
 .tcc-sheet-lead b{color:var(--txt);font-weight:800}
@@ -2763,6 +2788,16 @@ function arriveAt(target,msg,delay){
   // position lands on the intended destination rather than a pre-shift estimate.
   try{requestAnimationFrame(go);}catch(e){}
   [base,base+170,base+430].forEach(function(t){setTimeout(go,t);});
+}
+/* Browser Back must restore the destination view's prior scroll. The post-Back
+   render() rebuilds the view, so re-commit the saved position across the next
+   frames so it isn't clamped to the top. Instant (no smooth) — Back should feel
+   immediate. A 0 target is a no-op (already at top). */
+function recommitScroll(y){
+  y=Math.max(0,y||0);if(!y)return;
+  function go(){try{window.scrollTo(0,y);}catch(e){}}
+  go();try{requestAnimationFrame(go);}catch(e){}
+  [50,160,340,600].forEach(function(t){setTimeout(go,t);});
 }
 function startPredictFlow(code){closeSheet();S.mode='sim';_brkMode='pick';if(code)S.focus=code;TAB='bracket';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#brkVert","🎮 My Sim · Predict mode opened");}
 function startSimFlow(){closeSheet();S.mode='sim';_brkMode='sim';TAB='bracket';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#bracket","⚡ My Sim · simulation controls ready");}
@@ -5587,11 +5622,26 @@ function asItStandsHTML(g){var gpl=gMatches(g).filter(m=>S.sc[m.num]&&!isBetSim(
 /* Dashboard "Live Knockout Projections" — marquee Round-of-32 ties as they
    currently stand, resolved live from real results via the 495-combination
    third-place engine. Shown on the home screen; updates itself on each sync. */
-function knockoutPulseHTML(){
+/* A meaningful, factual knockout context: an official knockout result exists, the
+   tournament has moved past plain group stage (resolving / final matchday / KO), or
+   the group stage is all but complete. Read-only — no logic/truth changes. */
+function knockoutContextMeaningful(){
+  try{
+    if(S.realko&&Object.keys(S.realko).length)return true;
+    var ph=fdSafePhase();if(ph&&ph.phase&&ph.phase!=='group_stage')return true;
+    var done=MATCHES.filter(function(m){return m.stage==='group'&&tccOfficialFinal(m.num);}).length;
+    return done>=60;
+  }catch(e){return false;}
+}
+function knockoutPulseHTML(inBracket){
   // Runs inside the active tournament context (real mode = reality-only).
   var sim=activeMode()==='sim';
   var gpPlayed=MATCHES.filter(function(m){return m.stage==="group"&&S.sc[m.num]&&!isBetSim(m.num);}).length;
   if(!gpPlayed)return "";
+  // On Home, surface the Live Knockout marquee only in a meaningful official/live
+  // knockout state (not the instant one group game is played). Inside Bracket it
+  // always renders. A user's own sim projection is always allowed.
+  if(!inBracket&&!sim&&!knockoutContextMeaningful())return "";
   var r32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],ties=[];
   r32.forEach(function(n){var p=koParts(n);if(!p[0]||!p[1])return;
     ties.push({n:n,h:p[0],a:p[1],r:(RAT[p[0]]||60)+(RAT[p[1]]||60)});});
@@ -5608,7 +5658,7 @@ function knockoutPulseHTML(){
     '<div class="kp-stats"><div class="kp-stat"><b>'+filled+'/16</b><span>R32 ties</span></div><div class="kp-stat"><b>'+gpPlayed+'/72</b><span>Group games</span></div><div class="kp-stat"><b>'+(cut?cut.Pts:'—')+'</b><span>3rd cutoff</span></div></div>'+
     '<div class="kp-main"><div class="kp-main-k">Marquee projected ties</div>'+rows+'</div>'+
     '<div class="kp-main-k">Best third-place race'+(bubble?' · bubble: '+fl(bubble.code)+' '+nm(bubble.code):'')+'</div><div class="kp-third">'+third+'</div>'+
-    '<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button></div>';
+    (inBracket?'':'<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button>')+'</div>';
 }
 function groupsOverviewHTML(){
   var h='<div class="grpov-h">📊 All groups at a glance · tap a group to jump</div><div class="grpov">';
@@ -5622,7 +5672,7 @@ function jumpGroup(g){var el=document.getElementById("grp-"+g);if(el)el.scrollIn
 function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatchdayCenterHTML();}catch(e){}let h=_fmd+groupsOverviewHTML();
   // Route Explorer — one predictable, factual home near Final Matchday / standings.
   // Tap any team to see what each finish means (≤2 taps). Reuses openRouteExplorer.
-  try{var _leaders="ABCDEFGHIJKL".split("").map(function(g){var st=standings(g);return st&&st[0]?st[0].code:null;}).filter(Boolean);var _re=freEntryChipsHTML(_leaders,12);if(_re)h+=_re;}catch(e){}
+  try{h+=routeExplorerLauncherHTML();}catch(e){}
   "ABCDEFGHIJKL".split("").forEach(g=>{const st=standings(g);
   const gpl=gMatches(g).filter(m=>S.sc[m.num]).length;const god=g===GOD;
   h+=`<div id="grp-${g}" class="gcard ${god?'god':''}"><div class="ghead"><div class="gbadge">${g}</div><div class="gt">GROUP ${g}${god?'<span class="skull">💀</span>':''}</div><div class="gp">${gpl}/6</div>${gpl<6?`<button class="gsim" onclick="simGroup('${g}')">⚡ Sim</button>`:''}</div>`;
@@ -6385,6 +6435,29 @@ function freEntryChipsHTML(codes,limit){
   if(!chips)return '';
   return '<div class="fre-launch"><div class="fre-launch-h">🧭 Explore a team’s route</div><div class="fre-launch-row">'+chips+'</div></div>';
 }
+/* Standings Route Explorer launcher: current group-leader shortcuts (optional) PLUS
+   an always-present all-team picker, so every one of the 48 teams is discoverable —
+   the leaders are never the only route entry. Factual; reuses openRouteExplorer. */
+function routeExplorerLauncherHTML(){
+  var leaders="ABCDEFGHIJKL".split("").map(function(g){var st=standings(g);return st&&st[0]?st[0].code:null;}).filter(Boolean);
+  var seen={},chips=leaders.filter(function(c){if(!c||!T[c]||seen[c])return false;seen[c]=1;return !!tccTeamTournamentStatus(c);}).slice(0,12)
+    .map(function(c){return '<button class="fre-tchip" onclick="openRouteExplorer(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
+  return '<div class="fre-launch"><div class="fre-launch-h">🧭 Explore a team’s route</div>'+
+    (chips?'<div class="fre-launch-row">'+chips+'</div>':'')+
+    '<button class="fre-allbtn" onclick="routeAllTeamsSheet()">All 48 teams · by group →</button></div>';
+}
+/* All-48-teams picker — grouped A–L in a sheet (never 48 permanent buttons). Each
+   team opens its existing Route Explorer view via openRouteExplorer. Factual only. */
+function routeAllTeamsGo(c){openRouteExplorer(c);}
+function routeAllTeamsSheet(){
+  var sh=document.getElementById('sheet');if(!sh)return;
+  var groups='ABCDEFGHIJKL'.split('').map(function(g){
+    var chips=(GROUPS[g]||[]).slice().map(function(c){return '<button class="rat-chip" onclick="routeAllTeamsGo(\''+c+'\')">'+fl(c)+'<span>'+esc(nm(c))+'</span></button>';}).join('');
+    return '<div class="rat-grp"><div class="rat-gh">Group '+g+'</div><div class="rat-row">'+chips+'</div></div>';
+  }).join('');
+  sh.innerHTML='<div class="grab"></div><div class="sh-rnd">Explore a team’s route</div><div class="sh-when">All 48 teams · what each finish means · official information only</div><div class="rat-list">'+groups+'</div>';
+  document.getElementById('scrim').classList.add('on');try{haptic('tap');}catch(e){}
+}
 /* ---- Bracket: official state labels, match stakes, team road, third-place race ---- */
 function tccTieState(num){var p=koParts(num);
   if(S.realko&&S.realko[num])return {cls:'confirm',txt:'Confirmed'};
@@ -6458,15 +6531,65 @@ function renderSchedule(){const sel=S._schedFilter||"";
   // stacked-dashboard clutter. Those destinations remain reachable via the nav.
   let h=(sel?"":tccCommandCenterHTML(feat))+bar+(sel?"":pulseHTML());let any=false;
   if(!sel)h+='<div class="tcc-other-h">All matches</div>';
-  // In-flow jump to today's fixtures (replaces the old floating Today FAB so it
-  // never overlays schedule rows). Harmless no-op if today has no entry.
-  if(!sel)h+='<button class="sched-today" onclick="scrollToTodayMatches()">📅 Jump to today’s matches</button>';
+  // Compact in-flow date navigator (Today / Tomorrow / context / all dates). Sits
+  // above the fixtures, never floats, and uses stable per-fixture anchors so it
+  // can't overlap rows or venue text.
+  if(!sel)h+=dateNavHTML();
   const days=[...new Set(MATCHES.map(m=>matchDay(m)))].sort();
   days.forEach(d=>{const wins=kickoffWindowModel({iso:d,team:sel,includeCompleted:true,allowPending:true}),dm=kickoffWindowFixtureNums(wins).map(function(n){return M[n];}).filter(inv);if(!dm.length)return;any=true;
     h+=`<div class="daygrp" id="day-${d}"><div class="dayhd"><span class="dw">${fullDay(wdCode(d))}</span><span class="dd">${longDate(d)}</span><span class="md">${roundName(dm[0].num)}</span></div>`;
     dm.forEach(m=>h+=mrow(m,m.num===featNum));h+=`</div>`;});
   if(sel&&!any)h+=`<div class="roadempty"><div class="big">📭</div>No confirmed matches for ${nm(sel)} yet — knockout games appear once they qualify.</div>`;
   document.getElementById("schedule").innerHTML=h;}
+/* ===== Matches date navigator (compact, in-flow, stable anchors) ============== */
+function schedSort(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;}
+function schedDone(m){return m.stage!=='group'?!!(S.ko&&S.ko[m.num]):!!(S.sc&&S.sc[m.num]);}
+function schedFirstUnfinishedToday(){var today=curISO();
+  var ms=MATCHES.filter(function(m){return matchDay(m)===today;}).sort(schedSort);
+  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+  return null;}
+function schedNextUnfinishedFrom(iso){
+  var ms=MATCHES.filter(function(m){return matchDay(m)>iso;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:schedSort(a,b);});
+  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+  return ms.length?ms[0].num:null;}
+function schedScrollToNum(num){var el=document.getElementById('fx-'+num);if(!el)return false;
+  var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+  el.classList.remove('arrive-pulse');void el.offsetWidth;el.classList.add('arrive-pulse');
+  setTimeout(function(){try{el.classList.remove('arrive-pulse');}catch(e){}},1500);
+  try{haptic('tap');}catch(e){}return true;}
+function schedScrollToDay(d){var el=document.getElementById('day-'+d);if(!el)return false;
+  var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});return true;}
+function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
+  if(n!=null){schedScrollToNum(n);return;}
+  // Nothing remains today — be honest rather than jumping to irrelevant content.
+  var hasToday=MATCHES.some(function(m){return matchDay(m)===today;});
+  try{toast(hasToday?'Today’s matches are complete — here’s what’s next':'No matches scheduled today');}catch(e){}
+  var nx=schedNextUnfinishedFrom(today);
+  if(nx!=null)schedScrollToNum(nx);else if(hasToday)schedScrollToDay(today);}
+function schedJumpTomorrow(){var tom=nextISO(curISO());
+  var ms=MATCHES.filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
+  if(!ms.length){try{toast('No matches scheduled tomorrow');}catch(e){}return;}
+  schedScrollToNum(ms[0].num);}
+function dateNavHTML(){
+  var today=curISO(),tom=nextISO(today);
+  var nowNum=schedFirstUnfinishedToday();var ctxNum=nowNum!=null?nowNum:schedNextUnfinishedFrom(today);
+  var label='Tournament',sub='Group Stage';
+  if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+to12(m.time)+' ET';}
+  var hasTom=MATCHES.some(function(x){return matchDay(x)===tom;});
+  return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(nowNum!=null?'Now':'Up next')+'</span><b>'+esc(label)+'</b><span class="dn-s">'+esc(sub)+'</span></div>'+
+   '<div class="dn-actions"><button class="dn-btn" onclick="schedJumpToday()">Today</button>'+
+   (hasTom?'<button class="dn-btn" onclick="schedJumpTomorrow()">Tomorrow</button>':'')+
+   '<button class="dn-btn ghost" onclick="schedDatesSheet()">All dates</button></div></div>';}
+function schedDatesGo(d){closeSheet();setTimeout(function(){schedScrollToDay(d);},80);}
+function schedDatesSheet(){
+  var today=curISO(),tom=nextISO(today);
+  var days=[...new Set(MATCHES.map(matchDay))].sort();
+  var rows=days.map(function(d){var ms=MATCHES.filter(function(m){return matchDay(m)===d;}).sort(schedSort);var rn=roundName(ms[0].num);var tag=d===today?'Today':(d===tom?'Tomorrow':'');
+    var remain=ms.some(function(m){return !schedDone(m);});
+    return '<button class="dns-row" onclick="schedDatesGo(\''+d+'\')"><span class="dns-d"><b>'+esc(fullDay(wdCode(d)))+'</b><span>'+esc(longDate(d))+'</span></span><span class="dns-r">'+esc(rn)+'</span>'+(tag?'<span class="dns-t'+(tag==='Today'?' now':'')+'">'+tag+'</span>':(remain?'':'<span class="dns-done">done</span>'))+'</button>';}).join('');
+  var sh=document.getElementById('sheet');if(!sh)return;
+  sh.innerHTML='<div class="grab"></div><div class="sh-rnd">Jump to a date</div><div class="sh-when">Every match day · Group Stage through the Final</div><div class="dns-list">'+rows+'</div>';
+  document.getElementById('scrim').classList.add('on');try{haptic('tap');}catch(e){}}
 function pulseHTML(){const gm=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]);const goals=gm.reduce((t,m)=>t+S.sc[m.num].h+S.sc[m.num].a,0);
   const avg=gm.length?(goals/gm.length).toFixed(2):"–";
   let big=null,bigd=0,team={};
@@ -6497,7 +6620,7 @@ function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koPa
   // 🔥 Sweat engine: glow the card if you have a live bet riding on this match
   var sweat="";if(S.live&&S.live.num===m.num){var ab=S.bets.find(function(b){return b.num===m.num&&!b.settled&&(b.pick==='h'||b.pick==='a'||b.pick==='d');});
     if(ab){var sh=S.live.sh,sa=S.live.sa;var winning=(ab.pick==='h'&&sh>sa)||(ab.pick==='a'&&sa>sh)||(ab.pick==='d'&&sh===sa);var tied=(sh===sa&&ab.pick!=='d');sweat=winning?' sweat-winning':(tied?' sweat-tied':' sweat-losing');}}
-  return `<div class="mrow ${ko?'ko':''} ${featured?'featured':''} ${foc?'foc':''}${sweat}${done?' played':''}" onclick="sheet(${m.num})"><div class="meta"><span class="tm">${tp.t}</span><span class="ap">${tp.ap}</span><span class="mn">#${m.num}</span></div><div class="teams">${H}${A}</div><div class="rt">${doneTag}${gtag}<span class="vn">${VEN[m.venue][1]}</span>${kIn?`<span class="cdown">⏱ ${kIn}</span>`:""}</div></div>`;}
+  return `<div class="mrow ${ko?'ko':''} ${featured?'featured':''} ${foc?'foc':''}${sweat}${done?' played':''}" id="fx-${m.num}" onclick="sheet(${m.num})"><div class="meta"><span class="tm">${tp.t}</span><span class="ap">${tp.ap}</span><span class="mn">#${m.num}</span></div><div class="teams">${H}${A}</div><div class="rt">${doneTag}${gtag}<span class="vn">${VEN[m.venue][1]}</span>${kIn?`<span class="cdown">⏱ ${kIn}</span>`:""}</div></div>`;}
 function lnHTML(code,ph,score,win,lose){const sc=score!=null?`<span class="sc">${score}</span>`:``;
   if(ph||!T[code])return `<div class="ln"><span class="fl">·</span><span class="nm ph">${slotLabel(code)}</span></div>`;
   return `<div class="ln ${win?'w':(lose?'l':'')}"><span class="fl">${fl(code)}</span><span class="nm">${nm(code)}</span>${sc}</div>`;}
@@ -6650,7 +6773,7 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   let h='';
   try{h+=knockoutModeHTML();}catch(e){}
   // mode switcher
-  if(realLife)h+=knockoutPulseHTML()+'<div class="brk-help" style="margin-top:0">📡 <b>Real life</b> — official results drive this projection automatically. API calls are cached through Vercel so the app stays current without burning your daily quota. <button class="qbtn primary" style="margin-top:9px;width:100%" onclick="startPredictFlow()">Open My Sim prediction bracket</button></div>';
+  if(realLife)h+=knockoutPulseHTML(true)+'<div class="brk-help" style="margin-top:0">📡 <b>Real life</b> — official results drive this projection automatically. API calls are cached through Vercel so the app stays current without burning your daily quota. <button class="qbtn primary" style="margin-top:9px;width:100%" onclick="startPredictFlow()">Open My Sim prediction bracket</button></div>';
   else h+='<div class="brk-mode"><button class="'+(m==='live'?'on':'')+'" onclick="setBrkMode(\'live\')">📡 As it stands</button><button class="'+(m==='pick'?'on':'')+'" onclick="setBrkMode(\'pick\')">✏️ Predict</button><button class="'+(m==='sim'?'on':'')+'" onclick="setBrkMode(\'sim\')">⚡ Simulate</button></div>';
   var note={live:'The real knockout bracket, live — it fills in as games finish.',pick:'Tap a team in any tie to send them through to the Final, then back your champion.',sim:'Roll a full realistic tournament, then bet your winner.'}[m];
   h+='<div class="brk-help">'+note+'</div>';
@@ -7138,11 +7261,13 @@ var _viewScroll={},_lastViewKey=null;
    arriveAt's target). Browser Back (popstate) does not call pushTab, so it keeps
    per-view scroll restoration. The leaving view's scroll is still saved either way. */
 var _suppressScrollRestore=false;
-function switchTab(){
+function switchTab(skipAnim){
   // Animate the tab change, but never start a NEW view transition while one is
   // mid-flight (fast double-taps): that aborts the running one and logs a benign
   // InvalidStateError. Instead, just swap instantly — clean console, no jank.
-  if(document.startViewTransition&&!_vtActive){
+  // skipAnim forces a synchronous swap (used by browser Back) so scroll
+  // restoration is deterministic and a same-document view transition can't reset it.
+  if(!skipAnim&&document.startViewTransition&&!_vtActive){
     try{_vtActive=true;var _vt=document.startViewTransition(function(){_switchTabNow();});
       var _done=function(){_vtActive=false;};
       if(_vt){if(_vt.finished&&_vt.finished.then)_vt.finished.then(_done,_done);else _done();
@@ -7210,7 +7335,16 @@ document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=functi
   endLive();if(screen==="bet"){_betCat='matches';}
   TAB=({home:"home",matches:"schedule",bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
-window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();TAB=(e.state&&e.state.tab)||"home";switchTab();render();/* scroll position is restored by the view's scroll memory — no surprise jump to top on back */});
+window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();
+  // Back is never explicit forward navigation: it must restore the destination
+  // view's prior scroll, never land at the top. Clear any leaked suppression flag,
+  // swap synchronously (skipAnim) so restoration is deterministic, then re-commit
+  // the saved scroll across the post-render rebuild.
+  _suppressScrollRestore=false;
+  TAB=(e.state&&e.state.tab)||"home";
+  switchTab(true);render();
+  try{var m=SCRMAP[TAB]||["home",null];var _vk=m[0]+"/"+(m[1]||"");recommitScroll((_viewScroll&&_viewScroll[_vk])||0);}catch(_e){}
+});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
 try{history.replaceState({tab:TAB},"");}catch(e){}
 /* ---- PWA: service worker + Add to Home Screen ---- */
