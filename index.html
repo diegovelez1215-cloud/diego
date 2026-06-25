@@ -1534,6 +1534,10 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .home-team{min-width:0;font-size:13px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-team.r{text-align:right}
 .home-score{font-size:23px;font-weight:950;color:#fff;font-variant-numeric:tabular-nums}.home-status{display:inline-flex;min-height:24px;align-items:center;border-radius:999px;padding:3px 9px;background:rgba(10,132,255,.16);color:var(--blue2);font-size:10.5px;font-weight:900}.home-status.hold{background:rgba(255,203,61,.14);color:var(--gold)}
 .home-action{width:100%;min-height:44px;margin-top:11px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--teal2));color:#041326;font-size:13px;font-weight:950}.home-card.play .home-action{background:linear-gradient(135deg,var(--gold),#ff9f0a);color:#1b1200}
+.home-action.brk-home-go{min-height:48px;font-size:14px;background:linear-gradient(135deg,var(--blue),var(--teal2));box-shadow:0 10px 24px -10px rgba(10,132,255,.7);border:1px solid rgba(255,214,10,.35)}
+.home-action.brk-home-go:active{transform:scale(.985)}
+.home-sublink{display:block;width:100%;margin-top:8px;background:none;border:none;color:var(--blue2);font-size:11.5px;font-weight:800;cursor:pointer;padding:4px 2px}
+.home-sublink:active{opacity:.7}
 .home-sub{font-size:12px;color:var(--mut);font-weight:700;line-height:1.35}.home-sub b{color:#fff}
 .home-fresh{font-size:10.5px;font-weight:800;color:var(--mut2);margin:8px 0 2px;letter-spacing:.2px}
 .home-livepick{display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;margin:2px 0 10px;padding:10px 11px;border-radius:12px;background:rgba(10,132,255,.12);border:1px solid rgba(100,210,255,.28);font-size:11.5px;font-weight:750;color:var(--mut);line-height:1.3;cursor:pointer}
@@ -1694,13 +1698,20 @@ textarea,input{-webkit-user-select:text;user-select:text}
 /* round selector + vertical guided bracket */
 .brk-rounds{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 12px;scrollbar-width:none}
 .brk-rounds::-webkit-scrollbar{display:none}
-.brk-rpill{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:62px;padding:9px 12px;border-radius:12px;border:1px solid var(--line2);background:var(--card);cursor:pointer;transition:.14s}
-.brk-rpill .brp-t{font-size:12px;font-weight:900;color:var(--mut)}
-.brk-rpill .brp-n{font-size:9.5px;font-weight:800;color:var(--mut3);font-variant-numeric:tabular-nums}
-.brk-rpill.on{background:var(--grad);border-color:transparent;box-shadow:0 6px 18px -6px rgba(59,130,255,.55);transform:translateY(-1px) scale(1.04)}
+.brk-rpill{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:60px;min-height:50px;padding:8px 12px;border-radius:14px;border:1px solid var(--line2);background:rgba(255,255,255,.05);cursor:pointer;transition:transform .16s var(--ease),background .2s ease,border-color .2s ease}
+.brk-rpill .brp-t{font-size:13px;font-weight:900;color:#dfe4ff;line-height:1}
+.brk-rpill .brp-full{display:none;font-size:11px;font-weight:900;color:#06202c;letter-spacing:.1px;line-height:1}
+.brk-rpill .brp-n{font-size:9.5px;font-weight:800;color:var(--mut3);font-variant-numeric:tabular-nums;line-height:1}
+.brk-rpill:not(.on){box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+.brk-rpill.on{background:linear-gradient(135deg,var(--blue),var(--teal2));border-color:transparent;box-shadow:0 8px 22px -7px rgba(59,130,255,.7);transform:translateY(-1px) scale(1.05)}
+.brk-rpill.on .brp-t{display:none}
+.brk-rpill.on .brp-full{display:block}
 .brk-rpill:active{transform:scale(.95)}
-.brk-rpill.on .brp-t,.brk-rpill.on .brp-n{color:#fff}
+.brk-rpill.on .brp-n{color:#06202c}
 .brk-rpill.done .brp-n{color:var(--green)}
+.brk-rpill.on.done .brp-n{color:#06202c}
+.brk-swipe-hint{font-size:11px;font-weight:800;color:var(--teal2)}
+.brk-wide>summary{font-weight:900}
 .brk-vert{display:flex;flex-direction:column;gap:10px}
 /* fluid cascade: ties slide+fade in, gently staggered, every time the round changes */
 .brk-vert .tie,.brk-vert .fcard{width:100%;animation:tieIn .42s var(--spring) both}
@@ -1927,7 +1938,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .brk-mode button.on{background:rgba(255,255,255,.16)!important;color:#fff!important}
 .brk-rpill{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.17)!important;border-radius:12px!important}
 .brk-rpill.on{background:var(--grad)!important;border-color:transparent!important;box-shadow:0 6px 18px -6px rgba(59,130,255,.55)!important}
-.kpath{display:flex;flex-direction:column;gap:12px;margin:10px 0 14px;overflow:hidden}.kpath-round{border:1px solid rgba(255,255,255,.09);border-radius:20px;background:linear-gradient(168deg,rgba(48,62,132,.32),rgba(18,25,64,.42));padding:12px;overflow:hidden}.kpath-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.kpath-head b{font-size:13px;color:#fff}.kpath-head span{font-size:10px;font-weight:900;color:var(--mut2);text-transform:uppercase;letter-spacing:.6px}.kpath-card{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));padding:11px;margin-top:8px;cursor:pointer;overflow:hidden}.kpath-card:first-of-type{margin-top:0}.kpath-card.confirmed{border-color:rgba(100,210,255,.26);box-shadow:inset 3px 0 0 rgba(100,210,255,.45)}.kpath-card.one{border-color:rgba(100,210,255,.18);box-shadow:inset 3px 0 0 rgba(100,210,255,.30)}.kpath-card.projected{border-style:dashed;border-color:rgba(255,203,61,.34);box-shadow:inset 3px 0 0 rgba(255,203,61,.34)}.kpath-card.pending{border-style:dashed;opacity:.92}.kpath-card.path{border-color:rgba(255,203,61,.48);box-shadow:0 12px 28px -22px rgba(255,203,61,.75),inset 3px 0 0 rgba(255,203,61,.45)}.kpath-match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}.kpath-team{min-width:0;font-size:12px;font-weight:950;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpath-team.pending{color:var(--mut);font-weight:850}.kpath-team.r{text-align:right}.kpath-v{font-size:10px;font-weight:950;color:var(--mut2)}.kpath-meta{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:8px;margin-top:8px;font-size:10.5px;font-weight:800;color:var(--mut);align-items:center}.kpath-meta span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kpath-state{color:var(--teal2);font-weight:950}.kpath-card.projected .kpath-state{color:var(--gold)}.kpath-card.pending .kpath-state{color:var(--mut2)}.kpath-line{position:absolute;left:18px;top:100%;height:8px;border-left:1px solid rgba(255,255,255,.16)}
+.kpath{display:flex;flex-direction:column;gap:12px;margin:10px 0 14px;overflow:hidden}.kpath-round{position:relative;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:linear-gradient(168deg,rgba(48,62,132,.32),rgba(18,25,64,.42));padding:14px;overflow:hidden}.kpath-round.focus{border-color:rgba(100,210,255,.30);background:linear-gradient(168deg,rgba(48,72,150,.42),rgba(14,22,58,.62));box-shadow:0 18px 40px -28px rgba(10,132,255,.6)}.kpath-round.focus::before{content:"";position:absolute;left:8px;top:64px;bottom:18px;width:2px;border-radius:2px;background:linear-gradient(180deg,rgba(100,210,255,.5),rgba(100,210,255,.10));pointer-events:none}.kpath-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}.kpath-head .kph-l{min-width:0}.kpath-head b{display:block;font-size:17px;font-weight:900;color:#fff;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kph-sub{display:block;font-size:11.5px;font-weight:800;color:var(--teal2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kph-prog{flex:0 0 auto;font-size:11px;font-weight:900;color:var(--mut);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}.kph-prog.done{color:#051b10;background:linear-gradient(135deg,var(--green),#7ef0a8);border-color:transparent}.kpath-card{position:relative;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));padding:12px 13px;margin:10px 0 0 16px;cursor:pointer;overflow:hidden}.kpath-card:first-of-type{margin-top:0}.kpath-card::before{content:"";position:absolute;left:-16px;top:50%;width:16px;height:2px;background:linear-gradient(90deg,rgba(100,210,255,.45),rgba(100,210,255,.10));pointer-events:none}.kpath-card.confirmed{border-color:rgba(100,210,255,.30);box-shadow:inset 3px 0 0 rgba(100,210,255,.5)}.kpath-card.one{border-color:rgba(100,210,255,.20);box-shadow:inset 3px 0 0 rgba(100,210,255,.32)}.kpath-card.projected{border-style:dashed;border-color:rgba(255,203,61,.40);box-shadow:inset 3px 0 0 rgba(255,203,61,.40)}.kpath-card.projected::before{background:linear-gradient(90deg,rgba(255,203,61,.45),rgba(255,203,61,.10))}.kpath-card.pending{border-style:dashed;opacity:.95}.kpath-card.pending::before{background:linear-gradient(90deg,rgba(255,255,255,.20),rgba(255,255,255,.04))}.kpath-card.path{border-color:rgba(255,203,61,.55);box-shadow:0 14px 30px -22px rgba(255,203,61,.8),inset 3px 0 0 rgba(255,203,61,.5)}.kpath-card.final{border-color:rgba(255,214,10,.5);background:linear-gradient(160deg,rgba(255,214,10,.16),rgba(20,16,4,.5));box-shadow:0 16px 34px -22px rgba(255,214,10,.6)}.kpath-card.final::before{background:linear-gradient(90deg,rgba(255,214,10,.6),rgba(255,214,10,.15))}.kpath-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--mut3);margin-bottom:8px}.kpath-no{color:var(--mut2)}.kpath-row{display:flex;align-items:center;gap:10px;padding:7px 2px}.kpath-row+.kpath-row{border-top:1px solid rgba(255,255,255,.06)}.kpath-team{min-width:0;flex:1;display:flex;align-items:center;gap:9px;font-size:15.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpath-team .kpt-fl{flex:0 0 auto;font-size:18px}.kpath-team .kpt-nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kpath-team.pending{color:var(--mut);font-weight:800;font-style:italic}.kpath-team.pending .kpt-nm{font-size:13px}.kpath-team.out{color:var(--mut2);font-weight:800}.kpath-row.win .kpath-team{color:#bdf5d6}.kpath-side{flex:0 0 auto;display:flex;align-items:center;min-width:22px;justify-content:flex-end}.kpath-go{color:var(--green);font-size:15px;font-weight:900}.kpath-min{color:var(--mut3)}.kpath-mid{display:flex;align-items:center;gap:8px;margin:3px 0;padding-left:2px}.kpath-v{flex:0 0 auto;font-size:10px;font-weight:900;color:var(--mut3);text-transform:uppercase;letter-spacing:1px}.kpath-mid::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.08)}.kpath-chip{flex:0 0 auto;font-size:10.5px;font-weight:900;letter-spacing:.3px;border-radius:999px;padding:4px 10px;border:1px solid transparent;white-space:nowrap}.kpath-chip.conf{color:#062330;background:linear-gradient(135deg,var(--teal2),#9ae6ff)}.kpath-chip.one{color:var(--teal2);background:rgba(100,210,255,.12);border-color:rgba(100,210,255,.3)}.kpath-chip.proj{color:var(--gold);background:rgba(255,203,61,.12);border-color:rgba(255,203,61,.34)}.kpath-chip.pend{color:var(--mut);background:rgba(255,255,255,.05);border-color:var(--line)}.kpath-chip.et{color:#1a1204;background:linear-gradient(135deg,var(--gold),#ffb03a)}.kpath-chip.pen{color:#1a1204;background:linear-gradient(135deg,#ff9f0a,var(--gold))}.kpath-chip.fin{color:#1a1204;background:linear-gradient(135deg,var(--gold),#ffe27a)}.kpath-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-top:9px;font-size:11px;font-weight:800;color:var(--mut);align-items:center}.kpath-meta span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kpath-state{color:var(--mut)}.kpath-card.confirmed .kpath-state{color:var(--teal2)}.kpath-card.projected .kpath-state{color:var(--gold)}.kpath-route{flex:0 0 auto;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--blue2);font-size:10.5px;font-weight:900;border-radius:999px;padding:5px 11px;cursor:pointer}.kpath-route:active{transform:scale(.95)}.kpath-empty{margin-left:16px;color:var(--mut);font-size:12.5px;font-weight:700;background:rgba(255,255,255,.03);border:1px dashed var(--line);border-radius:14px;padding:14px}.brk-title{margin:2px 0 12px}.brk-title .bt-h{font-family:'Space Grotesk',sans-serif;font-size:21px;font-weight:900;letter-spacing:-.4px;color:#fff}.brk-title .bt-s{font-size:12px;font-weight:700;color:var(--mut);margin-top:2px}.brk-rail-cap{display:flex;flex-direction:column;gap:1px;margin:4px 0 7px}.brk-rail-cap span:first-child{font-size:12px;font-weight:900;color:#fff}.brk-rail-cap span:last-child{font-size:10.5px;font-weight:700;color:var(--mut2)}.brk-swipe-hint{font-size:11px;font-weight:800;color:var(--teal2);text-align:center;margin:8px 0 2px;letter-spacing:.3px}
 /* collapsed simulator/tools on home — quiet by default */
 .home-tools{margin-top:8px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:linear-gradient(168deg,rgba(48,62,132,.40),rgba(28,38,92,.48));overflow:hidden}
 .home-tools>summary{list-style:none;cursor:pointer;padding:15px 16px;font-weight:800;font-size:13.5px;color:#fff;display:flex;align-items:center;justify-content:space-between}
@@ -2434,6 +2445,8 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .phl-tickets{margin-top:9px;font-size:11px;font-weight:800;color:var(--gold);background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.24);border-radius:10px;padding:7px 10px}
 .phl-go{margin-top:11px;width:100%;min-height:44px;border:none;border-radius:12px;padding:11px;font-weight:900;font-size:12.5px;cursor:pointer;color:#10164a;background:linear-gradient(180deg,#ffd60a,#f5b400)}
 .phl.final .phl-go{background:linear-gradient(180deg,#ff9f0a,#e8860a);color:#1a1100}
+.phl-go.bracket,.phl.final .phl-go.bracket{background:linear-gradient(135deg,var(--blue),var(--teal2));color:#041326;box-shadow:0 10px 24px -10px rgba(10,132,255,.7);border:1px solid rgba(255,214,10,.35)}
+.phl-go.ghost,.phl.final .phl-go.ghost{margin-top:8px;background:rgba(255,255,255,.06);color:var(--txt);border:1px solid var(--line2);box-shadow:none}
 @media(max-width:400px){.phl-fixture{grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);gap:6px;padding:8px}.phl-fixture .phl-mid{min-width:54px;font-size:13px}.phl-tm{font-size:12px}}
 @media(min-width:560px){.fmd-fxs{flex-direction:row}.fmd-fxs .fmd-fx{flex:1}.fmd-tables{flex-direction:row}.fmd-tables .fmd-tbl{flex:1}}
 /* ===== Phase 7 — Cinematic Ticket Simulation 2.0 (presentation layer) ===== */
@@ -3843,7 +3856,7 @@ function tournamentPulseHomeHTML(seen){
  var pulse=knockoutPulseHTML(),next=homeNextFixture(seen);
  var note=next?('Next major match: '+(next.stage==="group"?nm(next.home)+' v '+nm(next.away):roundShort(next.num))+' · '+shortDate(next.date)):'Tournament complete';
  if(!next&&seen&&Object.keys(seen).length)note='Current match is shown above. Open the live knockout look for the route picture.';
- return '<div class="home-card official"><div class="home-k"><span>Tournament Pulse</span><span class="home-status">As it stands</span></div><div class="home-sub"><b>'+esc(note)+'</b><br>Live bracket paths and third-place race update only from valid official finals.</div><button class="home-action" onclick="goLiveBracket()">Open live knockout look</button></div>'+pulse;
+ return '<div class="home-card official"><div class="home-k"><span>Tournament Pulse</span><span class="home-status">As it stands</span></div><div class="home-sub"><b>'+esc(note)+'</b><br>Live bracket paths and third-place race update only from valid official finals.</div><button class="home-action brk-home-go" onclick="goBracket()">🏆 Open Tournament Bracket →</button><button class="home-sublink" onclick="goLiveBracket()">Or open the live “as it stands” knockout look</button></div>'+pulse;
 }
 function upcomingHomeHTML(){
  var up=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num],pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);return !done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,4);
@@ -3972,12 +3985,12 @@ function phaseLeadHTML(){
     var moreGroups=Math.max(0,gs.length-1);
     var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div>'+(moreGroups?'<div class="phl-more">'+moreGroups+' more group'+(moreGroups===1?'':'s')+' to resolve</div>':'')+'<div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
     var tag='Group '+model.group+' live';
-    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go" onclick="goStandings()">View all group standings →</button></div>';
+    return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go bracket" onclick="goBracket()">🏆 Open Tournament Bracket →</button><button class="phl-go ghost" onclick="goStandings()">View all group standings →</button></div>';
   }
   if(ph.prioritizeBracket){
     var nx=phlNextKOFixture(),tickets=(S.bets||[]).filter(function(b){return !b.settled;}).length;
     var body=nx?('<div class="phl-row"><span class="phl-tm">'+fl(nx.h)+' '+nm(nx.h)+'</span><span class="phl-mid">v</span><span class="phl-tm r">'+nm(nx.a)+' '+fl(nx.a)+'</span></div><div class="phl-sub">'+roundName(nx.num)+' · '+shortDate(M[nx.num].date)+' · Winner advances</div>'):'<div class="phl-sub">The bracket is forming from the official group finals.</div>';
-    return '<div class="phl ko"><div class="phl-k"><span>🏆 Knockout · Win or go home</span><span class="phl-tag">'+esc(fdPhaseLabel(ph.phase))+'</span></div>'+body+(tickets?'<div class="phl-tickets">🎟 '+tickets+' open ticket'+(tickets>1?'s':'')+' riding on the bracket</div>':'')+'<button class="phl-go" onclick="goBracket()">Open the bracket →</button></div>';
+    return '<div class="phl ko"><div class="phl-k"><span>🏆 Knockout · Win or go home</span><span class="phl-tag">'+esc(fdPhaseLabel(ph.phase))+'</span></div>'+body+(tickets?'<div class="phl-tickets">🎟 '+tickets+' open ticket'+(tickets>1?'s':'')+' riding on the bracket</div>':'')+'<button class="phl-go" onclick="goBracket()">Open Tournament Bracket →</button></div>';
   }
   return '';
 }
@@ -4047,7 +4060,7 @@ function renderHome(){
  // One-hero discipline: during Final Matchday the hero already carries the live
  // "as it stands" + qualification-risk picture, so the duplicate Tournament Pulse
  // card (which repeats "as it stands") is suppressed to keep a single dominant hero.
- var _pulse=(_homePrimary&&_homePrimary.kind==='final_matchday')?'':tournamentPulseHomeHTML(_homeSeen);
+ var _pulse=(_homePrimary&&_homePrimary.kind==='final_matchday'&&_homePrimary.html)?'':tournamentPulseHomeHTML(_homeSeen);
  document.getElementById("home").innerHTML='<div class="home-stack" id="homeHero">'+(_homePrimary.html||'')+todayRailHTML(_homeSeen)+_pulse+activePicksHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
 }
 /* ===== The Athletic Newsroom — editorial feed (Gemini #6) ===== */
@@ -6787,9 +6800,11 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
     var champ=winner(104);
     var sel=rounds.filter(function(R){return R.k===_brkRound;})[0];
     var b='';
+    b+='<div class="brk-title"><div class="bt-h">🏆 Tournament Bracket</div><div class="bt-s">Single elimination · the road to the Final, round by round</div></div>';
     if(champ)b+='<div class="brk-champ" onclick="celebrate()"><div class="bc-l">★ World Champions · tap to celebrate</div><div class="bc-t"><span class="bc-fl">'+fl(champ)+'</span>'+nm(champ).toUpperCase()+'</div></div>';
-    // round selector with live counts
-    b+='<div class="brk-rounds">'+rounds.map(function(R){var d=decided(R.nums),done=d===R.nums.length;return '<button class="brk-rpill'+(_brkRound===R.k?' on':'')+(done?' done':'')+'" onclick="setBrkRound(\''+R.k+'\')"><span class="brp-t">'+R.sh+'</span><span class="brp-n">'+(done?'✓':d+'/'+R.nums.length)+'</span></button>';}).join("")+'</div>';
+    // premium round rail — full label on the selected round, every round clearly tappable
+    b+='<div class="brk-rail-cap"><span>Knockout rounds</span><span>Tap a round to bring its bracket into focus</span></div>';
+    b+='<div class="brk-rounds" role="tablist">'+rounds.map(function(R){var d=decided(R.nums),done=d===R.nums.length,on=_brkRound===R.k;return '<button class="brk-rpill'+(on?' on':'')+(done?' done':'')+'" role="tab" aria-selected="'+(on?'true':'false')+'" onclick="setBrkRound(\''+R.k+'\')"><span class="brp-t">'+R.sh+'</span><span class="brp-full">'+esc(R.t)+'</span><span class="brp-n">'+(done?'✓ done':d+'/'+R.nums.length)+'</span></button>';}).join("")+'</div>';
     var anyTeams=sel.nums.some(function(n){var p=koParts(n);return p[0]&&p[1];});
     b+=knockoutPathViewHTML(rounds,pathSet,tappable,(m==='live'));
     if(m==='live')b+=thirdsTableHTML();
@@ -6798,7 +6813,7 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
     else if(!anyTeams)b+='<div class="brk-locked"><div class="bl-t">🔒 Pick the earlier round first</div><div class="bl-s">Choose winners in the previous round, then tap a team here.</div></div>';
     sel.nums.forEach(function(n){b+=tieCard(n,(n===104?'final':n===103?'bronze':''),pathSet,tappable,(m==='live'));});
     b+='</div>';
-    b+='<details class="mkacc" style="margin-top:14px"><summary>⇄ See the full bracket (wide view)</summary><div class="brkscroll"><div class="brk">'+brkCol("Round of 32",r32,pathSet,tappable)+brkCol("Round of 16",r16,pathSet,tappable)+brkCol("Quarter-finals",qf,pathSet,tappable)+brkCol("Semi-finals",sf,pathSet,tappable)+'<div class="finalwrap"><div class="rndt">Final</div>'+tieCard(104,"final",pathSet,tappable)+'<div class="rndt" style="margin-top:4px">3rd Place</div>'+tieCard(103,"bronze",pathSet,tappable)+'</div></div></div></details>';
+    b+='<details class="mkacc brk-wide" style="margin-top:14px"><summary>🗺️ See the whole bracket tree (swipe sideways)</summary><div class="brk-swipe-hint">← swipe to follow the path to the Final →</div><div class="brkscroll"><div class="brk">'+brkCol("Round of 32",r32,pathSet,tappable)+brkCol("Round of 16",r16,pathSet,tappable)+brkCol("Quarter-finals",qf,pathSet,tappable)+brkCol("Semi-finals",sf,pathSet,tappable)+'<div class="finalwrap"><div class="rndt">Final</div>'+tieCard(104,"final",pathSet,tappable)+'<div class="rndt" style="margin-top:4px">3rd Place</div>'+tieCard(103,"bronze",pathSet,tappable)+'</div></div></div></details>';
     return b;
   }
   let h='';
@@ -6840,18 +6855,62 @@ function knockoutSlotStatus(num,liveMode){
   else if(liveMode&&hasProj){state='projected';label='Projected · As it stands';line='Provisional until official finals';}
   return {num:num,home:h,away:a,homeLocked:hp.locked,awayLocked:ap.locked,state:state,label:label,line:line,rawHome:m.home,rawAway:m.away};
 }
-function knockoutPathCardHTML(num,pathSet,tappable,liveMode){
+/* Honest decided-method label — only from data the app actually holds.
+   Never fabricates Extra time / Penalties; surfaces them only when the live
+   official status reports them. Returns '' when nothing extra is known. */
+function koDecidedLabel(num){
+  try{var live=(typeof matchLiveState==='function')?matchLiveState(num):null;
+    if(live&&live.label){var t=safeStatusText(live.label,'');
+      if(/extra time/i.test(t))return 'Extra time';
+      if(/penalt/i.test(t))return 'Penalties';}
+  }catch(e){}
+  return '';
+}
+function knockoutPathCardHTML(num,pathSet,tappable,liveMode,nextR){
   var m=M[num],ks=knockoutSlotStatus(num,liveMode),w=S.ko[num],next=NEXTWIN[num],line=ks.line;
   if(ks.state==='confirmed'&&next)line='Winner reaches the '+roundName(next);
   else if(next&&ks.state!=='confirmed')line='Winner reaches the '+roundName(next)+' · opponent pending';
   if(next&&w){var np=koParts(next),opp=(np[0]&&np[0]!==w)?np[0]:(np[1]&&np[1]!==w?np[1]:null);if(opp)line='Winner faces '+nm(opp);}
   if(num===104&&!next)line=ks.state==='confirmed'?'World Cup Final':'Final pairing pending';
-  function teamHTML(code,raw,right,locked){var cls='kpath-team '+(right?'r ':'')+(!locked?'pending':'');return '<div class="'+cls+'">'+(code?(fl(code)+' '+nm(code)):slotLabel(raw))+'</div>';}
-  var cls='kpath-card '+ks.state+(pathSet&&pathSet.has(num)?' path':'');
-  return '<div class="'+cls+'" onclick="openSheet('+num+')"><div class="kpath-match">'+teamHTML(ks.home,m.home,false,ks.homeLocked)+'<div class="kpath-v">v</div>'+teamHTML(ks.away,m.away,true,ks.awayLocked)+'</div><div class="kpath-meta"><span class="kpath-state">'+esc(ks.label)+'</span><span>'+esc(line)+'</span></div></div>';
+  // two clearly separate team rows — names dominant, score/status kept apart
+  function rowHTML(code,raw,locked){var ph=!code,isw=w&&code&&w===code,isl=w&&code&&w!==code;
+    var nmCls='kpath-team'+(ph?' pending':'')+(isl?' out':'');
+    var inner=code?('<span class="kpt-fl">'+fl(code)+'</span><span class="kpt-nm">'+nm(code)+'</span>'):('<span class="kpt-fl">·</span><span class="kpt-nm">'+slotLabel(raw)+'</span>');
+    var mark=isw?'<span class="kpath-go" title="advances">▸</span>':(ph?'':'<span class="kpath-min">·</span>');
+    return '<div class="kpath-row'+(isw?' win':'')+(isl?' lose':'')+'"><div class="'+nmCls+'">'+inner+'</div><div class="kpath-side">'+mark+'</div></div>';}
+  var dec=koDecidedLabel(num);
+  var chipTxt,chipCls;
+  if(dec==='Extra time'){chipTxt='Extra time';chipCls='et';}
+  else if(dec==='Penalties'){chipTxt='Penalties';chipCls='pen';}
+  else if(num===104){chipTxt='Final';chipCls='fin';}
+  else{chipTxt=ks.label;chipCls=(ks.state==='confirmed'?'conf':ks.state==='projected'?'proj':ks.state==='one'?'one':'pend');}
+  var chip='<span class="kpath-chip '+chipCls+'">'+esc(chipTxt)+'</span>';
+  var routeTeam=ks.home||ks.away||null;
+  var route=(routeTeam&&typeof focusTeam==='function')?'<button class="kpath-route" onclick="event.stopPropagation();focusTeam(\''+routeTeam+'\')">View route ↗</button>':'';
+  var cls='kpath-card '+ks.state+(num===104?' final':'')+(pathSet&&pathSet.has(num)?' path':'');
+  return '<div class="'+cls+'" onclick="openSheet('+num+')">'+
+    '<div class="kpath-top"><span class="kpath-no">'+roundShort(num)+' · #'+num+'</span><span class="kpath-date">'+shortDate(m.date)+'</span></div>'+
+    rowHTML(ks.home,m.home,ks.homeLocked)+
+    '<div class="kpath-mid"><span class="kpath-v">v</span>'+chip+'</div>'+
+    rowHTML(ks.away,m.away,ks.awayLocked)+
+    '<div class="kpath-meta"><span class="kpath-state">'+esc(line)+'</span>'+route+'</div></div>';
 }
+/* Mobile-first focused bracket lane: the SELECTED round is the visual focus,
+   shown as large readable cards on a left bracket rail. Progression to the
+   next round is communicated by the rail, per-card advance marks and the
+   "winners advance to …" lane note — the full left-to-right tree lives in the
+   contained wide board. Keeps id="knockoutPath" and the vertical .kpath contract. */
 function knockoutPathViewHTML(rounds,pathSet,tappable,liveMode){
-  return '<div class="kpath" id="knockoutPath">'+rounds.map(function(R){var nums=R.nums.filter(function(n){var p=koParts(n);return p[0]||p[1]||R.k==='r32';}).slice(0,R.k==='r32'?16:8);if(!nums.length)return '';return '<div class="kpath-round"><div class="kpath-head"><b>'+esc(R.t)+'</b><span>'+nums.length+' ties</span></div>'+nums.map(function(n){return knockoutPathCardHTML(n,pathSet,tappable,liveMode);}).join('')+'</div>';}).join('')+'</div>';
+  var idx=0;for(var i=0;i<rounds.length;i++){if(rounds[i].k===_brkRound){idx=i;break;}}
+  var R=rounds[idx],nextR=rounds[idx+1]||null;
+  // show every tie in the selected round (pending slots render honestly) so the
+  // round — including the Final — always feels present and easy to find.
+  var nums=R.nums.slice(0,R.k==='r32'?16:8);
+  var d=R.nums.filter(function(n){return S.ko[n];}).length,total=R.nums.length,done=d>=total;
+  var advNote=(R.k==='final')?'🏆 One match crowns the world champion':('Winners advance to the '+(nextR?nextR.t:'next round')+' →');
+  var head='<div class="kpath-head"><div class="kph-l"><b>'+esc(R.t)+'</b><span class="kph-sub">'+esc(advNote)+'</span></div><span class="kph-prog'+(done?' done':'')+'">'+(done?'✓ complete':d+' / '+total)+'</span></div>';
+  var body=nums.length?nums.map(function(n){return knockoutPathCardHTML(n,pathSet,tappable,liveMode,nextR);}).join(''):'<div class="kpath-empty">Winners arrive here once the previous round is decided.</div>';
+  return '<div class="kpath" id="knockoutPath"><div class="kpath-round focus" data-round="'+esc(R.k)+'">'+head+body+'</div></div>';
 }
 function brkCol(t,nums,ps,tappable){let h=`<div class="rnd"><div class="rndt">${t}</div>`;nums.forEach(n=>h+=tieCard(n,"",ps,tappable));return h+`</div>`;}
 function tieCard(num,kind,ps,tappable,full){var canTap=(tappable!==false);const mt=M[num];const[h,a]=koParts(num);const w=S.ko[num];
