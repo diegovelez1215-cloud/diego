@@ -175,9 +175,13 @@ test('end-to-end: launch builds the one-screen stage, skip lands a recap, settle
   window.ts2Skip();
   assert.ok(window.document.getElementById('ts2recap'), 'recap shown after skip');
   const recapText = window.document.getElementById('ts2recap').textContent;
-  assert.ok(/Reset to live/.test(recapText), 'reset-to-live recap action present');
+  assert.ok(/Back to World Cup/.test(recapText), 'back-to-world-cup primary recap action present');
+  assert.ok(/See what’s live and next\./.test(recapText), 'supporting copy present');
   assert.ok(/New slip/.test(recapText), 'new-slip recap action present');
-  assert.ok(!/Edit ticket/.test(recapText), 'completed recap never shows edit-ticket');
+  assert.ok(/Replay/.test(recapText), 'replay recap action present');
+  assert.ok(!/Run it back/.test(recapText), 'completed recap never shows run-it-back');
+  assert.ok(!/Edit slip/.test(recapText) && !/Edit ticket/.test(recapText), 'completed recap never shows edit-slip');
+  assert.ok(!/Reset to live/.test(recapText), 'completed recap never shows reset-to-live');
   const settledBank = app.getState().bank;
   // replaying must not move the wallet again
   window.ts2Replay();

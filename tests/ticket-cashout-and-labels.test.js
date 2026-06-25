@@ -247,9 +247,10 @@ test('end-to-end: live cash control mounts, confirm settles once, skip cannot re
   const recap = window.document.getElementById('ts2recap');
   assert.ok(recap, 'recap shown after skip');
   assert.ok(/Cashed out/.test(recap.textContent), 'recap reflects the cash out');
-  assert.ok(/Reset to live/.test(recap.textContent), 'cashed-out recap prioritizes reset to live');
+  assert.ok(/Back to World Cup/.test(recap.textContent), 'cashed-out recap prioritizes back to world cup');
   assert.ok(/New slip/.test(recap.textContent), 'cashed-out recap offers a new slip');
-  assert.ok(!/Edit ticket/.test(recap.textContent), 'cashed-out recap does not show edit slip');
+  assert.ok(!/Reset to live/.test(recap.textContent), 'cashed-out recap does not show reset to live');
+  assert.ok(!/Edit ticket/.test(recap.textContent) && !/Edit slip/.test(recap.textContent), 'cashed-out recap does not show edit slip');
   assert.equal(app.getState().bank, bankAfter, 'skip-to-result cannot settle again');
 
   // replay then skip again: still no re-pay

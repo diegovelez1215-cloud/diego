@@ -560,6 +560,8 @@ body::after{ /* fine film grain for cinematic depth */
 .pkem-h{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:900;color:var(--txt)}
 .pkem-streak{font-size:11px;font-weight:800;color:var(--gold)}
 .pkem-sub{font-size:11px;color:var(--mut);margin:3px 0 10px;line-height:1.4}
+.pkem-done{margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);font-size:12px;font-weight:800;color:var(--mut2);line-height:1.4}
+.pkem-tomo{margin-top:10px;padding:9px 12px;border:1px dashed rgba(255,255,255,.16);border-radius:12px;font-size:11px;font-weight:800;color:var(--mut2);line-height:1.4}
 .pk-row{padding:8px 0;border-top:1px solid var(--hair)}
 .pk-row:first-of-type{border-top:none}
 .pk-mt{font-size:12px;font-weight:700;color:var(--txt);margin-bottom:6px}.pk-mt .pk-v{color:var(--mut2);font-weight:600}.pk-mt .fl{font-size:14px}
@@ -1917,6 +1919,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .data-dot{width:9px;height:9px;border-radius:50%;background:var(--fact-accent);box-shadow:0 0 14px rgba(100,210,255,.52);flex:none}.data-status.live .data-dot{background:var(--green);box-shadow:0 0 14px rgba(48,209,88,.55);animation:lpulse 1.4s infinite}.data-status.hold .data-dot{background:var(--gold);box-shadow:none;animation:none}.data-status.offline .data-dot{background:var(--orange);box-shadow:none;animation:none}.data-status.error .data-dot{background:var(--red);box-shadow:none;animation:none}
 .data-copy{min-width:0}.data-title{font-size:11px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#fff}.data-sub{font-size:11px;font-weight:700;color:var(--mut);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.data-refresh{margin-left:auto;min-height:36px;border-radius:12px;border:1px solid var(--line2);background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:900;padding:0 11px}
 .home-card.hero{padding:16px;border-radius:22px}.home-card.hero .home-score{font-size:29px}.home-card.hero .home-action{min-height:50px}
+.home-rail-div{margin:11px 2px 8px;font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2)}
 .today-rail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 9px}.today-rail-head b{display:block;font-size:15px}.today-rail-head span{display:block;margin-top:2px;color:var(--mut2);font-size:10.5px;font-weight:800;letter-spacing:.25px}.today-rail-head button{min-height:36px;border:1px solid var(--line2);background:rgba(255,255,255,.06);border-radius:12px;color:var(--teal2);font-size:11px;font-weight:900;padding:0 10px}
 .home-upcoming{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}.home-fixture{scroll-snap-align:start;min-height:104px;display:flex;flex-direction:column;justify-content:space-between}.home-fixture.all{min-width:144px;align-items:flex-start;justify-content:center;border-color:rgba(100,210,255,.28);background:rgba(10,132,255,.09)}
 .tour-more-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.tour-more-grid button{min-height:64px;text-align:left;border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;color:#fff;padding:11px 12px;font-size:12px;font-weight:900}.tour-more-grid span{display:block;font-size:10.5px;color:var(--mut);font-weight:700;margin-top:3px}
@@ -2165,6 +2168,32 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .fre-elim-h{font-size:12px;font-weight:900;color:var(--mut);letter-spacing:.2px}
 .fre-elim-card{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.028)}
 .fre-foot{margin-top:13px;font-size:9.5px;font-weight:850;letter-spacing:.3px;color:var(--mut3);text-transform:uppercase;line-height:1.5}
+.fre-slip-cta{display:block;width:100%;margin-top:14px;padding:12px 14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.035);color:#e9edff;font-size:13px;font-weight:850;text-align:left;cursor:pointer;transition:border-color .16s var(--ease),background .16s var(--ease)}
+.fre-slip-cta span{display:block;margin-top:3px;font-size:10px;font-weight:750;letter-spacing:.3px;color:var(--mut2);text-transform:uppercase}
+.fre-slip-cta:active{transform:scale(.99)}
+.fre-slip-cta:hover{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+/* Knockout Night — factual Match Night card (broadcast-night, Tournament-only) */
+.mn-card{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;margin-bottom:12px;
+ background:radial-gradient(120% 90% at 50% -20%,rgba(30,52,140,.4),transparent 60%),linear-gradient(180deg,rgba(12,18,46,.92),rgba(8,12,34,.92))}
+.mn-k{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px;font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#9aa6dc}
+.mn-badge{flex:none;display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px 9px;font-size:9.5px;font-weight:900;letter-spacing:.3px;color:#cdd6ff;background:rgba(255,255,255,.05);text-transform:none}
+.mn-badge.live{color:#ff6b6b;border-color:rgba(255,69,58,.34);background:rgba(255,69,58,.12)}
+.mn-badge.hold{color:#ffcb3d;border-color:rgba(255,203,61,.32);background:rgba(255,203,61,.12)}
+.mn-livedot{width:7px;height:7px;border-radius:999px;background:#ff5a5a;box-shadow:0 0 0 0 rgba(255,90,90,.6);animation:mnPulse 1.6s infinite}
+@keyframes mnPulse{0%{box-shadow:0 0 0 0 rgba(255,90,90,.55)}70%{box-shadow:0 0 0 7px rgba(255,90,90,0)}100%{box-shadow:0 0 0 0 rgba(255,90,90,0)}}
+.mn-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:9px}
+.mn-team{min-width:0;font-size:14px;font-weight:900;color:#f4f6ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mn-team.r{text-align:right}
+.mn-sc{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:950;color:#fff;font-variant-numeric:tabular-nums}.mn-sc i{color:#8b96c8;font-style:normal;margin:0 3px}
+.mn-vs{font-size:13px;font-weight:900;color:#8b96c8}
+.mn-sub{font-size:11px;font-weight:750;color:#98a3d4;line-height:1.4;margin-bottom:9px}
+.mn-line{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}
+.mn-line span{flex:none;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:#8b96c8}
+.mn-line b{text-align:right;font-size:12.5px;font-weight:850;color:#e9edff;line-height:1.3}
+.mn-ticket{margin-top:9px;padding:9px 11px;border:1px solid rgba(48,209,88,.22);border-radius:12px;background:rgba(48,209,88,.08)}
+.mn-ticket span{display:block;font-size:9px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:#7fe0a0}
+.mn-ticket b{display:block;margin-top:2px;font-size:12px;font-weight:850;color:#eafff0}
+.mn-ticket em{display:block;margin-top:2px;font-size:9.5px;font-style:normal;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#8b96c8}
 .fre-moments{display:flex;flex-direction:column;gap:8px;margin:11px 0 4px}
 .fre-mom{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03);animation:freSwap .3s var(--ease)}
 .fre-mom-ic{flex:none;font-size:18px;line-height:1}
@@ -2513,7 +2542,9 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .ts2-rc-card .tx span{display:block;font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#8b96c8}
 .ts2-rc-card .tx b{font-size:13px;font-weight:700;color:#eef2ff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ts2-rc-actions{display:flex;flex-direction:column;gap:9px;width:100%;max-width:340px;margin-top:6px}
+.ts2-rc-back-sub{margin:-3px 0 2px;text-align:center;font-size:11.5px;font-weight:700;color:#98a3d4}
 .ts2-rc-row{display:flex;gap:9px}
+.ts2-rc-btn.ghost{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);color:#b9c2ec;font-weight:750}
 .ts2-rc-btn{flex:1;border:0;border-radius:13px;padding:13px 10px;font-size:13px;font-weight:800;letter-spacing:.3px;cursor:pointer;
  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#e6ebff}
 .ts2-rc-btn:active{transform:scale(.97)}
@@ -3467,25 +3498,26 @@ function pkemPickLabel(m,p){return p==='h'?nm(m.home):p==='d'?'Draw':p==='a'?nm(
    - a match that JUST kicked off (within the recency window) stays even if the
      user never picked it, so a fixture they were looking at transitions to a
      locked/result row instead of silently disappearing the moment it locks. */
+/* Daily Pick'em is strictly TODAY-only. The list is every group fixture scheduled
+   for the user's local current day (open ones are playable, locked ones read as
+   results). Tomorrow's fixtures never enter this list — they appear only as a
+   preview line in pickemHTML(). */
+function pickemTodayISO(){return curISO();}
 function pickemList(){
- var P=S.preds||{},seen={},out=[];
- function add(m){if(!m||seen[m.num])return;seen[m.num]=1;out.push(m);}
- function koMs(m){var d=koDateTime(m);return d?d.getTime():0;}
- function byKoDesc(x,y){return koMs(y)-koMs(x);}
- var grp=MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away;});
- var open=grp.filter(function(m){return pkemMatchOpen(m.num);}).sort(pkemSort);
- open.forEach(function(m){if(P[m.num]!=null)add(m);});      // never drop an open pick
- open.forEach(function(m){if(out.length<5)add(m);});        // fill with next upcoming
- var locked=grp.filter(function(m){return !seen[m.num]&&!pkemMatchOpen(m.num);});
- locked.filter(function(m){return P[m.num]!=null;}).sort(byKoDesc).slice(0,4).forEach(add); // their own picks → keep as result rows
- var now=Date.now(),RECENT=36*3600000;                     // recently kicked-off, even if unpicked → don't let it vanish
- locked.filter(function(m){return P[m.num]==null&&koMs(m)&&(now-koMs(m))<=RECENT;}).sort(byKoDesc).slice(0,3).forEach(add);
- return out.sort(pkemSort);
+ var today=pickemTodayISO();
+ return MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away&&matchDay(m)===today;}).sort(pkemSort);
 }
+function pickemOpenTodayCount(){return pickemList().filter(function(m){return pkemMatchOpen(m.num);}).length;}
+function pickemTomorrowCount(){var t=nextISO(pickemTodayISO());return MATCHES.filter(function(m){return m.stage==="group"&&m.home&&m.away&&matchDay(m)===t;}).length;}
 function pickem(num,pick){if(!S.preds)S.preds={};if(!pkemMatchOpen(num)){try{toast("That match is locked — pick before kickoff");}catch(e){}return;}S.preds[num]=pick;try{haptic('pick');}catch(e){}saveState();renderHome();}
 function pickemHTML(){
- var ms=pickemList();
- if(!ms.length)return "";
+ var ms=pickemList(),openCt=pickemOpenTodayCount(),tomo=pickemTomorrowCount();
+ var head='<div class="pkem-h"><span>🎯 Daily Pick’em</span><span class="pkem-streak">🔥 '+(S.pickStreak||0)+(S.pickBest?' · best '+S.pickBest:'')+'</span></div>';
+ var tomoPreview=tomo?('<div class="pkem-tomo">Tomorrow’s picks open after today’s final match · '+tomo+' fixture'+(tomo>1?'s':'')+'</div>'):'';
+ if(!ms.length){
+  if(!tomo)return "";
+  return '<div class="pkem-card">'+head+'<div class="pkem-done">No Pick’em fixtures today.</div>'+tomoPreview+'</div>';
+ }
  var rows=ms.map(function(m){
    var p=(S.preds||{})[m.num];
    var title='<div class="pk-mt"><span class="fl">'+fl(m.home)+'</span> '+esc(nm(m.home))+' <span class="pk-v">v</span> '+esc(nm(m.away))+' <span class="fl">'+fl(m.away)+'</span></div>';
@@ -3500,7 +3532,10 @@ function pickemHTML(){
    }
    return '<div class="pk-row"><div class="pk-mt"><span class="fl">'+fl(m.home)+'</span> '+esc(nm(m.home))+' <span class="pk-v">v</span> '+esc(nm(m.away))+' <span class="fl">'+fl(m.away)+'</span></div><div class="pk-btns"><button class="'+(p==='h'?'on':'')+'" onclick="pickem('+m.num+',\'h\')">'+esc(nm(m.home))+'</button><button class="'+(p==='d'?'on':'')+'" onclick="pickem('+m.num+',\'d\')">Draw</button><button class="'+(p==='a'?'on':'')+'" onclick="pickem('+m.num+',\'a\')">'+esc(nm(m.away))+'</button></div></div>';
  }).join("");
- return '<div class="pkem-card"><div class="pkem-h"><span>🎯 Daily Pick’em</span><span class="pkem-streak">🔥 '+(S.pickStreak||0)+(S.pickBest?' · best '+S.pickBest:'')+'</span></div><div class="pkem-sub">Call the next results. Correct picks build a streak → bonus cash at 3 · 5 · 10 · 20.</div>'+rows+'</div>';}
+ var sub=openCt
+  ?'<div class="pkem-sub">Call today’s results. Correct picks build a streak → bonus cash at 3 · 5 · 10 · 20.</div>'
+  :'<div class="pkem-done">Today’s Pick’em is complete — every match is locked.</div>';
+ return '<div class="pkem-card">'+head+sub+rows+tomoPreview+'</div>';}
 /* ===== Power-Up Store ===== */
 function storeItem(ic,name,desc,key,cost){var owned=(S.powerups&&S.powerups[key])||0;return '<div class="store-item"><div class="si-ic">'+ic+'</div><div class="si-tx"><div class="si-n">'+name+(owned?' <span class="si-own">×'+owned+'</span>':'')+'</div><div class="si-d">'+desc+'</div></div><button class="si-buy'+(S.bank<cost?' dis':'')+'" onclick="buyPower(\''+key+'\','+cost+')">$'+cost.toLocaleString()+'</button></div>';}
 function storeSheet(){if(!S.powerups)S.powerups={boost:0,insure:0,streak:0};
@@ -3610,13 +3645,39 @@ function homePrimaryContext(){
  var pending=homePendingOfficialNum();if(pending!=null)return {html:homeLiveNowHTML(),nums:[pending],kind:'pending_feed'};
  var next=homeNextFixture(null);return {html:homeLiveNowHTML(),nums:next?[next.num]:[],kind:next?'next':'empty'};
 }
+function nextISO(iso){try{var p=(iso||curISO()).split('-');var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+1);return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}catch(e){return iso;}}
+/* Unfinished, non-live, ready fixtures scheduled on a specific local day (excluding
+   anything already shown in the Home hero). */
+function homeUnfinishedOn(iso,seen){return MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num)&&matchDay(m)===iso&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures);}
+function homeFixtureCardHTML(m){var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),o=(p[0]&&p[1])?matchOddsFor(m.num,p[0],p[1],m.stage!=='group'):null,st=matchLiveState(m.num),tag=st?(st.label||'Official status'):(m.stage==='group'?('Group '+m.group):roundShort(m.num));return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+(p[0]?fl(p[0])+' '+nm(p[0]):slotLabel(m.home))+' v '+(p[1]?nm(p[1])+' '+fl(p[1]):slotLabel(m.away))+'</b><span>'+shortDate(m.date)+' · '+to12(m.time)+' ET · '+esc(tag)+'</span><span>'+(o?('Market odds · '+fmtAmer(o.h)+' / '+fmtAmer(o.d)+' / '+fmtAmer(o.a)):'Market odds unavailable')+'</span></div>';}
+/* Today & next, with honest dynamic labels:
+   - unfinished fixtures later today  -> "Later today"
+   - none left today but tomorrow has fixtures -> "Tomorrow"
+   - both -> a "Later today" block and a separate "Tomorrow" block
+   - otherwise -> "Next fixtures" (the soonest upcoming day)
+   A fixture already shown in the Home hero (seen) is never repeated here, and a
+   completed match is never shown as next/upcoming. */
 function todayRailHTML(seen){
- var todayAll=homeTodayFixtures(),first=homeTodayFixtures().filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num);})[0]||null;
- var rows=MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num)&&matchDay(m)>=curISO()&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures).slice(0,6);
- if(!rows.length)return '';
- var cards=rows.map(function(m){var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),o=(p[0]&&p[1])?matchOddsFor(m.num,p[0],p[1],m.stage!=='group'):null,st=matchLiveState(m.num),tag=st?(st.label||'Official status'):(m.stage==='group'?('Group '+m.group):roundShort(m.num));return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+(p[0]?fl(p[0])+' '+nm(p[0]):slotLabel(m.home))+' v '+(p[1]?nm(p[1])+' '+fl(p[1]):slotLabel(m.away))+'</b><span>'+shortDate(m.date)+' · '+to12(m.time)+' ET · '+esc(tag)+'</span><span>'+(o?('Market odds · '+fmtAmer(o.h)+' / '+fmtAmer(o.d)+' / '+fmtAmer(o.a)):'Market odds unavailable')+'</span></div>';}).join('');
- var sub=todayAll.length?(todayAll.length+' fixtures today'+(first?' · next '+to12(first.time)+' ET':'')):'Next fixtures';
- return '<div class="home-card"><div class="today-rail-head"><div><b>Today & next</b><span>'+esc(sub)+'</span></div><button onclick="goSchedule()">All fixtures</button></div><div class="home-upcoming">'+cards+'<div class="home-fixture all" onclick="goSchedule()"><b>See all matches</b><span>Open the full Tournament match list</span></div></div></div>';}
+ var today=curISO(),tomorrow=nextISO(today),todayAll=homeTodayFixtures();
+ var later=homeUnfinishedOn(today,seen),tomo=homeUnfinishedOn(tomorrow,seen);
+ var todayCount=todayAll.length?(todayAll.length+' fixtures today'):'';
+ var headLabel,headSub,body='';
+ if(later.length){
+  headLabel='Later today';
+  headSub=(todayCount||'Fixtures today')+' · next '+to12(later[0].time)+' ET';
+  body='<div class="home-upcoming">'+later.slice(0,6).map(homeFixtureCardHTML).join('')+'</div>';
+  if(tomo.length)body+='<div class="home-rail-div">Tomorrow</div><div class="home-upcoming">'+tomo.slice(0,4).map(homeFixtureCardHTML).join('')+'</div>';
+ }else if(tomo.length){
+  headLabel='Tomorrow';
+  headSub=(todayCount?todayCount+' complete · ':'')+'next fixtures '+shortDate(tomorrow);
+  body='<div class="home-upcoming">'+tomo.slice(0,6).map(homeFixtureCardHTML).join('')+'</div>';
+ }else{
+  var rows=MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num)&&matchDay(m)>=today&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures).slice(0,6);
+  if(!rows.length)return '';
+  headLabel='Next fixtures';headSub=(todayCount?todayCount+' complete':'Soonest upcoming matches');
+  body='<div class="home-upcoming">'+rows.map(homeFixtureCardHTML).join('')+'</div>';
+ }
+ return '<div class="home-card"><div class="today-rail-head"><div><b>'+esc(headLabel)+'</b><span>'+esc(headSub)+'</span></div><button onclick="goSchedule()">All fixtures</button></div>'+body+'<div class="home-upcoming"><div class="home-fixture all" onclick="goSchedule()"><b>See all matches</b><span>Open the full Tournament match list</span></div></div></div>';}
 function goPlay(){TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#betting','Play opened',40);}
 function goCompare(){TAB='compare';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
 function goStandings(){TAB='groups';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
@@ -3850,7 +3911,9 @@ function renderHome(){
  // duplicate live surfaces — removed. Live data still flows via S.rwState + render().
  var _homePrimary={html:'',nums:[]};try{_homePrimary=homePrimaryContext();}catch(e){_homePrimary={html:homeLiveNowHTML(),nums:[]};}
  var _homeSeen=homeSeen(_homePrimary.nums||[]);
- document.getElementById("home").innerHTML='<div class="home-stack">'+(_homePrimary.html||'')+todayRailHTML(_homeSeen)+activePicksHTML()+tournamentPulseHomeHTML(_homeSeen)+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
+ // Home order: live pair (hero) · next pair (today/tomorrow rail) · why it matters
+ // (tournament pulse) · active Play ticket (only when genuinely active) · then tools.
+ document.getElementById("home").innerHTML='<div class="home-stack">'+(_homePrimary.html||'')+todayRailHTML(_homeSeen)+tournamentPulseHomeHTML(_homeSeen)+activePicksHTML()+'</div>'+_hype+champ+_pick+'<div id="lbHome">'+(typeof _lbHomeWire==="string"?_lbHomeWire:"")+'</div>'+actions;
 }
 /* ===== The Athletic Newsroom — editorial feed (Gemini #6) ===== */
 var _activeNewsTab="Storylines";
@@ -6134,19 +6197,17 @@ function freEliminatedHTML(code){
   h+='<div class="fre-explain">'+esc(nm(code))+' did not advance from Group '+g+'. There is no knockout route to show — their tournament ends at the group stage.</div>';
   return h+'</div>';
 }
-/* Matchday Moments — tiny, only when real app state supports them. */
+/* Tournament Moments — factual only. Route Explorer is Tournament information by
+   default: it never shows a virtual ticket, a payout, a selected leg, or any implied
+   Play state. The only moment surfaced here is official qualification truth. */
 function freMomentsHTML(code){
   var cards=[];
-  // winning virtual ticket
-  try{var best=null;(S.bets||[]).forEach(function(b){if(b&&b.settled&&b.win&&typeof b.net==='number'&&(!best||b.net>best.net))best=b;});
-    if(best&&best.net>0)cards.push('<div class="fre-mom fre-mom-gold"><span class="fre-mom-ic">🎟️</span><div><b>Ticket won</b><span>+$'+best.net.toLocaleString()+' settled · a Tournament Moment</span></div></div>');
-  }catch(e){}
-  // qualification locked for this team (real mode truth)
+  // qualification locked for this team (real-mode official truth only)
   try{if(typeof activeMode==='function'&&activeMode()==='real'){var ts=tccTeamTournamentStatus(code);
-    if(ts&&ts.lockedQualified&&!ts.eliminated)cards.push('<div class="fre-mom fre-mom-gold"><span class="fre-mom-ic">✅</span><div><b>Qualification locked</b><span>'+esc(nm(code))+(ts.lockedWinner?' top their group':' are through to the Round of 32')+'</span></div></div>');
+    if(ts&&ts.lockedQualified&&!ts.eliminated)cards.push('<div class="fre-mom"><span class="fre-mom-ic">✅</span><div><b>Qualification locked</b><span>'+esc(nm(code))+(ts.lockedWinner?' top their group':' are through to the Round of 32')+'</span></div></div>');
   }}catch(e){}
   if(!cards.length)return '';
-  return '<div class="fre-moments">'+cards.slice(0,2).join('')+'</div>';
+  return '<div class="fre-moments">'+cards.slice(0,1).join('')+'</div>';
 }
 /* Tab strip: 1st / 2nd / 3rd. In-play positions are tappable; the rest read "Not in play". */
 function freTabsHTML(code,route,sel){
@@ -6174,7 +6235,20 @@ function freExplorerHTML(code){
     h+='<div id="fre-panel" class="fre-panel">'+frePanelHTML(code,sel)+'</div>';
   }
   h+='<div class="fre-foot">Routes update only from official results · no opponent is shown as confirmed until both groups are final.</div>';
-  return h+'</div>';
+  h+='</div>';
+  // One quiet optional Play hand-off. Tournament-only by default: this never creates
+  // a ticket or pre-selects a leg — it only opens the Play flow after a deliberate tap.
+  h+='<button class="fre-slip-cta" onclick="freBuildSlip(\''+code+'\')">Build a virtual slip from this route<span>Play · Simulation · opens the Play flow</span></button>';
+  return h;
+}
+/* Deliberate hand-off into Play. Does NOT build a slip or add any leg automatically —
+   the user lands in Play and chooses everything themselves. */
+function freBuildSlip(code){
+  try{var sc=document.getElementById('scrim');if(sc)sc.classList.remove('on');}catch(e){}
+  try{var sh=document.getElementById('sheet');if(sh)sh.innerHTML='';}catch(e){}
+  try{haptic('tap');}catch(e){}
+  try{if(typeof goPlay==='function')goPlay();}catch(e){}
+  try{toast('Play · build a virtual slip from this route');}catch(e){}
 }
 function freSelectFinish(code,pos){
   _freSel[code]=pos;var panel=document.getElementById('fre-panel');
@@ -6659,6 +6733,79 @@ window.addEventListener("hashchange",handleDeepLink);
 // helpers
 function roundName(n){if(n<=72)return "Group Stage";if(n<=88)return "Round of 32";if(n<=96)return "Round of 16";if(n<=100)return "Quarter-final";if(n<=102)return "Semi-final";if(n===103)return "Bronze Final";return "Final";}
 function roundShort(n){if(n<=72)return "Group stage";if(n<=88)return "R32";if(n<=96)return "R16";if(n<=100)return "QF";if(n<=102)return "SF";if(n===103)return "3RD";return "FINAL";}
+/* ============================================================================
+   KNOCKOUT NIGHT — factual Match Night foundation (Phase 8 groundwork only).
+   A reusable, Tournament-truth-only module. It activates ONLY for a real knockout
+   fixture that is upcoming or live, and never invents a score, an opponent, a stat,
+   or live commentary. Everything comes from official containers: S.realko (decided
+   ties), tccLiveState (official live/hold feed), koParts (resolved slots), NEXTWIN /
+   FEEDERS (bracket math), and S.bets (the user's own Play tickets). The full
+   Knockout Night experience is intentionally NOT built here. ===================== */
+function matchNightActive(num){
+  var m=M[num];
+  if(!m||m.stage==='group')return false;            // knockout fixtures only
+  if(S.realko&&S.realko[num])return false;           // already officially decided → not a "night"
+  if(tccLiveState(num))return true;                  // official live or hold
+  return !!koDateTime(m);                             // upcoming/scheduled knockout fixture
+}
+/* Pure read-model. Returns null unless this is a live/upcoming real knockout fixture. */
+function matchNightModel(num){
+  if(!matchNightActive(num))return null;
+  var m=M[num],live=tccLiveState(num),parts=koParts(num);
+  var teamsKnown=!!(parts[0]&&T[parts[0]]&&parts[1]&&T[parts[1]]);
+  var nx=NEXTWIN[num];
+  // one plain-English stakes line — bracket math only
+  var stakes=(num===104)?'Winner are World Champions.'
+            :(num===103)?'Winner finishes third.'
+            :(nx?('Winner reaches the '+roundName(nx)+'.'):'');
+  // confirmed next opponent ONLY when the sibling tie is officially decided
+  var nextOpponent=null,nextOpponentState='pending';
+  if(nx){var fs=FEEDERS[nx],sib=fs&&(fs[0]===num?fs[1]:fs[0]);
+    if(sib&&S.realko&&S.realko[sib]){nextOpponent=S.realko[sib];nextOpponentState='confirmed';}}
+  // official score/status — only from the live feed, never synthesised
+  var score=(live&&live.sh!=null&&live.sa!=null)?{h:live.sh,a:live.sa}:null;
+  // one concise, factual "why this match matters" line
+  var why=(num===104)?'The World Cup is decided in this match.'
+         :(num===103)?'The Bronze Final settles third place.'
+         :('One result ends a run and carries the other into the '+roundName(nx)+'.');
+  // user Play ticket summary — only when the user actually holds an active ticket here
+  var ticket=null;
+  try{var rel=(S.bets||[]).filter(function(b){return b&&!b.settled&&b.num===num;});
+    if(rel.length){
+      ticket={legs:rel.length,
+        stake:rel.reduce(function(s,b){return s+(b.stake||0);},0),
+        potential:rel.reduce(function(s,b){return s+Math.round((b.stake||0)*amerToDec(b.odds||100));},0)};
+    }}catch(e){}
+  return {num:num,round:roundName(num),teams:parts,teamsKnown:teamsKnown,
+    live:!!live,statusKind:live?live.kind:'scheduled',statusLabel:live?(live.label||'Live'):null,
+    kickoff:(m.date&&m.time)?{date:m.date,time:m.time}:null,score:score,
+    stakes:stakes,why:why,nextOpponent:nextOpponent,nextOpponentState:nextOpponentState,ticket:ticket};
+}
+/* Lightweight factual card. No ticket-like UI unless the user truly has an active
+   relevant ticket; no fake score/events/commentary. Empty string when not a night. */
+function matchNightHTML(num){
+  var mn=matchNightModel(num);if(!mn)return '';
+  var p=mn.teams,hn=p[0]&&T[p[0]]?fl(p[0])+' '+nm(p[0]):slotLabel(M[num].home),an=p[1]&&T[p[1]]?nm(p[1])+' '+fl(p[1]):slotLabel(M[num].away);
+  var badge=mn.live
+    ?'<span class="mn-badge '+(mn.statusKind==='hold'?'hold':'live')+'">'+(mn.statusKind==='hold'?esc(mn.statusLabel||'Paused'):'<span class="mn-livedot"></span>'+esc(mn.statusLabel||'LIVE'))+'</span>'
+    :'<span class="mn-badge">'+(mn.kickoff?shortDate(mn.kickoff.date)+' · '+to12(mn.kickoff.time)+' ET':'Scheduled')+'</span>';
+  var mid=mn.score?('<span class="mn-sc">'+mn.score.h+'<i>–</i>'+mn.score.a+'</span>'):'<span class="mn-vs">v</span>';
+  var oppLine=(mn.nextOpponentState==='confirmed'&&mn.nextOpponent)
+    ?'<div class="mn-line"><span>Next</span><b>Winner meets '+esc(nm(mn.nextOpponent))+'</b></div>'
+    :'';
+  var ticket=mn.ticket
+    ?'<div class="mn-ticket"><span>Your Play ticket</span><b>'+mn.ticket.legs+' leg'+(mn.ticket.legs>1?'s':'')+' · stake $'+mn.ticket.stake.toLocaleString()+' · potential $'+mn.ticket.potential.toLocaleString()+'</b><em>Play · Simulation</em></div>'
+    :'';
+  return '<div class="mn-card">'
+    +'<div class="mn-k"><span>'+esc(mn.round)+' · Match Night</span>'+badge+'</div>'
+    +'<div class="mn-teams"><div class="mn-team">'+hn+'</div>'+mid+'<div class="mn-team r">'+an+'</div></div>'
+    +(mn.live?'<div class="mn-sub">Official live status · result is provisional until the final whistle.</div>':'')
+    +(mn.stakes?'<div class="mn-line"><span>Stakes</span><b>'+esc(mn.stakes)+'</b></div>':'')
+    +oppLine
+    +'<div class="mn-line"><span>Why it matters</span><b>'+esc(mn.why)+'</b></div>'
+    +ticket
+    +'</div>';
+}
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],MONL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function shortDate(d){const[y,m,da]=d.split("-").map(Number);return MON[m-1]+" "+da;}
 function longDate(d){const[y,m,da]=d.split("-").map(Number);return MONL[m-1]+" "+da+", "+y;}
@@ -7501,6 +7648,34 @@ function ts2EnsureActiveLegVisible(){
   }catch(e){}
 }
 function ts2Speeds(){return {normal:{mpm:40,hold:1500},fast:{mpm:7,hold:340},cinematic:{mpm:40,hold:1500}};}
+/* Ordered event stream for a leg: real engine events (minute-sorted) + the closing
+   whistle. Pure — never depends on the chosen speed, so Watch live and Speed up play
+   the exact same events in the exact same order. */
+function ts2BuildStops(lg){
+  var res=lg.result,evs=(res.events||[]).slice().sort(function(a,b){return a.minute-b.minute;});
+  var stops=evs.slice();
+  stops.push({minute:res.minute,type:'final_whistle',period:res.period,score:res.score,shootout:res.shootout,headline:ts2FinalHeadline(lg,res)});
+  return stops;
+}
+/* Per-stop wall-clock cost for a speed (mirrors the nextStop scheduler exactly):
+   clock tween toward the event + the post-event hold, plus one settle pause per leg. */
+function ts2StepDurations(stops,spd){
+  var out=[],from=0;
+  for(var k=0;k<stops.length;k++){
+    var ev=stops[k],to=ev.minute;
+    out.push(Math.max(140,(to-from)*spd.mpm)+(ts2IsKey(ev)?spd.hold:spd.hold*0.45));
+    from=to;
+  }
+  out.push(Math.max(260,spd.hold*0.5));
+  return out;
+}
+/* Total real elapsed playback for a set of legs at a given speed. Lets the suite
+   prove Speed up is materially faster than Watch live without running timers. */
+function ts2EstimatePlayback(legs,speedKey){
+  var spd=ts2Speeds()[speedKey]||ts2Speeds().normal,total=0;
+  (legs||[]).forEach(function(lg){ts2StepDurations(ts2BuildStops(lg),spd).forEach(function(d){total+=d;});});
+  return Math.round(total);
+}
 function ts2TweenClock(from,to,dur,done){
   var t0=null,sh=document.getElementById('ts2clock');
   if(!sh||dur<=0||from===to){if(_ts2)_ts2.liveMin=to;if(sh)sh.textContent=ts2ClockText();return done&&done();}
@@ -7535,8 +7710,7 @@ function ts2PlayLeg(i,instant){
   // reset live view for this leg
   t.liveScore={h:0,a:0};t.liveRed={h:0,a:0};t.livePeriod='first half';t.liveMin=0;t.liveEvent=null;t.shootout=null;t.drama=null;
   ts2RenderStage();ts2RenderRail();ts2RenderTop();ts2RenderCash();
-  var res=lg.result,evs=(res.events||[]).slice().sort(function(a,b){return a.minute-b.minute;});
-  var stops=evs.slice();stops.push({minute:res.minute,type:'final_whistle',period:res.period,score:res.score,shootout:res.shootout,headline:ts2FinalHeadline(lg,res)});
+  var res=lg.result,stops=ts2BuildStops(lg);
   if(instant){ // skip: apply all instantly
     stops.forEach(function(ev){ts2ApplyEvent(i,ev,null);});
     lg._done=true;ts2RenderRail();
@@ -7610,8 +7784,9 @@ function ts2Recap(){
     ? '<div class="ts2-rc-pay">+$'+Math.max(0,net).toLocaleString()+'</div>'
     : '<div class="ts2-rc-pay dn">−$'+Math.abs(Math.min(0,net)).toLocaleString()+'</div>';
   var bankLine='<div class="ts2-rc-bank">Virtual bankroll '+(bankDelta>=0?'▲ ':'▼ ')+'<b>$'+S.bank.toLocaleString()+'</b> ('+(bankDelta>=0?'+':'−')+'$'+Math.abs(bankDelta).toLocaleString()+')</div>';
-  var actions='<button class="ts2-rc-btn primary" onclick="ts2ResetToLive()">Reset to live</button>'
-    +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn" onclick="ts2Replay()">↻ Replay</button></div>';
+  var actions='<button class="ts2-rc-btn primary" onclick="ts2BackToWorldCup()">Back to World Cup</button>'
+    +'<div class="ts2-rc-back-sub">See what’s live and next.</div>'
+    +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn ghost" onclick="ts2Replay()">↻ Replay</button></div>';
   var rc=document.createElement('div');rc.className='ts2-recap '+winCls;rc.id='ts2recap';
   rc.innerHTML='<button class="ts2-x rc-x" onclick="ts2Close()" aria-label="Close">✕</button>'
     +'<div class="ts2-rc-k">'+klabel+'</div>'
@@ -7638,8 +7813,9 @@ function ts2RecapCashed(stage){
     +(close?'<div class="ts2-rc-card"><span class="ic">⏱</span><div class="tx"><span>Closest moment</span><b>'+esc(close.label)+' · '+esc(close.sub)+'</b></div></div>':'');
   var payBlock='<div class="ts2-rc-pay'+(realNet>=0?'':' dn')+'">'+(realNet>=0?'+':'−')+'$'+Math.abs(realNet).toLocaleString()+'</div>';
   var bankLine='<div class="ts2-rc-bank">Virtual bankroll '+(bankDelta>=0?'▲ ':'▼ ')+'<b>$'+S.bank.toLocaleString()+'</b> ('+(bankDelta>=0?'+':'−')+'$'+Math.abs(bankDelta).toLocaleString()+')</div>';
-  var actions='<button class="ts2-rc-btn primary" onclick="ts2ResetToLive()">Reset to live</button>'
-    +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn" onclick="ts2Replay()">↻ Replay</button></div>';
+  var actions='<button class="ts2-rc-btn primary" onclick="ts2BackToWorldCup()">Back to World Cup</button>'
+    +'<div class="ts2-rc-back-sub">See what’s live and next.</div>'
+    +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn ghost" onclick="ts2Replay()">↻ Replay</button></div>';
   var rc=document.createElement('div');rc.className='ts2-recap '+(realNet>=0?'win':'');rc.id='ts2recap';
   rc.innerHTML='<button class="ts2-x rc-x" onclick="ts2Close()" aria-label="Close">✕</button>'
     +'<div class="ts2-rc-k">Cashed out · Simulation</div>'
@@ -7664,6 +7840,11 @@ function ts2ResetToLive(){ts2Cancel();var o=document.getElementById('ts2');if(o)
   document.body.style.overflow='';try{TAB='home';if(typeof pushTab==='function')pushTab();switchTab();render();}catch(e){try{render();}catch(x){}}
   try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}
   toast('Back to live');}
+/* ---- post-simulation: return to the factual World Cup (Home) ---- */
+function ts2BackToWorldCup(){ts2Cancel();var o=document.getElementById('ts2');if(o)o.remove();_ts2=null;try{S._ts2=null;}catch(e){}
+  document.body.style.overflow='';try{TAB='home';if(typeof pushTab==='function')pushTab();switchTab();render();}catch(e){try{render();}catch(x){}}
+  try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}
+  toast('Back to the World Cup · live and next');}
 function ts2NewSlip(){ts2Cancel();var o=document.getElementById('ts2');if(o)o.remove();_ts2=null;try{S._ts2=null;S.slip=[];saveState();}catch(e){}
   document.body.style.overflow='';try{_betCat='matches';TAB='bet';if(typeof pushTab==='function')pushTab();switchTab();render();}catch(e){try{render();}catch(x){}}
   toast('New slip ready');}
@@ -7689,7 +7870,8 @@ try{window.__ts2={ts2Legs:ts2Legs,ts2Simple:ts2Simple,ts2StateAt:ts2StateAt,ts2F
   ts2LegLiveProb:ts2LegLiveProb,ts2TargetSurvival:ts2TargetSurvival,ts2CashContext:ts2CashContext,
   ts2RenderCash:ts2RenderCash,ts2CashOut:ts2CashOut,ts2CashCancel:ts2CashCancel,ts2CashConfirm:ts2CashConfirm,
   ts2HypoOutcome:ts2HypoOutcome,ts2RenderTop:ts2RenderTop,ts2RenderRail:ts2RenderRail,ts2RailTouched:ts2RailTouched,
-  ts2EnsureActiveLegVisible:ts2EnsureActiveLegVisible,ts2ResetToLive:ts2ResetToLive,ts2NewSlip:ts2NewSlip,
+  ts2EnsureActiveLegVisible:ts2EnsureActiveLegVisible,ts2ResetToLive:ts2ResetToLive,ts2BackToWorldCup:ts2BackToWorldCup,ts2NewSlip:ts2NewSlip,
+  ts2Speeds:ts2Speeds,ts2SetSpeed:ts2SetSpeed,ts2BuildStops:ts2BuildStops,ts2StepDurations:ts2StepDurations,ts2EstimatePlayback:ts2EstimatePlayback,
   getCtx:function(){return _ts2;},setCtx:function(v){_ts2=v;}};}catch(e){}
 render();
 try{handleDeepLink();}catch(e){}
