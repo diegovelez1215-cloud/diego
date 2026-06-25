@@ -42,7 +42,7 @@ body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSys
 body::before{content:"";position:fixed;inset:0;background:
   radial-gradient(95% 55% at 50% -12%,rgba(96,128,255,.28),transparent 62%),
   radial-gradient(70% 45% at 50% 110%,rgba(10,16,52,.55),transparent 60%);pointer-events:none;z-index:0}
-.wrap{max-width:780px;margin:0 auto;position:relative;z-index:1;padding-bottom:64px}
+.wrap{max-width:780px;margin:0 auto;position:relative;z-index:1;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:999}
 
 header{padding:20px 18px 14px;position:relative;overflow:hidden}
@@ -720,17 +720,21 @@ details.gfx[open]>summary.fxttl::after{transform:rotate(180deg)}
 .screen{display:none}.screen.on{display:block}
 .screen,.subview{content-visibility:auto;contain-intrinsic-size:720px}
 .screen.on,.subview.on{content-visibility:visible;contain-intrinsic-size:auto}
-.screen.enter{animation:viewIn .36s var(--ease)}
+/* Tab change: a restrained ~200ms opacity+translate (no giant slides, no long delays) */
+.screen.enter{animation:viewIn .2s var(--ease)}
 .subview{display:none}.subview.on{display:block}
 
-/* orchestrated home reveal */
-.screen.enter #home>*{animation:cardUp .52s both var(--ease)}
-.screen.enter #home>*:nth-child(1){animation-delay:.02s}
-.screen.enter #home>*:nth-child(2){animation-delay:.07s}
-.screen.enter #home>*:nth-child(3){animation-delay:.12s}
-.screen.enter #home>*:nth-child(4){animation-delay:.17s}
-.screen.enter #home>*:nth-child(5){animation-delay:.22s}
-.screen.enter #home>*:nth-child(n+6){animation-delay:.27s}
+/* orchestrated home reveal — kept subtle and quick so the tab never feels slow */
+.screen.enter #home>*{animation:cardUp .34s both var(--ease)}
+.screen.enter #home>*:nth-child(1){animation-delay:.01s}
+.screen.enter #home>*:nth-child(2){animation-delay:.04s}
+.screen.enter #home>*:nth-child(3){animation-delay:.07s}
+.screen.enter #home>*:nth-child(4){animation-delay:.10s}
+.screen.enter #home>*:nth-child(5){animation-delay:.12s}
+.screen.enter #home>*:nth-child(n+6){animation-delay:.14s}
+/* Shared restrained press feedback for any control lacking its own (0-specificity :where) */
+:where(button,.home-action,.cmd-btn,.pf-add,.phl-go){transition:transform .12s var(--ease),opacity .12s var(--ease)}
+:where(button,.home-action,.cmd-btn,.pf-add,.phl-go):active{transform:scale(.985)}
 
 /* ---- segmented control (iOS) -------------------------------------- */
 .seg{position:relative;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:4px 38px 4px 4px;margin:16px 0 18px;backdrop-filter:blur(18px) saturate(160%);-webkit-overflow-scrolling:touch;box-shadow:inset -26px 0 28px -22px rgba(255,255,255,.72),0 10px 28px -24px rgba(0,0,0,.8)}
@@ -1481,7 +1485,7 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .lbh-card:active{transform:scale(.99)}
 .lbh-h{font-size:14px;font-weight:900;display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .lbh-go{margin-left:auto;font-size:11px;font-weight:800;color:var(--teal2)}
-.cmd-card{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(10,132,255,.22),rgba(94,92,230,.11) 45%,rgba(0,0,0,.28));border:1px solid rgba(100,210,255,.28);border-radius:18px;padding:15px 15px 13px;margin-bottom:14px;box-shadow:var(--shadow-1)}
+.cmd-card{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(10,132,255,.15),rgba(94,92,230,.08) 45%,rgba(0,0,0,.30));border:1px solid rgba(120,170,230,.16);border-radius:18px;padding:15px 15px 13px;margin-bottom:14px;box-shadow:var(--shadow-1)}
 .cmd-card::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 80% at 100% 0,rgba(48,209,88,.16),transparent 58%);pointer-events:none}
 .cmd-k{position:relative;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--teal2);margin-bottom:4px}
 .cmd-h{position:relative;font-size:18px;font-weight:900;color:#fff;line-height:1.12}
@@ -1494,8 +1498,8 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .cmd-chip{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--mut);border-radius:999px;padding:6px 9px;font-size:10.5px;font-weight:800;cursor:pointer}
 .home-stack{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
 .home-card{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;background:linear-gradient(155deg,rgba(20,27,46,.86),rgba(10,16,34,.72));box-shadow:var(--shadow-1);backdrop-filter:var(--glass-lite);-webkit-backdrop-filter:var(--glass-lite)}
-.home-card.official{border-color:rgba(100,210,255,.28);background:linear-gradient(155deg,rgba(10,132,255,.18),rgba(12,18,38,.84))}
-.home-card.play{border-color:rgba(255,203,61,.28);background:linear-gradient(155deg,rgba(255,203,61,.13),rgba(12,18,38,.84))}
+.home-card.official{border-color:rgba(120,180,235,.18);background:linear-gradient(155deg,rgba(10,132,255,.14),rgba(12,18,38,.86))}
+.home-card.play{border-color:rgba(255,203,61,.24);background:linear-gradient(155deg,rgba(255,203,61,.12),rgba(12,18,38,.86))}
 .home-k{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--mut2)}
 .home-live-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
 .home-team{min-width:0;font-size:13px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-team.r{text-align:right}
@@ -1628,7 +1632,7 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .play-hero{position:relative;overflow:hidden;border:1px solid rgba(255,203,61,.26);border-radius:22px;padding:16px;margin-bottom:14px;background:linear-gradient(150deg,rgba(255,203,61,.16),rgba(10,16,34,.90) 52%,rgba(8,12,28,.94));box-shadow:var(--shadow-1)}
 .play-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(75% 75% at 100% 0,rgba(255,255,255,.13),transparent 58%);pointer-events:none}
 .play-head2{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.play-title{font-size:25px;font-weight:950;color:#fff;letter-spacing:-.5px;line-height:1}.play-disclosure{display:inline-flex;margin-top:6px;border:1px solid rgba(255,203,61,.30);background:rgba(255,203,61,.10);color:var(--gold);border-radius:999px;padding:4px 8px;font-size:9.5px;font-weight:950;letter-spacing:.6px}.play-wallet{text-align:right;min-width:110px}.play-wallet span{display:block;font-size:9px;font-weight:950;letter-spacing:.8px;text-transform:uppercase;color:var(--mut2)}.play-wallet b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:950;color:#fff;font-variant-numeric:tabular-nums}.play-record{display:block;margin-top:2px;font-size:10.5px;color:var(--mut);font-weight:800}.play-social-link{position:relative;width:100%;min-height:44px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);color:#fff;border-radius:14px;padding:10px 12px;font-size:12px;font-weight:900;text-align:left}.play-social-link span{float:right;color:var(--gold)}
-.play-feature{position:relative;border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025));margin-bottom:12px}.pf-k{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:950;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}.pf-k span:last-child{color:var(--mut2);letter-spacing:0;text-transform:none}.pf-match{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin-bottom:12px}.pf-team{min-width:0;text-align:left}.pf-team.r{text-align:right}.pf-team .fl{font-size:25px;display:block;line-height:1}.pf-team b{display:block;margin-top:4px;font-size:14px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}.pf-vs{min-width:72px;text-align:center;font-size:10.5px;color:var(--mut);font-weight:900}.pf-vs b{display:block;font-family:'Space Grotesk',sans-serif;font-size:16px;color:#fff;font-variant-numeric:tabular-nums}.pf-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pf-choice{min-height:58px;border:1px solid rgba(255,255,255,.12);border-radius:15px;background:rgba(255,255,255,.045);color:#fff;padding:8px 5px;font-size:11.5px;font-weight:900;transition:transform .14s var(--ease),border-color .14s var(--ease),background .14s var(--ease)}.pf-choice span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pf-choice b{display:block;margin-top:4px;font-family:'Space Grotesk',sans-serif;color:var(--gold);font-size:15px;font-variant-numeric:tabular-nums}.pf-choice.on{border-color:rgba(255,203,61,.65);background:linear-gradient(180deg,rgba(255,203,61,.24),rgba(255,255,255,.055));box-shadow:0 10px 28px -18px rgba(255,203,61,.9)}.pf-choice:active{transform:scale(.97)}.pf-add{width:100%;min-height:50px;border:none;border-radius:15px;margin-top:10px;background:linear-gradient(135deg,var(--gold),#ff9f0a);color:#1b1200;font-size:13.5px;font-weight:950}.pf-add.dis{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--mut)}
+.play-feature{position:relative;border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025));margin-bottom:12px}.pf-k{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:950;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}.pf-k span:last-child{color:var(--mut2);letter-spacing:0;text-transform:none}.pf-match{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin-bottom:12px}.pf-team{min-width:0;text-align:left}.pf-team.r{text-align:right}.pf-team .fl{font-size:25px;display:block;line-height:1}.pf-team b{display:block;margin-top:4px;font-size:14px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}.pf-vs{min-width:72px;text-align:center;font-size:10.5px;color:var(--mut);font-weight:900}.pf-vs b{display:block;font-family:'Space Grotesk',sans-serif;font-size:16px;color:#fff;font-variant-numeric:tabular-nums}.pf-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pf-choice{min-height:58px;border:1px solid rgba(255,255,255,.12);border-radius:15px;background:rgba(255,255,255,.045);color:#fff;padding:8px 5px;font-size:11.5px;font-weight:900;transition:transform .14s var(--ease),border-color .14s var(--ease),background .14s var(--ease)}.pf-choice span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pf-choice b{display:block;margin-top:4px;font-family:'Space Grotesk',sans-serif;color:var(--gold);font-size:15px;font-variant-numeric:tabular-nums}.pf-choice.on{border-color:rgba(255,203,61,.65);background:linear-gradient(180deg,rgba(255,203,61,.24),rgba(255,255,255,.055));box-shadow:0 10px 28px -18px rgba(255,203,61,.9)}.pf-choice:active{transform:scale(.97)}.pf-add{width:100%;min-height:46px;border:none;border-radius:15px;margin-top:10px;background:linear-gradient(135deg,var(--gold),#ff9f0a);color:#1b1200;font-size:13.5px;font-weight:950}.pf-add.dis{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--mut)}
 .play-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 2px 8px}.play-section-head b{font-size:13px;color:#fff}.play-section-head button{border:0;background:transparent;color:var(--gold);font-size:11px;font-weight:900}.play-more-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.pm-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;min-height:58px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.035);padding:10px 11px}.pm-main{min-width:0}.pm-teams{font-size:13px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pm-meta{margin-top:4px;font-size:10.5px;color:var(--mut);font-weight:800}.pm-act{min-height:40px;border:1px solid rgba(255,203,61,.28);background:rgba(255,203,61,.10);color:var(--gold);border-radius:12px;padding:0 11px;font-size:11.5px;font-weight:950}.play-learn,.play-empty{border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.04);padding:12px 13px;margin-bottom:12px;color:var(--mut);font-size:12px;font-weight:750;line-height:1.45}.play-learn b,.play-empty b{display:block;color:#fff;font-size:13px;margin-bottom:3px}.play-learn button,.play-empty button{width:100%;min-height:44px;border:1px solid var(--line2);border-radius:13px;background:rgba(255,255,255,.06);color:#fff;font-size:12px;font-weight:900;margin-top:10px}.play-learn .learn-x{float:right;width:auto;min-height:26px;margin:0 0 0 8px;padding:0 8px;border-radius:999px;color:var(--mut2)}
 .active-ticket{position:relative;overflow:hidden;border:1px solid rgba(255,203,61,.20);border-radius:18px;background:linear-gradient(155deg,rgba(255,203,61,.09),rgba(255,255,255,.035));padding:13px;margin-bottom:10px}.at-top{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:9px}.at-label{min-width:0;font-size:13.5px;font-weight:950;color:#fff;line-height:1.25}.at-label span{display:block;margin-top:3px;font-size:10.5px;color:var(--mut);font-weight:800}.at-status{flex-shrink:0;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 8px;font-size:9.5px;font-weight:950;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);background:rgba(255,255,255,.05)}.at-status.pending{color:var(--gold);background:rgba(255,203,61,.10);border-color:rgba(255,203,61,.25)}.at-status.live{color:var(--blue2);background:rgba(10,132,255,.14);border-color:rgba(10,132,255,.30)}.at-status.won{color:var(--green);background:rgba(48,209,88,.12);border-color:rgba(48,209,88,.28)}.at-status.lost{color:var(--red);background:rgba(255,69,58,.12);border-color:rgba(255,69,58,.28)}.at-status.hold,.at-status.void{color:var(--gold);background:rgba(255,159,10,.12);border-color:rgba(255,159,10,.28)}.at-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}.at-grid div{border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(0,0,0,.12);padding:8px 6px;text-align:center}.at-grid span{display:block;font-size:9px;color:var(--mut2);font-weight:950;text-transform:uppercase}.at-grid b{display:block;margin-top:2px;font-family:'Space Grotesk',sans-serif;color:#fff;font-size:13px;font-weight:950;font-variant-numeric:tabular-nums}.at-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.at-actions button{min-height:42px;border:1px solid var(--line2);border-radius:13px;background:rgba(255,255,255,.055);color:#fff;font-size:12px;font-weight:950}.at-actions button.primary{border-color:transparent;background:linear-gradient(135deg,#30d158,#0a84ff);color:#041326}.at-note{margin-top:8px;color:var(--gold);font-size:11px;font-weight:800;line-height:1.35}.slip-alert{display:none;border:1px solid rgba(255,69,58,.28);border-radius:12px;background:rgba(255,69,58,.10);color:#ffb4ad;padding:9px 10px;margin:0 0 10px;font-size:12px;font-weight:850;text-align:center}.tk-summary{border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.04);padding:11px 12px;margin:10px 0}.tk-summary span{display:block;font-size:9.5px;color:var(--gold);font-weight:950;letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px}.tk-summary b{display:block;color:#fff;font-size:14px;font-weight:950;line-height:1.2}.tk-summary em{display:block;margin-top:4px;color:var(--mut);font-size:11px;font-style:normal;font-weight:750}.tk-slip{width:100%;min-height:46px;margin-top:8px;border:1px solid rgba(255,203,61,.32);border-radius:14px;background:rgba(255,203,61,.10);color:var(--gold);font-size:13px;font-weight:950}.tk-remove{width:100%;min-height:44px;margin-top:8px;border:1px solid var(--line2);border-radius:13px;background:rgba(255,255,255,.04);color:var(--mut);font-size:12px;font-weight:900}
 @media(max-width:430px){.play-hero{border-radius:20px;padding:14px}.play-title{font-size:23px}.play-wallet{min-width:96px}.play-wallet b{font-size:19px}.pf-choice-grid{gap:6px}.pf-choice{min-height:56px;font-size:10.5px;padding-left:3px;padding-right:3px}.pf-choice b{font-size:14px}.at-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.tk-chips{grid-template-columns:repeat(3,1fr)}.tk-chips button{min-height:42px}.at-actions{grid-template-columns:1fr}}
@@ -1731,7 +1735,7 @@ textarea,input{-webkit-user-select:text;user-select:text}
 .mrow.sweat-losing{border-color:rgba(255,69,58,.5)!important;box-shadow:0 0 20px -5px rgba(255,69,58,.25)!important;animation:pulseLive 1.3s infinite}
 .mrow.sweat-tied{border-color:rgba(255,214,10,.5)!important;box-shadow:0 0 20px -5px rgba(255,214,10,.18)!important}
 /* live-match FAB (jump back to the action) */
-.live-fab{position:fixed;left:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:75;display:flex;align-items:center;gap:8px;padding:11px 15px;border-radius:30px;background:linear-gradient(135deg,rgba(255,69,58,.95),rgba(150,20,10,.95));color:#fff;font-weight:800;font-size:13px;box-shadow:0 10px 26px -8px rgba(255,69,58,.7),0 1px 0 rgba(255,255,255,.3) inset;cursor:pointer;animation:fabPop .3s var(--spring);border:1px solid rgba(255,255,255,.2)}
+.live-fab{position:fixed;left:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:75;max-width:calc(100vw - 28px);display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:30px;background:linear-gradient(135deg,rgba(214,58,49,.94),rgba(120,18,12,.94));color:#fff;font-weight:800;font-size:12.5px;box-shadow:0 12px 28px -12px rgba(214,58,49,.55),0 1px 0 rgba(255,255,255,.18) inset;cursor:pointer;animation:fabPop .3s var(--spring);border:1px solid rgba(255,255,255,.14)}
 .live-fab .dotlive{display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;animation:pulseLive 1.1s infinite}
 .live-fab .lf-sc{font-family:'Space Grotesk',sans-serif;font-variant-numeric:tabular-nums}
 .live-fab .lf-min{font-size:11px;opacity:.9}
@@ -1918,9 +1922,10 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .data-status{display:flex;align-items:center;gap:10px;margin:2px 0 12px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);box-shadow:var(--shadow-1)}
 .data-dot{width:9px;height:9px;border-radius:50%;background:var(--fact-accent);box-shadow:0 0 14px rgba(100,210,255,.52);flex:none}.data-status.live .data-dot{background:var(--green);box-shadow:0 0 14px rgba(48,209,88,.55);animation:lpulse 1.4s infinite}.data-status.hold .data-dot{background:var(--gold);box-shadow:none;animation:none}.data-status.offline .data-dot{background:var(--orange);box-shadow:none;animation:none}.data-status.error .data-dot{background:var(--red);box-shadow:none;animation:none}
 .data-copy{min-width:0}.data-title{font-size:11px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#fff}.data-sub{font-size:11px;font-weight:700;color:var(--mut);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.data-refresh{margin-left:auto;min-height:36px;border-radius:12px;border:1px solid var(--line2);background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:900;padding:0 11px}
-.home-card.hero{padding:16px;border-radius:22px}.home-card.hero .home-score{font-size:29px}.home-card.hero .home-action{min-height:50px}
+.home-card.hero{padding:16px;border-radius:22px}.home-card.hero .home-score{font-size:29px}.home-card.hero .home-action{min-height:46px}
 .home-rail-div{margin:11px 2px 8px;font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2)}
-.today-rail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 9px}.today-rail-head b{display:block;font-size:15px}.today-rail-head span{display:block;margin-top:2px;color:var(--mut2);font-size:10.5px;font-weight:800;letter-spacing:.25px}.today-rail-head button{min-height:36px;border:1px solid var(--line2);background:rgba(255,255,255,.06);border-radius:12px;color:var(--teal2);font-size:11px;font-weight:900;padding:0 10px}
+.today-rail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 9px}.today-rail-head b{display:block;font-size:15px}.today-rail-head span{display:block;margin-top:2px;color:var(--mut2);font-size:10.5px;font-weight:800;letter-spacing:.25px}
+.today-rail-head .today-rail-date{margin-top:1px;color:var(--mut);font-size:10px;font-weight:700;letter-spacing:0}.today-rail-head button{min-height:36px;border:1px solid var(--line2);background:rgba(255,255,255,.06);border-radius:12px;color:var(--teal2);font-size:11px;font-weight:900;padding:0 10px}
 .home-upcoming{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}.home-fixture{scroll-snap-align:start;min-height:104px;display:flex;flex-direction:column;justify-content:space-between}.home-fixture.all{min-width:144px;align-items:flex-start;justify-content:center;border-color:rgba(100,210,255,.28);background:rgba(10,132,255,.09)}
 .tour-more-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.tour-more-grid button{min-height:64px;text-align:left;border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;color:#fff;padding:11px 12px;font-size:12px;font-weight:900}.tour-more-grid span{display:block;font-size:10.5px;color:var(--mut);font-weight:700;margin-top:3px}
 @media(max-width:430px){.wrap{padding-left:16px!important;padding-right:16px!important}.home-picks{grid-template-columns:1fr 1fr}.home-picks .home-action{grid-column:1/-1}.home-card.hero .home-score{font-size:26px}.tour-switch{top:50px}}
@@ -1969,7 +1974,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .pitchwrap{margin:2px 0 6px}
 .pitch-cv{width:100%;height:108px;display:block;border-radius:13px;border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 26px -14px rgba(0,0,0,.6)}
 @media (max-height:740px){.pitch-cv{height:92px}.lv-num{font-size:34px}.lv-team .fl{font-size:26px}}
-.livejump{position:fixed;right:14px;bottom:calc(154px + env(safe-area-inset-bottom));z-index:74;display:none;align-items:center;gap:8px;min-height:44px;padding:10px 13px;border-radius:999px;border:1px solid rgba(100,210,255,.24);background:linear-gradient(135deg,rgba(10,132,255,.88),rgba(21,224,192,.72));color:#041326;font-size:12px;font-weight:950;box-shadow:0 16px 36px -22px rgba(10,132,255,.9),inset 0 1px 0 rgba(255,255,255,.28);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.livejump{position:fixed;right:14px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:74;max-width:calc(100vw - 28px);display:none;align-items:center;gap:8px;min-height:44px;padding:10px 13px;border-radius:999px;border:1px solid rgba(100,210,255,.24);background:linear-gradient(135deg,rgba(10,132,255,.88),rgba(21,224,192,.72));color:#041326;font-size:12px;font-weight:950;box-shadow:0 16px 36px -22px rgba(10,132,255,.9),inset 0 1px 0 rgba(255,255,255,.28);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .livejump.gold{border-color:rgba(255,203,61,.28);background:linear-gradient(135deg,rgba(255,203,61,.94),rgba(255,159,10,.86));color:#1b1200}
 .livejump .lj-dot{width:7px;height:7px;border-radius:999px;background:currentColor;box-shadow:0 0 0 4px rgba(255,255,255,.16)}
 .play-live-closed{border:1px solid rgba(100,210,255,.20);border-radius:16px;background:linear-gradient(145deg,rgba(10,132,255,.12),rgba(255,255,255,.035));padding:11px 12px;margin:-2px 0 12px}.plc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.plc-head b{font-size:12px;color:#fff}.plc-head span{font-size:10px;color:var(--blue2);font-weight:950;text-transform:uppercase;letter-spacing:.5px}.plc-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}.plc-row:first-of-type{border-top:0}.plc-main{min-width:0}.plc-teams{font-size:12.5px;font-weight:950;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plc-meta{font-size:10.5px;color:var(--mut);font-weight:850;margin-top:3px}.plc-row button{min-height:38px;border:1px solid rgba(100,210,255,.25);border-radius:12px;background:rgba(10,132,255,.12);color:var(--blue2);font-size:11px;font-weight:950;padding:0 10px}
@@ -2374,6 +2379,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .phl-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:11px 0 8px}
 .phl-pair{display:grid;gap:8px;margin:11px 0 8px}
 .phl-groupctx{margin-top:9px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.45px;color:rgba(255,204,112,.9)}
+.phl-more{margin-top:3px;font-size:10.5px;font-weight:700;letter-spacing:0;color:var(--mut)}
 .phl-fixture{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 .phl-fixture.live{border-color:rgba(100,210,255,.25);background:rgba(100,210,255,.08)}
 .phl-fixture.hold,.phl-fixture.pending_official_feed{border-color:rgba(255,159,10,.25);background:rgba(255,159,10,.08)}
@@ -2915,7 +2921,7 @@ function ensureBetId(b){if(!b.id)b.id=nextBetId();return b.id;}
 function displayStatusLabel(v,ctx){
   var s=String(v==null?'':v).trim(),u=s.toUpperCase(),c=ctx||'generic';
   var map={IN_PLAY:c==='simulation'?'Match in progress':c==='ticket'?'In play':'Live',LIVE:c==='simulation'?'Match in progress':c==='ticket'?'In play':'Live',PAUSED:'Paused',HALFTIME:'Halftime',BREAK:'Break',EXTRA_TIME:'Extra time',PENALTY_SHOOTOUT:'Penalties',
-    PENDING:c==='fixture'?'Awaiting official update':'Pending',SETTLED:c==='ticket'?'Complete':'Complete',VOID:'Voided',VOIDED:'Voided',WON:'Won',LOST:'Lost',CASHED_OUT:'Cashed out',CASHED:'Cashed out'};
+    PENDING:c==='fixture'?'Awaiting official update':(c==='ticket'?'Awaiting settlement':'Pending'),AWAITING_SETTLEMENT:'Awaiting settlement',SETTLED:c==='ticket'?'Complete':'Complete',COMPLETE:'Complete',VOID:'Voided',VOIDED:'Voided',WON:'Won',LOST:'Lost',CASHED_OUT:'Cashed out',CASHED:'Cashed out',GRP:'Group stage',GROUP:'Group stage',GROUP_STAGE:'Group stage',FT:'Full time',FULL_TIME:'Full time',NS:'Scheduled',SCHEDULED:'Scheduled'};
   if(map[u])return map[u];
   if(u==='1H'||u==='2H')return 'Live';
   if(u==='HT')return 'Halftime';
@@ -2923,6 +2929,18 @@ function displayStatusLabel(v,ctx){
   if(u==='P')return 'Penalties';
   if(!s)return '';
   return s.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,function(ch){return ch.toUpperCase();});
+}
+/* Shared display-label layer: the ONLY place live/ticket status text is sanitized for the UI.
+   Transforms raw machine enums (IN_PLAY, PENDING, GRP, …) into user copy, but leaves
+   already-human strings ("Match in progress", "Live update pending official feed") untouched. */
+function safeStatusText(v,fb,ctx){
+  var s=String(v==null?'':v).trim();
+  if(!s)return fb||'';
+  if(/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/.test(s)||/^(1H|2H|HT|ET|BT|P|FT|NS)$/i.test(s)){
+    var m=displayStatusLabel(s,ctx||'fixture');
+    return m||fb||'';
+  }
+  return s;
 }
 function canonicalBetState(b){if(!b)return'pending';if(b.state)return b.state;if(b.void)return'void';if(b.settled)return b.win?'won':'lost';return'pending';}
 function betResultIdentity(b){if(!b)return'unknown';var nums=betMatchNums([b]);if(!nums.length&&b.num!=null)nums=[b.num];var parts=nums.map(function(n){var m=M[n],s=S.sc[n],r=S.real&&S.real[n],w=S.ko&&S.ko[n];if(r)return'm'+n+':real:'+r.h+'-'+r.a;if(s)return'm'+n+':'+(isBetSim(n)?'betsim':'sim')+':'+s.h+'-'+s.a;if(m&&m.stage!=='group'&&w)return'ko'+n+':'+(S.realko&&S.realko[n]?'real':'sim')+':'+w;return'm'+n+':pending';});return parts.join('|')||('bet:'+ensureBetId(b));}
@@ -3123,7 +3141,7 @@ function finishLive(num){var L=S.live;if(!L)return;var h=L.h,a=L.a,sh=L.sh,sa=L.
   if(L.isKO){S.ko[num]=sh>sa?h:a;revalidateKO();}
   endLive();render();if(_matchcastOpen&&_matchcastNum===num)renderMatchcast();else openSheet(num);toast("⏱ Full time · "+nm(h)+" "+sh+"–"+sa+" "+nm(a)+pens+" · sim only");if(SOUND){sfxWhistle();}try{document.title="United 2026 · World Cup Simulator";}catch(e){}}
 var _matchcastOpen=false,_matchcastNum=null,_matchcastBet=null;
-function matchcastPhase(num){var L=S.live;if(L&&L.num===num){if(L.varReview)return'VAR review';if(L.min>=90)return'Full time pending';if(L.min>=45&&L.min<46)return'Halftime';return (L.min<45?'First half':'Second half')+' · '+L.min+"'";}var s=S.sc[num];if(s)return'Full time · simulated result';var st=matchLiveState(num);if(st&&st.kind==='hold')return st.label||'Delayed';return'Before kickoff';}
+function matchcastPhase(num){var L=S.live;if(L&&L.num===num){if(L.varReview)return'VAR review';if(L.min>=90)return'Full time pending';if(L.min>=45&&L.min<46)return'Halftime';return (L.min<45?'First half':'Second half')+' · '+L.min+"'";}var s=S.sc[num];if(s)return'Full time · simulated result';var st=matchLiveState(num);if(st&&st.kind==='hold')return safeStatusText(st.label,'Delayed');return'Before kickoff';}
 function matchcastTeams(num){var m=M[num],p=m.stage==='group'?[m.home,m.away]:koParts(num);return p;}
 function matchcastScore(num){var L=S.live;if(L&&L.num===num)return [L.sh,L.sa];var s=S.sc[num];return s?[s.h,s.a]:[0,0];}
 function matchcastPitchHTML(num){var L=S.live||{},momo=(L.num===num?(L.momo||0):0),bx=Math.max(12,Math.min(88,50+momo*.34)),by=50+Math.sin((L.min||1)*.41)*22;
@@ -3608,7 +3626,7 @@ function dataStatusHTML(){
  var live=states.find(function(st){return st.kind==='live';}),hold=states.find(function(st){return st.kind==='hold';});
  var cls='ok',title='No live matches right now',sub=_lastSync?('Updated '+fmtAgo(_lastSync)+' · official finals only'):'Waiting for first official sync';
  if(!online){cls='offline';title="You're offline";sub=_lastSync?('Showing saved data from '+fmtAgo(_lastSync)):'Showing saved tournament data';}
- else if(hold){cls='hold';title=hold.label||'Match delayed';sub='Awaiting official update · no early settlement or bracket advance';}
+ else if(hold){cls='hold';title=safeStatusText(hold.label,'Match delayed');sub='Awaiting official update · no early settlement or bracket advance';}
  else if(live){cls='live';title='LIVE · '+(live.label||((live.min!=null?live.min+"'":'match in progress')));sub='Official live status · standings stay provisional until full time';}
  else if(_lastSync&&Date.now()-_lastSync>20*60000){cls='hold';title='Showing last update';sub='Updated '+fmtAgo(_lastSync)+' · refresh when available';}
  return '<div class="data-status '+cls+'"><span class="data-dot"></span><div class="data-copy"><div class="data-title">'+esc(title)+'</div><div class="data-sub">'+esc(sub)+'</div></div><button class="data-refresh" onclick="refreshOfficialData()">Refresh</button></div>';}
@@ -3649,7 +3667,7 @@ function nextISO(iso){try{var p=(iso||curISO()).split('-');var d=new Date(+p[0],
 /* Unfinished, non-live, ready fixtures scheduled on a specific local day (excluding
    anything already shown in the Home hero). */
 function homeUnfinishedOn(iso,seen){return MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num)&&matchDay(m)===iso&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures);}
-function homeFixtureCardHTML(m){var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),o=(p[0]&&p[1])?matchOddsFor(m.num,p[0],p[1],m.stage!=='group'):null,st=matchLiveState(m.num),tag=st?(st.label||'Official status'):(m.stage==='group'?('Group '+m.group):roundShort(m.num));return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+(p[0]?fl(p[0])+' '+nm(p[0]):slotLabel(m.home))+' v '+(p[1]?nm(p[1])+' '+fl(p[1]):slotLabel(m.away))+'</b><span>'+shortDate(m.date)+' · '+to12(m.time)+' ET · '+esc(tag)+'</span><span>'+(o?('Market odds · '+fmtAmer(o.h)+' / '+fmtAmer(o.d)+' / '+fmtAmer(o.a)):'Market odds unavailable')+'</span></div>';}
+function homeFixtureCardHTML(m){var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),o=(p[0]&&p[1])?matchOddsFor(m.num,p[0],p[1],m.stage!=='group'):null,st=matchLiveState(m.num),tag=st?(safeStatusText(st.label,'Official status')):(m.stage==='group'?('Group '+m.group):roundShort(m.num));return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+(p[0]?fl(p[0])+' '+nm(p[0]):slotLabel(m.home))+' v '+(p[1]?nm(p[1])+' '+fl(p[1]):slotLabel(m.away))+'</b><span>'+shortDate(m.date)+' · '+to12(m.time)+' ET · '+esc(tag)+'</span><span>'+(o?('Market odds · '+fmtAmer(o.h)+' / '+fmtAmer(o.d)+' / '+fmtAmer(o.a)):'Market odds unavailable')+'</span></div>';}
 /* Today & next, with honest dynamic labels:
    - unfinished fixtures later today  -> "Later today"
    - none left today but tomorrow has fixtures -> "Tomorrow"
@@ -3660,24 +3678,25 @@ function homeFixtureCardHTML(m){var p=m.stage==='group'?[m.home,m.away]:koParts(
 function todayRailHTML(seen){
  var today=curISO(),tomorrow=nextISO(today),todayAll=homeTodayFixtures();
  var later=homeUnfinishedOn(today,seen),tomo=homeUnfinishedOn(tomorrow,seen);
- var todayCount=todayAll.length?(todayAll.length+' fixtures today'):'';
- var headLabel,headSub,body='';
+ var doneToday=todayAll.length;
+ var headLabel,headSub,headDate='',body='';
  if(later.length){
   headLabel='Later today';
-  headSub=(todayCount||'Fixtures today')+' · next '+to12(later[0].time)+' ET';
+  headSub=later.length+' '+(later.length===1?'match':'matches')+' left today · next '+to12(later[0].time)+' ET';
   body='<div class="home-upcoming">'+later.slice(0,6).map(homeFixtureCardHTML).join('')+'</div>';
   if(tomo.length)body+='<div class="home-rail-div">Tomorrow</div><div class="home-upcoming">'+tomo.slice(0,4).map(homeFixtureCardHTML).join('')+'</div>';
  }else if(tomo.length){
   headLabel='Tomorrow';
-  headSub=(todayCount?todayCount+' complete · ':'')+'next fixtures '+shortDate(tomorrow);
+  headSub=doneToday?(doneToday+' '+(doneToday===1?'match':'matches')+' completed today'):'First fixtures of the day';
+  headDate=dayLabel(tomorrow);
   body='<div class="home-upcoming">'+tomo.slice(0,6).map(homeFixtureCardHTML).join('')+'</div>';
  }else{
   var rows=MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&!matchLiveState(m.num)&&matchDay(m)>=today&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures).slice(0,6);
   if(!rows.length)return '';
-  headLabel='Next fixtures';headSub=(todayCount?todayCount+' complete':'Soonest upcoming matches');
+  headLabel='Next fixtures';headSub=(doneToday?(doneToday+' '+(doneToday===1?'match':'matches')+' completed today'):'Soonest upcoming matches');
   body='<div class="home-upcoming">'+rows.map(homeFixtureCardHTML).join('')+'</div>';
  }
- return '<div class="home-card"><div class="today-rail-head"><div><b>'+esc(headLabel)+'</b><span>'+esc(headSub)+'</span></div><button onclick="goSchedule()">All fixtures</button></div>'+body+'<div class="home-upcoming"><div class="home-fixture all" onclick="goSchedule()"><b>See all matches</b><span>Open the full Tournament match list</span></div></div></div>';}
+ return '<div class="home-card"><div class="today-rail-head"><div><b>'+esc(headLabel)+'</b><span>'+esc(headSub)+'</span>'+(headDate?'<span class="today-rail-date">'+esc(headDate)+'</span>':'')+'</div><button onclick="goSchedule()">All fixtures</button></div>'+body+'<div class="home-upcoming"><div class="home-fixture all" onclick="goSchedule()"><b>See all matches</b><span>Open the full Tournament match list</span></div></div></div>';}
 function goPlay(){TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#betting','Play opened',40);}
 function goCompare(){TAB='compare';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
 function goStandings(){TAB='groups';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
@@ -3696,7 +3715,7 @@ function goSocial(){TAB='h2h';if(typeof pushTab==="function")pushTab();switchTab
 function homeLiveNowHTML(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
  if(S.live){var L=S.live;return '<div class="home-card hero play"><div class="home-k"><span>Live Now</span><span class="home-status">My Sim</span></div><div class="home-live-row"><div class="home-team">'+fl(L.h)+' '+nm(L.h)+'</div><div class="home-score">'+L.sh+'–'+L.sa+'</div><div class="home-team r">'+nm(L.a)+' '+fl(L.a)+'</div></div><div class="home-sub">Sim minute '+L.min+"' · "+esc(L.comm||'Match running')+'</div><button class="home-action" onclick="openSheet('+L.num+')">Open Match Center</button></div>';}
- if(states.length){var st=states[0],m=M[st.num],hold=st.kind==='hold',h=m&&m.home,a=m&&m.away;var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(st.label||'Live')+'</span></div><div class="home-live-row"><div class="home-team">'+fl(h)+' '+nm(h)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+nm(a)+' '+fl(a)+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
+ if(states.length){var st=states[0],m=M[st.num],hold=st.kind==='hold',h=m&&m.home,a=m&&m.away;var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(safeStatusText(st.label,'Live'))+'</span></div><div class="home-live-row"><div class="home-team">'+fl(h)+' '+nm(h)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+nm(a)+' '+fl(a)+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
  var pending=null,pnow=Date.now(),pt=Infinity;MATCHES.forEach(function(mm){if(!livePendingOfficial(mm.num))return;var d=koDateTime(mm);if(!d)return;var t=d.getTime();if(t<=pnow&&t<pt){pt=t;pending=mm.num;}});
  if(pending!=null){var pm=M[pending],pp=pm.stage==='group'?[pm.home,pm.away]:koParts(pm.num);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+fl(pp[0])+' '+nm(pp[0])+'</div><div class="home-score">–</div><div class="home-team r">'+nm(pp[1])+' '+fl(pp[1])+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
@@ -3744,8 +3763,8 @@ function fdPhaseLabel(p){return ({group_stage:'Group Stage',final_matchday:'Fina
 function fdFixtureCardHTML(fx){
   var kind=fx.kind,home=fx.home,away=fx.away,badge,scoreMid,sub='';
   if(kind==='official_final'){badge='<span class="fmd-badge ft">Full time</span>';scoreMid='<span class="fmd-sc">'+fx.score.h+'<i>–</i>'+fx.score.a+'</span>';}
-  else if(kind==='live'){badge='<span class="fmd-badge live"><span class="fmd-livedot"></span>LIVE'+(fx.min!=null?' '+fx.min+"'":'')+'</span>';scoreMid='<span class="fmd-sc live">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub=esc(fx.label||'Live')+' · provisional until the official final';}
-  else if(kind==='hold'){badge='<span class="fmd-badge hold">'+esc(fx.label||'Paused')+'</span>';scoreMid='<span class="fmd-sc hold">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub='Official result pending — nothing is final yet';}
+  else if(kind==='live'){badge='<span class="fmd-badge live"><span class="fmd-livedot"></span>LIVE'+(fx.min!=null?' '+fx.min+"'":'')+'</span>';scoreMid='<span class="fmd-sc live">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub=esc(safeStatusText(fx.label,'Live'))+' · provisional until final whistle';}
+  else if(kind==='hold'){badge='<span class="fmd-badge hold">'+esc(safeStatusText(fx.label,'Paused'))+'</span>';scoreMid='<span class="fmd-sc hold">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub='Official result pending — nothing is final yet';}
   else if(kind==='pending_official_feed'){badge='<span class="fmd-badge pend">Awaiting feed</span>';scoreMid='<span class="fmd-sc">–<i>–</i>–</span>';sub='Live update pending official feed';}
   else {badge='<span class="fmd-badge sched">'+(fx.time?to12(fx.time)+' ET':'Scheduled')+'</span>';scoreMid='<span class="fmd-vs">v</span>';sub=fx.date?shortDate(fx.date):'';}
   return '<div class="fmd-fx '+kind+'" onclick="openSheet('+fx.num+')">'+
@@ -3812,7 +3831,7 @@ function phlFixtureStatusText(fx){
   if(!fx)return '';
   if(fx.kind==='official_final')return 'Full time';
   if(fx.kind==='live')return fx.min!=null?('LIVE · '+fx.min+"'"):'LIVE';
-  if(fx.kind==='hold')return fx.label||'Paused';
+  if(fx.kind==='hold')return safeStatusText(fx.label,'Paused');
   if(fx.kind==='pending_official_feed')return 'Awaiting feed';
   if(fx.time)return to12(fx.time)+' ET';
   return 'Scheduled';
@@ -3840,8 +3859,9 @@ function phaseLeadHTML(){
     var gs=ph.finalMatchdayGroups||[];if(!gs.length)return '';
     var model=phlPickFinalModel(gs);if(!model)return '';
     var stakeLine=(model.stakes&&model.stakes[0])||'Deciding fixtures kick off together — watch the table move live.';
-    var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div><div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
-    var tag='Group '+model.group+(gs.length>1?' · +'+(gs.length-1)+' more':'');
+    var moreGroups=Math.max(0,gs.length-1);
+    var body='<div class="phl-groupctx">Group '+esc(model.group)+' · simultaneous deciders</div>'+(moreGroups?'<div class="phl-more">'+moreGroups+' more group'+(moreGroups===1?'':'s')+' to resolve</div>':'')+'<div class="phl-pair">'+model.fixtures.slice(0,2).map(phlFinalFixtureRowHTML).join('')+'</div>';
+    var tag='Group '+model.group+' live';
     return '<div class="phl final"><div class="phl-k"><span>⚡ Final Matchday</span><span class="phl-tag">'+esc(tag)+'</span></div>'+body+'<div class="phl-sub">'+esc(stakeLine)+'</div><button class="phl-go" onclick="goStandings()">Open the command center →</button></div>';
   }
   if(ph.prioritizeBracket){
@@ -3994,7 +4014,7 @@ function rankInfo(){var html='<div class="grab"></div><div class="sh-rnd">📊 H
  '<button class="tbtn accent" style="width:100%;justify-content:center;margin-top:8px" onclick="closeSheet()">Got it</button>';
  document.getElementById("sheet").innerHTML=html;document.getElementById("scrim").classList.add("on");}
 function betDelayState(b){if(!b||b.settled)return null;if(b.num&&matchHoldState(b.num))return matchHoldState(b.num);if(b.kind==='par'&&Array.isArray(b.legs)){for(var i=0;i<b.legs.length;i++){var l=b.legs[i];if(l.num&&matchHoldState(l.num))return matchHoldState(l.num);}}return null;}
-function betRow(b,idx){var ds=betDelayState(b),state=canonicalBetState(b),net=b.net||0;var st=b.settled?(state==='won'?'<span class="g">+$'+net.toLocaleString()+'</span>':state==='void'?'<span class="o">$0</span>':'<span class="r">−$'+Math.abs(net).toLocaleString()+'</span>'):(ds?'<span class="o" style="color:var(--gold)">'+esc(ds.label||'Delayed')+'</span>':'<span class="o">$'+b.stake.toLocaleString()+'</span>');
+function betRow(b,idx){var ds=betDelayState(b),state=canonicalBetState(b),net=b.net||0;var st=b.settled?(state==='won'?'<span class="g">+$'+net.toLocaleString()+'</span>':state==='void'?'<span class="o">$0</span>':'<span class="r">−$'+Math.abs(net).toLocaleString()+'</span>'):(ds?'<span class="o" style="color:var(--gold)">'+esc(safeStatusText(ds.label,'Delayed'))+'</span>':'<span class="o">$'+b.stake.toLocaleString()+'</span>');
  var click=(b.kind==='fut')?'onclick="focusTeam(\''+b.code+'\')"':(!b.kind?'onclick="openSheet('+b.num+')"':'');
  var boost=b.boosted?'<span class="boost-tag">⚡</span>':'';
  var status=ds?'<span class="br-v2" style="color:var(--gold)">Awaiting official result</span>':'';
@@ -4370,18 +4390,18 @@ function bigMatchCard(num){var m=M[num];var ko=m.stage!=="group";var pr=ko?koPar
 function playRecordHTML(){var settled=(S.bets||[]).filter(function(b){return b.settled&&canonicalBetState(b)!=='void';}),wins=settled.filter(function(b){return canonicalBetState(b)==='won';}).length;var open=(S.bets||[]).filter(function(b){return !b.settled;}).length;var streak=0;for(var i=settled.length-1;i>=0;i--){if(canonicalBetState(settled[i])==='won')streak++;else break;}return wins+'-'+Math.max(0,settled.length-wins)+(streak?' · '+streak+'W streak':'')+(open?' · '+open+' open':'');}
 function playHeaderHTML(){return '<div class="play-hero"><div class="play-head2"><div><div class="play-title">Play</div><div class="play-disclosure">SIMULATED $ · NO CASH VALUE</div></div><div class="play-wallet"><span>Virtual balance</span><b>$'+S.bank.toLocaleString()+'</b><em class="play-record">'+esc(playRecordHTML())+'</em></div></div><button class="play-social-link" onclick="goSocial()">Friendly leaderboard <span>View</span></button></div>';}
 function playOpenMatches(){return MATCHES.filter(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num),st=matchLiveState(m.num);var played=(m.stage==='group'?S.sc[m.num]:S.ko[m.num]);return !st&&!played&&!(S.real&&S.real[m.num])&&!playMatchClosedReason(m.num)&&pr[0]&&pr[1]&&(m.stage==='group'||allDone());}).sort(function(x,y){var kx=(x.date||'')+' '+(x.time||'')+' '+('000'+x.num).slice(-3),ky=(y.date||'')+' '+(y.time||'')+' '+('000'+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;});}
-function playMatchClosedReason(num){if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (hold.label||'Match delayed')+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
+function playMatchClosedReason(num){if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
 function playSelectPick(num,pick){S.playPick={num:num,pick:pick};try{haptic('pick');}catch(e){}renderBetting();arriveAt('#playFeaturedMarket','Selection ready',40);}
 function playOpenSelected(){var p=S.playPick;if(!p||p.num==null||!p.pick)return toast('Choose an outcome first');openMatchTicket(p.num,p.pick);}
 function playPickText(num,pick){var m=M[num],pr=m.stage==='group'?[m.home,m.away]:koParts(num);return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
 function playFeaturedMarketHTML(){var arr=playOpenMatches();if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible simulated match markets open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=ko?koParts(m.num):[m.home,m.away],o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num)||to12(m.time);return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>Featured match · MARKET ODDS</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add'+(!pick?' dis':'')+'" onclick="playOpenSelected()">'+(pick?'Add '+esc(playPickText(m.num,pick))+' to bet slip':'Choose an outcome')+'</button></div>';}
 function playLiveClosedHTML(){var rows=[];if(S.rwState){Object.keys(S.rwState).forEach(function(k){var st=S.rwState[k],m=M[k];if(!st||!m||(st.kind!=='live'&&st.kind!=='hold'))return;var pr=m.stage==='group'?[m.home,m.away]:koParts(+k);if(!(pr[0]&&pr[1]))return;rows.push({num:+k,st:st,pr:pr});});}
-  if(!rows.length)return '';return '<div class="play-live-closed"><div class="plc-head"><b>Live matches</b><span>Markets closed</span></div>'+rows.slice(0,3).map(function(r){var st=r.st,score=(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa);return '<div class="plc-row"><div class="plc-main"><div class="plc-teams">'+fl(r.pr[0])+' '+esc(nm(r.pr[0]))+' '+esc(score)+' '+esc(nm(r.pr[1]))+' '+fl(r.pr[1])+'</div><div class="plc-meta">'+esc(st.label||'Live')+' · simulated picks stay pending until settlement rules allow</div></div><button onclick="openMatchDetails('+r.num+')">Match Details</button></div>';}).join('')+'</div>';}
+  if(!rows.length)return '';return '<div class="play-live-closed"><div class="plc-head"><b>Live matches</b><span>Markets closed</span></div>'+rows.slice(0,3).map(function(r){var st=r.st,score=(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa);return '<div class="plc-row"><div class="plc-main"><div class="plc-teams">'+fl(r.pr[0])+' '+esc(nm(r.pr[0]))+' '+esc(score)+' '+esc(nm(r.pr[1]))+' '+fl(r.pr[1])+'</div><div class="plc-meta">'+esc(safeStatusText(st.label,'Live'))+' · awaiting settlement</div></div><button onclick="openMatchDetails('+r.num+')">Match Details</button></div>';}).join('')+'</div>';}
 function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7);if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · MARKET ODDS</div></div><button class="pm-act" onclick="sheet('+m.num+')">Markets</button></div>';}).join('')+'</div>';}
 function playLearnHTML(){try{if(localStorage.getItem('wc26_play_edu')==='1')return '';}catch(e){}return '<div class="play-learn" id="playLearn"><button class="learn-x" onclick="dismissPlayLearn()">Hide</button><b>How simulated picks work</b>Pick an outcome, choose a stake, then watch your simulated ticket settle only when the match result is official or when you run a My Sim match.</div>';}
 function dismissPlayLearn(){try{localStorage.setItem('wc26_play_edu','1');}catch(e){}var el=document.getElementById('playLearn');if(el)el.remove();}
 function playLandingHTML(){return playHeaderHTML()+playLiveClosedHTML()+playFeaturedMarketHTML()+playMoreMatchesHTML()+playLearnHTML();}
-function ticketStatusInfo(b){var ds=betDelayState(b),state=canonicalBetState(b);if(ds)return {t:(ds.label||'Suspended'),cls:'hold',note:'Official status is delayed. This ticket remains pending until confirmed.'};if(state==='void')return {t:'Void',cls:'void',note:'Stake returned or no action, based on existing ticket rules.'};if(state==='won')return {t:'Won',cls:'won',note:''};if(state==='lost')return {t:'Lost',cls:'lost',note:''};var nums=betMatchNums([b]);if(nums.some(function(n){var x=matchLiveState(n);return x&&x.kind==='live';}))return {t:'Live',cls:'live',note:'Ticket stays pending until official settlement is allowed.'};if(betNeedsTournament(b))return {t:'Awaiting official result',cls:'pending',note:'This path resolves as the tournament advances.'};return {t:'Pending',cls:'pending',note:''};}
+function ticketStatusInfo(b){var ds=betDelayState(b),state=canonicalBetState(b);if(ds)return {t:(safeStatusText(ds.label,'Suspended')),cls:'hold',note:'Official status is delayed. This ticket remains pending until confirmed.'};if(state==='void')return {t:'Void',cls:'void',note:'Stake returned or no action, based on existing ticket rules.'};if(state==='won')return {t:'Won',cls:'won',note:''};if(state==='lost')return {t:'Lost',cls:'lost',note:''};var nums=betMatchNums([b]);if(nums.some(function(n){var x=matchLiveState(n);return x&&x.kind==='live';}))return {t:'Live',cls:'live',note:'Ticket stays pending until official settlement is allowed.'};if(betNeedsTournament(b))return {t:'Awaiting official result',cls:'pending',note:'This path resolves as the tournament advances.'};return {t:'Pending',cls:'pending',note:''};}
 function activeTicketsHTML(open){if(!open.length)return '<div class="play-empty"><b>You have no active simulated picks.</b>Explore available matches and your active ticket will appear here.<button onclick="setBetCatFocus(\'matches\',\'Markets ready\')">Explore markets</button></div>';return '<div class="bsec" id="openBetsTop">Active tickets ('+open.length+')</div>'+open.map(function(b,i){return openBetRow(b,S.bets.indexOf(b));}).join('');}
 function tkError(msg){var el=document.getElementById('tkAlert');if(el){el.textContent=msg;el.style.display='block';}else toast(msg);}
 function tkClearError(){var el=document.getElementById('tkAlert');if(el){el.textContent='';el.style.display='none';}}
@@ -4610,7 +4630,7 @@ function matchActionZone(num,h,a,ko){var open=S.bets.filter(function(b){return !
  var closed=playMatchClosedReason(num),live=matchLiveState(num);
  if(closed){var officialFinished=(S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]),finished=officialFinished||(S.sc&&S.sc[num])||(ko&&S.ko&&S.ko[num]),isLive=live&&live.kind==='live',hold=live&&live.kind==='hold';
   var title=finished?'View result':(isLive?'Live match':'Match command zone');
-  var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((live.label||'Delayed')+' · markets closed'):(closed||'Markets closed')));
+  var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((safeStatusText(live.label,'Delayed'))+' · markets closed'):(closed||'Markets closed')));
   /* These buttons live INSIDE the match sheet, so they must navigate somewhere
      real — never re-open the same sheet (which looked like "nothing happened"). */
   return '<div class="action-zone"><div class="az-k">'+title+'</div><div class="az-status">'+esc(pill)+'</div><div class="az-row">'
@@ -4998,7 +5018,7 @@ function youNextHTML(open){
  var liveNum=null;
  for(var i=0;i<open.length&&liveNum==null;i++){var ns=betMatchNums([open[i]]);for(var j=0;j<ns.length;j++){var ls=matchLiveState(ns[j]);if(ls&&ls.kind==='live'){liveNum=ns[j];break;}}}
  if(liveNum!=null){var lsx=matchLiveState(liveNum),line=youMatchLine(liveNum);
-   return youActionCard('gold','Live now','Follow your live pick',(line||'Your pick is in play')+' · '+esc(lsx.label||'In play'),'Follow match','openMatchDetails('+liveNum+')');}
+   return youActionCard('gold','Live now','Follow your live pick',(line||'Your pick is in play')+' · '+esc(safeStatusText(lsx.label,'In play')),'Follow match','openMatchDetails('+liveNum+')');}
  /* 2) an active upcoming pick */
  if(open.length){
    var firstNum=null;for(var k=0;k<open.length;k++){var nn=betMatchNums([open[k]]);if(nn.length){firstNum=nn[0];break;}}
@@ -5233,9 +5253,10 @@ function goLiveNow(){
   TAB='home';switchTab();render();arriveAt('#homeHero','Next match',60);
 }
 function renderLiveJump(){var el=document.getElementById('livejump');if(!el)return;var hit=primaryLiveFixture();
+  if(liveSurfaceVisible()){el.style.display='none';return;}
   if(!hit||TAB==='home'&&!S.live&&!Object.keys(S.rwState||{}).some(function(k){var st=S.rwState[k];return st&&(st.kind==='live'||st.kind==='hold');})){el.style.display='none';return;}
   var label='Back to Live',cls='';if(hit.kind==='sim'){var L=S.live;label='Sim Matchcast · '+(L?L.sh+'-'+L.sa:'Resume');cls='gold';}
-  else if(hit.kind==='next')label='Next match';else{var st=S.rwState&&S.rwState[hit.num];label=(st&&st.kind==='hold')?(st.label||'Match delayed'):'Live Now';}
+  else if(hit.kind==='next')label='Next match';else{var st=S.rwState&&S.rwState[hit.num];label=(st&&st.kind==='hold')?(safeStatusText(st.label,'Match delayed')):'Live Now';}
   el.className='livejump '+cls;el.innerHTML='<span class="lj-dot"></span>'+esc(label);el.style.display='flex';}
 /* Parlay Lab — turns the combined price into a readable risk/chance meter with a
    chemistry label, so beginners instantly grasp how wild a slip is. Pure presentation
@@ -5412,9 +5433,22 @@ function celebrate(){var c=winner(104);if(!c)return toast("No champion crowned y
   +'<div class="gt-back" onclick="closeCele()">Back to dashboard</div>'
   +'</div>';
  document.body.insertAdjacentHTML('beforeend',html);document.body.style.overflow="hidden";}
+/* A live match is already "on screen" when a sheet/matchcast or the cinematic
+   ts2 stage is open, or when Home (which always renders the live hero) is active.
+   In those cases the floating Live Now controls would only duplicate and overlap
+   real content, so they collapse away. This is the single source of truth used by
+   every floating live control so none of them can cover a score, row, or button. */
+function liveSurfaceVisible(){
+  try{
+    var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on"))return true;
+    if(typeof _matchcastOpen!=="undefined"&&_matchcastOpen)return true;
+    if(document.getElementById("ts2"))return true;
+    if(typeof TAB!=="undefined"&&TAB==="home")return true;
+  }catch(e){}
+  return false;
+}
 function renderLiveFab(){var ex=document.getElementById("liveFabBtn");if(ex)ex.remove();
-  var sc=document.getElementById("scrim");var sheetOpen=sc&&sc.classList.contains("on");
-  if(S.live&&!sheetOpen){var L=S.live;
+  if(S.live&&!liveSurfaceVisible()){var L=S.live;
     document.body.insertAdjacentHTML('beforeend','<div id="liveFabBtn" class="live-fab" onclick="openSheet('+L.num+')"><span class="dotlive"></span><span class="lf-sc">'+fl(L.h)+' '+L.sh+'–'+L.sa+' '+fl(L.a)+'</span><span class="lf-min">'+L.min+"'</span></div>");}}
 var _renderedViews={home:0,groups:0,schedule:0,stats:0,cities:0,road:0,compare:0,h2h:0,bracket:0,bet:0};
 var _dirtyViews={home:1,groups:1,schedule:1,stats:1,cities:1,road:1,compare:1,h2h:1,bracket:1,bet:1};
@@ -5800,7 +5834,7 @@ function tccFeatured(){
 }
 function tccLiveSummary(nums){var n=nums[0],st=S.rwState[n],m=M[n],pr=m.stage==='group'?[m.home,m.away]:koParts(n);
   var sc=(st.sh!=null&&st.sa!=null)?(st.sh+'–'+st.sa):'';
-  var min=(st.kind==='hold')?(st.label||'Delayed'):(st.min!=null?st.min+"'":(st.label||'Live'));
+  var min=(st.kind==='hold')?(safeStatusText(st.label,'Delayed')):(st.min!=null?st.min+"'":(safeStatusText(st.label,'Live')));
   var base=nm(pr[0]||m.home)+(sc?' '+sc+' ':' v ')+nm(pr[1]||m.away);
   return base+' · '+min+(nums.length>1?(' · +'+(nums.length-1)+' more live'):'');}
 function tccContext(){
@@ -5845,10 +5879,10 @@ function tccMatchMeaning(num,kind){var m=M[num];if(!m)return '';
 function tccFeaturedHTML(feat){var f=feat||tccFeatured();if(!f)return '';
   var num=f.num,m=M[num],ko=m.stage!=='group',pr=ko?koParts(num):[m.home,m.away],st=tccLiveState(num);
   var tagCls=f.kind==='live'?'live':(f.kind==='recent'?'ft':'');
-  var tagTxt=f.kind==='live'?(st&&st.kind==='hold'?esc(st.label||'Delayed'):'Live'):(f.kind==='recent'?'Full time':'Up next');
+  var tagTxt=f.kind==='live'?(st&&st.kind==='hold'?esc(safeStatusText(st.label,'Delayed')):'Live'):(f.kind==='recent'?'Full time':'Up next');
   var kicker=f.kind==='live'?'Featured · happening now':(f.kind==='recent'?'Featured · latest result':'Featured match');
   var mid;
-  if(f.kind==='live'&&st)mid='<div class="tcc-sc">'+(st.sh!=null?st.sh+'–'+st.sa:'–')+'</div><div class="tcc-rd">'+(st.kind==='hold'?esc(st.label||'Hold'):(st.min!=null?st.min+"'":'Live'))+'</div>';
+  if(f.kind==='live'&&st)mid='<div class="tcc-sc">'+(st.sh!=null?st.sh+'–'+st.sa:'–')+'</div><div class="tcc-rd">'+(st.kind==='hold'?esc(safeStatusText(st.label,'Hold')):(st.min!=null?st.min+"'":'Live'))+'</div>';
   else if(f.kind==='recent'){var r=REAL[num];mid='<div class="tcc-sc">'+(r?r[0]+'–'+r[1]:'–')+'</div><div class="tcc-rd">FT</div>';}
   else mid='<div class="tcc-vs">v</div><div class="tcc-rd">'+esc(roundShort(num))+'</div>';
   var whenTxt;
@@ -6372,7 +6406,7 @@ function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koPa
   const kIn=(!s&&!(S.real&&S.real[m.num]))?kickoffIn(m):"";
   const done=ko?!!S.ko[m.num]:!!s;
   const hold=matchHoldState(m.num),liveSt=matchLiveState(m.num);
-  const doneTag=(featured?'<span class="gtag featured">Featured</span>':'')+(done?((S.real&&S.real[m.num])?'<span class="gtag ft">● FT</span>':(isBetSim(m.num)?'<span class="gtag bs">BET SIM</span>':'<span class="gtag sm">SIM</span>')):(hold?'<span class="gtag bs">'+esc(hold.label||'DELAYED')+'</span>':(liveSt?'<span class="gtag ft">'+esc(liveSt.label||'LIVE')+'</span>':(kIn?'':'<span class="gtag up">UPCOMING</span>'))));
+  const doneTag=(featured?'<span class="gtag featured">Featured</span>':'')+(done?((S.real&&S.real[m.num])?'<span class="gtag ft">● FT</span>':(isBetSim(m.num)?'<span class="gtag bs">BET SIM</span>':'<span class="gtag sm">SIM</span>')):(hold?'<span class="gtag bs">'+esc(safeStatusText(hold.label,'DELAYED'))+'</span>':(liveSt?'<span class="gtag ft">'+esc(safeStatusText(liveSt.label,'LIVE'))+'</span>':(kIn?'':'<span class="gtag up">UPCOMING</span>'))));
   // 🔥 Sweat engine: glow the card if you have a live bet riding on this match
   var sweat="";if(S.live&&S.live.num===m.num){var ab=S.bets.find(function(b){return b.num===m.num&&!b.settled&&(b.pick==='h'||b.pick==='a'||b.pick==='d');});
     if(ab){var sh=S.live.sh,sa=S.live.sa;var winning=(ab.pick==='h'&&sh>sa)||(ab.pick==='a'&&sa>sh)||(ab.pick==='d'&&sh===sa);var tied=(sh===sa&&ab.pick!=='d');sweat=winning?' sweat-winning':(tied?' sweat-tied':' sweat-losing');}}
@@ -6598,7 +6632,7 @@ var _openSheetNum=null;
 function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group";const[ph,pa]=ko?koParts(num):[mt.home,mt.away];const s=ko?null:S.sc[num];
   const ven=VEN[mt.venue];const _kIn=(!s&&!(S.real&&S.real[num]))?kickoffIn(mt):"";
   let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(mt.wd)}, ${longDate(mt.date)} · ${to12(mt.time)} ET${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
-  var realState=matchLiveState(num);if(realState){inner+='<div class="bethint" style="border-color:'+(realState.kind==='hold'?'rgba(255,203,61,.35)':'rgba(100,210,255,.35)')+';color:'+(realState.kind==='hold'?'var(--gold)':'var(--blue2)')+'"><b>'+esc(realState.label||'Official status')+'</b> · Official result pending. Bets and bracket paths stay open until a confirmed final arrives.</div>';}
+  var realState=matchLiveState(num);if(realState){inner+='<div class="bethint" style="border-color:'+(realState.kind==='hold'?'rgba(255,203,61,.35)':'rgba(100,210,255,.35)')+';color:'+(realState.kind==='hold'?'var(--gold)':'var(--blue2)')+'"><b>'+esc(safeStatusText(realState.label,'Official status'))+'</b> · Official result pending. Bets and bracket paths stay open until a confirmed final arrives.</div>';}
   else if(livePendingOfficial(num)){inner+='<div class="bethint" style="border-color:rgba(100,210,255,.28);color:var(--blue2)"><b>Live update pending official feed</b> · We will show confirmed score and status as soon as the provider supplies them.</div>';}
   var factualMode=(typeof activeMode==='function'&&activeMode()==='real');
   if(!factualMode){try{inner+=matchFraming(num,ph,pa,ko);}catch(e){}}
@@ -6777,7 +6811,7 @@ function matchNightModel(num){
         potential:rel.reduce(function(s,b){return s+Math.round((b.stake||0)*amerToDec(b.odds||100));},0)};
     }}catch(e){}
   return {num:num,round:roundName(num),teams:parts,teamsKnown:teamsKnown,
-    live:!!live,statusKind:live?live.kind:'scheduled',statusLabel:live?(live.label||'Live'):null,
+    live:!!live,statusKind:live?live.kind:'scheduled',statusLabel:live?(safeStatusText(live.label,'Live')):null,
     kickoff:(m.date&&m.time)?{date:m.date,time:m.time}:null,score:score,
     stakes:stakes,why:why,nextOpponent:nextOpponent,nextOpponentState:nextOpponentState,ticket:ticket};
 }
@@ -6809,6 +6843,8 @@ function matchNightHTML(num){
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],MONL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function shortDate(d){const[y,m,da]=d.split("-").map(Number);return MON[m-1]+" "+da;}
 function longDate(d){const[y,m,da]=d.split("-").map(Number);return MONL[m-1]+" "+da+", "+y;}
+var WKD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function dayLabel(d){try{const[y,m,da]=d.split("-").map(Number);return WKD[new Date(y,m-1,da).getDay()]+", "+MON[m-1]+" "+da;}catch(e){return shortDate(d);}}
 function fullDay(w){return{Mon:"Monday",Tue:"Tuesday",Wed:"Wednesday",Thu:"Thursday",Fri:"Friday",Sat:"Saturday",Sun:"Sunday"}[w]||w;}
 function to12(t){const[H,Mn]=t.split(":").map(Number);const ap=H>=12?"PM":"AM";let h=H%12;if(h===0)h=12;return h+":"+String(Mn).padStart(2,"0")+" "+ap;}
 function to12p(t){const[H,Mn]=t.split(":").map(Number);const ap=H>=12?"PM":"AM";let h=H%12;if(h===0)h=12;return{t:h+":"+String(Mn).padStart(2,"0"),ap:ap};}
@@ -6974,6 +7010,7 @@ function tournamentMoreSheet(){var html='<div class="grab"></div><div class="sh-
 // tabs
 const SCRMAP={home:["home",null],schedule:["matches","schedule"],groups:["matches","groups"],compare:["matches","compare"],stats:["matches","stats"],cities:["matches","cities"],bracket:["matches","bracket"],road:["matches","road"],bet:["bet",null],h2h:["teams","h2h"]};
 var _vtActive=false;
+var _viewScroll={},_lastViewKey=null;
 function switchTab(){
   // Animate the tab change, but never start a NEW view transition while one is
   // mid-flight (fast double-taps): that aborts the running one and logs a benign
@@ -6997,7 +7034,15 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
      to the top so every top-level tab and internal subview starts at the top. */
   if(!document.getElementById("scrim")||!document.getElementById("scrim").classList.contains("on")){if(typeof unlockBodyScroll==="function")unlockBodyScroll();}
   document.querySelectorAll(".screen").forEach(function(sc){sc.classList.toggle("on",sc.id==="scr-"+m[0]);});
-  try{window.scrollTo(0,0);}catch(e){}
+  /* Scroll memory: remember where the user was in the view they are leaving, and
+     restore it when they return. A first visit restores 0 (top). This prevents the
+     page from unexpectedly snapping to the top on back navigation or programmatic
+     switches; an explicit re-tap of the active tab still jumps to top (handled in
+     the tabbar click handler). */
+  var _vkey=m[0]+"/"+(m[1]||"");
+  if(typeof _lastViewKey!=="undefined"&&_lastViewKey!=null&&_lastViewKey!==_vkey){try{_viewScroll[_lastViewKey]=window.scrollY||window.pageYOffset||0;}catch(e){}}
+  try{window.scrollTo(0,(_viewScroll&&_viewScroll[_vkey])||0);}catch(e){}
+  _lastViewKey=_vkey;
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
   try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
@@ -7035,7 +7080,7 @@ document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=functi
   endLive();if(screen==="bet"){_betCat='matches';}
   TAB=({home:"home",matches:"schedule",bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
-window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();TAB=(e.state&&e.state.tab)||"home";switchTab();render();window.scrollTo({top:0});});
+window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();TAB=(e.state&&e.state.tab)||"home";switchTab();render();/* scroll position is restored by the view's scroll memory — no surprise jump to top on back */});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
 try{history.replaceState({tab:TAB},"");}catch(e){}
 /* ---- PWA: service worker + Add to Home Screen ---- */
@@ -7052,7 +7097,7 @@ var RW_NMIDX=null;
 function rwBuildIdx(){RW_NMIDX={};Object.keys(RAT).forEach(function(c){RW_NMIDX[rwNorm(nm(c))]=c;RW_NMIDX[rwNorm(c)]=c;});}
 function rwResolve(name){if(!RW_NMIDX)rwBuildIdx();var n=rwNorm(name);return RW_SYN[n]||RW_NMIDX[n]||null;}
 function rwMatchFixture(hc,ac){if(!hc||!ac)return null;for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i];if(S.real&&S.real[m.num])continue;var pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);if(!(pr[0]&&pr[1]))continue;if((pr[0]===hc&&pr[1]===ac)||(pr[0]===ac&&pr[1]===hc))return {num:m.num,flip:pr[0]===ac};}return null;}
-function rwLiveTag(num){var L=matchLiveState(num);if(!L)return "";var sc=(L.sh==null?'–':L.sh)+'–'+(L.sa==null?'–':L.sa);return '<span class="rwlive '+(L.kind==='hold'?'hold':'')+'">'+(L.kind==='hold'?esc(L.label||'Delayed'):(sc+(L.min!=null?' '+L.min+"'":'')))+'</span>';}
+function rwLiveTag(num){var L=matchLiveState(num);if(!L)return "";var sc=(L.sh==null?'–':L.sh)+'–'+(L.sa==null?'–':L.sa);return '<span class="rwlive '+(L.kind==='hold'?'hold':'')+'">'+(L.kind==='hold'?esc(safeStatusText(L.label,'Delayed')):(sc+(L.min!=null?' '+L.min+"'":'')))+'</span>';}
 /* central API fetch helper: one in-flight request per route, stale-safe backoff on throttles/failures */
 var ApiBus={inflight:{},last:{},backoff:{},status:{},timer:null,started:false};
 function apiFresh(path,ttl){var x=ApiBus.last[path];return x&&x.t&&(Date.now()-x.t)<ttl;}
@@ -7145,7 +7190,7 @@ var RW_FINAL_CODES={FT:1,AET:1,PEN:1,FINISHED:1};
 var RW_LIVE_CODES={'1H':1,'2H':1,HT:1,ET:1,BT:1,P:1,LIVE:1,IN_PLAY:1,PAUSED:1,HALFTIME:1,BREAK:1,EXTRA_TIME:1,PENALTY_SHOOTOUT:1};
 var RW_HOLD_CODES={SUSP:1,INT:1,PST:1,CANC:1,ABD:1,TBD:1,DELAYED:1,SUSPENDED:1,POSTPONED:1,CANCELLED:1,ABANDONED:1,INTERRUPTED:1};
 function rwKind(f){var s=String((f&&f.status)||'').toUpperCase(),k=String((f&&f.kind)||'').toLowerCase();if(k==='final'||RW_FINAL_CODES[s])return'final';if(k==='hold'||RW_HOLD_CODES[s])return'hold';if(RW_LIVE_CODES[s])return'live';return'scheduled';}
-function rwStatusLabel(f){var s=String((f&&f.status)||'').toUpperCase(),txt=String((f&&f.statusLong)||'');if(s==='SUSP'||s==='SUSPENDED')return'Play suspended';if(s==='PST'||s==='POSTPONED')return'Postponed';if(s==='ABD'||s==='ABANDONED')return'Abandoned';if(s==='CANC'||s==='CANCELLED')return'Cancelled';if(s==='TBD')return'Kickoff delayed';if(s==='HT'||s==='PAUSED'||s==='HALFTIME')return'Halftime';if(s==='P'||s==='PENALTY_SHOOTOUT')return'Penalties';if(s==='ET'||s==='EXTRA_TIME')return'Extra time';if(s==='BT'||s==='BREAK')return'Break';if(s==='INT')return'Weather Delay';if(RW_FINAL_CODES[s])return'Full Time';return txt||((f&&f.min!=null)?f.min+"'":'Live');}
+function rwStatusLabel(f){var s=String((f&&f.status)||'').toUpperCase(),txt=String((f&&f.statusLong)||'');if(s==='SUSP'||s==='SUSPENDED')return'Play suspended';if(s==='PST'||s==='POSTPONED')return'Postponed';if(s==='ABD'||s==='ABANDONED')return'Abandoned';if(s==='CANC'||s==='CANCELLED')return'Cancelled';if(s==='TBD')return'Kickoff delayed';if(s==='HT'||s==='PAUSED'||s==='HALFTIME')return'Halftime';if(s==='P'||s==='PENALTY_SHOOTOUT')return'Penalties';if(s==='ET'||s==='EXTRA_TIME')return'Extra time';if(s==='BT'||s==='BREAK')return'Break';if(s==='INT')return'Weather Delay';if(s==='IN_PLAY'||s==='LIVE'||s==='1H'||s==='2H')return'Live';if(RW_FINAL_CODES[s])return'Full Time';return safeStatusText(txt,(f&&f.min!=null)?f.min+"'":'Live');}
 function livePendingOfficial(num){var m=M[num];if(!m||(S.real&&S.real[num])||(S.rwState&&S.rwState[num]))return false;var d=koDateTime(m);if(!d)return false;var now=Date.now(),t=d.getTime();return now>=t&&now<=t+3*3600000;}
 function marketPastKickoff(num){var m=M[num];if(!m)return false;var d=koDateTime(m);return !!(d&&Date.now()>=d.getTime());}
 function matchHoldState(num){return (S.rwState&&S.rwState[num]&&S.rwState[num].kind==='hold')?S.rwState[num]:null;}
@@ -7647,7 +7692,42 @@ function ts2EnsureActiveLegVisible(){
     else if(ar.right>rr.right-pad)rail.scrollBy({left:ar.right-rr.right+pad,behavior:'smooth'});
   }catch(e){}
 }
-function ts2Speeds(){return {normal:{mpm:40,hold:1500},fast:{mpm:7,hold:340},cinematic:{mpm:40,hold:1500}};}
+/* ===== Cinematic Matchday pacing =====
+   Watch live (cinematic) is the premium default: roughly 35–55s for a one-leg slip
+   and 55–90s for a 2–4 leg slip. Time is spent where the ticket can change — goals,
+   red cards, extra time, penalties, the closing whistle and the nervy final minutes —
+   and compressed through quiet stretches. Speed up (fast) plays the EXACT same events
+   in the EXACT same order but 2.5–4x faster, shrinking quiet time far more than the
+   key holds, so it never reads as identical to Watch live and never skips a
+   ticket-changing moment. Pure math here, mirrored exactly by the live scheduler. */
+function ts2Speeds(){
+  var KEY={final_whistle:5200,penalties:4800,red_card:4200,extra_time:3800,goal:3200,own_goal:3200,halftime:2200,ordinary:1500};
+  var FAST={final_whistle:1900,penalties:1750,red_card:1550,extra_time:1400,goal:1150,own_goal:1150,halftime:850,ordinary:560};
+  return {
+    normal:{key:'normal',mpm:190,minStep:150,lateClock:600,lateHold:900,settle:1300,holds:KEY},
+    cinematic:{key:'cinematic',mpm:190,minStep:150,lateClock:600,lateHold:900,settle:1300,holds:KEY},
+    fast:{key:'fast',mpm:34,minStep:120,lateClock:110,lateHold:300,settle:520,holds:FAST}
+  };
+}
+/* More legs ⇒ each leg is paced a little tighter so the whole slip still lands in the
+   55–90s window instead of multiplying linearly. One leg is never compressed. */
+function ts2LegScale(n){n=Math.max(1,n||1);return 1/(0.72+0.28*n);}
+/* Post-event hold (ms): key beats (goal, red, extra time, penalties, whistle) hold
+   materially longer than ordinary moments, and goals in the closing minutes longer still. */
+function ts2EventHold(ev,spd){
+  spd=spd||ts2Speeds().cinematic;var H=spd.holds||{},ty=(ev&&ev.type)||'ordinary';
+  var base=H[ty]!=null?H[ty]:H.ordinary;
+  if((ty==='goal'||ty==='own_goal')&&ev&&ev.minute>=75)base+=spd.lateHold;
+  return base;
+}
+/* Clock tween (ms) toward the next event, with a little added tension once the match
+   reaches its final stretch (>=75'). */
+function ts2ClockMs(fromMin,toMin,spd){
+  spd=spd||ts2Speeds().cinematic;
+  var d=Math.max(spd.minStep,Math.max(0,(toMin||0)-(fromMin||0))*spd.mpm);
+  if((toMin||0)>=75)d+=spd.lateClock;
+  return d;
+}
 /* Ordered event stream for a leg: real engine events (minute-sorted) + the closing
    whistle. Pure — never depends on the chosen speed, so Watch live and Speed up play
    the exact same events in the exact same order. */
@@ -7659,21 +7739,21 @@ function ts2BuildStops(lg){
 }
 /* Per-stop wall-clock cost for a speed (mirrors the nextStop scheduler exactly):
    clock tween toward the event + the post-event hold, plus one settle pause per leg. */
-function ts2StepDurations(stops,spd){
-  var out=[],from=0;
+function ts2StepDurations(stops,spd,nLegs){
+  spd=spd||ts2Speeds().cinematic;var scale=ts2LegScale(nLegs||1),out=[],from=0;
   for(var k=0;k<stops.length;k++){
-    var ev=stops[k],to=ev.minute;
-    out.push(Math.max(140,(to-from)*spd.mpm)+(ts2IsKey(ev)?spd.hold:spd.hold*0.45));
-    from=to;
+    var ev=stops[k];
+    out.push(Math.round((ts2ClockMs(from,ev.minute,spd)+ts2EventHold(ev,spd))*scale));
+    from=ev.minute;
   }
-  out.push(Math.max(260,spd.hold*0.5));
+  out.push(Math.round(Math.max(260,spd.settle)*scale));
   return out;
 }
 /* Total real elapsed playback for a set of legs at a given speed. Lets the suite
    prove Speed up is materially faster than Watch live without running timers. */
 function ts2EstimatePlayback(legs,speedKey){
-  var spd=ts2Speeds()[speedKey]||ts2Speeds().normal,total=0;
-  (legs||[]).forEach(function(lg){ts2StepDurations(ts2BuildStops(lg),spd).forEach(function(d){total+=d;});});
+  var spd=ts2Speeds()[speedKey]||ts2Speeds().cinematic,n=(legs||[]).length,total=0;
+  (legs||[]).forEach(function(lg){ts2StepDurations(ts2BuildStops(lg),spd,n).forEach(function(d){total+=d;});});
   return Math.round(total);
 }
 function ts2TweenClock(from,to,dur,done){
@@ -7694,8 +7774,12 @@ function ts2ApplyEvent(i,ev,spd){
   t.liveEvent=ev;
   var newState=lg.simple?ts2StateAt(t.liveScore,lg.pick):'sweat';
   lg._liveState=newState;
-  if(ts2IsKey(ev))t.drama=ts2Drama(lg,ev,prevState,newState);
-  else if(ev.type==='final_whistle'&&ts2LastAliveLeg()&&lg.finalState==='win')t.drama={text:'Ticket still alive',cls:'alive'};
+  if(ev.type==='final_whistle'){
+    if(t.cur>=t.legs.length-1)t.drama={text:'Matchday complete',cls:'final'};
+    else if(ts2LastAliveLeg()&&lg.finalState==='win')t.drama={text:'Ticket still alive',cls:'alive'};
+  }
+  else if(ts2IsKey(ev))t.drama=ts2Drama(lg,ev,prevState,newState);
+  else if(ev.minute>=75&&ts2LastAliveLeg()&&(!lg.simple||newState!=='lose'))t.drama={text:'Final minutes',cls:'tense'};
   ts2RenderStage();ts2RenderRail();ts2RenderCash();
   // goal flash + haptics
   if(ev.type==='goal'||ev.type==='own_goal'){
@@ -7709,6 +7793,8 @@ function ts2PlayLeg(i,instant){
   if(!lg)return ts2Recap();
   // reset live view for this leg
   t.liveScore={h:0,a:0};t.liveRed={h:0,a:0};t.livePeriod='first half';t.liveMin=0;t.liveEvent=null;t.shootout=null;t.drama=null;
+  // Deciding-leg framing: when the slip comes down to its final unresolved leg, name it.
+  if(!instant&&t.legs.length>1&&ts2LastAliveLeg())t.drama={text:'One result left',cls:'tense'};
   ts2RenderStage();ts2RenderRail();ts2RenderTop();ts2RenderCash();
   var res=lg.result,stops=ts2BuildStops(lg);
   if(instant){ // skip: apply all instantly
@@ -7716,14 +7802,14 @@ function ts2PlayLeg(i,instant){
     lg._done=true;ts2RenderRail();
     return ts2PlayLeg(i+1,true);
   }
-  var spd=ts2Speeds()[t.speed]||ts2Speeds().normal,k=0;
+  var spd=ts2Speeds()[t.speed]||ts2Speeds().cinematic,scale=ts2LegScale(t.legs.length),k=0;
   function nextStop(){
     if(!_ts2||_ts2.cur!==i)return;
-    if(k>=stops.length){lg._done=true;ts2RenderRail();_ts2Timer=setTimeout(function(){ts2PlayLeg(i+1,false);},Math.max(260,spd.hold*0.5));return;}
+    if(k>=stops.length){lg._done=true;ts2RenderRail();_ts2Timer=setTimeout(function(){ts2PlayLeg(i+1,false);},Math.round(Math.max(260,spd.settle)*scale));return;}
     var ev=stops[k++],fromMin=t.liveMin||0,toMin=ev.minute;
-    ts2TweenClock(fromMin,toMin,Math.max(140,(toMin-fromMin)*spd.mpm),function(){
+    ts2TweenClock(fromMin,toMin,Math.round(ts2ClockMs(fromMin,toMin,spd)*scale),function(){
       ts2ApplyEvent(i,ev,spd);
-      _ts2Timer=setTimeout(nextStop,ts2IsKey(ev)?spd.hold:spd.hold*0.45);
+      _ts2Timer=setTimeout(nextStop,Math.round(ts2EventHold(ev,spd)*scale));
     });
   }
   nextStop();
@@ -7872,6 +7958,7 @@ try{window.__ts2={ts2Legs:ts2Legs,ts2Simple:ts2Simple,ts2StateAt:ts2StateAt,ts2F
   ts2HypoOutcome:ts2HypoOutcome,ts2RenderTop:ts2RenderTop,ts2RenderRail:ts2RenderRail,ts2RailTouched:ts2RailTouched,
   ts2EnsureActiveLegVisible:ts2EnsureActiveLegVisible,ts2ResetToLive:ts2ResetToLive,ts2BackToWorldCup:ts2BackToWorldCup,ts2NewSlip:ts2NewSlip,
   ts2Speeds:ts2Speeds,ts2SetSpeed:ts2SetSpeed,ts2BuildStops:ts2BuildStops,ts2StepDurations:ts2StepDurations,ts2EstimatePlayback:ts2EstimatePlayback,
+  ts2EventHold:ts2EventHold,ts2LegScale:ts2LegScale,ts2ClockMs:ts2ClockMs,ts2IsKey:ts2IsKey,
   getCtx:function(){return _ts2;},setCtx:function(v){_ts2=v;}};}catch(e){}
 render();
 try{handleDeepLink();}catch(e){}
