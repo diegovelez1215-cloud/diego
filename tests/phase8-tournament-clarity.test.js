@@ -254,12 +254,12 @@ function sampleLeg(window) {
   return { num: 1, pick: 'h', simple: true, label: 'Pick · #1', result: res, finalState: 'win' };
 }
 
-test('Speed up is at least 2.5x faster real playback than Watch live', () => withApp((app, window, ts2) => {
+test('Speed up is at least 3x faster real playback than Watch live', () => withApp((app, window, ts2) => {
   const legs = [sampleLeg(window)];
   const cine = ts2.ts2EstimatePlayback(legs, 'cinematic');
   const fast = ts2.ts2EstimatePlayback(legs, 'fast');
   assert.ok(cine > 0 && fast > 0, 'both modes produce a positive duration');
-  assert.ok(cine / fast >= 2.5, `Speed up must be >=2.5x faster (got ${(cine / fast).toFixed(2)}x)`);
+  assert.ok(cine / fast >= 3, `Speed up must be >=3x faster (got ${(cine / fast).toFixed(2)}x)`);
 }));
 
 test('Speed up preserves event order and the full event set', () => withApp((app, window, ts2) => {
@@ -322,7 +322,7 @@ test('Cash Out sits in the lower thumb zone, above the rail, and stays reachable
 
 /* ===================== 6 · Post-simulation navigation ===================== */
 
-test('Completed simulation offers Back to World Cup and hides the old completed actions', () => withApp((app, window, ts2, errors) => {
+test('Completed simulation offers source-aware return actions and hides the old completed actions', () => withApp((app, window, ts2, errors) => {
   const s = freshSim(app);
   s.bets = [{ id: 'r1', num: 1, pick: 'h', stake: 25, odds: 130, settled: false, state: 'pending' }];
   app.setState(s);
@@ -331,9 +331,9 @@ test('Completed simulation offers Back to World Cup and hides the old completed 
   const recap = window.document.getElementById('ts2recap');
   assert.ok(recap, 'recap shown after completion');
   const txt = recap.textContent;
-  assert.ok(/Back to World Cup/.test(txt), 'Back to World Cup primary action present');
-  assert.ok(/See what’s live and next\./.test(txt), 'supporting copy present');
-  assert.ok(/New slip/.test(txt) && /Replay/.test(txt), 'New slip and Replay present');
+  assert.ok(/Back to Play/.test(txt), 'Back to Play primary action present');
+  assert.ok(/Return to your simulated picks and markets\./.test(txt), 'supporting copy present');
+  assert.ok(/New slip/.test(txt) && /World Cup Home/.test(txt) && /Replay/.test(txt), 'New slip, World Cup Home and Replay present');
   assert.ok(!/Run it back/.test(txt), 'Run it back removed');
   assert.ok(!/Edit slip/.test(txt) && !/Edit ticket/.test(txt), 'Edit slip removed');
   assert.ok(!/Reset to live/.test(txt), 'Reset to live removed');

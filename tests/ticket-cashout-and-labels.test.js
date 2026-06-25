@@ -247,7 +247,8 @@ test('end-to-end: live cash control mounts, confirm settles once, skip cannot re
   const recap = window.document.getElementById('ts2recap');
   assert.ok(recap, 'recap shown after skip');
   assert.ok(/Cashed out/.test(recap.textContent), 'recap reflects the cash out');
-  assert.ok(/Back to World Cup/.test(recap.textContent), 'cashed-out recap prioritizes back to world cup');
+  assert.ok(/Back to Play/.test(recap.textContent), 'cashed-out recap returns to Play by default');
+  assert.ok(/World Cup Home/.test(recap.textContent), 'cashed-out recap keeps a secondary world cup home route');
   assert.ok(/New slip/.test(recap.textContent), 'cashed-out recap offers a new slip');
   assert.ok(!/Reset to live/.test(recap.textContent), 'cashed-out recap does not show reset to live');
   assert.ok(!/Edit ticket/.test(recap.textContent) && !/Edit slip/.test(recap.textContent), 'cashed-out recap does not show edit slip');
