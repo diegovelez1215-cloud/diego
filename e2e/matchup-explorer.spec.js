@@ -188,7 +188,7 @@ test.describe('Matchup Explorer scenario experience', () => {
 
     const txt = await page.locator('#mxResult').evaluate((el) => el.textContent || '');
     expect(txt).toContain('Lose the Semi-final');
-    expect(txt).toContain('only if both teams lose their Semi-finals');
+    expect(txt).toContain('only if both teams lose their semifinals');
     // The old vague phrasing must be gone.
     expect(txt).not.toContain('but not the Final');
   });
