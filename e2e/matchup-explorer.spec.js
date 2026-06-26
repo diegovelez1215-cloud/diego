@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, expectNoHorizontalOverflow } = require('./helpers');
+const { gotoApp, expectNoHorizontalOverflow, expectRectsInsideViewport } = require('./helpers');
 
 // Targeted UI checks for the Matchup Explorer scenario experience.
 // These are presentation-only assertions over the existing matchupIntelligence()
@@ -188,7 +188,7 @@ test.describe('Matchup Explorer scenario experience', () => {
 
     const txt = await page.locator('#mxResult').evaluate((el) => el.textContent || '');
     expect(txt).toContain('Lose the Semi-final');
-    expect(txt).toContain('only if both teams lose their Semi-finals');
+    expect(txt).toContain('only if both teams lose their semifinals');
     // The old vague phrasing must be gone.
     expect(txt).not.toContain('but not the Final');
   });
@@ -209,5 +209,88 @@ test.describe('Matchup Explorer scenario experience', () => {
     expect(after.fp).not.toBe('__stale__'); // refreshed to the real official fingerprint
     await expect(page.locator('#mxResult .mx-hero')).toBeVisible();
     await expect(page.locator('#scrim.on')).toBeVisible();
+  });
+});
+
+test.describe('Matchup Explorer mobile copy and overflow polish', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoApp(page, 'final-matchday');
+  });
+
+  async function openExplorerHere(page) {
+    await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
+    await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
+    await page.locator('.mx-entry').click({ force: true });
+    await expect(page.locator('#scrim.on')).toBeVisible();
+  }
+
+  // The longest names the tournament can produce on a phone.
+  const LONG = ['BIH', 'KSA', 'KOR', 'CIV', 'COD', 'USA'];
+
+  test('long team names stay inside the viewport in the picker', async ({ page }) => {
+    await openExplorerHere(page);
+    await page.locator('.mx-slot').first().click({ force: true });
+    // The picker lists all teams; their names must never leak past the viewport.
+    await expectRectsInsideViewport(page, '.mx-tm .mx-tm-nm', 'picker team names');
+    await expectNoHorizontalOverflow(page, 'picker');
+  });
+
+  test('long team names stay inside the viewport across the result surfaces', async ({ page }) => {
+    await openExplorerHere(page);
+    // Render the two longest names together through the real explorer state.
+    await page.evaluate(({ a, b }) => {
+      mxOpen();
+      _mxState.a = a; _mxState.b = b; _mxState.view = 'select'; _mxState.pickFor = null;
+      _mxRenderSheet();
+    }, { a: 'BIH', b: 'KSA' });
+
+    await expect(page.locator('#mxResult')).toBeVisible();
+    for (const sel of ['.mx-hero-fl .n', '.mx-q', '.mx-rteam .n', '.mx-alt > summary .alt-tx']) {
+      await expectRectsInsideViewport(page, sel, sel);
+    }
+    await expectNoHorizontalOverflow(page, 'result with long names');
+  });
+
+  test('picker search is >=16px and uses a dark surface, not a bright blue fill', async ({ page }) => {
+    await openExplorerHere(page);
+    await page.locator('.mx-slot').first().click({ force: true });
+    const input = page.locator('#mxSearchInput');
+    const info = await input.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { fontPx: parseFloat(cs.fontSize), bg: cs.backgroundColor };
+    });
+    expect(info.fontPx).toBeGreaterThanOrEqual(16);
+    // The old awkward fill was the solid panel blue --bg2 (#10164a = rgb(16,22,74)).
+    expect(info.bg).not.toBe('rgb(16, 22, 74)');
+    // New surface is a translucent white wash that reads as part of the dark sheet.
+    expect(info.bg).toMatch(/rgba?\(255,\s*255,\s*255/);
+  });
+
+  test('third-place routes explain plainly that both teams lose their semifinals', async ({ page }) => {
+    await openExplorerHere(page);
+    // Same-group teams can only meet again in the third-place game.
+    const pair = await page.evaluate(() => {
+      for (const g of Object.keys(GROUPS)) {
+        const t = GROUPS[g];
+        for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) {
+          const r = matchupIntelligence(t[i], t[j]);
+          if ((r.scenarioRoutes || []).some((x) => x.target && x.target.round === 'Third-place match')) return { a: t[i], b: t[j] };
+        }
+      }
+      return null;
+    });
+    test.skip(!pair, 'no third-place route available in this state');
+    await page.evaluate(({ a, b }) => {
+      mxOpen();
+      _mxState.a = a; _mxState.b = b; _mxState.view = 'select'; _mxState.pickFor = null;
+      _mxRenderSheet();
+      document.querySelectorAll('#mxResult details').forEach((d) => { d.open = true; });
+    }, pair);
+
+    const txt = await page.locator('#mxResult').evaluate((el) => el.textContent || '');
+    expect(txt).toContain('Third-place game');
+    expect(txt).toContain('both teams lose their semifinals');
+    // No leftover jargon in any visible copy.
+    expect(txt).not.toMatch(/\ballocation\b|\bfeeder\b|\bdependency\b|source state|Third-place match/i);
   });
 });
