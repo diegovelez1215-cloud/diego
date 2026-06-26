@@ -37,6 +37,14 @@ function loadApp() {
       settleAllBets: settleAllBets,
       canonicalBetState: canonicalBetState,
       betResultSheet: betResultSheet,
+      addToSlip: addToSlip,
+      removeSlip: removeSlip,
+      openSlip: openSlip,
+      slipDec: slipDec,
+      amerToDec: amerToDec,
+      slipLegsGroupedHTML: slipLegsGroupedHTML,
+      ticketDisplayState: ticketDisplayState,
+      ticketLegDetailHTML: ticketLegDetailHTML,
       styleText: function(){ return document.querySelector('style') ? document.querySelector('style').textContent : (document.head.innerHTML); }
     };`);
   return dom;
@@ -270,4 +278,50 @@ test('confirmation sheet is phone-first: inset, non-overflowing, two-up actions'
   assert.ok(/\.ts2-confirm-row\{[^}]*grid-template-columns:1fr 1fr/.test(css), 'confirm actions are a 2-up grid');
   // the whole stage forbids horizontal overflow
   assert.ok(/\.ts2\{[^}]*overflow:hidden/.test(css), 'stage hides overflow (no horizontal scroll)');
+}));
+
+test('SIM$ slip grouping preserves existing odds and payout math', () => withApp((app, ts2, window) => {
+  const state = app.blankState(); state.mode = 'sim'; state.order = app.getState().order; state.bank = 1000;
+  state.slip = [
+    { k: 'm', num: 1, pick: 'h', odds: 120, label: 'Brazil · Group A #1', key: 'm1h' },
+    { k: 'mkt', num: 1, market: 'ou', side: 'over', line: 2.5, odds: -110, label: 'Over 2.5 · Group A #1', key: 'm1ou' },
+    { k: 'm', num: 2, pick: 'a', odds: 150, label: 'Away · Group A #2', key: 'm2a' },
+  ];
+  app.setState(state);
+  const bankBefore = app.getState().bank;
+  const decBefore = app.slipDec();
+  const grouped = app.slipLegsGroupedHTML(state.slip);
+  assert.equal((grouped.match(/slip-group-h/g) || []).length, 2, 'slip groups legs by match');
+
+  app.openSlip();
+  const input = window.document.getElementById('tkStake');
+  input.value = '25';
+  window.tkUpd();
+  assert.equal(app.slipDec(), decBefore, 'open slip UI does not change combined odds');
+  assert.equal(window.document.getElementById('tkRet').textContent, '$' + Math.round(25 * decBefore).toLocaleString(), 'potential return follows existing decimal odds math');
+  assert.equal(app.getState().bank, bankBefore, 'opening/editing slip does not move wallet');
+}));
+
+test('adding and removing SIM$ selections gives visible feedback without changing wallet', () => withApp((app) => {
+  const state = app.blankState(); state.mode = 'sim'; state.order = app.getState().order; state.bank = 1000; state.slip = [];
+  app.setState(state);
+  const leg = { k: 'm', num: 1, pick: 'h', odds: 120, label: 'Brazil · Group A #1', key: 'm1h' };
+  app.addToSlip(leg);
+  assert.equal(app.getState().slip.length, 1, 'selection added to slip');
+  assert.equal(app.getState().bank, 1000, 'add to slip does not debit wallet');
+  app.addToSlip(leg);
+  assert.equal(app.getState().slip.length, 1, 'duplicate add stays as one visible selection');
+  app.removeSlip(0);
+  assert.equal(app.getState().slip.length, 0, 'selection removed from slip');
+  assert.equal(app.getState().bank, 1000, 'remove from slip does not debit or credit wallet');
+}));
+
+test('active ticket presentation shows pending, cashed out, and settled states clearly', () => withApp((app) => {
+  const pending = { id: 'p', num: 1, pick: 'h', stake: 25, odds: 120, settled: false, state: 'pending' };
+  const cashed = { id: 'c', num: 1, pick: 'h', stake: 25, odds: 120, settled: true, state: 'won', cashed: true, cashoutAmount: 33 };
+  const won = { id: 'w', num: 1, pick: 'h', stake: 25, odds: 120, settled: true, state: 'won' };
+  assert.equal(app.ticketDisplayState(pending, { cls: 'pending', note: '' }).t, 'Pending');
+  assert.equal(app.ticketDisplayState(cashed, { cls: 'won', note: '' }).t, 'Cashed out');
+  assert.equal(app.ticketDisplayState(won, { cls: 'won', note: '' }).t, 'Settled · won');
+  assert.ok(/Pending/.test(app.ticketLegDetailHTML({ kind: 'par', legs: [{ k: 'm', num: 72, pick: 'h', odds: 120, label: 'Brazil', key: 'm72h' }], stake: 25, odds: 120 })), 'leg detail reads pending before settlement');
 }));

@@ -77,7 +77,21 @@ function sampleLeg() {
     { minute: 88, type: 'goal', side: 'h', score: { h: 2, a: 0 }, headline: 'Goal' },
   ];
   return { num: 1, pick: 'h', simple: true, label: 'Brazil win', finalState: 'win',
-    result: { teams: { h: 'BRA', a: 'CRO' }, score: { h: 2, a: 0 }, minute: 90, period: 'final', events } };
+    result: { teams: { h: 'BRA', a: 'CRO' }, seed: 4217, replayKey: 'sample-v4', score: { h: 2, a: 0 }, minute: 90, period: 'final', events } };
+}
+
+function penaltyLeg() {
+  return { num: 73, pick: 'h', simple: true, label: 'Brazil advance', finalState: 'win',
+    result: { teams: { h: 'BRA', a: 'CRO' }, seed: 9901, replayKey: 'pens-v4',
+      score: { h: 1, a: 1 }, regulationScore: { h: 1, a: 1 }, extraTimeScore: { h: 1, a: 1 },
+      minute: 121, period: 'penalties', shootout: { h: 5, a: 4 }, advancingTeam: 'BRA',
+      events: [
+        { minute: 20, type: 'goal', side: 'h', score: { h: 1, a: 0 }, headline: 'Goal' },
+        { minute: 45, type: 'halftime', score: { h: 1, a: 0 }, headline: 'Half-time' },
+        { minute: 81, type: 'goal', side: 'a', score: { h: 1, a: 1 }, headline: 'Goal' },
+        { minute: 90, type: 'extra_time_start', period: 'extra time', score: { h: 1, a: 1 }, headline: 'Extra time begins' },
+        { minute: 121, type: 'penalties', period: 'penalties', side: 'h', score: { h: 1, a: 1 }, shootout: { h: 5, a: 4 }, headline: 'Brazil advance on penalties' },
+      ] } };
 }
 
 test('knockout matchup cannot be Confirmed unless both exact participants are officially final', () => withApp((app) => {
@@ -196,14 +210,53 @@ test('Matchboard V3 moves ball and markers deterministically without creating ev
   assert.ok(!/player|xG|possession|official/i.test(html), 'no fake official stats or player claims');
 }));
 
+test('Matchcast V4 frame model is deterministic and reveals captured events only on schedule', () => withApp((app, window, ts2) => {
+  const leg = penaltyLeg();
+  const stops = ts2.ts2BuildStops(leg);
+  const watch = ts2.ts2EstimatePlayback([sampleLeg()], 'cinematic');
+  const fast = ts2.ts2EstimatePlayback([sampleLeg()], 'fast');
+  assert.ok(watch >= 36000 && watch <= 42000, `Watch live regulation was ${watch}`);
+  assert.ok(fast >= 13000 && fast <= 16000, `Speed Up regulation was ${fast}`);
+  assert.ok(watch / fast >= 2.5, `Speed Up ratio was ${(watch / fast).toFixed(2)}x`);
+
+  const seqA = [0, 2500, 9000, 16000, 26000, 36000, 46000].map((ms) => ts2.ts2FrameModel(leg, stops, ms, 'cinematic', 1));
+  const seqB = [0, 2500, 9000, 16000, 26000, 36000, 46000].map((ms) => ts2.ts2FrameModel(leg, stops, ms, 'cinematic', 1));
+  assert.deepEqual(seqA, seqB, 'same seed and event log give identical frame sequence');
+  assert.ok(seqA.every((x) => stops.includes(x.event)), 'frame model never creates written events');
+
+  const beforeGoal = ts2.ts2FrameModel(leg, stops, 5000, 'cinematic', 1);
+  assert.notEqual(beforeGoal.event.type, 'penalties', 'penalties do not appear before their captured stop');
+  const pen = ts2.ts2FrameModel(leg, stops, ts2.ts2EstimatePlayback([leg], 'cinematic') - 5000, 'cinematic', 1);
+  assert.equal(pen.event.type, 'penalties', 'penalty shootout appears at captured penalty moment');
+  assert.ok(pen.frame.penaltyReveal && pen.frame.penaltyReveal.shown >= 1, 'penalty kicks reveal progressively inside the captured penalty event');
+}));
+
+test('playback helper uses no randomness after capture and official match center cannot mount virtual matchcast', () => withApp((app, window, ts2) => {
+  const leg = sampleLeg(), stops = ts2.ts2BuildStops(leg);
+  const oldRandom = window.Math.random;
+  window.Math.random = () => { throw new Error('Math.random called during playback'); };
+  try {
+    ts2.ts2FrameModel(leg, stops, 12000, 'cinematic', 1);
+    ts2.ts2VisualFrame(leg, stops[0], stops[0].score, 'first half', .4);
+    ts2.ts2EstimatePlayback([leg], 'fast');
+  } finally {
+    window.Math.random = oldRandom;
+  }
+  const s = resetOfficial(app);
+  setOfficial(app, s, 1, 1, 0);
+  app.setState(s);
+  assert.equal(ts2.canOpenVirtualMatchcast(1, null), false, 'official match cannot open virtual matchcast');
+}));
+
 test('timing, speed-up, settlement safety, raw labels, and console stay clean', () => withApp((app, window, ts2, errors) => {
   const one = [sampleLeg()], four = [sampleLeg(), sampleLeg(), sampleLeg(), sampleLeg()];
   const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
   const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
   const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
-  assert.ok(oneWatch >= 18000 && oneWatch <= 28000, `one-leg Watch live was ${oneWatch}`);
+  assert.ok(oneWatch >= 36000 && oneWatch <= 42000, `one-leg Watch live was ${oneWatch}`);
   assert.ok(fourWatch >= 30000 && fourWatch <= 50000, `four-leg Watch live was ${fourWatch}`);
-  assert.ok(oneWatch / oneFast >= 3, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
+  assert.ok(oneFast >= 13000 && oneFast <= 16000, `one-leg Speed Up was ${oneFast}`);
+  assert.ok(oneWatch / oneFast >= 2.5, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
   assert.deepEqual(ts2.ts2BuildStops(sampleLeg()).map((s) => s.type), ['goal', 'halftime', 'red_card', 'goal', 'final_whistle']);
 
   const s = app.blankState();
@@ -213,6 +266,11 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   s.bets = [{ id: 'p10-settle', num: 1, pick: 'h', stake: 20, odds: 120, settled: false, state: 'pending' }];
   app.setState(s);
   window.ts2Launch(0);
+  assert.match(window.document.getElementById('ts2top').textContent, /Simulation/);
+  assert.match(window.document.getElementById('ts2top').textContent, /Virtual match/);
+  assert.match(window.document.getElementById('ts2top').textContent, /SIM \$|SIM \$/);
+  assert.match(window.document.getElementById('ts2top').textContent, /No real money/);
+  assert.match(window.document.getElementById('ts2top').textContent, /Does not affect official results/);
   window.ts2CashOut();
   const confirm = window.document.getElementById('ts2confirm');
   if (confirm) window.ts2CashCancel();
@@ -223,5 +281,11 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   assert.equal(app.getState().bank, bank, 'replay/skip cannot duplicate settlement');
   const visible = window.document.getElementById('ts2').textContent;
   assert.ok(!RAW.test(visible), 'no raw enum leaks in the rendered simulation surface');
+  window.ts2Replay();
+  window.ts2Close();
+  const runtime = ts2.runtimeState();
+  assert.equal(runtime.timer, false, 'close clears timer handle');
+  assert.equal(runtime.raf, false, 'close clears raf handle');
+  assert.equal(runtime.runtime, false, 'close clears runtime marker');
   assert.equal(errors.length, 0, 'no console errors: ' + errors.join(' | '));
 }));

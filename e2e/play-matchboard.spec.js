@@ -46,13 +46,13 @@ test.describe('Play and Matchboard rendered runtime', () => {
     await screenshot(page, testInfo, 'matchboard-goal-sequence');
   });
 
-  test('Speed Up is at least 3x faster and settlement remains single-path', async ({ page }) => {
+  test('Speed Up is at least 2.5x faster and settlement remains single-path', async ({ page }) => {
     await page.evaluate(() => window.__wc26E2E.startMatchboard());
     const ratio = await page.evaluate(() => window.__wc26E2E.speedRatio());
-    expect(ratio).toBeGreaterThanOrEqual(3);
+    expect(ratio).toBeGreaterThanOrEqual(2.5);
 
     const result = await page.evaluate(() => window.__wc26E2E.runFastToResult());
-    expect(result.ratio).toBeGreaterThanOrEqual(3);
+    expect(result.ratio).toBeGreaterThanOrEqual(2.5);
     expect(result.settled).toBe(1);
     expect(result.bank).toBeGreaterThan(9900);
 

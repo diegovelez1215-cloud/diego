@@ -8,11 +8,11 @@ const { gotoApp, expectNoHorizontalOverflow, expectRectsInsideViewport } = requi
 const TRACKING = /\bsimulat|\bdanger\b|\bpossession\b|player position|ball movement|heat ?map|\bvirtual\b/i;
 
 async function openMatchupPicker(page) {
-  await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
-  await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
-  await page.locator('.mx-entry').click({ force: true });
+  await page.locator('.tabbar button[data-screen="matches"]').click();
+  await page.locator('.tour-switch button[data-sub="bracket"]').click();
+  await page.locator('.mx-entry').click();
   await expect(page.locator('#scrim.on')).toBeVisible();
-  await page.locator('.mx-slot').first().click({ force: true });
+  await page.locator('#scrim.on').getByRole('button', { name: /First team/i }).click();
   await expect(page.locator('#mxSearchInput')).toBeVisible();
 }
 

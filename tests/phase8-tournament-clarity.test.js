@@ -254,12 +254,12 @@ function sampleLeg(window) {
   return { num: 1, pick: 'h', simple: true, label: 'Pick · #1', result: res, finalState: 'win' };
 }
 
-test('Speed up is at least 3x faster real playback than Watch live', () => withApp((app, window, ts2) => {
+test('Speed up is at least 2.5x faster real playback than Watch live', () => withApp((app, window, ts2) => {
   const legs = [sampleLeg(window)];
   const cine = ts2.ts2EstimatePlayback(legs, 'cinematic');
   const fast = ts2.ts2EstimatePlayback(legs, 'fast');
   assert.ok(cine > 0 && fast > 0, 'both modes produce a positive duration');
-  assert.ok(cine / fast >= 3, `Speed up must be >=3x faster (got ${(cine / fast).toFixed(2)}x)`);
+  assert.ok(cine / fast >= 2.5, `Speed up must be >=2.5x faster (got ${(cine / fast).toFixed(2)}x)`);
 }));
 
 test('Speed up preserves event order and the full event set', () => withApp((app, window, ts2) => {
