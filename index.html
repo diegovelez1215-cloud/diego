@@ -2827,7 +2827,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .mx-hist .fl{font-size:19px;flex:none}
 .mx-hist .sc{font-size:17px;font-weight:900;letter-spacing:.5px}
 .mx-hist .lb{font-size:11px;color:var(--mut2);font-weight:750;margin-left:auto;text-align:right;line-height:1.3}
-@media (prefers-reduced-motion:reduce){.mx-entry,.mx-slot,.mx-tm,.mx-vib,.mx-alts>summary .chev{transition:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;transition-delay:0s!important;animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important}.mx-entry,.mx-slot,.mx-tm,.mx-vib,.mx-alts>summary .chev{transition:none!important;animation:none!important}}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -7968,12 +7968,21 @@ window.addEventListener("popstate",function(e){var sc=document.getElementById("s
   // swap synchronously (skipAnim) so restoration is deterministic, then re-commit
   // the saved scroll across the post-render rebuild.
   _suppressScrollRestore=false;
+  // A just-finished forward-to-top navigation may still hold its top-commit guard
+  // window open. That guard exists to stop stale positive scroll samples from
+  // cancelling the forward jump to top — but on Back it would otherwise keep the
+  // page pinned at top instead of the saved position. Lift the window and cancel
+  // any in-flight top-commit so saved-scroll restoration is authoritative.
+  _topCommitSuppressUntil=0;_topCommitToken++;
   TAB=(e.state&&e.state.tab)||"home";
   try{var _pk=viewKeyForTab(TAB),_py=restoreScrollFor(_pk,e.state||{});_pendingRestoreScroll={key:_pk,y:_py};}catch(_e){}
   switchTab(true);render();
   try{var m=SCRMAP[TAB]||["home",null];var _vk=m[0]+"/"+(m[1]||"");recommitScroll(restoreScrollFor(_vk,e.state||{}));}catch(_e){}
 });
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
+/* Own scroll restoration ourselves so the browser's automatic restoration can't
+   race or override the app's saved per-view scroll on Back/popstate. */
+try{if('scrollRestoration' in history)history.scrollRestoration='manual';}catch(e){}
 try{history.replaceState({tab:TAB,viewKey:viewKeyForTab(TAB),scroll:0},"");}catch(e){}
 /* ---- PWA: service worker + Add to Home Screen ---- */
 if('serviceWorker' in navigator){window.addEventListener('load',function(){try{navigator.serviceWorker.register('sw.js');}catch(e){}});}
