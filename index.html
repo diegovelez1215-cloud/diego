@@ -6378,7 +6378,7 @@ function miFixtureMeta(m){
 function miRoundName(num){return num===103?'Third-place match':roundName(num);}
 function miTeamRef(code){return code&&T[code]?{code:code,name:nm(code),flag:fl(code),group:TG[code]||null}:null;}
 function miSafeError(input,reason,message){
-  return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
+  return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],scenarioRoutes:[],recommendedPrimaryRoute:null,alternativeRouteCount:0,noScenarioRouteReason:'Scenario routes require two recognized, different tournament teams.',earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
 }
 function miNormalizePair(a,b){
   var ca=teamCode?teamCode(a):a,cb=teamCode?teamCode(b):b;
@@ -6491,6 +6491,108 @@ function miPossibility(num,a,b,ea,eb,reqs,seen){
     requirements:reqs,explanation:st.certainty==='confirmed'?nm(a)+' and '+nm(b)+' are officially locked into Match #'+num+'.':nm(a)+' and '+nm(b)+' have a compatible path to meet in '+round+'.',
     evidence:{entrySlots:[ea.slot,eb.slot],thirdPlaceAllocation:{checked:!!(comboA||comboB),compatibleCombinationCount:comboCount},sourceFixture:{home:m.home,away:m.away},helpers:['tccTeamTournamentStatus','freScenarioPossible','freDirectSlot','freThirdCandidateSlots','TP3','TP3C','NEXTWIN','knockoutSlotStatus']}};
 }
+function miScenarioCertainty(p){
+  if(!p)return'pending';
+  if(p.certainty==='confirmed')return'confirmed';
+  if(p.certainty==='scheduled')return'scheduled';
+  if(p.certainty==='projected')return'projected';
+  return'conditional';
+}
+function miCertaintyRank(c){return c==='confirmed'?0:c==='scheduled'?1:c==='conditional'?2:c==='projected'?3:4;}
+function miRouteToken(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function miEntryKey(e){return[e.finishPositionNumber,e.group,e.slot.matchNum,e.slot.side,e.slot.slot].join(':');}
+function miRouteId(a,b,p){
+  return miRouteToken([a,b,'m'+p.matchNum,'a'+miEntryKey({finishPositionNumber:p.teamA.requiredEntrySlot? p.teamA.requiredFinish : '',group:TG[a],slot:p.teamA.requiredEntrySlot||{}}),'b'+miEntryKey({finishPositionNumber:p.teamB.requiredEntrySlot? p.teamB.requiredFinish : '',group:TG[b],slot:p.teamB.requiredEntrySlot||{}})].join('-'));
+}
+function miFinishLabel(e){return e.finishPosition+' in Group '+e.group;}
+function miAdvancementPath(code,entry,target){
+  var out=[],path,semi,i,n,w,next;
+  if(target===103){
+    semi=miSemiForEntry(entry.slot.matchNum);path=semi?miPriorPath(entry.slot.matchNum,semi):null;
+    if(!path)return out;
+    for(i=0;i<path.length;i++){
+      n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n]||semi;
+      out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',feedsFixtureId:'M'+next,feedsMatchNum:next,evidence:{source:'NEXTWIN',winnerFeedsTo:next}});
+    }
+    out.push({fixtureId:'M'+semi,matchNum:semi,round:miRoundName(semi),requirement:nm(code)+' must reach Match #'+semi+' and not advance to the Final.',action:'not_advance_to_final',feedsFixtureId:'M103',feedsMatchNum:103,evidence:{source:'FEEDERS',loserFeedsTo:103}});
+    return out;
+  }
+  path=miPriorPath(entry.slot.matchNum,target);
+  if(!path)return out;
+  for(i=0;i<path.length;i++){
+    n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n];
+    out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',feedsFixtureId:next?'M'+next:null,feedsMatchNum:next||null,evidence:{source:'NEXTWIN',winnerFeedsTo:next||null}});
+  }
+  return out;
+}
+function miScenarioDependencies(code,entry,out){
+  out.push(nm(code)+' must finish '+miFinishLabel(entry)+'.');
+  if(entry.finishPositionNumber===3){
+    out.push(nm(code)+' must qualify as one of the valid best third-place teams.');
+    out.push('A valid third-place allocation combination must route Group '+entry.group+' into Match #'+entry.slot.matchNum+'.');
+  }
+}
+function miSharedThirdCombos(ea,eb){
+  var ca=miThirdComboSet(ea),cb=miThirdComboSet(eb),combos=null,checked=!!(ca||cb);
+  if(ca&&cb){var mb={};cb.forEach(function(x){mb[x]=1;});combos=ca.filter(function(x){return mb[x];});}
+  else if(ca)combos=ca.slice();
+  else if(cb)combos=cb.slice();
+  return{checked:checked,compatibleCombinations:combos||[],compatibleCombinationCount:combos?combos.length:null};
+}
+function miScenarioTeam(code,entry,target){
+  return{code:code,name:nm(code),group:entry.group,requiredFinish:miFinishLabel(entry),requiredEntrySlot:entry.slot,advancementPath:miAdvancementPath(code,entry,target),evidence:{finishPositionNumber:entry.finishPositionNumber,entryCertainty:entry.entryCertainty,slotSource:entry.finishPositionNumber===3?'TP3/TP3C':'Round-of-32 bracket slot'}};
+}
+function miRouteHeadline(a,b,p){
+  var where=p.round==='Final'?'the Final':p.round;
+  if(p.certainty==='confirmed')return nm(a)+' and '+nm(b)+' are officially set for '+where+'.';
+  return 'If '+nm(a)+' finish '+p.teamA.requiredFinish+' in Group '+TG[a]+' and '+nm(b)+' finish '+p.teamB.requiredFinish+' in Group '+TG[b]+', they can meet in '+where+'.';
+}
+function miMeetingExplanation(a,b,p){
+  if(p.certainty==='confirmed')return 'Both teams are officially assigned to Match #'+p.matchNum+'.';
+  return 'These group finishes place '+nm(a)+' and '+nm(b)+' into compatible feeder paths for Match #'+p.matchNum+'.';
+}
+function miCannotEarlierBecause(p){
+  if(p.matchNum===103)return 'The Third-place match can only contain teams that reach separate Semi-finals and do not advance to the Final.';
+  if(p.matchNum>=73&&p.matchNum<=88)return 'The Round of 32 is the first knockout round for these entry slots.';
+  return 'These entry slots stay in separate bracket branches until Match #'+p.matchNum+'.';
+}
+function miScenarioRoutesFromPossibilities(a,b,poss){
+  var seen={},routes=[];
+  poss.forEach(function(p){
+    var ea={team:a,group:TG[a],finishPositionNumber:p.teamA.requiredFinish==='1st'?1:p.teamA.requiredFinish==='2nd'?2:3,finishPosition:p.teamA.requiredFinish,slot:p.teamA.requiredEntrySlot,entryCertainty:p.certainty};
+    var eb={team:b,group:TG[b],finishPositionNumber:p.teamB.requiredFinish==='1st'?1:p.teamB.requiredFinish==='2nd'?2:3,finishPosition:p.teamB.requiredFinish,slot:p.teamB.requiredEntrySlot,entryCertainty:p.certainty};
+    var key=p.matchNum+'|'+miEntryKey(ea)+'|'+miEntryKey(eb);if(seen[key])return;seen[key]=1;
+    var deps=[],third=miSharedThirdCombos(ea,eb),certainty=miScenarioCertainty(p);
+    miScenarioDependencies(a,ea,deps);miScenarioDependencies(b,eb,deps);
+    if(third.checked&&third.compatibleCombinationCount>1)deps.push(third.compatibleCombinationCount+' valid third-place allocation combinations keep this combined route possible.');
+    var r={id:miRouteId(a,b,p),target:{fixtureId:p.fixtureId,matchNum:p.matchNum,round:p.round,metadata:p.metadata,certainty:certainty,statusLabel:p.statusLabel,sourceFixture:p.evidence&&p.evidence.sourceFixture?p.evidence.sourceFixture:null},
+      isEarliestRoute:false,isFinalOnly:p.matchNum===104,recommendedPrimaryRoute:false,headline:miRouteHeadline(a,b,p),
+      teamA:miScenarioTeam(a,ea,p.matchNum),teamB:miScenarioTeam(b,eb,p.matchNum),dependencies:deps,
+      thirdPlaceAllocation:{checked:third.checked,compatibleCombinationCount:third.compatibleCombinationCount,compatibleCombinations:third.compatibleCombinations},
+      explanation:miMeetingExplanation(a,b,p),cannotMeetEarlierBecause:miCannotEarlierBecause(p),
+      evidence:{sourcePossibilityFixture:p.fixtureId,sourcePossibilityKey:key,derivedFrom:'knockoutPossibilities',helpers:['miEntryCompatible','miThirdComboSet','miPriorPath','NEXTWIN','FEEDERS'],requirements:p.requirements,thirdPlaceAllocation:third}};
+    routes.push(r);
+  });
+  routes.sort(function(x,y){
+    return (MI_ROUND_ORDER[x.target.round]||99)-(MI_ROUND_ORDER[y.target.round]||99)||
+      x.dependencies.length-y.dependencies.length||
+      miCertaintyRank(x.target.certainty)-miCertaintyRank(y.target.certainty)||
+      x.target.matchNum-y.target.matchNum||
+      (x.id<y.id?-1:x.id>y.id?1:0);
+  });
+  if(routes.length){
+    var earliest=routes[0].target.round;routes.forEach(function(r){r.isEarliestRoute=r.target.round===earliest;});
+    routes[0].recommendedPrimaryRoute=true;
+  }
+  return routes;
+}
+function miNoScenarioRouteReason(verdict,gm,poss){
+  if(poss&&poss.length)return null;
+  if(gm&&gm.exists&&gm.state==='scheduled')return 'No future knockout scenario route is needed yet because the teams are scheduled to meet in the group stage.';
+  if(gm&&gm.exists&&gm.state==='completed')return 'Their group-stage meeting is historical, and no compatible future knockout route remains from the current official state.';
+  if(verdict==='invalid')return 'Scenario routes require two recognized, different tournament teams.';
+  return 'No compatible combined knockout route exists after applying group placement, third-place allocation, and bracket path constraints.';
+}
 function miFutureKnockoutPossibilities(a,b){
   var ea=miEntryCandidates(a),eb=miEntryCandidates(b),out=[],seenPoss={};
   ea.forEach(function(A){eb.forEach(function(B){
@@ -6519,6 +6621,7 @@ function matchupIntelligence(teamACode,teamBCode,options){
   options=options||{};
   var norm=miNormalizePair(teamACode,teamBCode);if(norm&&norm.ok===false)return norm;
   var a=norm.teamA,b=norm.teamB,gm=miGroupMeeting(a,b),poss=miFutureKnockoutPossibilities(a,b);
+  var scenarioRoutes=miScenarioRoutesFromPossibilities(a,b,poss);
   var confirmed=poss.filter(function(p){return p.certainty==='confirmed';}),verdict,certainty,headline,impossibleReason=null;
   if(confirmed.length){verdict='confirmed';certainty='confirmed';headline=nm(a)+' and '+nm(b)+' are confirmed to meet in '+confirmed[0].round+'.';}
   else if(gm.exists&&gm.state==='scheduled'){verdict='scheduled';certainty='scheduled';headline=nm(a)+' and '+nm(b)+' are scheduled to meet in the group stage.';}
@@ -6527,7 +6630,7 @@ function matchupIntelligence(teamACode,teamBCode,options){
   else{verdict='impossible';certainty='impossible';headline=nm(a)+' and '+nm(b)+' do not have a legal future meeting path from the current official tournament state.';impossibleReason='No fixture can simultaneously resolve to both teams after applying group placement, third-place allocation, and knockout path constraints.';}
   var rounds=poss.map(function(p){return p.round;}),earliest=rounds[0]||null,latest=rounds.length?rounds[rounds.length-1]:null,finalOnly=poss.length>0&&poss.every(function(p){return p.matchNum===104;});
   return{version:MATCHUP_INTEL_VERSION,ok:true,input:{teamA:teamACode,teamB:teamBCode},teams:{teamA:miTeamRef(a),teamB:miTeamRef(b)},headline:headline,verdict:verdict,certainty:certainty,
-    groupStageMeeting:gm,knockoutPossibilities:poss,earliestPossibleRound:earliest,latestPossibleRound:latest,finalOnlyFutureKnockoutMeeting:finalOnly,
+    groupStageMeeting:gm,knockoutPossibilities:poss,scenarioRoutes:scenarioRoutes,recommendedPrimaryRoute:scenarioRoutes.length?scenarioRoutes[0].id:null,alternativeRouteCount:Math.max(0,scenarioRoutes.length-1),noScenarioRouteReason:miNoScenarioRouteReason(verdict,gm,poss),earliestPossibleRound:earliest,latestPossibleRound:latest,finalOnlyFutureKnockoutMeeting:finalOnly,
     requirements:poss.reduce(function(acc,p){p.requirements.forEach(function(r){acc.push(r);});return acc;},[]),impossibleReason:impossibleReason,
     evidence:{sources:['DATA.matches','REAL','GROUPS','TBORDER','TP3','TP3C','tccTeamTournamentStatus','freScenarioPossible','freDirectSlot','freThirdCandidateSlots','freValidThirdCombos','knockoutSlotStatus','koSlotOfficialTeam','NEXTWIN','FEEDERS'],futureKnockoutPossibilitiesEvaluated:true,entryCandidateCounts:{teamA:miEntryCandidates(a).length,teamB:miEntryCandidates(b).length}}};
 }
