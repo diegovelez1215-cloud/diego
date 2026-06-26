@@ -76,12 +76,9 @@ test.describe('Matchup Explorer scenario experience', () => {
     await expect(sameTeam).toBeDisabled();
   });
 
-  test('primary scenario route renders with alternates and no raw labels', async ({ page }) => {
-    await openExplorer(page);
-
-    // Pick the pair the engine reports with the most scenario routes, then render
-    // the result through the real explorer state. (GROUPS / matchupIntelligence are
-    // bare lexical globals, not window properties, in the page's classic script.)
+  // Render the highest-route pair directly through the real explorer state.
+  // GROUPS / matchupIntelligence are bare lexical globals (not window props).
+  async function renderBestPair(page) {
     const pick = await page.evaluate(() => {
       const all = Object.keys(GROUPS).flatMap((g) => GROUPS[g]);
       let best = null;
@@ -96,38 +93,121 @@ test.describe('Matchup Explorer scenario experience', () => {
     });
     expect(pick, 'expected at least one pair with a scenario route').not.toBeNull();
     expect(pick.n).toBeGreaterThan(0);
-
     await page.evaluate(({ a, b }) => {
       mxOpen();
-      _mxState.a = a;
-      _mxState.b = b;
-      _mxState.view = 'select';
-      _mxState.pickFor = null;
+      _mxState.a = a; _mxState.b = b; _mxState.view = 'select'; _mxState.pickFor = null;
       _mxRenderSheet();
     }, pick);
+    return pick;
+  }
+
+  test('primary route, open alternates, collapsed extras, and no raw labels', async ({ page }) => {
+    await openExplorer(page);
+    const pick = await renderBestPair(page);
 
     await expect(page.locator('text=Fastest way they can meet')).toBeVisible();
     await expect(page.locator('.mx-route').first()).toBeVisible();
     await expect(page.locator('.mx-route .mx-mcard').first()).toBeVisible();
-    // Two team columns with explicit finishes.
     await expect(page.locator('.mx-route .mx-rcol')).toHaveCount(2);
     await expect(page.locator('.mx-rfinv').first()).toBeVisible();
-    // Honest alternates: when the engine offers more than one route, they appear in
-    // a collapsed section that expands to real, distinct routes.
-    if (pick.n > 1) {
-      const alts = page.locator('.mx-alts');
-      await expect(alts).toBeVisible();
-      await alts.locator('summary').first().click({ force: true });
-      await expect(page.locator('.mx-alt').first()).toBeVisible();
+
+    // First up-to-three alternates are visible WITHOUT opening any collapsed control.
+    const alts = pick.n - 1;
+    const expectedOpen = Math.min(3, alts);
+    await expect(page.locator('.mx-altlist-open > details.mx-alt')).toHaveCount(expectedOpen);
+    if (expectedOpen > 0) await expect(page.locator('.mx-altlist-open > details.mx-alt').first()).toBeVisible();
+
+    // Extras beyond the first three live in a quiet collapsed control.
+    if (alts > 3) {
+      await expect(page.locator('.mx-alts > summary')).toHaveText(/See \d+ more possible routes?/);
+      await expect(page.locator('.mx-alts .mx-altlist > details.mx-alt')).toHaveCount(alts - 3);
+    } else {
+      await expect(page.locator('.mx-alts')).toHaveCount(0);
     }
 
-    // No raw engine enums / internal labels may leak into the rendered copy.
-    const leaked = await page.locator('#sheet').evaluate((el) => {
-      const t = el.textContent || '';
-      return /group_finish|best_third|third_allocation|knockout_advancement|knockout_result|official_result_dependency|requiredEntrySlot|recommendedPrimaryRoute|TP3|matchupIntel/.test(t);
-    });
+    // No raw engine enums / internal labels may leak into rendered copy.
+    const leaked = await page.locator('#sheet').evaluate((el) => /group_finish|best_third|third_allocation|knockout_advancement|knockout_result|official_result_dependency|requiredEntrySlot|recommendedPrimaryRoute|TP3|matchupIntel/.test(el.textContent || ''));
     expect(leaked).toBe(false);
 
     await expectNoHorizontalOverflow(page, 'explorer result');
+  });
+
+  test('route comparison stacks vertically at phone width with clean step text', async ({ page }) => {
+    await openExplorer(page);
+    await renderBestPair(page);
+
+    // Team route cards stack (single column) on phones — never squeezed side-by-side.
+    const dir = await page.locator('.mx-route .mx-rcols').first().evaluate((el) => getComputedStyle(el).flexDirection);
+    expect(dir).toBe('column');
+
+    // Order within the primary route: team card, team card, then the meeting card.
+    const order = await page.locator('.mx-route').first().evaluate((el) => {
+      const kids = Array.from(el.children).map((c) => c.className);
+      const cols = kids.findIndex((c) => /mx-rcols/.test(c));
+      const meet = kids.findIndex((c) => /mx-mcard/.test(c));
+      return { cols, meet, colCount: el.querySelectorAll('.mx-rcols > .mx-rcol').length };
+    });
+    expect(order.colCount).toBe(2);
+    expect(order.cols).toBeLessThan(order.meet);
+
+    // No dark per-word/per-step background rectangles behind advancement steps.
+    const stepBgs = await page.locator('.mx-rstep').evaluateAll((els) =>
+      els.map((el) => getComputedStyle(el).backgroundColor));
+    expect(stepBgs.length).toBeGreaterThan(0);
+    for (const bg of stepBgs) {
+      expect(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent').toBe(true);
+    }
+  });
+
+  test('third-place routes say "Lose the Semi-final" and are clearly labelled', async ({ page }) => {
+    await openExplorer(page);
+    // Two teams in the same group can only meet again via the Third-place match.
+    const pair = await page.evaluate(() => {
+      for (const g of Object.keys(GROUPS)) {
+        const teams = GROUPS[g];
+        for (let i = 0; i < teams.length; i++) {
+          for (let j = i + 1; j < teams.length; j++) {
+            const r = matchupIntelligence(teams[i], teams[j]);
+            if ((r.scenarioRoutes || []).some((x) => x.target && x.target.round === 'Third-place match')) {
+              return { a: teams[i], b: teams[j] };
+            }
+          }
+        }
+      }
+      return null;
+    });
+    test.skip(!pair, 'no third-place route available in this state');
+
+    await page.evaluate(({ a, b }) => {
+      mxOpen();
+      _mxState.a = a; _mxState.b = b; _mxState.view = 'select'; _mxState.pickFor = null;
+      _mxRenderSheet();
+      // Open every route detail so the advancement chain is rendered.
+      document.querySelectorAll('#mxResult details').forEach((d) => { d.open = true; });
+    }, pair);
+
+    const txt = await page.locator('#mxResult').evaluate((el) => el.textContent || '');
+    expect(txt).toContain('Lose the Semi-final');
+    expect(txt).toContain('only if both teams lose their Semi-finals');
+    // The old vague phrasing must be gone.
+    expect(txt).not.toContain('but not the Final');
+  });
+
+  test('a state-fingerprint refresh keeps the selected teams and the open sheet', async ({ page }) => {
+    await openExplorer(page);
+    const pick = await renderBestPair(page);
+    await expect(page.locator('#mxResult .mx-hero')).toBeVisible();
+
+    // Force a stale fingerprint, then run the refresh the focus/visibility hooks use.
+    const after = await page.evaluate(() => {
+      _mxState.fp = '__stale__';
+      mxRefreshIfStale();
+      return { a: _mxState.a, b: _mxState.b, fp: _mxState.fp };
+    });
+    expect(after.a).toBe(pick.a);
+    expect(after.b).toBe(pick.b);
+    expect(after.fp).not.toBe('__stale__'); // refreshed to the real official fingerprint
+    await expect(page.locator('#mxResult .mx-hero')).toBeVisible();
+    await expect(page.locator('#scrim.on')).toBeVisible();
   });
 });
