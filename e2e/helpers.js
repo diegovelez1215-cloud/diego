@@ -38,6 +38,27 @@ async function gotoApp(page, mode = 'final-matchday') {
   await page.waitForTimeout(150);
 }
 
+async function tapBottomTab(page, screen) {
+  const labels = { home: 'Home', matches: 'Tournament', bet: 'Play', teams: 'You' };
+  const tabbar = page.locator('nav.tabbar[role="tablist"]');
+  await expect(tabbar).toBeVisible();
+  await tabbar.getByRole('button', { name: labels[screen] }).tap();
+  await expect(page.locator(`#scr-${screen}.screen.on`)).toBeVisible();
+}
+
+async function openTournament(page, sub = 'schedule') {
+  await tapBottomTab(page, 'matches');
+  const tournament = page.locator('main.wrap > section#scr-matches.screen.on');
+  await expect(tournament.locator('#schedule.subview.on')).toBeVisible();
+  if (sub && sub !== 'schedule') {
+    const sectionButton = tournament.locator(`.tour-switch button[data-sub="${sub}"]`);
+    await expect(sectionButton).toBeVisible();
+    await sectionButton.tap();
+    await expect(tournament.locator(`.tour-switch button[data-sub="${sub}"].on`)).toBeVisible();
+  }
+  await expect(tournament.locator(`#${sub || 'schedule'}.subview.on`)).toBeVisible();
+}
+
 async function expectNoHorizontalOverflow(page, label = 'page') {
   const overflow = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -74,6 +95,8 @@ async function waitForScrollY(page, expected) {
 module.exports = {
   E2E_PATH,
   gotoApp,
+  tapBottomTab,
+  openTournament,
   expectNoHorizontalOverflow,
   expectRectsInsideViewport,
   screenshot,

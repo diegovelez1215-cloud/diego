@@ -2990,7 +2990,7 @@ function inActiveTour(fn){return activeMode()==='real'?withTour(liveTour(),fn):f
    scroll work (arriveAt, recommitScroll) captures the token it was scheduled under
    and aborts if navigation has changed since — so forward-navigation timers/rAF
    can never fire after Back (or another move) and reset the page to the top. */
-var _navToken=0,_topCommitToken=0;
+var _navToken=0,_topCommitToken=0,_topCommitSuppressUntil=0,_positiveScrollIntent=false;
 function arriveAt(target,msg,delay){
   var toasted=false,tok=_navToken;
   function go(){if(tok!==_navToken)return;try{
@@ -3022,6 +3022,7 @@ function recommitScroll(y){
 }
 function commitTop(){
   var navTok=_navToken,topTok=++_topCommitToken;
+  _topCommitSuppressUntil=((performance&&performance.now)?performance.now():Date.now())+760;
   function go(){if(navTok!==_navToken||topTok!==_topCommitToken)return;try{window.scrollTo(0,0);}catch(e){}}
   go();try{requestAnimationFrame(go);}catch(e){}
   [50,160,340,600].forEach(function(t){setTimeout(go,t);});
@@ -5952,8 +5953,8 @@ function renderThirds(){var ranked=thirdsRanked(),complete=allDone(),cut=ranked[
    existing provider live-status (S.rwState / S._rwlive). Nothing is invented; every
    provisional statement is visibly labelled (As it stands / Live projection /
    Scenario, not confirmed / Pending official final). */
-function tccOfficialFinal(num){return !!(REAL&&REAL[num]&&REAL[num][0]!=null&&REAL[num][1]!=null);}
-function tccLiveState(num){var st=S.rwState&&S.rwState[num];return (st&&(st.kind==='live'||st.kind==='hold')&&!tccOfficialFinal(num))?st:null;}
+function tccOfficialFinal(num){return !!truthOfficialFinalScore(num);}
+function tccLiveState(num){return truthLiveStateFor(num);}
 function tccLiveNums(){var out=[];if(S.rwState)Object.keys(S.rwState).forEach(function(k){if(tccLiveState(+k))out.push(+k);});return out;}
 function tccPlayed(num){var m=M[num];if(!m)return false;return m.stage==='group'?tccOfficialFinal(num):!!(S.realko&&S.realko[num]);}
 function gCompleteOfficial(g){return gMatches(g).every(function(m){return tccOfficialFinal(m.num);});}
@@ -6456,12 +6457,7 @@ function miTeamRef(code){return code&&T[code]?{code:code,name:nm(code),flag:fl(c
 function miStablePairs(obj){
   return Object.keys(obj||{}).sort(function(a,b){return(+a)-(+b)||String(a).localeCompare(String(b));}).map(function(k){var v=obj[k];if(Array.isArray(v))return k+':'+v.join('-');if(v&&typeof v==='object')return k+':'+Object.keys(v).sort().map(function(x){return x+'='+v[x];}).join(',');return k+':'+v;});
 }
-function miSourceState(){
-  var officialResults=miStablePairs(REAL),officialKo=miStablePairs(S&&S.realko),liveStates=[];
-  if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=S.rwState[k];if(st&&(st.kind==='live'||st.kind==='hold')&&!tccOfficialFinal(+k))liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
-  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']';
-  return{officialStateFingerprint:fp,officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];})},liveStateFingerprint:'live['+liveStates.join('|')+']',liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
-}
+function miSourceState(){return truthFreshness();}
 function miSafeError(input,reason,message){
   return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',sourceState:miSourceState(),groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],scenarioRoutes:[],recommendedPrimaryRoute:null,alternativeRouteCount:0,noScenarioRouteReason:'Scenario routes require two recognized, different tournament teams.',earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
 }
@@ -7267,9 +7263,9 @@ function bracketBetHTML(){
    from the authoritative REAL results map (every official score ever ingested),
    so it is ALWAYS complete and correct — completely independent of whatever the
    user has done in their My-Sim sandbox (S.sc). */
-function liveTour(){var sc={};Object.keys(REAL).forEach(function(n){var v=REAL[n];if(v&&v.length===2&&v[0]!=null&&v[1]!=null)sc[n]={h:v[0],a:v[1]};});
+function liveTour(){var sc={},snap=tournamentTruthSnapshot();Object.keys(snap.official.finalResults||{}).forEach(function(n){var v=snap.official.finalResults[n];if(v&&v.score)sc[n]={h:v.score.h,a:v.score.a};});
   var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
-  var ko={};Object.keys(S.realko||{}).forEach(function(n){ko[n]=S.realko[n];}); // real knockout winners → bracket advances live
+  var ko={};Object.keys(snap.official.knockoutWinners||{}).forEach(function(n){ko[n]=snap.official.knockoutWinners[n];}); // real knockout winners → bracket advances live
   return {sc:sc,ko:ko,order:order,thirds:null};}
 function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85,87],r16=[89,90,93,94,91,92,95,96],qf=[97,98,99,100],sf=[101,102];
   const pathSet=new Set(S.focus?pathChain(S.focus):[]);
@@ -7838,6 +7834,7 @@ function writeScrollToHistory(k,y){
 function rememberPositiveScroll(y){
   y=Math.max(0,Math.round(y||0));if(!y)return;
   var k=scrollMemoryViewKey(),now=(performance&&performance.now)?performance.now():Date.now();
+  if(_topCommitSuppressUntil&&now<_topCommitSuppressUntil&&!_positiveScrollIntent)return;
   _topCommitToken++;
   _viewScrollSeen[k]={y:y,at:now};_viewScroll[k]=y;writeScrollToHistory(k,y);
   if(k==="home/"||(SCRMAP[TAB]&&SCRMAP[TAB][0]==="home"))_lastHomeScroll=y;
@@ -7847,7 +7844,7 @@ function noteScrollSnapshot(){
   if(y>0)rememberPositiveScroll(y);
 }
 try{window.addEventListener("scroll",noteScrollSnapshot,{passive:true});}catch(e){}
-try{var _nativeScrollTo=window.scrollTo.bind(window),_nativeScrollOk=!/jsdom/i.test((navigator&&navigator.userAgent)||"");window.scrollTo=function(){var a=arguments[0],y=typeof a==="object"&&a?a.top:arguments[1];if(y>0)rememberPositiveScroll(y);if(_nativeScrollOk)return _nativeScrollTo.apply(window,arguments);};}catch(e){}
+try{var _nativeScrollTo=window.scrollTo.bind(window),_nativeScrollOk=!/jsdom/i.test((navigator&&navigator.userAgent)||"");window.scrollTo=function(){var a=arguments[0],y=typeof a==="object"&&a?a.top:arguments[1];if(y>0){_positiveScrollIntent=true;try{rememberPositiveScroll(y);}finally{_positiveScrollIntent=false;}}if(_nativeScrollOk)return _nativeScrollTo.apply(window,arguments);};}catch(e){}
 try{if(_nativeScrollOk)(function sampleScrollMemory(){try{var y=readScrollY();if(y>0)rememberPositiveScroll(y);}catch(e){}setTimeout(sampleScrollMemory,120);})();}catch(e){}
 function leavingScrollFor(k){
   var y=readScrollY();if(y>0)return y;
@@ -8066,16 +8063,99 @@ function fmtAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/100
 /* Freshness for the single live hero — phrased for the official feed ("updated just now / N min ago"). */
 function fmtFeedAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/1000));if(s<45)return"just now";var m=Math.round(s/60);if(m<1)return"just now";if(m<60)return m+" min ago";var h=Math.round(m/60);return h+" hr ago";}
 function liveFeedTs(){var x=(typeof ApiBus!=="undefined"&&ApiBus.last)?ApiBus.last['/api/live']:null;var t=(x&&x.t)?x.t:0;return Math.max(t,_lastSync||0);}
+var TRUTH_HEALTH={healthy:'healthy',delayed:'delayed',unavailable:'unavailable',stale:'stale'};
+var TruthBus={seq:0,applied:{official:0,live:0},receipts:{},health:{},lastSuccessful:null};
+function truthStablePairs(obj){
+  return Object.keys(obj||{}).sort(function(a,b){return(+a)-(+b)||String(a).localeCompare(String(b));}).map(function(k){
+    var v=obj[k];if(Array.isArray(v))return k+':'+v.join('-');
+    if(v&&typeof v==='object')return k+':'+Object.keys(v).sort().map(function(x){return x+'='+v[x];}).join(',');
+    return k+':'+v;
+  });
+}
+function truthOfficialFinalScore(num){var r=REAL&&REAL[num];return (r&&r.length===2&&r[0]!=null&&r[1]!=null)?{h:+r[0],a:+r[1]}:null;}
+function truthLiveStateFor(num){var st=S&&S.rwState&&S.rwState[num];return (st&&(st.kind==='live'||st.kind==='hold')&&!truthOfficialFinalScore(num))?st:null;}
+function truthRefreshStart(path){return {path:path,seq:++TruthBus.seq,issuedAt:Date.now()};}
+function truthChannelCurrent(channel){return TruthBus.applied[channel]||0;}
+function truthChannelAccepts(channel,receipt){return !receipt||!receipt.seq||receipt.seq>=truthChannelCurrent(channel);}
+function truthApplyChannel(channel,receipt){if(receipt&&receipt.seq)TruthBus.applied[channel]=Math.max(truthChannelCurrent(channel),receipt.seq);else TruthBus.applied[channel]=Math.max(truthChannelCurrent(channel),++TruthBus.seq);}
+function truthPayloadHealth(path,d){
+  if(!d||d.configured===false||d.sourceStatus==='missing-config')return TRUTH_HEALTH.unavailable;
+  if(d.error||d.sourceStatus==='error'||d.sourceStatus==='throttled')return TRUTH_HEALTH.unavailable;
+  if(d.isStale||d.sourceStatus==='stale-fallback')return TRUTH_HEALTH.stale;
+  return TRUTH_HEALTH.healthy;
+}
+function truthRecordReceipt(path,d,receipt){
+  var h=truthPayloadHealth(path,d),at=Date.now(),r={path:path,seq:receipt&&receipt.seq?receipt.seq:++TruthBus.seq,localReceiptAt:at,sourceFetchedAt:(d&&d.fetchedAt)||null,sourceStatus:(d&&d.sourceStatus)||'',health:h};
+  TruthBus.receipts[path]=r;TruthBus.health[path]=h;if(h===TRUTH_HEALTH.healthy||h===TRUTH_HEALTH.delayed)TruthBus.lastSuccessful=r;return r;
+}
+function truthOverallHealth(){
+  var now=Date.now(),live=TruthBus.health['/api/live'],results=TruthBus.health['/api/results'];
+  if(S&&S.rwState){for(var k in S.rwState){var st=S.rwState[k];if(st&&st.kind==='hold'&&!truthOfficialFinalScore(+k))return TRUTH_HEALTH.delayed;}}
+  if(live===TRUTH_HEALTH.unavailable&&results===TRUTH_HEALTH.unavailable)return TRUTH_HEALTH.unavailable;
+  var last=TruthBus.lastSuccessful&&TruthBus.lastSuccessful.localReceiptAt;if(last&&now-last>20*60000)return TRUTH_HEALTH.stale;
+  if(live===TRUTH_HEALTH.stale||results===TRUTH_HEALTH.stale)return TRUTH_HEALTH.stale;
+  if(live===TRUTH_HEALTH.unavailable||results===TRUTH_HEALTH.unavailable)return TRUTH_HEALTH.unavailable;
+  return TRUTH_HEALTH.healthy;
+}
+function truthResolveOfficialFixture(f,allowKnockout){
+  if(!officialFinalPayload(f))return null;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return null;
+  var hit=allowKnockout?rwFindFixtureAnyStage(hc,ac):rwFindFixtureAny(hc,ac);if(!hit)return null;
+  var sh=hit.flip?f.ga:f.gh,sa=hit.flip?f.gh:f.ga;
+  return {num:hit.m.num,match:hit.m,home:hit.m.home,away:hit.m.away,score:{h:+sh,a:+sa},payload:f,flip:!!hit.flip};
+}
+function truthApplyOfficialFinal(fx){
+  if(!fx||!fx.score||fx.score.h==null||fx.score.a==null)return false;
+  var num=fx.num,sh=+fx.score.h,sa=+fx.score.a,cur=truthOfficialFinalScore(num),same=cur&&cur.h===sh&&cur.a===sa;
+  if(same&&S.real&&S.real[num])return false;
+  REAL[num]=[sh,sa];
+  if(S.betsim)delete S.betsim[num];
+  var auto=(S._autoAdded&&S._autoAdded[num]);
+  if(S.sc[num]&&!auto&&!S.real[num])return !same;
+  S.sc[num]={h:sh,a:sa};S.real[num]=1;(S._autoAdded=S._autoAdded||{})[num]=1;
+  return !same;
+}
+function truthApplyProvisional(f,receipt){
+  if(!truthChannelAccepts('live',receipt))return false;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac),kind=rwKind(f);if(!mm||kind==='final')return false;
+  var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga;
+  S.rwState=S.rwState||{};
+  S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:Date.now(),receiptSeq:receipt&&receipt.seq};
+  if(kind==='live'&&sh!=null&&sa!=null){S._rwlive=S._rwlive||{};S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),receiptSeq:receipt&&receipt.seq};}
+  return true;
+}
+function truthFreshness(){
+  var officialResults=truthStablePairs(REAL),officialKo=truthStablePairs(S&&S.realko),liveStates=[];
+  if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=truthLiveStateFor(+k);if(st)liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
+  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']',lfp='live['+liveStates.join('|')+']';
+  return {officialStateFingerprint:fp,liveStateFingerprint:lfp,lastSuccessfulLocalRefreshReceipt:TruthBus.lastSuccessful||null,sourceHealthState:truthOverallHealth(),
+    sourceReceipts:Object.assign({},TruthBus.receipts),officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];})},
+    liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
+}
+function truthEffectiveFingerprint(){var f=truthFreshness();return f.officialStateFingerprint+'||'+f.liveStateFingerprint;}
+function truthRenderIfChanged(before){if(before!==truthEffectiveFingerprint()){render();return true;}return false;}
+function tournamentTruthSnapshot(){
+  var finals={},ko={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
+  Object.keys(REAL||{}).forEach(function(n){var s=truthOfficialFinalScore(+n);if(s)finals[n]={num:+n,score:s,source:'official_final'};});
+  Object.keys(S&&S.realko||{}).forEach(function(n){if(S.realko[n])ko[n]=S.realko[n];});
+  if(S&&S.rwState)Object.keys(S.rwState).forEach(function(n){var st=truthLiveStateFor(+n);if(!st)return;var row={num:+n,kind:st.kind,score:(st.sh!=null&&st.sa!=null)?{h:st.sh,a:st.sa}:null,min:st.min,status:st.status||'',label:st.label||'',provisional:true};if(st.kind==='hold')hold[n]=row;else live[n]=row;});
+  if(S&&S.live)virtual.activeMatch={num:S.live.num,score:{h:S.live.sh||0,a:S.live.sa||0},minute:S.live.min||0,source:'virtual'};
+  if(S&&S.bets)virtual.openTickets=S.bets.filter(function(b){return b&&!b.settled;}).length;
+  if(S&&S.betsim)virtual.simulatedResults=Object.keys(S.betsim).map(function(n){return +n;}).sort(function(a,b){return a-b;});
+  return {version:'live-truth-v1',official:{finalResults:finals,confirmedFixtures:MATCHES.map(function(m){return {num:m.num,stage:m.stage,home:m.home,away:m.away,date:m.date,time:m.time};}),knockoutWinners:ko},provisional:{live:live,hold:hold},freshness:truthFreshness(),virtual:virtual};
+}
 function fetchResults(){
   if(_resFetching||document.hidden)return;_resFetching=true;
+  var receipt=truthRefreshStart('/api/results'),before=truthEffectiveFingerprint();
   try{apiGet('/api/results',10*60000).then(function(d){
     _resFetching=false;
-    if(!d||!d.configured)return;
+    truthRecordReceipt('/api/results',d,receipt);
+    if(!d||!d.configured||d.error)return;
     _lastSync=Date.now();   // data freshness for the "updated …" stamp
-    try{ingestMatchStates((d.live||[]).concat(d.hold||[]));}catch(e){}
-    if(!d.finished||!d.finished.length){render();return;}
-    ingestFinished(d.finished);   // non-destructive: only fills matches not already official
-    render();
+    try{ingestMatchStates((d.live||[]).concat(d.hold||[]),{receipt:receipt});}catch(e){}
+    if(!d.finished||!d.finished.length){truthRenderIfChanged(before);return;}
+    ingestFinished(d.finished,{receipt:receipt});   // non-destructive: only fills matches not already official
+    truthRenderIfChanged(before);
   }).catch(function(){_resFetching=false;});}catch(e){_resFetching=false;}
 }
 var _rwFetching=false;
@@ -8099,11 +8179,10 @@ function knockoutOfficialWinnerFromPayload(f,hc,ac){
   if(f.gh!=null&&f.ga!=null&&f.gh!==f.ga)return f.gh>f.ga?hc:ac;
   return null;
 }
-function ingestMatchStates(arr){if(!Array.isArray(arr)||!arr.length)return;if(!S.rwState)S.rwState={};
-  arr.forEach(function(f){var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac);if(!mm)return;
-    var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga,kind=rwKind(f);if(kind==='final')return;
-    S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:Date.now()};
-  });}
+function ingestMatchStates(arr,opts){if(!Array.isArray(arr)||!arr.length)return;if(!S.rwState)S.rwState={};
+  var receipt=opts&&opts.receipt;
+  arr.forEach(function(f){truthApplyProvisional(f,receipt);});
+  if(receipt)truthApplyChannel('live',receipt);}
 /* Prominent "LIVE NOW" card for real World Cup games in play. */
 function liveCardHTML(live){
   var items=live.map(function(f){
@@ -8141,22 +8220,24 @@ function fetchRealWorldData(){
   if(_rwFetching||document.hidden)return; // guard concurrent + backgrounded
   if(!liveWindowNow()){if(_realwire){_realwire="";try{renderRealwire();}catch(e){}}return;} // no match in play → don't spend a live call
   _rwFetching=true;
+  var receipt=truthRefreshStart('/api/live'),before=truthEffectiveFingerprint();
   if(!_realwireTried){_realwireTried=true;_realwire='<div class="lvnow"><div class="lvnow-h">Live now · World Cup <span class="off-badge sim">CHECKING…</span></div>'+skelRows(1)+'</div>';renderRealwire();}
   try{apiGet('/api/live',refreshLiveInterval()).then(function(d){
   _rwFetching=false;
-  S._rwlive={};
   S.rwState=S.rwState||{};
-  if(!d||!d.configured){_realwire="";renderRealwire();render();return;}
+  truthRecordReceipt('/api/live',d,receipt);
+  if(!d||!d.configured||d.error){_realwire="";renderRealwire();return;}
+  if(!truthChannelAccepts('live',receipt))return;
+  S._rwlive={};
   // (a) any game the feed still lists at full time → ingest immediately
-  ingestFinished(d.finished);
+  ingestFinished(d.finished,{receipt:receipt});
   var live=(d.response&&d.response.length)?d.response:[];
   // (b) map live games to our fixtures + remember last-seen score
   var seen={};
   live.forEach(function(f){var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac),kind=rwKind(f);
-    if(mm){var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga;
-      S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:Date.now()};
-      if(kind==='live'&&sh!=null&&sa!=null)S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f)};
+    if(mm){truthApplyProvisional(f,receipt);var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga;
       seen[mm.num]={sh:sh,sa:sa,min:(f.min==null?0:f.min),status:f.status,kind:kind};}});
+  truthApplyChannel('live',receipt);
   // (c) Never infer full time from a disappeared live feed. Weather delays,
   // feed drops and suspended games stay open until an official final payload arrives.
   if(S._rwlast){Object.keys(S._rwlast).forEach(function(k){var num=+k;
@@ -8164,8 +8245,8 @@ function fetchRealWorldData(){
     var L=S._rwlast[num];if(L&&L.kind==='final')ingestFinalScore(num,L.sh,L.sa);});}
   S._rwlast=seen;
   // (d) prominent live card
-  if(!live.length){_realwire="";renderRealwire();render();return;}
-  _realwire=liveCardHTML(live);renderRealwire();render();
+  if(!live.length){_realwire="";renderRealwire();truthRenderIfChanged(before);return;}
+  _realwire=liveCardHTML(live);renderRealwire();truthRenderIfChanged(before);
 }).catch(function(){_rwFetching=false;});}catch(e){_rwFetching=false;}}
 /* ---- AUTO-INGEST real finished results ----------------------------------
    When a real World Cup group game finishes, /api/live reports its final
@@ -8177,32 +8258,30 @@ function rwFindFixtureAny(hc,ac){if(!hc||!ac)return null;
   for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i];if(m.stage!=="group")continue;
     if((m.home===hc&&m.away===ac)||(m.home===ac&&m.away===hc))return {m:m,flip:(m.home===ac)};}
   return null;}
-function ingestFinished(arr){if(!Array.isArray(arr)||!arr.length)return;
-  var added=[];
+function rwFindFixtureAnyStage(hc,ac){if(!hc||!ac)return null;
+  for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i],p=m.stage==="group"?[m.home,m.away]:koParts(m.num);if(!p[0]||!p[1])continue;
+    if((p[0]===hc&&p[1]===ac)||(p[0]===ac&&p[1]===hc))return {m:m,flip:(p[0]===ac)};}
+  return null;}
+function ingestFinished(arr,opts){if(!Array.isArray(arr)||!arr.length)return false;
+  var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
+  var added=[],sawOfficial=false;
   arr.forEach(function(f){
-    if(!officialFinalPayload(f))return;
-    if(f.gh==null||f.ga==null)return;
-    var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return;
-    var hit=rwFindFixtureAny(hc,ac);if(!hit)return;var num=hit.m.num;
-    if(REAL[num]&&S.real[num])return;     // already fully official — done
-    var sh=hit.flip?f.ga:f.gh, sa=hit.flip?f.gh:f.ga;  // orient to fixture home/away
-    REAL[num]=[sh,sa];                    // REALITY IS AUTHORITATIVE — always captured (powers as-it-stands)
-    if(S.betsim)delete S.betsim[num];
-    var auto=(S._autoAdded&&S._autoAdded[num]);
-    if(S.sc[num]&&!auto&&!S.real[num])return; // user has a My-Sim prediction — keep their sandbox (reality still lives in REAL[])
-    S.sc[num]={h:sh,a:sa};S.real[num]=1;
-    (S._autoAdded=S._autoAdded||{})[num]=1;
-    added.push(nm(hit.m.home)+" "+sh+"–"+sa+" "+nm(hit.m.away));
+    var fx=truthResolveOfficialFixture(f,false);if(!fx)return;
+    sawOfficial=true;
+    if(truthApplyOfficialFinal(fx))added.push(nm(fx.match.home)+" "+fx.score.h+"–"+fx.score.a+" "+nm(fx.match.away));
   });
-  var koAdded=ingestKO(arr);
+  var koAdded=ingestKO(arr,{receipt:receipt});
+  if(sawOfficial||koAdded)truthApplyChannel('official',receipt);
   if(added.length||koAdded){revalidateKO();saveState();
     try{toast("🔄 Auto-added "+(added.length?(added.length>1?added.length+" new results":added[0]):"knockout result"));}catch(e){}}
+  return !!(added.length||koAdded);
 }
 /* Knockout auto-advance: when a real KO game finishes, set the winner so the
    live "as it stands" bracket advances itself, round by round, to the Final.
    Stored in S.realko (separate from your own predictions in S.ko). */
-function ingestKO(arr){
+function ingestKO(arr,opts){
   if(!Array.isArray(arr)||!arr.length)return false;
+  var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
   var byPair={};
   arr.forEach(function(f){
     if(!officialFinalPayload(f))return;
@@ -8218,10 +8297,12 @@ function ingestKO(arr){
   withTour(t,function(){
     [[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],[89,90,91,92,93,94,95,96],[97,98,99,100],[101,102],[103,104]].forEach(function(rd){
       rd.forEach(function(n){
-        if(S.realko[n])return;
         var p=koParts(n);if(!p[0]||!p[1])return;
         var win=byPair[[p[0],p[1]].sort().join('|')];
-        if(win&&(win===p[0]||win===p[1])){S.realko[n]=win;changed=true;}
+        if(win&&(win===p[0]||win===p[1])){
+          if(S.realko[n]===win)return;
+          S.realko[n]=win;changed=true;
+        }
       });
     });
   });

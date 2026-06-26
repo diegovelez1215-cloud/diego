@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, expectNoHorizontalOverflow, expectRectsInsideViewport } = require('./helpers');
+const { gotoApp, openTournament, expectNoHorizontalOverflow, expectRectsInsideViewport } = require('./helpers');
 
 // Targeted UI checks for the Matchup Explorer scenario experience.
 // These are presentation-only assertions over the existing matchupIntelligence()
@@ -7,11 +7,10 @@ const { gotoApp, expectNoHorizontalOverflow, expectRectsInsideViewport } = requi
 // so screenshot baselines are untouched.
 
 async function openExplorer(page) {
-  await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
-  await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
+  await openTournament(page, 'bracket');
   const entry = page.locator('.mx-entry');
   await expect(entry).toBeVisible();
-  await entry.click({ force: true });
+  await entry.tap();
   await expect(page.locator('#scrim.on')).toBeVisible();
 }
 
@@ -32,7 +31,7 @@ test.describe('Matchup Explorer scenario experience', () => {
 
   test('search input is at least 16px and filtering narrows results', async ({ page }) => {
     await openExplorer(page);
-    await page.locator('.mx-slot').first().click({ force: true });
+    await page.locator('.mx-slot').first().tap();
     const input = page.locator('#mxSearchInput');
     await expect(input).toBeVisible();
 
@@ -50,7 +49,7 @@ test.describe('Matchup Explorer scenario experience', () => {
     await openExplorer(page);
 
     // Pick the first team straight from a filtered result.
-    await page.locator('.mx-slot').first().click({ force: true });
+    await page.locator('.mx-slot').first().tap();
     // GROUPS / nm / matchupIntelligence are const/function lexical globals in the
     // page's classic script, reachable as bare identifiers (not window properties).
     const code = await page.evaluate(() => {
@@ -61,7 +60,7 @@ test.describe('Matchup Explorer scenario experience', () => {
     await page.locator('#mxSearchInput').fill(firstName);
     const result = page.locator('.mx-tm:not(.dis)', { hasText: firstName }).first();
     await expect(result).toBeVisible();
-    await result.click({ force: true });
+    await result.tap();
 
     // Selection registered immediately, and the flow auto-advances to choosing
     // the second team (its search field is shown, ready to type).
@@ -218,9 +217,8 @@ test.describe('Matchup Explorer mobile copy and overflow polish', () => {
   });
 
   async function openExplorerHere(page) {
-    await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
-    await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
-    await page.locator('.mx-entry').click({ force: true });
+    await openTournament(page, 'bracket');
+    await page.locator('.mx-entry').tap();
     await expect(page.locator('#scrim.on')).toBeVisible();
   }
 
@@ -229,7 +227,7 @@ test.describe('Matchup Explorer mobile copy and overflow polish', () => {
 
   test('long team names stay inside the viewport in the picker', async ({ page }) => {
     await openExplorerHere(page);
-    await page.locator('.mx-slot').first().click({ force: true });
+    await page.locator('.mx-slot').first().tap();
     // The picker lists all teams; their names must never leak past the viewport.
     await expectRectsInsideViewport(page, '.mx-tm .mx-tm-nm', 'picker team names');
     await expectNoHorizontalOverflow(page, 'picker');
@@ -253,7 +251,7 @@ test.describe('Matchup Explorer mobile copy and overflow polish', () => {
 
   test('picker search is >=16px and uses a dark surface, not a bright blue fill', async ({ page }) => {
     await openExplorerHere(page);
-    await page.locator('.mx-slot').first().click({ force: true });
+    await page.locator('.mx-slot').first().tap();
     const input = page.locator('#mxSearchInput');
     const info = await input.evaluate((el) => {
       const cs = getComputedStyle(el);

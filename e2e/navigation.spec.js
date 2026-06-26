@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, waitForScrollY } = require('./helpers');
+const { gotoApp, waitForScrollY, tapBottomTab } = require('./helpers');
 
 test.describe('Mobile navigation and scroll restoration', () => {
   test.beforeEach(async ({ page }) => {
@@ -10,7 +10,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
     await page.evaluate(() => window.scrollTo(0, 900));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 
-    await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
+    await tapBottomTab(page, 'matches');
     await waitForScrollY(page, 0);
 
     await page.evaluate(() => window.scrollTo(0, 720));
@@ -28,7 +28,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
     await page.goBack();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(0);
 
-    await page.locator('.tabbar button[data-screen="home"]').click({ force: true });
+    await tapBottomTab(page, 'home');
     await waitForScrollY(page, 0);
   });
 
@@ -37,7 +37,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
     await expect(page.locator('#ts2')).toBeVisible();
     await page.locator('.ts2-x').click();
     await page.waitForTimeout(100);
-    await page.locator('.tabbar button[data-screen="home"]').click({ force: true });
+    await tapBottomTab(page, 'home');
     await waitForScrollY(page, 0);
   });
 
@@ -45,7 +45,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
     // Scroll Home down, then use the explicit "View all group standings" action.
     await page.evaluate(() => window.scrollTo(0, 600));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-    await page.getByRole('button', { name: /View all group standings/ }).click();
+    await page.getByRole('button', { name: /View all group standings/ }).tap();
     // Explicit destination nav must land at the TOP of the standings screen.
     await expect(page.locator('.tabbar button[data-screen="matches"].on')).toBeVisible();
     await expect(page.locator('#groups')).toBeVisible();
@@ -55,7 +55,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
   test('explicit destination jump lands at top, and Back restores the prior scroll', async ({ page }) => {
     await page.evaluate(() => window.scrollTo(0, 520));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-    await page.getByRole('button', { name: /View all group standings/ }).click();
+    await page.getByRole('button', { name: /View all group standings/ }).tap();
     await waitForScrollY(page, 0); // suppressed stale restore -> destination owns top
     await page.goBack();
     // Back is NOT explicit forward nav, so per-view scroll memory is restored.
@@ -63,7 +63,7 @@ test.describe('Mobile navigation and scroll restoration', () => {
   });
 
   test('no app-owned floating control covers Tournament, Standings, or Bracket', async ({ page }) => {
-    await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
+    await tapBottomTab(page, 'matches');
     for (const sub of ['schedule', 'groups', 'bracket']) {
       await page.locator(`.tour-switch button[data-sub="${sub}"]`).click({ force: true }).catch(() => {});
       await page.waitForTimeout(120);
