@@ -125,10 +125,10 @@ test('Home and Tournament share kickoff-window fixture sets and preserve simulta
 
 test('Home schedule row keeps group label inset and team text truncates before it', () => withApp((app) => {
   const css = app.styleText();
-  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) max-content/.test(css), 'team column can shrink before the group label');
-  assert.ok(/\.home-fixture\{[^}]*padding:9px 9px 9px 0/.test(css), 'row has a safe right inset');
-  assert.ok(/\.home-fixture b\{[^}]*text-overflow:ellipsis/.test(css), 'team text truncates safely');
-  assert.ok(/\.home-fixture span\{[^}]*padding-right:4px/.test(css), 'group/status label has a right inset');
+  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/.test(css), 'team columns can shrink around a fixed center');
+  assert.ok(/\.home-fixture\{[^}]*padding:10px 4px/.test(css), 'row has safe insets');
+  assert.ok(/\.home-fixture \.hf-tm\{[^}]*text-overflow:ellipsis/.test(css), 'team text truncates safely');
+  assert.ok(/\.home-fixture \.hf-tm\.r\{[^}]*text-align:right/.test(css), 'the right-hand team aligns to the right edge');
 }));
 
 test('Tournament renders exactly one full best-third qualification module below the bracket', () => withApp((app) => {

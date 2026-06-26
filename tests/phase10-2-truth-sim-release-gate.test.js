@@ -159,8 +159,8 @@ test('Home/Tournament remaining fixture IDs match by kickoff window and labels s
   assert.ok(!/Market odds/i.test(html), 'Home factual schedule has no odds');
   const css = app.styleText();
   assert.ok(/\.home-timeline\{[^}]*gap:14px/.test(css), 'kickoff windows have stronger separation');
-  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) max-content/.test(css), 'team names truncate before group label');
-  assert.ok(/\.home-fixture span\{[^}]*padding-right:4px/.test(css), 'group label has a safe right inset');
+  assert.ok(/\.home-fixture\{[^}]*grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/.test(css), 'teams use a left/center/right layout in flexible truncating columns');
+  assert.ok(/\.home-fixture \.hf-tm\{[^}]*text-overflow:ellipsis/.test(css), 'team names truncate safely before colliding with the center');
 }));
 
 test('fresh simulations get fresh seeds while Replay can reproduce the same captured result', () => withApp((app) => {
