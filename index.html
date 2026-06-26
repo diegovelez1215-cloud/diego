@@ -2626,6 +2626,207 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
  .ts2-rc-h{font-size:25px}.ts2-rc-pay{font-size:32px}
 }
 @media (prefers-reduced-motion:reduce){.ts2,.ts2-recap,.ts2-score em.pop,.ts2-evicon.show,.ts2-drama.final,.ts2-flash.go{animation:none!important}}
+/* ===== Matchup Explorer (presentation only — renders matchupIntelligence() output) ===== */
+.mx-entry{position:relative;display:block;width:100%;text-align:left;margin:0 0 16px;padding:16px 16px 15px;border-radius:20px;border:1px solid rgba(100,210,255,.30);background:linear-gradient(150deg,rgba(10,132,255,.20),rgba(20,28,78,.86) 62%);color:var(--txt);font-family:inherit;cursor:pointer;overflow:hidden;box-shadow:0 16px 40px -24px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.05) inset;transition:transform .15s var(--ease),border-color .15s}
+.mx-entry:active{transform:scale(.985)}
+.mx-entry:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
+.mx-entry-orb{position:absolute;top:-46px;right:-30px;width:148px;height:148px;border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(100,210,255,.34),rgba(100,210,255,0) 70%);pointer-events:none}
+.mx-entry-k{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--teal2);margin-bottom:8px}
+.mx-entry-k .mx-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.mx-entry-h{display:block;font-size:21px;font-weight:900;letter-spacing:-.4px;line-height:1.12;margin-bottom:5px}
+.mx-entry-s{display:block;font-size:13px;color:var(--mut);line-height:1.4;max-width:30em;margin-bottom:12px}
+.mx-entry-cta{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:850;color:var(--txt);background:rgba(255,255,255,.07);border:1px solid var(--line2);padding:8px 14px;border-radius:30px}
+.mx-entry:active .mx-entry-cta{background:rgba(100,210,255,.16);border-color:rgba(100,210,255,.45)}
+/* sheet shell */
+.mx-wrap{padding:2px 0 6px}
+.mx-top{display:flex;align-items:center;gap:9px;margin:2px 2px 14px}
+.mx-top .mx-kick{font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--teal2)}
+.mx-top .mx-sub{font-size:12px;color:var(--mut2);font-weight:700;margin-left:auto}
+.mx-reset{border:1px solid var(--line2);background:var(--card);color:var(--mut);font-family:inherit;font-weight:800;font-size:11.5px;padding:6px 11px;border-radius:20px;cursor:pointer}
+/* selectors */
+.mx-pickrow{display:grid;grid-template-columns:1fr 1fr;align-items:stretch;gap:8px;margin-bottom:14px}
+.mx-slot{position:relative;display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:78px;padding:12px 12px;border-radius:16px;border:1.5px dashed var(--line2);background:var(--bg2);color:var(--txt);font-family:inherit;text-align:left;cursor:pointer;transition:border-color .14s,background .14s;min-width:0}
+.mx-slot:active{transform:scale(.99)}
+.mx-slot:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
+.mx-slot.filled{border-style:solid;border-color:rgba(100,210,255,.5);background:linear-gradient(150deg,rgba(10,132,255,.16),rgba(28,38,92,.6))}
+.mx-slot-k{font-size:9.5px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut3)}
+.mx-slot.filled .mx-slot-k{color:var(--teal2)}
+.mx-slot-team{display:flex;align-items:center;gap:9px;min-width:0}
+.mx-slot-fl{font-size:26px;line-height:1;flex:none}
+.mx-slot-nm{font-size:16px;font-weight:850;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mx-slot-grp{font-size:11px;color:var(--mut2);font-weight:700}
+.mx-slot-empty{font-size:15px;font-weight:800;color:var(--mut)}
+.mx-slot-hint{font-size:11px;color:var(--mut3);font-weight:700}
+.mx-slot-chg{position:absolute;top:9px;right:11px;font-size:9.5px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--mut2)}
+.mx-empty{margin-top:6px;padding:22px 16px;border-radius:16px;border:1px dashed var(--line);background:rgba(255,255,255,.025);text-align:center}
+.mx-empty-ic{font-size:26px;margin-bottom:8px}
+.mx-empty-t{font-size:14px;font-weight:850;color:var(--txt);margin-bottom:4px}
+.mx-empty-s{font-size:12.5px;color:var(--mut2);line-height:1.45}
+/* picker view */
+.mx-pkhead{display:flex;align-items:center;gap:10px;margin:2px 2px 12px}
+.mx-back{width:38px;height:38px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--txt);font-size:17px;font-family:inherit;cursor:pointer;flex:none}
+.mx-back:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
+.mx-pktitle{font-size:15px;font-weight:900}
+.mx-pktitle span{display:block;font-size:11px;font-weight:700;color:var(--mut2);letter-spacing:.2px;text-transform:none}
+.mx-search{position:relative;margin-bottom:14px}
+.mx-search input{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:13px;padding:13px 14px 13px 40px;color:var(--txt);font-size:16px;line-height:1.3;font-family:inherit;font-weight:600;-webkit-text-size-adjust:100%}
+.mx-search input::placeholder{color:var(--mut3)}
+.mx-search input:focus{outline:none;border-color:var(--teal2)}
+.mx-search .mx-mag{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--mut3);font-size:14px}
+.mx-grp{margin-bottom:14px}
+.mx-grp-h{font-size:10px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut3);margin:0 2px 8px}
+.mx-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.mx-tm{display:flex;align-items:center;gap:9px;min-height:48px;padding:11px 11px;border-radius:13px;border:1px solid var(--line);background:var(--card);color:var(--txt);font-family:inherit;cursor:pointer;text-align:left;min-width:0;transition:.12s}
+.mx-tm:active{transform:scale(.98)}
+.mx-tm:focus-visible{outline:2px solid var(--teal2);outline-offset:1px}
+.mx-tm .fl{font-size:20px;line-height:1;flex:none}
+.mx-tm .mx-tm-nm{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mx-tm.sel{border-color:rgba(100,210,255,.55);background:linear-gradient(150deg,rgba(10,132,255,.18),rgba(28,38,92,.5))}
+.mx-tm.dis{opacity:.34;cursor:default}
+.mx-tm.dis .mx-tm-nm::after{content:" · picked";font-weight:700;color:var(--mut3)}
+.mx-nohit{text-align:center;color:var(--mut2);font-size:13px;padding:24px 0}
+/* result: verdict hero */
+.mx-hero{position:relative;border-radius:20px;padding:18px 16px 16px;margin-bottom:14px;overflow:hidden;border:1px solid var(--line2)}
+.mx-hero.v-confirmed{background:linear-gradient(150deg,rgba(48,209,88,.20),rgba(20,30,60,.9));border-color:rgba(48,209,88,.4)}
+.mx-hero.v-scheduled{background:linear-gradient(150deg,rgba(10,132,255,.22),rgba(20,30,60,.9));border-color:rgba(100,210,255,.4)}
+.mx-hero.v-conditional{background:linear-gradient(150deg,rgba(94,92,230,.20),rgba(20,28,72,.92));border-color:rgba(120,130,240,.38)}
+.mx-hero.v-final{background:linear-gradient(150deg,rgba(255,214,10,.20),rgba(28,26,60,.92));border-color:rgba(255,214,10,.42)}
+.mx-hero.v-impossible,.mx-hero.v-completed{background:linear-gradient(150deg,rgba(120,130,160,.14),rgba(18,22,48,.92));border-color:var(--line2)}
+.mx-hero-fls{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.mx-hero-fl{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:850;min-width:0}
+.mx-hero-fl span.f{font-size:23px;line-height:1;flex:none}
+.mx-hero-fl span.n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mx-hero-vs{font-size:10px;font-weight:900;letter-spacing:1px;color:var(--mut2);background:rgba(255,255,255,.07);padding:3px 8px;border-radius:20px;flex:none}
+.mx-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;padding:5px 10px;border-radius:20px;margin-bottom:10px}
+.mx-badge .bd{width:6px;height:6px;border-radius:50%}
+.mx-badge.confirmed{color:#03210d;background:var(--green)}
+.mx-badge.scheduled{color:#04182e;background:var(--teal2)}
+.mx-badge.conditional{color:var(--txt);background:rgba(120,130,240,.26);border:1px solid rgba(120,130,240,.5)}
+.mx-badge.final{color:#241f02;background:var(--gold)}
+.mx-badge.closed{color:var(--mut);background:rgba(255,255,255,.06);border:1px solid var(--line2)}
+.mx-hero-h{font-size:23px;font-weight:900;letter-spacing:-.5px;line-height:1.13;margin-bottom:6px}
+.mx-hero-sub{font-size:13.5px;color:var(--mut);line-height:1.45}
+/* section heads */
+.mx-sec{margin:18px 2px 10px;font-size:11px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut3)}
+/* meeting cards */
+.mx-meet{position:relative;border-radius:16px;border:1px solid var(--line);background:var(--card);padding:13px 14px;margin-bottom:9px}
+.mx-meet.primary{border-color:rgba(100,210,255,.45);background:linear-gradient(150deg,rgba(10,132,255,.13),rgba(40,52,118,.5))}
+.mx-meet.final{border-color:rgba(255,214,10,.42);background:linear-gradient(150deg,rgba(255,214,10,.12),rgba(40,40,90,.5))}
+.mx-meet-top{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+.mx-meet-rnd{font-size:15.5px;font-weight:900;letter-spacing:-.2px}
+.mx-meet.final .mx-meet-rnd::before{content:"★ ";color:var(--gold)}
+.mx-tag{margin-left:auto;font-size:9px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;padding:4px 9px;border-radius:20px;flex:none}
+.mx-tag.confirmed{color:#03210d;background:var(--green)}
+.mx-tag.conditional{color:var(--mut);background:rgba(255,255,255,.06);border:1px solid var(--line2)}
+.mx-tag.scheduled{color:#04182e;background:var(--teal2)}
+.mx-tag.played{color:var(--mut);background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+.mx-meet-ctx{font-size:12.5px;color:var(--mut);line-height:1.4}
+.mx-meet-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.mx-chip{font-size:11px;font-weight:750;color:var(--mut);background:rgba(255,255,255,.05);border:1px solid var(--line);padding:4px 9px;border-radius:9px}
+.mx-chip b{color:var(--txt);font-weight:850}
+.mx-pflabel{font-size:10px;font-weight:800;color:var(--mut3);margin-top:8px}
+/* requirements */
+.mx-reqgrp{border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.025);padding:11px 13px;margin-bottom:8px}
+.mx-reqgrp-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:900;margin-bottom:8px}
+.mx-reqgrp-h .ic{font-size:15px}
+.mx-reqgrp ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.mx-reqgrp li{position:relative;padding-left:18px;font-size:12.5px;color:var(--mut);line-height:1.42}
+.mx-reqgrp li::before{content:"";position:absolute;left:2px;top:7px;width:6px;height:6px;border-radius:2px;background:var(--teal2)}
+.mx-reqgrp li b{color:var(--txt);font-weight:800}
+.mx-reqnote{font-size:12px;color:var(--mut2);line-height:1.45;margin:2px 2px 0;padding:9px 2px 0}
+/* why-not card */
+.mx-why{border-radius:16px;border:1px solid var(--line2);background:linear-gradient(160deg,rgba(40,48,80,.4),rgba(18,22,48,.7));padding:15px 15px;margin-bottom:12px}
+.mx-why-h{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:900;margin-bottom:7px}
+.mx-why-h .ic{font-size:17px;color:var(--mut)}
+.mx-why-b{font-size:13px;color:var(--mut);line-height:1.5}
+.mx-why-played{margin-top:11px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.mx-why-played .sc{font-size:15px;font-weight:900;letter-spacing:.5px}
+.mx-why-played .lb{font-size:11.5px;color:var(--mut2);font-weight:700}
+/* view in bracket */
+.mx-vib{width:100%;margin-top:6px;padding:13px;border-radius:14px;border:1px solid rgba(100,210,255,.34);background:linear-gradient(135deg,rgba(100,210,255,.16),rgba(10,132,255,.1));color:var(--teal2);font-weight:900;font-size:13.5px;font-family:inherit;cursor:pointer}
+.mx-vib:active{transform:scale(.99)}
+.mx-vib:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
+.mx-prov{font-size:10.5px;color:var(--mut3);line-height:1.5;margin:14px 2px 0;text-align:center}
+/* keyboard-safe picker: sticky search header + room for the on-screen keyboard */
+.mx-pksticky{position:sticky;top:0;z-index:3;background:var(--bg2);padding-top:4px;margin:0 -2px 0;padding-left:2px;padding-right:2px}
+.mx-grid-scroll{padding-bottom:46vh}
+.mx-slot-chg2{font-size:11px;font-weight:800;color:var(--teal2)}
+/* scenario answer hero */
+.mx-q{font-size:20px;font-weight:900;letter-spacing:-.4px;line-height:1.15;margin-bottom:9px}
+.mx-ans{display:flex;gap:9px;align-items:flex-start;font-size:15.5px;font-weight:800;line-height:1.32}
+.mx-ans .ic{font-size:18px;line-height:1.2;flex:none}
+/* primary route */
+.mx-route{border-radius:18px;border:1px solid rgba(100,210,255,.4);background:linear-gradient(155deg,rgba(10,132,255,.13),rgba(28,38,92,.55));padding:14px 14px 13px;margin-bottom:12px}
+.mx-route.final{border-color:rgba(255,214,10,.42);background:linear-gradient(155deg,rgba(255,214,10,.12),rgba(40,40,90,.5))}
+.mx-rcols{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.mx-rcol{min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+@media (min-width:560px){.mx-rcols{flex-direction:row}.mx-rcols .mx-rcol{flex:1 1 0}}
+.mx-rteam{display:flex;align-items:center;gap:8px;margin-bottom:9px;min-width:0}
+.mx-rteam .f{font-size:21px;line-height:1;flex:none}
+.mx-rteam .n{font-size:15px;font-weight:900;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mx-rfin{display:block;font-size:9px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--teal2);margin-bottom:3px}
+.mx-rfinv{display:block;font-size:14px;font-weight:850;line-height:1.3;margin-bottom:11px}
+.mx-rstep{display:block;position:relative;padding-left:20px;font-size:13.5px;color:var(--mut);line-height:1.5;margin-top:6px;background:none}
+.mx-rstep::before{content:"";position:absolute;left:3px;top:8px;width:7px;height:7px;border-radius:50%;border:2px solid var(--teal2)}
+.mx-rstep.done::before{background:var(--teal2)}
+.mx-rstep.bronze::before{border-color:var(--gold)}
+.mx-rstep b{color:var(--txt);font-weight:800}
+.mx-rnone{font-size:12px;color:var(--mut2);font-style:normal;margin-top:4px}
+/* meeting card inside route */
+.mx-mcard{display:flex;align-items:center;gap:10px;border-radius:13px;border:1px solid rgba(100,210,255,.4);background:rgba(10,132,255,.14);padding:11px 13px}
+.mx-route.final .mx-mcard{border-color:rgba(255,214,10,.45);background:rgba(255,214,10,.12)}
+.mx-mcard .mm-ic{font-size:20px;flex:none}
+.mx-mcard .mm-tx{min-width:0}
+.mx-mcard .mm-k{font-size:9px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--mut2)}
+.mx-mcard .mm-r{font-size:15.5px;font-weight:900;letter-spacing:-.2px;line-height:1.15}
+.mx-mtag{margin-left:auto;flex:none;font-size:9px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px}
+.mx-mtag.confirmed{color:#03210d;background:var(--green)}
+.mx-mtag.conditional{color:var(--mut);background:rgba(255,255,255,.07);border:1px solid var(--line2)}
+.mx-mtag.scheduled{color:#04182e;background:var(--teal2)}
+.mx-mtag.projected{color:#241f02;background:var(--gold)}
+.mx-mmeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+/* why not sooner */
+.mx-sooner{margin-top:11px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:10px 12px}
+.mx-sooner-k{font-size:10.5px;font-weight:900;letter-spacing:.4px;color:var(--mut2);margin-bottom:3px}
+.mx-sooner-b{font-size:12.5px;color:var(--mut);line-height:1.45}
+/* third-place note */
+.mx-third{display:flex;gap:9px;align-items:flex-start;margin-top:11px;border-radius:12px;border:1px solid rgba(255,214,10,.32);background:rgba(255,214,10,.08);padding:10px 12px}
+.mx-third .ic{font-size:15px;flex:none}
+.mx-third-b{font-size:12.5px;color:var(--mut);line-height:1.45}
+.mx-third-b b{color:var(--txt);font-weight:800}
+/* alternates */
+.mx-alts{border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}
+.mx-alts>summary{list-style:none;cursor:pointer;padding:13px 14px;font-size:13.5px;font-weight:850;display:flex;align-items:center;gap:8px}
+.mx-alts>summary::-webkit-details-marker{display:none}
+.mx-alts>summary .chev{margin-left:auto;color:var(--mut2);transition:transform .2s}
+.mx-alts[open]>summary .chev{transform:rotate(90deg)}
+.mx-alts>summary .cnt{font-size:11px;font-weight:800;color:var(--mut2);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:20px;padding:2px 8px}
+.mx-altlist{padding:0 11px 11px}
+.mx-alt{border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);margin-top:8px;overflow:hidden}
+.mx-alt>summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:12.5px;font-weight:800;color:var(--txt);display:flex;align-items:center;gap:8px;line-height:1.35}
+.mx-alt>summary::-webkit-details-marker{display:none}
+.mx-alt>summary .alt-tx{flex:1;min-width:0}
+.mx-alt>summary .arr{margin-left:auto;color:var(--mut3);flex:none}
+.mx-alt-body{padding:2px 12px 12px}
+.mx-altmeet{font-size:11.5px;font-weight:800;color:var(--teal2);margin:2px 0 8px}
+.mx-alt.bronze>summary .alt-tx,.mx-altmeet.bronze{color:var(--gold)}
+/* open (non-collapsed) first-three alternates */
+.mx-altlist-open{margin-bottom:12px}
+/* hero supporting sentence */
+.mx-ans-sub{font-size:12.5px;color:var(--mut2);line-height:1.42;margin-top:8px;padding-left:27px}
+/* third-place (bronze) route — quieter than the primary */
+.mx-route.bronze{border-color:var(--line2);background:linear-gradient(155deg,rgba(120,130,160,.10),rgba(18,22,48,.86))}
+.mx-route.bronze .mx-mcard{border-color:var(--line2);background:rgba(255,255,255,.05)}
+.mx-route.bronze .mx-rstep.bronze::before{border-color:var(--gold)}
+.mx-bronzenote{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;border-radius:12px;border:1px solid rgba(255,214,10,.28);background:rgba(255,214,10,.07);padding:10px 12px;font-size:12.5px;color:var(--mut);line-height:1.45}
+.mx-bronzenote .ic{flex:none;font-size:14px}
+.mx-bronzenote b{color:var(--txt);font-weight:800}
+/* history card (already played) */
+.mx-hist{display:flex;align-items:center;gap:11px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);padding:12px 13px;margin-bottom:12px}
+.mx-hist .fl{font-size:19px;flex:none}
+.mx-hist .sc{font-size:17px;font-weight:900;letter-spacing:.5px}
+.mx-hist .lb{font-size:11px;color:var(--mut2);font-weight:750;margin-left:auto;text-align:right;line-height:1.3}
+@media (prefers-reduced-motion:reduce){.mx-entry,.mx-slot,.mx-tm,.mx-vib,.mx-alts>summary .chev{transition:none}}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -6236,6 +6437,288 @@ function fullRouteExplorerEngine(code){
   [1,2,3].forEach(function(pos){var s=freBuildScenario(code,pos);if(s)base.scenarios.push(s);});
   return base;
 }
+/* ===== Matchup Intelligence Engine ============================================
+   Logic-only, deterministic read model for "Can these two teams play?".
+   It composes existing truth helpers instead of reimplementing tournament math:
+   tccTeamTournamentStatus / freScenarioPossible for group-route validity,
+   freDirectSlot / freThirdCandidateSlots / TP3 / TP3C for entry slots,
+   knockoutSlotStatus / koSlotOfficialTeam for official knockout confirmation,
+   NEXTWIN / FEEDERS / DATA.matches for bracket topology. */
+var MATCHUP_INTEL_VERSION='matchup-intel-v1';
+var MI_STAGE_ORDER={'Round of 32':1,'Round of 16':2,'Quarter-final':3,'Quarter-finals':3,'Semi-final':4,'Semi-finals':4,'Third-place match':5,'Bronze Final':5,'Final':6};
+function miFixtureMeta(m){
+  if(!m)return{known:false,date:{state:'pending'},time:{state:'pending'},venue:{state:'pending'}};
+  return{known:true,date:m.date?{state:'known',value:m.date}:{state:'pending'},time:m.time?{state:'known',value:m.time}:{state:'pending'},venue:m.venue?{state:'known',value:m.venue,stadium:VEN[m.venue]?VEN[m.venue][1]:null,city:VEN[m.venue]?VEN[m.venue][2]:null}:{state:'pending'}};
+}
+function miRoundName(num){return num===103?'Third-place match':roundName(num);}
+function miStageOrder(round){return MI_STAGE_ORDER[round]||99;}
+function miTeamRef(code){return code&&T[code]?{code:code,name:nm(code),flag:fl(code),group:TG[code]||null}:null;}
+function miStablePairs(obj){
+  return Object.keys(obj||{}).sort(function(a,b){return(+a)-(+b)||String(a).localeCompare(String(b));}).map(function(k){var v=obj[k];if(Array.isArray(v))return k+':'+v.join('-');if(v&&typeof v==='object')return k+':'+Object.keys(v).sort().map(function(x){return x+'='+v[x];}).join(',');return k+':'+v;});
+}
+function miSourceState(){
+  var officialResults=miStablePairs(REAL),officialKo=miStablePairs(S&&S.realko),liveStates=[];
+  if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=S.rwState[k];if(st&&(st.kind==='live'||st.kind==='hold')&&!tccOfficialFinal(+k))liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
+  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']';
+  return{officialStateFingerprint:fp,officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];})},liveStateFingerprint:'live['+liveStates.join('|')+']',liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
+}
+function miSafeError(input,reason,message){
+  return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',sourceState:miSourceState(),groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],scenarioRoutes:[],recommendedPrimaryRoute:null,alternativeRouteCount:0,noScenarioRouteReason:'Scenario routes require two recognized, different tournament teams.',earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
+}
+function miNormalizePair(a,b){
+  var ca=teamCode?teamCode(a):a,cb=teamCode?teamCode(b):b;
+  if(!ca||!T[ca])return miSafeError({teamA:a,teamB:b},'unknown_team','Team A is not a recognized tournament team.');
+  if(!cb||!T[cb])return miSafeError({teamA:a,teamB:b},'unknown_team','Team B is not a recognized tournament team.');
+  if(ca===cb)return miSafeError({teamA:a,teamB:b},'duplicate_team','Choose two different teams.');
+  return{teamA:ca,teamB:cb};
+}
+function miGroupMeeting(a,b){
+  var m=MATCHES.filter(function(x){return x.stage==='group'&&((x.home===a&&x.away===b)||(x.home===b&&x.away===a));})[0];
+  if(!m)return{exists:false,state:'none'};
+  var fin=tccOfficialFinal(m.num),r=fin?REAL[m.num]:null;
+  return{exists:true,state:fin?'completed':'scheduled',fixtureId:'M'+m.num,matchNum:m.num,group:m.group,home:m.home,away:m.away,score:r?{home:r[0],away:r[1]}:null,metadata:miFixtureMeta(m),evidence:{source:'DATA.matches + REAL',officialFinal:!!fin}};
+}
+function miThirdComboSet(c){
+  if(!c||c.finishPositionNumber!==3||!c.slot)return null;
+  var ki=TP3C.indexOf(c.slot.matchNum);if(ki<0)return[];
+  var all=withTour(liveTour(),function(){return allDone();});
+  if(all){var as=withTour(liveTour(),function(){return assignThirds();});return(as&&as[c.slot.matchNum]===c.group)?['official'] : [];}
+  return freValidThirdCombos().filter(function(combo){return combo.indexOf(c.group)>=0&&TP3[combo]&&TP3[combo].charAt(ki)===c.group;});
+}
+function miGroupPositionsCompatible(g,a,posA,b,posB){
+  if(posA===posB)return false;
+  var outs=tccGroupOutcomeTables(g);
+  return outs.some(function(t){
+    var ia=t.findIndex(function(r){return r.code===a;}),ib=t.findIndex(function(r){return r.code===b;});
+    return ia===posA-1&&ib===posB-1;
+  });
+}
+function miEntryCompatible(a,b){
+  if(!a||!b||!a.slot||!b.slot)return false;
+  if(a.slot.matchNum===b.slot.matchNum&&a.slot.side===b.slot.side)return false;
+  if(a.group===b.group&&!miGroupPositionsCompatible(a.group,a.team,a.finishPositionNumber,b.team,b.finishPositionNumber))return false;
+  var ca=miThirdComboSet(a),cb=miThirdComboSet(b);
+  if(ca&&ca.length===0)return false;if(cb&&cb.length===0)return false;
+  if(ca&&cb){var mb={};cb.forEach(function(x){mb[x]=1;});return ca.some(function(x){return mb[x];});}
+  return true;
+}
+function miAddReq(reqs,seen,req){if(!req||!req.text)return;var k=req.type+'|'+(req.team||'')+'|'+(req.group||'')+'|'+(req.matchNum||'')+'|'+req.text;if(seen[k])return;seen[k]=1;reqs.push(req);}
+function miEntryRequirements(c,label,reqs,seen){
+  var teamName=label==='A'?'Team A':'Team B',ts=c.status||{},locked=ts.lockedQualified&&ts.complete&&ts.tone==='confirmed';
+  if(c.finishPositionNumber<=2&&!locked)miAddReq(reqs,seen,{type:'group_finish',team:label,group:c.group,text:teamName+' must finish '+freOrdinal(c.finishPositionNumber)+' in Group '+c.group+'.'});
+  if(c.finishPositionNumber===3){
+    miAddReq(reqs,seen,{type:'group_finish',team:label,group:c.group,text:teamName+' must finish 3rd in Group '+c.group+'.'});
+    miAddReq(reqs,seen,{type:'best_third',team:label,group:c.group,text:teamName+' must qualify as one of the valid best third-place teams.'});
+    miAddReq(reqs,seen,{type:'third_allocation',team:label,group:c.group,matchNum:c.slot.matchNum,text:'The third-place allocation combination must route Group '+c.group+' into Match #'+c.slot.matchNum+'.'});
+  }
+  if(!ts.complete)miAddReq(reqs,seen,{type:'official_result_dependency',team:label,group:c.group,text:'This depends on official final results in Group '+c.group+'.'});
+}
+function miEntryCandidates(code){
+  var g=TG[code],ts=tccTeamTournamentStatus(code),out=[];
+  if(!g||!ts||ts.eliminated)return out;
+  [1,2].forEach(function(pos){
+    if(!freScenarioPossible(ts,pos))return;
+    var slot=freDirectSlot(g,pos);if(slot)out.push({team:code,group:g,finishPositionNumber:pos,finishPosition:freOrdinal(pos),slot:slot,status:ts,entryCertainty:ts.tone==='confirmed'?'confirmed':(ts.tone==='locked'?'conditional':'conditional')});
+  });
+  if(freScenarioPossible(ts,3)){
+    var all=withTour(liveTour(),function(){return allDone();}),safe=tccThirdPlaceSafeStatus(g,code),slots=[];
+    if(all&&safe.known&&safe.qual){var cs=freConfirmedThirdSlot(g);if(cs)slots=[cs];}
+    else if(!all)slots=freThirdCandidateSlots(g);
+    slots.forEach(function(slot){out.push({team:code,group:g,finishPositionNumber:3,finishPosition:'3rd',slot:slot,status:ts,entryCertainty:'conditional'});});
+  }
+  return out;
+}
+function miBranchTo(entryMatch,target){
+  if(entryMatch===target)return{reaches:true,branch:'entry'};
+  var n=entryMatch;
+  while(NEXTWIN[n]){var next=NEXTWIN[n];if(next===target)return{reaches:true,branch:String(n)};n=next;}
+  return{reaches:false,branch:null};
+}
+function miSemiForEntry(entryMatch){
+  var n=entryMatch;if(n===101||n===102)return n;
+  while(NEXTWIN[n]){n=NEXTWIN[n];if(n===101||n===102)return n;}
+  return null;
+}
+function miPriorPath(entryMatch,target){
+  var out=[],n=entryMatch;
+  while(n&&n!==target){out.push(n);n=NEXTWIN[n];}
+  return n===target?out:null;
+}
+function miNormalReach(code,entry,target,reqs,seen,label){
+  if(S.realko&&S.realko[target])return false;
+  var path=miPriorPath(entry.slot.matchNum,target);if(!path)return false;
+  for(var i=0;i<path.length;i++){var n=path[i],w=S.realko&&S.realko[n];if(w&&w!==code)return false;if(!w)miAddReq(reqs,seen,{type:'knockout_advancement',team:label,matchNum:n,text:(label==='A'?'Team A':'Team B')+' must advance from Match #'+n+'.'});}
+  return true;
+}
+function miBronzeReach(code,entry,reqs,seen,label){
+  if(S.realko&&S.realko[103])return false;
+  var semi=miSemiForEntry(entry.slot.matchNum);if(!semi)return false;
+  var path=miPriorPath(entry.slot.matchNum,semi);if(!path)return false;
+  for(var i=0;i<path.length;i++){var n=path[i],w=S.realko&&S.realko[n];if(w&&w!==code)return false;if(!w)miAddReq(reqs,seen,{type:'knockout_advancement',team:label,matchNum:n,text:(label==='A'?'Team A':'Team B')+' must advance from Match #'+n+'.'});}
+  var sw=S.realko&&S.realko[semi];if(sw===code)return false;
+  if(!sw)miAddReq(reqs,seen,{type:'knockout_result',team:label,matchNum:semi,text:(label==='A'?'Team A':'Team B')+' must reach Match #'+semi+' and not advance to the Final.'});
+  return true;
+}
+function miPossibilityState(num,a,b){
+  var ks=knockoutSlotStatus(num,false),pair=(ks.home===a&&ks.away===b)||(ks.home===b&&ks.away===a);
+  if(pair&&ks.state==='confirmed'&&!(S.realko&&S.realko[num]))return{certainty:'confirmed',label:'Confirmed'};
+  return{certainty:'conditional',label:'Conditional'};
+}
+function miPossibility(num,a,b,ea,eb,reqs,seen){
+  var m=M[num],st=miPossibilityState(num,a,b),round=miRoundName(num),stageOrder=miStageOrder(round);
+  miEntryRequirements(ea,'A',reqs,seen);miEntryRequirements(eb,'B',reqs,seen);
+  var comboA=miThirdComboSet(ea),comboB=miThirdComboSet(eb),comboCount=null;
+  if(comboA&&comboB){var mb={};comboB.forEach(function(x){mb[x]=1;});comboCount=comboA.filter(function(x){return mb[x];}).length;}
+  else if(comboA)comboCount=comboA.length;else if(comboB)comboCount=comboB.length;
+  return{fixtureId:'M'+num,matchNum:num,round:round,stageOrder:stageOrder,metadata:miFixtureMeta(m),certainty:st.certainty,statusLabel:st.label,
+    teamA:{code:a,requiredEntrySlot:ea.slot,requiredFinish:ea.finishPosition,participantPath:num===103?'loser of semifinal':'winner path'},
+    teamB:{code:b,requiredEntrySlot:eb.slot,requiredFinish:eb.finishPosition,participantPath:num===103?'loser of semifinal':'winner path'},
+    requirements:reqs,explanation:st.certainty==='confirmed'?nm(a)+' and '+nm(b)+' are officially locked into Match #'+num+'.':nm(a)+' and '+nm(b)+' have a compatible path to meet in '+round+'.',
+    evidence:{entrySlots:[ea.slot,eb.slot],thirdPlaceAllocation:{checked:!!(comboA||comboB),compatibleCombinationCount:comboCount},sourceFixture:{home:m.home,away:m.away},helpers:['tccTeamTournamentStatus','freScenarioPossible','freDirectSlot','freThirdCandidateSlots','TP3','TP3C','NEXTWIN','knockoutSlotStatus']}};
+}
+function miScenarioCertainty(p){
+  if(!p)return'pending';
+  if(p.certainty==='confirmed')return'confirmed';
+  if(p.certainty==='scheduled')return'scheduled';
+  if(p.certainty==='projected')return'projected';
+  return'conditional';
+}
+function miCertaintyRank(c){return c==='confirmed'?0:c==='scheduled'?1:c==='conditional'?2:c==='projected'?3:4;}
+function miRouteToken(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function miEntryKey(e){return[e.finishPositionNumber,e.group,e.slot.matchNum,e.slot.side,e.slot.slot].join(':');}
+function miRouteId(a,b,p){
+  return miRouteToken([a,b,'m'+p.matchNum,'a'+miEntryKey({finishPositionNumber:p.teamA.requiredEntrySlot? p.teamA.requiredFinish : '',group:TG[a],slot:p.teamA.requiredEntrySlot||{}}),'b'+miEntryKey({finishPositionNumber:p.teamB.requiredEntrySlot? p.teamB.requiredFinish : '',group:TG[b],slot:p.teamB.requiredEntrySlot||{}})].join('-'));
+}
+function miFinishLabel(e){return e.finishPosition+' in Group '+e.group;}
+function miAdvancementPath(code,entry,target){
+  var out=[],path,semi,i,n,w,next;
+  if(target===103){
+    semi=miSemiForEntry(entry.slot.matchNum);path=semi?miPriorPath(entry.slot.matchNum,semi):null;
+    if(!path)return out;
+    for(i=0;i<path.length;i++){
+      n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n]||semi;
+      out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),stageOrder:miStageOrder(miRoundName(n)),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',outcome:w===code?'already_advanced':'win',displayLabel:w===code?'Already through '+miRoundName(n):'Win '+miRoundName(n),feedsFixtureId:'M'+next,feedsMatchNum:next,evidence:{source:'NEXTWIN',winnerFeedsTo:next}});
+    }
+    out.push({fixtureId:'M'+semi,matchNum:semi,round:miRoundName(semi),stageOrder:miStageOrder(miRoundName(semi)),requirement:nm(code)+' must lose Match #'+semi+' to enter the Third-place match.',action:'lose',outcome:'loss',displayLabel:'Lose the '+miRoundName(semi),feedsFixtureId:'M103',feedsMatchNum:103,evidence:{source:'FEEDERS',loserFeedsTo:103}});
+    return out;
+  }
+  path=miPriorPath(entry.slot.matchNum,target);
+  if(!path)return out;
+  for(i=0;i<path.length;i++){
+    n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n];
+    out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),stageOrder:miStageOrder(miRoundName(n)),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',outcome:w===code?'already_advanced':'win',displayLabel:w===code?'Already through '+miRoundName(n):'Win '+miRoundName(n),feedsFixtureId:next?'M'+next:null,feedsMatchNum:next||null,evidence:{source:'NEXTWIN',winnerFeedsTo:next||null}});
+  }
+  return out;
+}
+function miScenarioDependencies(code,entry,out){
+  out.push(nm(code)+' must finish '+miFinishLabel(entry)+'.');
+  if(entry.finishPositionNumber===3){
+    out.push(nm(code)+' must qualify as one of the valid best third-place teams.');
+    out.push('A valid third-place allocation combination must route Group '+entry.group+' into Match #'+entry.slot.matchNum+'.');
+  }
+}
+function miSharedThirdCombos(ea,eb){
+  var ca=miThirdComboSet(ea),cb=miThirdComboSet(eb),combos=null,checked=!!(ca||cb);
+  if(ca&&cb){var mb={};cb.forEach(function(x){mb[x]=1;});combos=ca.filter(function(x){return mb[x];});}
+  else if(ca)combos=ca.slice();
+  else if(cb)combos=cb.slice();
+  return{checked:checked,compatibleCombinations:combos||[],compatibleCombinationCount:combos?combos.length:null};
+}
+function miScenarioTeam(code,entry,target){
+  return{code:code,name:nm(code),group:entry.group,requiredFinish:miFinishLabel(entry),requiredEntrySlot:entry.slot,advancementPath:miAdvancementPath(code,entry,target),evidence:{finishPositionNumber:entry.finishPositionNumber,entryCertainty:entry.entryCertainty,slotSource:entry.finishPositionNumber===3?'TP3/TP3C':'Round-of-32 bracket slot'}};
+}
+function miRouteHeadline(a,b,p){
+  var where=p.round==='Final'?'the Final':p.round;
+  if(p.certainty==='confirmed')return nm(a)+' and '+nm(b)+' are officially set for '+where+'.';
+  return 'If '+nm(a)+' finish '+p.teamA.requiredFinish+' in Group '+TG[a]+' and '+nm(b)+' finish '+p.teamB.requiredFinish+' in Group '+TG[b]+', they can meet in '+where+'.';
+}
+function miMeetingExplanation(a,b,p){
+  if(p.certainty==='confirmed')return 'Both teams are officially assigned to Match #'+p.matchNum+'.';
+  return 'These group finishes place '+nm(a)+' and '+nm(b)+' into compatible feeder paths for Match #'+p.matchNum+'.';
+}
+function miCannotEarlierBecause(p){
+  if(p.matchNum===103)return 'The Third-place match can only contain teams that reach separate Semi-finals and do not advance to the Final.';
+  if(p.matchNum>=73&&p.matchNum<=88)return 'The Round of 32 is the first knockout round for these entry slots.';
+  return 'These entry slots stay in separate bracket branches until Match #'+p.matchNum+'.';
+}
+function miScenarioRoutesFromPossibilities(a,b,poss){
+  var seen={},routes=[];
+  poss.forEach(function(p){
+    var ea={team:a,group:TG[a],finishPositionNumber:p.teamA.requiredFinish==='1st'?1:p.teamA.requiredFinish==='2nd'?2:3,finishPosition:p.teamA.requiredFinish,slot:p.teamA.requiredEntrySlot,entryCertainty:p.certainty};
+    var eb={team:b,group:TG[b],finishPositionNumber:p.teamB.requiredFinish==='1st'?1:p.teamB.requiredFinish==='2nd'?2:3,finishPosition:p.teamB.requiredFinish,slot:p.teamB.requiredEntrySlot,entryCertainty:p.certainty};
+    var key=p.matchNum+'|'+miEntryKey(ea)+'|'+miEntryKey(eb);if(seen[key])return;seen[key]=1;
+    var deps=[],third=miSharedThirdCombos(ea,eb),certainty=miScenarioCertainty(p);
+    miScenarioDependencies(a,ea,deps);miScenarioDependencies(b,eb,deps);
+    if(third.checked&&third.compatibleCombinationCount>1)deps.push(third.compatibleCombinationCount+' valid third-place allocation combinations keep this combined route possible.');
+    var r={id:miRouteId(a,b,p),target:{fixtureId:p.fixtureId,matchNum:p.matchNum,round:p.round,stageOrder:p.stageOrder||miStageOrder(p.round),metadata:p.metadata,certainty:certainty,statusLabel:p.statusLabel,sourceFixture:p.evidence&&p.evidence.sourceFixture?p.evidence.sourceFixture:null},
+      isEarliestRoute:false,isFinalOnly:p.matchNum===104,recommendedPrimaryRoute:false,headline:miRouteHeadline(a,b,p),
+      teamA:miScenarioTeam(a,ea,p.matchNum),teamB:miScenarioTeam(b,eb,p.matchNum),dependencies:deps,
+      thirdPlaceAllocation:{checked:third.checked,compatibleCombinationCount:third.compatibleCombinationCount,compatibleCombinations:third.compatibleCombinations},
+      explanation:miMeetingExplanation(a,b,p),cannotMeetEarlierBecause:miCannotEarlierBecause(p),
+      evidence:{sourcePossibilityFixture:p.fixtureId,sourcePossibilityKey:key,derivedFrom:'knockoutPossibilities',helpers:['miEntryCompatible','miThirdComboSet','miPriorPath','NEXTWIN','FEEDERS'],requirements:p.requirements,thirdPlaceAllocation:third}};
+    routes.push(r);
+  });
+  routes.sort(function(x,y){
+    return (x.target.stageOrder||miStageOrder(x.target.round))-(y.target.stageOrder||miStageOrder(y.target.round))||
+      x.dependencies.length-y.dependencies.length||
+      miCertaintyRank(x.target.certainty)-miCertaintyRank(y.target.certainty)||
+      x.target.matchNum-y.target.matchNum||
+      (x.id<y.id?-1:x.id>y.id?1:0);
+  });
+  if(routes.length){
+    var earliest=routes[0].target.stageOrder;routes.forEach(function(r){r.isEarliestRoute=r.target.stageOrder===earliest;});
+    routes[0].recommendedPrimaryRoute=true;
+  }
+  return routes;
+}
+function miNoScenarioRouteReason(verdict,gm,poss){
+  if(poss&&poss.length)return null;
+  if(gm&&gm.exists&&gm.state==='scheduled')return 'No future knockout scenario route is needed yet because the teams are scheduled to meet in the group stage.';
+  if(gm&&gm.exists&&gm.state==='completed')return 'Their group-stage meeting is historical, and no compatible future knockout route remains from the current official state.';
+  if(verdict==='invalid')return 'Scenario routes require two recognized, different tournament teams.';
+  return 'No compatible combined knockout route exists after applying group placement, third-place allocation, and bracket path constraints.';
+}
+function miFutureKnockoutPossibilities(a,b){
+  var ea=miEntryCandidates(a),eb=miEntryCandidates(b),out=[],seenPoss={};
+  ea.forEach(function(A){eb.forEach(function(B){
+    if(!miEntryCompatible(A,B))return;
+    for(var num=73;num<=104;num++){
+      var reqs=[],seenReq={};
+      if(num===103){
+        var sa=miSemiForEntry(A.slot.matchNum),sb=miSemiForEntry(B.slot.matchNum);
+        if(!sa||!sb||sa===sb)continue;
+        if(!miBronzeReach(a,A,reqs,seenReq,'A')||!miBronzeReach(b,B,reqs,seenReq,'B'))continue;
+      }else{
+        var ba=miBranchTo(A.slot.matchNum,num),bb=miBranchTo(B.slot.matchNum,num);
+        if(!ba.reaches||!bb.reaches)continue;
+        if(num===A.slot.matchNum&&num===B.slot.matchNum){if(A.slot.side===B.slot.side)continue;}
+        else if(ba.branch===bb.branch)continue;
+        if(!miNormalReach(a,A,num,reqs,seenReq,'A')||!miNormalReach(b,B,num,reqs,seenReq,'B'))continue;
+      }
+      var key=num+'|'+A.slot.matchNum+':'+A.slot.side+':'+A.finishPositionNumber+'|'+B.slot.matchNum+':'+B.slot.side+':'+B.finishPositionNumber;
+      if(seenPoss[key])continue;seenPoss[key]=1;out.push(miPossibility(num,a,b,A,B,reqs,seenReq));
+    }
+  });});
+  out.sort(function(x,y){return (x.stageOrder||miStageOrder(x.round))-(y.stageOrder||miStageOrder(y.round))||x.matchNum-y.matchNum||x.teamA.requiredEntrySlot.matchNum-y.teamA.requiredEntrySlot.matchNum||x.teamB.requiredEntrySlot.matchNum-y.teamB.requiredEntrySlot.matchNum;});
+  return out;
+}
+function matchupIntelligence(teamACode,teamBCode,options){
+  options=options||{};
+  var norm=miNormalizePair(teamACode,teamBCode);if(norm&&norm.ok===false)return norm;
+  var a=norm.teamA,b=norm.teamB,gm=miGroupMeeting(a,b),poss=miFutureKnockoutPossibilities(a,b);
+  var scenarioRoutes=miScenarioRoutesFromPossibilities(a,b,poss);
+  var confirmed=poss.filter(function(p){return p.certainty==='confirmed';}),verdict,certainty,headline,impossibleReason=null;
+  if(confirmed.length){verdict='confirmed';certainty='confirmed';headline=nm(a)+' and '+nm(b)+' are confirmed to meet in '+confirmed[0].round+'.';}
+  else if(gm.exists&&gm.state==='scheduled'){verdict='scheduled';certainty='scheduled';headline=nm(a)+' and '+nm(b)+' are scheduled to meet in the group stage.';}
+  else if(poss.length){verdict='conditional';certainty='conditional';headline=nm(a)+' and '+nm(b)+' can still meet if their tournament paths align.';}
+  else if(gm.exists&&gm.state==='completed'){verdict='completed';certainty='completed';headline=nm(a)+' and '+nm(b)+' have already met in the group stage.';impossibleReason='No compatible future knockout path remains from the current official tournament state.';}
+  else{verdict='impossible';certainty='impossible';headline=nm(a)+' and '+nm(b)+' do not have a legal future meeting path from the current official tournament state.';impossibleReason='No fixture can simultaneously resolve to both teams after applying group placement, third-place allocation, and knockout path constraints.';}
+  var earliest=scenarioRoutes.length?scenarioRoutes[0].target.round:null,latest=scenarioRoutes.length?scenarioRoutes[scenarioRoutes.length-1].target.round:null,finalOnly=poss.length>0&&poss.every(function(p){return p.matchNum===104;});
+  return{version:MATCHUP_INTEL_VERSION,ok:true,input:{teamA:teamACode,teamB:teamBCode},teams:{teamA:miTeamRef(a),teamB:miTeamRef(b)},headline:headline,verdict:verdict,certainty:certainty,
+    sourceState:miSourceState(),groupStageMeeting:gm,knockoutPossibilities:poss,scenarioRoutes:scenarioRoutes,recommendedPrimaryRoute:scenarioRoutes.length?scenarioRoutes[0].id:null,alternativeRouteCount:Math.max(0,scenarioRoutes.length-1),noScenarioRouteReason:miNoScenarioRouteReason(verdict,gm,poss),earliestPossibleRound:earliest,latestPossibleRound:latest,finalOnlyFutureKnockoutMeeting:finalOnly,
+    requirements:poss.reduce(function(acc,p){p.requirements.forEach(function(r){acc.push(r);});return acc;},[]),impossibleReason:impossibleReason,
+    evidence:{sources:['DATA.matches','REAL','GROUPS','TBORDER','TP3','TP3C','tccTeamTournamentStatus','freScenarioPossible','freDirectSlot','freThirdCandidateSlots','freValidThirdCombos','knockoutSlotStatus','koSlotOfficialTeam','NEXTWIN','FEEDERS'],futureKnockoutPossibilitiesEvaluated:true,entryCandidateCounts:{teamA:miEntryCandidates(a).length,teamB:miEntryCandidates(b).length}}};
+}
 /* ===== Route Explorer Lite =====================================================
    A compact "What this means" route card. Pure read-off of the SHARED tournament
    -status resolver (tccTeamTournamentStatus) + the existing bracket mapping
@@ -6800,6 +7283,7 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
     var champ=winner(104);
     var sel=rounds.filter(function(R){return R.k===_brkRound;})[0];
     var b='';
+    b+='<button class="mx-entry" onclick="mxOpen()"><span class="mx-entry-orb"></span><span class="mx-entry-k"><span class="mx-dot"></span>Matchup Explorer</span><span class="mx-entry-h">Can two teams meet?</span><span class="mx-entry-s">Compare two teams and see every possible World Cup path.</span><span class="mx-entry-cta">Explore a matchup →</span></button>';
     b+='<div class="brk-title"><div class="bt-h">🏆 Tournament Bracket</div><div class="bt-s">Single elimination · the road to the Final, round by round</div></div>';
     if(champ)b+='<div class="brk-champ" onclick="celebrate()"><div class="bc-l">★ World Champions · tap to celebrate</div><div class="bc-t"><span class="bc-fl">'+fl(champ)+'</span>'+nm(champ).toUpperCase()+'</div></div>';
     // premium round rail — full label on the selected round, every round clearly tappable
@@ -8506,6 +8990,215 @@ try{(function(){
   function openTicketBuilder(){reset('sim');go('bet');betTicket({num:61,pick:'a',odds:-125,line:"France Win · Group I #61",title:"Norway v France",leg:{k:'m',num:61,pick:'a',odds:-125,label:"France · Group I #61",key:'m61a'},place:function(st){S.bets.push({id:nextBetId(),num:61,pick:'a',stake:st,odds:-125,settled:false,state:'pending',sourceMode:'sim'});}});return true;}
   window.__wc26E2E={enabled:true,reset:reset,go:go,startMatchboard:startMatchboard,applyEvent:applyEvent,board:board,speedRatio:speedRatio,runFastToResult:runFastToResult,openTicketBuilder:openTicketBuilder};
 })();}catch(e){}
+/* ===== Matchup Explorer — premium presentation layer over matchupIntelligence().
+   Renders only what the engine returns. No matchup math, no path inference, no
+   hardcoded outcomes, never upgrades the engine's certainty. ===== */
+var _mxState={a:null,b:null,view:'select',pickFor:null,q:'',fp:null};
+function mxOpen(){_mxState.view='select';_mxState.pickFor=null;_mxRenderSheet();try{haptic('tap');}catch(e){}}
+/* Keep the answer fresh as official tournament truth changes. Re-asks the existing
+   engine against current in-memory state and refreshes the result in place ONLY when
+   the official-state fingerprint changed. Never resets the user's selected teams, and
+   never closes the sheet. Fires on render and when the app regains focus — not on
+   resize/pinch/keyboard. */
+function mxRefreshIfStale(){
+  if(!_mxState.a||!_mxState.b||_mxState.view!=='select')return;
+  var scrim=document.getElementById('scrim');if(!scrim||!scrim.classList.contains('on'))return;
+  var host=document.getElementById('mxResult');if(!host)return;
+  var res;try{res=matchupIntelligence(_mxState.a,_mxState.b);}catch(e){return;}
+  var fp=(res.sourceState&&res.sourceState.officialStateFingerprint)||null;
+  if(fp===_mxState.fp)return;
+  _mxState.fp=fp;
+  try{host.innerHTML=_mxResultHTML(res);}catch(e){}
+}
+if(typeof window!=='undefined'&&!window.__mxFreshHook){window.__mxFreshHook=1;
+  try{window.addEventListener('focus',function(){try{mxRefreshIfStale();}catch(e){}});}catch(e){}
+  try{document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){try{mxRefreshIfStale();}catch(e){}}});}catch(e){}
+}
+function _mxRenderSheet(){var sh=document.getElementById('sheet');if(!sh)return;
+  sh.innerHTML='<div class="grab"></div><div class="mx-wrap">'+(_mxState.view==='pick'?_mxPickHTML():_mxSelectHTML())+'</div>';
+  sh.style.transform='';document.getElementById('scrim').classList.add('on');
+  if(_mxState.view==='pick'){var inp=document.getElementById('mxSearchInput');if(inp){try{inp.focus();}catch(e){}}}
+}
+function _mxTeamRef(code){return '<span class="f">'+fl(code)+'</span><span class="n">'+esc(nm(code))+'</span>';}
+function _mxSelectHTML(){
+  var a=_mxState.a,b=_mxState.b,both=a&&b;
+  var h='<div class="mx-top"><span class="mx-kick">Matchup Explorer</span>'+(a||b?'<button class="mx-reset" onclick="mxClearAll()">Start over</button>':'<span class="mx-sub">Pick two teams</span>')+'</div>';
+  h+='<div class="mx-pickrow">';
+  h+=_mxSlot('A',a,'Choose first team');
+  h+=_mxSlot('B',b,'Choose second team');
+  h+='</div>';
+  if(both){ try{ var _res=matchupIntelligence(a,b); _mxState.fp=(_res.sourceState&&_res.sourceState.officialStateFingerprint)||null; h+='<div id="mxResult">'+_mxResultHTML(_res)+'</div>'; }catch(e){ h+='<div id="mxResult"><div class="mx-empty"><div class="mx-empty-t">We couldn\'t read that matchup</div><div class="mx-empty-s">Try choosing the teams again.</div></div></div>'; } }
+  else{ h+='<div class="mx-empty"><div class="mx-empty-ic">🧭</div><div class="mx-empty-t">'+(a||b?'Now choose the second team':'Compare any two of the 48 teams')+'</div><div class="mx-empty-s">'+(a||b?'Tap the empty slot above to pick who they could meet.':'See whether they can meet, the earliest round it could happen, and exactly what each team has to do.')+'</div></div>'; }
+  return h;
+}
+function _mxSlot(slot,code,placeholder){
+  var k=slot==='A'?'First team':'Second team';
+  if(code){var g=TG[code];return '<button class="mx-slot filled" aria-label="Change '+esc(nm(code))+'" onclick="mxStartPick(\''+slot+'\')"><span class="mx-slot-chg">Change ›</span><span class="mx-slot-k">'+k+'</span><span class="mx-slot-team"><span class="mx-slot-fl">'+fl(code)+'</span><span style="min-width:0"><span class="mx-slot-nm">'+esc(nm(code))+'</span> <span class="mx-slot-grp">Group '+esc(g||'?')+'</span></span></span></button>';}
+  return '<button class="mx-slot" onclick="mxStartPick(\''+slot+'\')"><span class="mx-slot-k">'+k+'</span><span class="mx-slot-empty">'+esc(placeholder)+'</span><span class="mx-slot-hint">Tap to choose</span></button>';
+}
+function mxStartPick(slot){_mxState.pickFor=slot;_mxState.q='';_mxState.view='pick';_mxRenderSheet();}
+function mxBackToSelect(){_mxState.view='select';_mxState.pickFor=null;_mxRenderSheet();}
+function mxClearAll(){_mxState.a=null;_mxState.b=null;_mxState.view='select';_mxState.pickFor=null;_mxRenderSheet();}
+function mxChoose(code){var slot=_mxState.pickFor;var other=slot==='A'?_mxState.b:_mxState.a;if(code===other)return;
+  if(slot==='A')_mxState.a=code;else _mxState.b=code;
+  var otherNow=slot==='A'?_mxState.b:_mxState.a;
+  if(!otherNow){_mxState.pickFor=(slot==='A'?'B':'A');_mxState.q='';_mxState.view='pick';}
+  else{_mxState.view='select';_mxState.pickFor=null;}
+  _mxRenderSheet();try{haptic('tap');}catch(e){}}
+function mxFilter(el){_mxState.q=el.value||'';var g=document.getElementById('mxGrid');if(g)g.innerHTML=_mxGridHTML();}
+function _mxPickHTML(){
+  var slot=_mxState.pickFor,k=slot==='A'?'first':'second';
+  var h='<div class="mx-pksticky"><div class="mx-pkhead"><button class="mx-back" aria-label="Back" onclick="mxBackToSelect()">←</button><div class="mx-pktitle">Choose '+k+' team<span>All 48 teams · search or browse Groups A–L</span></div></div>';
+  h+='<div class="mx-search"><span class="mx-mag">🔍</span><input id="mxSearchInput" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search a team" value="'+esc(_mxState.q)+'" oninput="mxFilter(this)"></div></div>';
+  h+='<div id="mxGrid" class="mx-grid-scroll">'+_mxGridHTML()+'</div>';
+  return h;
+}
+function _mxGridHTML(){
+  var slot=_mxState.pickFor,other=slot==='A'?_mxState.b:_mxState.a,sel=slot==='A'?_mxState.a:_mxState.b;
+  var q=normTeamInput(_mxState.q||''),hits=0,h='';
+  'ABCDEFGHIJKL'.split('').forEach(function(g){
+    var teams=(GROUPS[g]||[]).filter(function(c){return !q||normTeamInput(nm(c)).indexOf(q)>=0||normTeamInput(c).indexOf(q)>=0;});
+    if(!teams.length)return;hits+=teams.length;
+    h+='<div class="mx-grp"><div class="mx-grp-h">Group '+g+'</div><div class="mx-grid">';
+    teams.forEach(function(c){var dis=(c===other),on=(c===sel);
+      h+='<button class="mx-tm'+(on?' sel':'')+(dis?' dis':'')+'" '+(dis?'disabled aria-disabled="true"':'onclick="mxChoose(\''+c+'\')"')+'><span class="fl">'+fl(c)+'</span><span class="mx-tm-nm">'+esc(nm(c))+'</span></button>';
+    });
+    h+='</div></div>';
+  });
+  if(!hits)h='<div class="mx-nohit">No team matches “'+esc(_mxState.q)+'”.</div>';
+  return h;
+}
+/* ---- result rendering: strictly engine-driven (scenarioRoutes) ---- */
+function _mxFriendlyText(s){
+  return String(s||'').replace(/Match #(\d+)/g,function(_,n){var nn=+n;return 'the '+roundName(nn)+' (Match '+nn+')';});
+}
+function _mxMetaChips(meta){
+  var m=meta||{},out=[];
+  if(m.date&&m.date.state==='known'){var dv=m.date.value,ds=dv;try{ds=longDate(dv);}catch(e){}out.push('<span class="mx-chip">📅 <b>'+esc(ds)+'</b></span>');}
+  if(m.time&&m.time.state==='known'){var tv=m.time.value,ts=tv;try{ts=to12(tv)+' ET';}catch(e){}out.push('<span class="mx-chip">🕘 '+esc(ts)+'</span>');}
+  if(m.venue&&m.venue.state==='known'){if(m.venue.stadium)out.push('<span class="mx-chip">🏟️ '+esc(m.venue.stadium)+'</span>');if(m.venue.city)out.push('<span class="mx-chip">📍 '+esc(m.venue.city)+'</span>');}
+  return out.join('');
+}
+function _mxOrdinal(finishLabel){return String(finishLabel||'').split(' ')[0];}
+function _mxStepText(s){
+  var r=esc(s.round||'');
+  if(s.displayLabel)return '<span class="mx-rstep '+(s.outcome==='loss'?'bronze':(s.outcome==='already_advanced'?'done':''))+'">'+esc(s.displayLabel)+'</span>';
+  if(s.action==='already_advanced')return '<span class="mx-rstep done">Already through <b>'+r+'</b></span>';
+  if(s.action==='lose'||s.action==='not_advance_to_final')return '<span class="mx-rstep bronze">Lose <b>the '+r+'</b></span>';
+  return '<span class="mx-rstep">Win <b>'+r+'</b></span>';
+}
+function _mxRouteColumn(rt){
+  var h='<div class="mx-rcol"><div class="mx-rteam"><span class="f">'+fl(rt.code)+'</span><span class="n">'+esc(rt.name||nm(rt.code))+'</span></div>';
+  h+='<span class="mx-rfin">Finish</span><span class="mx-rfinv">'+esc(rt.requiredFinish||'')+'</span>';
+  var chain=rt.advancementPath||[];
+  if(chain.length)h+=chain.map(_mxStepText).join('');
+  else h+='<span class="mx-rnone">Lands straight into this tie.</span>';
+  return h+'</div>';
+}
+function _mxRouteHasThird(route){
+  if(route.thirdPlaceAllocation&&route.thirdPlaceAllocation.checked)return true;
+  return /3rd/.test((route.teamA&&route.teamA.requiredFinish)||'')||/3rd/.test((route.teamB&&route.teamB.requiredFinish)||'');
+}
+function _mxThirdNote(){
+  return '<div class="mx-third"><span class="ic">🎟️</span><div class="mx-third-b">This route also depends on the final <b>best-third qualification combinations</b> — which third-placed teams advance and where they slot in.</div></div>';
+}
+function _mxMeetingTag(c){
+  var k=(c==='confirmed'||c==='scheduled'||c==='projected')?c:'conditional';
+  var label=c==='confirmed'?'Officially set':c==='scheduled'?'Scheduled':c==='projected'?'Projected':'If paths align';
+  return '<span class="mx-mtag '+k+'">'+label+'</span>';
+}
+function _mxIsBronze(route){var t=route&&route.target;return !!(t&&(t.matchNum===103||t.round==='Third-place match'));}
+function _mxAltShortRound(r){return r==='Third-place match'?'Third-place':r;}
+function _mxBronzeNote(){return '<div class="mx-bronzenote"><span class="ic">🥉</span><span><b>Third-place match</b> — only if both teams lose their Semi-finals.</span></div>';}
+function _mxRouteCard(route){
+  var t=route.target||{},isFinal=route.isFinalOnly,isBronze=_mxIsBronze(route),where=t.round||'the knockouts';
+  var h='<div class="mx-route'+(isFinal&&!isBronze?' final':'')+(isBronze?' bronze':'')+'">';
+  if(isBronze)h+=_mxBronzeNote();
+  h+='<div class="mx-rcols">'+_mxRouteColumn(route.teamA)+_mxRouteColumn(route.teamB)+'</div>';
+  h+='<div class="mx-mcard"><span class="mm-ic">'+(isBronze?'🥉':(isFinal?'🏆':'🤝'))+'</span><span class="mm-tx"><span class="mm-k">They meet in</span><span class="mm-r">'+esc(where==='Final'?'the Final':where)+'</span></span>'+_mxMeetingTag(t.certainty)+'</div>';
+  var chips=_mxMetaChips(t.metadata);
+  if(chips)h+='<div class="mx-mmeta">'+chips+'</div>';
+  if(_mxRouteHasThird(route))h+=_mxThirdNote();
+  if(route.cannotMeetEarlierBecause)h+='<div class="mx-sooner"><div class="mx-sooner-k">Why not sooner?</div><div class="mx-sooner-b">'+esc(_mxFriendlyText(route.cannotMeetEarlierBecause))+'</div></div>';
+  if(t.matchNum)h+='<button class="mx-vib" onclick="mxSeeInBracket()">See this round in bracket →</button>';
+  return h+'</div>';
+}
+function _mxAltSummary(route){
+  var fa=_mxOrdinal(route.teamA.requiredFinish),fb=_mxOrdinal(route.teamB.requiredFinish),where=_mxAltShortRound(route.target.round);
+  return '<span class="alt-tx">'+esc(nm(route.teamA.code)+' '+fa+' + '+nm(route.teamB.code)+' '+fb+' → '+where)+'</span><span class="arr">›</span>';
+}
+function _mxAltBody(route){
+  var isBronze=_mxIsBronze(route);
+  var h='<div class="mx-alt-body">';
+  if(isBronze)h+=_mxBronzeNote();
+  h+='<div class="mx-altmeet'+(isBronze?' bronze':'')+'">Meet in '+esc(route.target.round)+'</div><div class="mx-rcols">'+_mxRouteColumn(route.teamA)+_mxRouteColumn(route.teamB)+'</div>';
+  if(_mxRouteHasThird(route))h+=_mxThirdNote();
+  return h+'</div>';
+}
+function _mxAltCard(route){
+  return '<details class="mx-alt'+(_mxIsBronze(route)?' bronze':'')+'"><summary>'+_mxAltSummary(route)+'</summary>'+_mxAltBody(route)+'</details>';
+}
+function _mxResultHTML(res){
+  if(!res||res.ok===false)return '<div class="mx-empty"><div class="mx-empty-t">'+esc((res&&res.headline)||'Choose two different teams')+'</div></div>';
+  var a=res.teams.teamA.code,b=res.teams.teamB.code,v=res.verdict,gm=res.groupStageMeeting||{};
+  var routes=res.scenarioRoutes||[],primary=null,i;
+  for(i=0;i<routes.length;i++){if(routes[i].recommendedPrimaryRoute){primary=routes[i];break;}}
+  if(!primary&&routes.length)primary=routes[0];
+  var earliest=res.earliestPossibleRound,finalOnly=(v==='conditional'&&res.finalOnlyFutureKnockoutMeeting);
+  var h='',badgeCls,badgeTxt,ans,ansIc,heroCls;
+  if(v==='confirmed'){heroCls='v-confirmed';badgeCls='confirmed';badgeTxt='Confirmed';ansIc='✅';ans='Yes — they’re officially set to meet in '+(earliest==='Final'?'the Final':(earliest||'the knockouts'))+'.';}
+  else if(v==='scheduled'){heroCls='v-scheduled';badgeCls='scheduled';badgeTxt='Scheduled';ansIc='📅';ans='Yes — they’re scheduled to meet in the group stage.';}
+  else if(finalOnly){heroCls='v-final';badgeCls='final';badgeTxt='Final only';ansIc='🏆';ans='They can only meet in the Final.';}
+  else if(v==='conditional'){heroCls='v-conditional';badgeCls='conditional';badgeTxt='Not confirmed yet';ansIc='🧭';ans='Yes — their earliest possible meeting is '+(earliest==='Final'?'the Final':(earliest||'the knockouts'))+'.';}
+  else if(v==='completed'){heroCls='v-completed';badgeCls='closed';badgeTxt='Already played';ansIc='🗂️';ans='No future meeting remains — they’ve already played in the group stage.';}
+  else{heroCls='v-impossible';badgeCls='closed';badgeTxt='Not possible';ansIc='⛔';ans='No future meeting remains.';}
+  var ansSub='';
+  if(v==='confirmed')ansSub='This tie is officially set in the current bracket.';
+  else if(finalOnly)ansSub='Their paths can only cross in the Final.';
+  else if(v==='conditional')ansSub='This is the quickest valid route based on the current official tournament state.';
+  else if(v==='scheduled')ansSub='It’s already on the group-stage schedule.';
+  h+='<div class="mx-hero '+heroCls+'"><div class="mx-hero-fls"><span class="mx-hero-fl">'+_mxTeamRef(a)+'</span><span class="mx-hero-vs">&amp;</span><span class="mx-hero-fl">'+_mxTeamRef(b)+'</span></div>';
+  h+='<div class="mx-badge '+badgeCls+'"><span class="bd" style="background:currentColor;opacity:.55"></span>'+esc(badgeTxt)+'</div>';
+  h+='<div class="mx-q">Can '+esc(nm(a))+' and '+esc(nm(b))+' meet?</div>';
+  h+='<div class="mx-ans"><span class="ic">'+ansIc+'</span><span>'+esc(ans)+'</span></div>'+(ansSub?'<div class="mx-ans-sub">'+esc(ansSub)+'</div>':'')+'</div>';
+  /* group history (already played) — separate from future possibilities */
+  if(gm.exists&&gm.state==='completed'&&gm.score){
+    h+='<div class="mx-hist"><span class="fl">'+fl(gm.home)+'</span><span class="sc">'+esc(gm.score.home)+'–'+esc(gm.score.away)+'</span><span class="fl">'+fl(gm.away)+'</span><span class="lb">Group '+esc(gm.group||'')+'<br>already played</span></div>';
+  }
+  /* group scheduled meeting */
+  if(gm.exists&&gm.state==='scheduled'){
+    h+='<div class="mx-sec">Their group meeting</div><div class="mx-route"><div class="mx-mcard"><span class="mm-ic">📅</span><span class="mm-tx"><span class="mm-k">They meet in</span><span class="mm-r">Group '+esc(gm.group||'')+'</span></span><span class="mx-mtag scheduled">Scheduled</span></div>'+(gm.metadata?('<div class="mx-mmeta">'+_mxMetaChips(gm.metadata)+'</div>'):'')+'</div>';
+  }
+  /* fastest way they can meet */
+  if(primary)h+='<div class="mx-sec">Fastest way they can meet</div>'+_mxRouteCard(primary);
+  /* other valid routes — first three shown openly (canonical engine order), rest collapsed */
+  if(routes.length>1){
+    var alts=routes.filter(function(r){return r!==primary;});
+    var openAlts=alts.slice(0,3),restAlts=alts.slice(3);
+    h+='<div class="mx-sec">Other ways they could meet</div>';
+    h+='<div class="mx-altlist-open">'+openAlts.map(_mxAltCard).join('')+'</div>';
+    if(restAlts.length)h+='<details class="mx-alts"><summary>See '+restAlts.length+' more possible route'+(restAlts.length>1?'s':'')+'<span class="chev">›</span></summary><div class="mx-altlist">'+restAlts.map(_mxAltCard).join('')+'</div></details>';
+  }
+  /* why it cannot happen */
+  if(v==='impossible'||(v==='completed'&&!routes.length)){
+    var reason=res.impossibleReason||res.noScenarioRouteReason||'No legal meeting remains from the current official tournament state.';
+    h+='<div class="mx-sec">Why this matchup cannot happen</div><div class="mx-why"><div class="mx-why-h"><span class="ic">⛔</span>No path connects them</div><div class="mx-why-b">'+esc(_mxFriendlyText(reason))+'</div></div>';
+  }
+  h+='<div class="mx-prov">Answered by the official Matchup Intelligence engine — every route reflects confirmed fixtures and the real qualification rules, never a prediction.</div>';
+  return h;
+}
+function mxSeeInBracket(){
+  try{
+    var a=_mxState.a,b=_mxState.b;if(!a||!b)return;
+    var res=matchupIntelligence(a,b),routes=res.scenarioRoutes||[],p=null,i;
+    for(i=0;i<routes.length;i++){if(routes[i].recommendedPrimaryRoute){p=routes[i];break;}}
+    if(!p&&routes.length)p=routes[0];
+    var round=p&&p.target?p.target.round:null;
+    var map={'Round of 32':'r32','Round of 16':'r16','Quarter-final':'qf','Quarter-finals':'qf','Semi-final':'sf','Semi-finals':'sf','Third-place match':'final','Bronze Final':'final','Final':'final'};
+    if(round&&map[round])_brkRound=map[round];
+    S.focus=a;closeSheet();goBracket();
+  }catch(e){closeSheet();try{goBracket();}catch(e2){}}
+}
 render();
 try{handleDeepLink();}catch(e){}
 </script>
