@@ -130,6 +130,7 @@ function routeTopology(route) {
   return {
     target: route.target.matchNum,
     round: route.target.round,
+    stageOrder: route.target.stageOrder,
     entries: [route.teamA, route.teamB].map((team) => ({
       code: team.code,
       finish: team.requiredFinish,
@@ -158,7 +159,7 @@ function assertPathFeedsTarget(app, route, team) {
     assert.equal(step.feedsMatchNum, expected, `${route.id} path fixture #${step.matchNum} must feed #${expected}`);
     if (step.action === 'win' || step.action === 'already_advanced') {
       assert.equal(app.NEXTWIN[step.matchNum], step.feedsMatchNum, `${route.id} win path must use NEXTWIN`);
-    } else if (step.action === 'not_advance_to_final') {
+    } else if (step.action === 'lose' || step.action === 'not_advance_to_final') {
       assert.equal(route.target.matchNum, 103, `${route.id} non-advance step must feed the Third-place match`);
       assert.ok(app.FEEDERS[103].includes(step.matchNum), `${route.id} semifinal must feed Third-place match`);
     } else {
@@ -206,6 +207,7 @@ test('scenario routes are compatible combined paths and every referenced fixture
       assert.ok(app.M[route.target.matchNum], `${route.id} target fixture missing`);
       assert.equal(app.M[route.target.matchNum].stage, 'ko');
       assert.equal(route.target.fixtureId, `M${route.target.matchNum}`);
+      assert.equal(typeof route.target.stageOrder, 'number', `${route.id} target needs machine-readable stageOrder`);
       assert.ok(['confirmed', 'scheduled', 'conditional', 'projected', 'pending'].includes(route.target.certainty));
       assert.equal(route.teamA.code, a);
       assert.equal(route.teamB.code, b);
@@ -227,18 +229,87 @@ test('scenario route sorting chooses the earliest least-complex official route f
     routes.forEach((route, i) => {
       if (i === 0) return;
       const prev = routes[i - 1];
-      const prevRound = { 'Round of 32': 1, 'Round of 16': 2, 'Quarter-finals': 3, 'Semi-finals': 4, 'Third-place match': 5, Final: 6 }[prev.target.round] || 99;
-      const round = { 'Round of 32': 1, 'Round of 16': 2, 'Quarter-finals': 3, 'Semi-finals': 4, 'Third-place match': 5, Final: 6 }[route.target.round] || 99;
-      assert.ok(prevRound <= round, `${a}/${b} route order regressed by round`);
+      const prevRound = prev.target.stageOrder;
+      const round = route.target.stageOrder;
+      assert.ok(prevRound <= round, `${a}/${b} route order regressed by canonical stageOrder`);
       if (prevRound === round) {
         assert.ok(prev.dependencies.length <= route.dependencies.length || prev.target.matchNum <= route.target.matchNum);
       }
     });
     if (routes.length) {
-      const earliest = routes[0].target.round;
-      routes.forEach((route) => assert.equal(route.isEarliestRoute, route.target.round === earliest));
+      const earliest = routes[0].target.stageOrder;
+      routes.forEach((route) => assert.equal(route.isEarliestRoute, route.target.stageOrder === earliest));
     }
   });
+});
+
+test('recommended primary route always has the minimum canonical stageOrder', () => {
+  const { cases } = allPairCases();
+  cases.forEach(({ a, b, ab }) => {
+    if (!ab.scenarioRoutes.length) return;
+    const minStage = Math.min(...ab.scenarioRoutes.map((route) => route.target.stageOrder));
+    const primary = ab.scenarioRoutes.find((route) => route.id === ab.recommendedPrimaryRoute);
+    assert.ok(primary, `${a}/${b} missing recommended primary route object`);
+    assert.equal(primary.target.stageOrder, minStage, `${a}/${b} primary route must be the earliest canonical stage`);
+    assert.equal(ab.earliestPossibleRound, primary.target.round, `${a}/${b} earliestPossibleRound must match primary stage`);
+  });
+});
+
+test('third-place routes never outrank earlier quarter-final or semi-final routes', () => {
+  const { cases } = allPairCases();
+  cases.forEach(({ a, b, ab }) => {
+    const hasThird = ab.scenarioRoutes.some((route) => route.target.round === 'Third-place match');
+    const hasEarlier = ab.scenarioRoutes.some((route) => route.target.stageOrder < 5);
+    if (!hasThird || !hasEarlier) return;
+    const primary = ab.scenarioRoutes.find((route) => route.id === ab.recommendedPrimaryRoute);
+    assert.notEqual(primary.target.round, 'Third-place match', `${a}/${b} Third-place route outranked an earlier route`);
+  });
+});
+
+test('Portugal Argentina regression keeps Quarter-final ahead of Third-place when both exist', () => withApp((app) => {
+  const result = app.matchupIntelligence('POR', 'ARG');
+  assert.ok(result.scenarioRoutes.some((route) => route.target.round === 'Quarter-final'), 'expected a Quarter-final route');
+  assert.ok(result.scenarioRoutes.some((route) => route.target.round === 'Third-place match'), 'expected a Third-place route');
+  const primary = result.scenarioRoutes.find((route) => route.id === result.recommendedPrimaryRoute);
+  assert.notEqual(primary.target.round, 'Third-place match');
+  assert.ok(primary.target.stageOrder < 5);
+  assert.equal(result.earliestPossibleRound, primary.target.round);
+}));
+
+test('route ordering uses canonical stageOrder rather than fixture number or display text', () => {
+  const { cases } = allPairCases();
+  cases.forEach(({ a, b, ab }) => {
+    const routes = ab.scenarioRoutes;
+    for (let i = 1; i < routes.length; i++) {
+      assert.ok(routes[i - 1].target.stageOrder <= routes[i].target.stageOrder, `${a}/${b} route order must follow stageOrder`);
+    }
+    routes.forEach((route) => {
+      if (route.target.round === 'Quarter-final') assert.equal(route.target.stageOrder, 3);
+      if (route.target.round === 'Semi-final') assert.equal(route.target.stageOrder, 4);
+      if (route.target.round === 'Third-place match') assert.equal(route.target.stageOrder, 5);
+      if (route.target.round === 'Final') assert.equal(route.target.stageOrder, 6);
+    });
+  });
+});
+
+test('third-place advancement path carries an explicit semifinal-loss requirement', () => {
+  const { cases } = allPairCases();
+  let checked = 0;
+  cases.forEach(({ ab }) => {
+    ab.scenarioRoutes.filter((route) => route.target.round === 'Third-place match').forEach((route) => {
+      [route.teamA, route.teamB].forEach((team) => {
+        const lossStep = team.advancementPath.find((step) => step.feedsMatchNum === 103);
+        assert.ok(lossStep, `${route.id} needs a Third-place feeder step`);
+        assert.equal(lossStep.round, 'Semi-final');
+        assert.equal(lossStep.outcome, 'loss');
+        assert.equal(lossStep.action, 'lose');
+        assert.match(lossStep.displayLabel, /^Lose the Semi-final$/);
+        assert.match(lossStep.requirement, /must lose Match #/);
+      });
+      checked += 1;
+    });
+  });
+  assert.ok(checked > 0, 'expected at least one Third-place scenario route');
 });
 
 test('same-group pairs preserve group fixture and still expose future scenario routes when possible', () => withApp((app) => {
@@ -363,7 +434,27 @@ test('live or provisional state never upgrades a matchup to confirmed', () => wi
         assert.equal(ks.state, 'confirmed');
       }
     });
+    app.matchupIntelligence(a, b).scenarioRoutes.forEach((route) => {
+      if (route.target.certainty === 'confirmed') {
+        const ks = app.knockoutSlotStatus(route.target.matchNum, false);
+        assert.equal(ks.state, 'confirmed');
+      }
+    });
   });
+}));
+
+test('official result changes produce a fresh source-state identity on next analysis', () => withApp((app) => {
+  const before = app.matchupIntelligence('POR', 'ARG');
+  const openGroupMatch = app.MATCHES.find((m) => m.stage === 'group' && !app.tccOfficialFinal(m.num));
+  assert.ok(openGroupMatch, 'expected an unfinished group match for freshness test');
+  app.REAL[openGroupMatch.num] = [1, 0];
+  const state = app.getState();
+  state.sc[openGroupMatch.num] = { h: 1, a: 0 };
+  state.real[openGroupMatch.num] = 1;
+  app.setState(state);
+  const after = app.matchupIntelligence('POR', 'ARG');
+  assert.notEqual(after.sourceState.officialStateFingerprint, before.sourceState.officialStateFingerprint);
+  assert.ok(after.sourceState.officialUpdateState.officialResultFixtures.includes(openGroupMatch.num));
 }));
 
 test('same-group teams expose their direct group fixture, completed fixture stays historical, and future analysis still runs', () => withApp((app) => {

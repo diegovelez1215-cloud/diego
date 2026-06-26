@@ -6432,15 +6432,25 @@ function fullRouteExplorerEngine(code){
    knockoutSlotStatus / koSlotOfficialTeam for official knockout confirmation,
    NEXTWIN / FEEDERS / DATA.matches for bracket topology. */
 var MATCHUP_INTEL_VERSION='matchup-intel-v1';
-var MI_ROUND_ORDER={'Round of 32':1,'Round of 16':2,'Quarter-finals':3,'Semi-finals':4,'Third-place match':5,'Final':6};
+var MI_STAGE_ORDER={'Round of 32':1,'Round of 16':2,'Quarter-final':3,'Quarter-finals':3,'Semi-final':4,'Semi-finals':4,'Third-place match':5,'Bronze Final':5,'Final':6};
 function miFixtureMeta(m){
   if(!m)return{known:false,date:{state:'pending'},time:{state:'pending'},venue:{state:'pending'}};
   return{known:true,date:m.date?{state:'known',value:m.date}:{state:'pending'},time:m.time?{state:'known',value:m.time}:{state:'pending'},venue:m.venue?{state:'known',value:m.venue,stadium:VEN[m.venue]?VEN[m.venue][1]:null,city:VEN[m.venue]?VEN[m.venue][2]:null}:{state:'pending'}};
 }
 function miRoundName(num){return num===103?'Third-place match':roundName(num);}
+function miStageOrder(round){return MI_STAGE_ORDER[round]||99;}
 function miTeamRef(code){return code&&T[code]?{code:code,name:nm(code),flag:fl(code),group:TG[code]||null}:null;}
+function miStablePairs(obj){
+  return Object.keys(obj||{}).sort(function(a,b){return(+a)-(+b)||String(a).localeCompare(String(b));}).map(function(k){var v=obj[k];if(Array.isArray(v))return k+':'+v.join('-');if(v&&typeof v==='object')return k+':'+Object.keys(v).sort().map(function(x){return x+'='+v[x];}).join(',');return k+':'+v;});
+}
+function miSourceState(){
+  var officialResults=miStablePairs(REAL),officialKo=miStablePairs(S&&S.realko),liveStates=[];
+  if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=S.rwState[k];if(st&&(st.kind==='live'||st.kind==='hold')&&!tccOfficialFinal(+k))liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
+  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']';
+  return{officialStateFingerprint:fp,officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];})},liveStateFingerprint:'live['+liveStates.join('|')+']',liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
+}
 function miSafeError(input,reason,message){
-  return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],scenarioRoutes:[],recommendedPrimaryRoute:null,alternativeRouteCount:0,noScenarioRouteReason:'Scenario routes require two recognized, different tournament teams.',earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
+  return{version:MATCHUP_INTEL_VERSION,ok:false,input:input||{},teams:{teamA:null,teamB:null},headline:message,verdict:'invalid',certainty:'unknown',sourceState:miSourceState(),groupStageMeeting:{exists:false,state:'none'},knockoutPossibilities:[],scenarioRoutes:[],recommendedPrimaryRoute:null,alternativeRouteCount:0,noScenarioRouteReason:'Scenario routes require two recognized, different tournament teams.',earliestPossibleRound:null,latestPossibleRound:null,finalOnlyFutureKnockoutMeeting:false,requirements:[],impossibleReason:null,errors:[{reason:reason,message:message}],evidence:{sources:['DATA.teams'],notes:['Input validation failed before tournament analysis.']}};
 }
 function miNormalizePair(a,b){
   var ca=teamCode?teamCode(a):a,cb=teamCode?teamCode(b):b;
@@ -6542,12 +6552,12 @@ function miPossibilityState(num,a,b){
   return{certainty:'conditional',label:'Conditional'};
 }
 function miPossibility(num,a,b,ea,eb,reqs,seen){
-  var m=M[num],st=miPossibilityState(num,a,b),round=miRoundName(num);
+  var m=M[num],st=miPossibilityState(num,a,b),round=miRoundName(num),stageOrder=miStageOrder(round);
   miEntryRequirements(ea,'A',reqs,seen);miEntryRequirements(eb,'B',reqs,seen);
   var comboA=miThirdComboSet(ea),comboB=miThirdComboSet(eb),comboCount=null;
   if(comboA&&comboB){var mb={};comboB.forEach(function(x){mb[x]=1;});comboCount=comboA.filter(function(x){return mb[x];}).length;}
   else if(comboA)comboCount=comboA.length;else if(comboB)comboCount=comboB.length;
-  return{fixtureId:'M'+num,matchNum:num,round:round,metadata:miFixtureMeta(m),certainty:st.certainty,statusLabel:st.label,
+  return{fixtureId:'M'+num,matchNum:num,round:round,stageOrder:stageOrder,metadata:miFixtureMeta(m),certainty:st.certainty,statusLabel:st.label,
     teamA:{code:a,requiredEntrySlot:ea.slot,requiredFinish:ea.finishPosition,participantPath:num===103?'loser of semifinal':'winner path'},
     teamB:{code:b,requiredEntrySlot:eb.slot,requiredFinish:eb.finishPosition,participantPath:num===103?'loser of semifinal':'winner path'},
     requirements:reqs,explanation:st.certainty==='confirmed'?nm(a)+' and '+nm(b)+' are officially locked into Match #'+num+'.':nm(a)+' and '+nm(b)+' have a compatible path to meet in '+round+'.',
@@ -6574,16 +6584,16 @@ function miAdvancementPath(code,entry,target){
     if(!path)return out;
     for(i=0;i<path.length;i++){
       n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n]||semi;
-      out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',feedsFixtureId:'M'+next,feedsMatchNum:next,evidence:{source:'NEXTWIN',winnerFeedsTo:next}});
+      out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),stageOrder:miStageOrder(miRoundName(n)),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',outcome:w===code?'already_advanced':'win',displayLabel:w===code?'Already through '+miRoundName(n):'Win '+miRoundName(n),feedsFixtureId:'M'+next,feedsMatchNum:next,evidence:{source:'NEXTWIN',winnerFeedsTo:next}});
     }
-    out.push({fixtureId:'M'+semi,matchNum:semi,round:miRoundName(semi),requirement:nm(code)+' must reach Match #'+semi+' and not advance to the Final.',action:'not_advance_to_final',feedsFixtureId:'M103',feedsMatchNum:103,evidence:{source:'FEEDERS',loserFeedsTo:103}});
+    out.push({fixtureId:'M'+semi,matchNum:semi,round:miRoundName(semi),stageOrder:miStageOrder(miRoundName(semi)),requirement:nm(code)+' must lose Match #'+semi+' to enter the Third-place match.',action:'lose',outcome:'loss',displayLabel:'Lose the '+miRoundName(semi),feedsFixtureId:'M103',feedsMatchNum:103,evidence:{source:'FEEDERS',loserFeedsTo:103}});
     return out;
   }
   path=miPriorPath(entry.slot.matchNum,target);
   if(!path)return out;
   for(i=0;i<path.length;i++){
     n=path[i];w=S.realko&&S.realko[n];next=NEXTWIN[n];
-    out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',feedsFixtureId:next?'M'+next:null,feedsMatchNum:next||null,evidence:{source:'NEXTWIN',winnerFeedsTo:next||null}});
+    out.push({fixtureId:'M'+n,matchNum:n,round:miRoundName(n),stageOrder:miStageOrder(miRoundName(n)),requirement:w===code?nm(code)+' have already advanced from Match #'+n+'.':nm(code)+' must win Match #'+n+'.',action:w===code?'already_advanced':'win',outcome:w===code?'already_advanced':'win',displayLabel:w===code?'Already through '+miRoundName(n):'Win '+miRoundName(n),feedsFixtureId:next?'M'+next:null,feedsMatchNum:next||null,evidence:{source:'NEXTWIN',winnerFeedsTo:next||null}});
   }
   return out;
 }
@@ -6627,7 +6637,7 @@ function miScenarioRoutesFromPossibilities(a,b,poss){
     var deps=[],third=miSharedThirdCombos(ea,eb),certainty=miScenarioCertainty(p);
     miScenarioDependencies(a,ea,deps);miScenarioDependencies(b,eb,deps);
     if(third.checked&&third.compatibleCombinationCount>1)deps.push(third.compatibleCombinationCount+' valid third-place allocation combinations keep this combined route possible.');
-    var r={id:miRouteId(a,b,p),target:{fixtureId:p.fixtureId,matchNum:p.matchNum,round:p.round,metadata:p.metadata,certainty:certainty,statusLabel:p.statusLabel,sourceFixture:p.evidence&&p.evidence.sourceFixture?p.evidence.sourceFixture:null},
+    var r={id:miRouteId(a,b,p),target:{fixtureId:p.fixtureId,matchNum:p.matchNum,round:p.round,stageOrder:p.stageOrder||miStageOrder(p.round),metadata:p.metadata,certainty:certainty,statusLabel:p.statusLabel,sourceFixture:p.evidence&&p.evidence.sourceFixture?p.evidence.sourceFixture:null},
       isEarliestRoute:false,isFinalOnly:p.matchNum===104,recommendedPrimaryRoute:false,headline:miRouteHeadline(a,b,p),
       teamA:miScenarioTeam(a,ea,p.matchNum),teamB:miScenarioTeam(b,eb,p.matchNum),dependencies:deps,
       thirdPlaceAllocation:{checked:third.checked,compatibleCombinationCount:third.compatibleCombinationCount,compatibleCombinations:third.compatibleCombinations},
@@ -6636,14 +6646,14 @@ function miScenarioRoutesFromPossibilities(a,b,poss){
     routes.push(r);
   });
   routes.sort(function(x,y){
-    return (MI_ROUND_ORDER[x.target.round]||99)-(MI_ROUND_ORDER[y.target.round]||99)||
+    return (x.target.stageOrder||miStageOrder(x.target.round))-(y.target.stageOrder||miStageOrder(y.target.round))||
       x.dependencies.length-y.dependencies.length||
       miCertaintyRank(x.target.certainty)-miCertaintyRank(y.target.certainty)||
       x.target.matchNum-y.target.matchNum||
       (x.id<y.id?-1:x.id>y.id?1:0);
   });
   if(routes.length){
-    var earliest=routes[0].target.round;routes.forEach(function(r){r.isEarliestRoute=r.target.round===earliest;});
+    var earliest=routes[0].target.stageOrder;routes.forEach(function(r){r.isEarliestRoute=r.target.stageOrder===earliest;});
     routes[0].recommendedPrimaryRoute=true;
   }
   return routes;
@@ -6676,7 +6686,7 @@ function miFutureKnockoutPossibilities(a,b){
       if(seenPoss[key])continue;seenPoss[key]=1;out.push(miPossibility(num,a,b,A,B,reqs,seenReq));
     }
   });});
-  out.sort(function(x,y){return (MI_ROUND_ORDER[x.round]||99)-(MI_ROUND_ORDER[y.round]||99)||x.matchNum-y.matchNum||x.teamA.requiredEntrySlot.matchNum-y.teamA.requiredEntrySlot.matchNum||x.teamB.requiredEntrySlot.matchNum-y.teamB.requiredEntrySlot.matchNum;});
+  out.sort(function(x,y){return (x.stageOrder||miStageOrder(x.round))-(y.stageOrder||miStageOrder(y.round))||x.matchNum-y.matchNum||x.teamA.requiredEntrySlot.matchNum-y.teamA.requiredEntrySlot.matchNum||x.teamB.requiredEntrySlot.matchNum-y.teamB.requiredEntrySlot.matchNum;});
   return out;
 }
 function matchupIntelligence(teamACode,teamBCode,options){
@@ -6690,9 +6700,9 @@ function matchupIntelligence(teamACode,teamBCode,options){
   else if(poss.length){verdict='conditional';certainty='conditional';headline=nm(a)+' and '+nm(b)+' can still meet if their tournament paths align.';}
   else if(gm.exists&&gm.state==='completed'){verdict='completed';certainty='completed';headline=nm(a)+' and '+nm(b)+' have already met in the group stage.';impossibleReason='No compatible future knockout path remains from the current official tournament state.';}
   else{verdict='impossible';certainty='impossible';headline=nm(a)+' and '+nm(b)+' do not have a legal future meeting path from the current official tournament state.';impossibleReason='No fixture can simultaneously resolve to both teams after applying group placement, third-place allocation, and knockout path constraints.';}
-  var rounds=poss.map(function(p){return p.round;}),earliest=rounds[0]||null,latest=rounds.length?rounds[rounds.length-1]:null,finalOnly=poss.length>0&&poss.every(function(p){return p.matchNum===104;});
+  var earliest=scenarioRoutes.length?scenarioRoutes[0].target.round:null,latest=scenarioRoutes.length?scenarioRoutes[scenarioRoutes.length-1].target.round:null,finalOnly=poss.length>0&&poss.every(function(p){return p.matchNum===104;});
   return{version:MATCHUP_INTEL_VERSION,ok:true,input:{teamA:teamACode,teamB:teamBCode},teams:{teamA:miTeamRef(a),teamB:miTeamRef(b)},headline:headline,verdict:verdict,certainty:certainty,
-    groupStageMeeting:gm,knockoutPossibilities:poss,scenarioRoutes:scenarioRoutes,recommendedPrimaryRoute:scenarioRoutes.length?scenarioRoutes[0].id:null,alternativeRouteCount:Math.max(0,scenarioRoutes.length-1),noScenarioRouteReason:miNoScenarioRouteReason(verdict,gm,poss),earliestPossibleRound:earliest,latestPossibleRound:latest,finalOnlyFutureKnockoutMeeting:finalOnly,
+    sourceState:miSourceState(),groupStageMeeting:gm,knockoutPossibilities:poss,scenarioRoutes:scenarioRoutes,recommendedPrimaryRoute:scenarioRoutes.length?scenarioRoutes[0].id:null,alternativeRouteCount:Math.max(0,scenarioRoutes.length-1),noScenarioRouteReason:miNoScenarioRouteReason(verdict,gm,poss),earliestPossibleRound:earliest,latestPossibleRound:latest,finalOnlyFutureKnockoutMeeting:finalOnly,
     requirements:poss.reduce(function(acc,p){p.requirements.forEach(function(r){acc.push(r);});return acc;},[]),impossibleReason:impossibleReason,
     evidence:{sources:['DATA.matches','REAL','GROUPS','TBORDER','TP3','TP3C','tccTeamTournamentStatus','freScenarioPossible','freDirectSlot','freThirdCandidateSlots','freValidThirdCombos','knockoutSlotStatus','koSlotOfficialTeam','NEXTWIN','FEEDERS'],futureKnockoutPossibilitiesEvaluated:true,entryCandidateCounts:{teamA:miEntryCandidates(a).length,teamB:miEntryCandidates(b).length}}};
 }
@@ -9040,8 +9050,9 @@ function _mxMetaChips(meta){
 function _mxOrdinal(finishLabel){return String(finishLabel||'').split(' ')[0];}
 function _mxStepText(s){
   var r=esc(s.round||'');
+  if(s.displayLabel)return '<span class="mx-rstep '+(s.outcome==='loss'?'bronze':(s.outcome==='already_advanced'?'done':''))+'">'+esc(s.displayLabel)+'</span>';
   if(s.action==='already_advanced')return '<span class="mx-rstep done">Already through <b>'+r+'</b></span>';
-  if(s.action==='not_advance_to_final')return '<span class="mx-rstep bronze">Reach <b>'+r+'</b>, but not the Final</span>';
+  if(s.action==='lose'||s.action==='not_advance_to_final')return '<span class="mx-rstep bronze">Lose <b>the '+r+'</b></span>';
   return '<span class="mx-rstep">Win <b>'+r+'</b></span>';
 }
 function _mxRouteColumn(rt){
