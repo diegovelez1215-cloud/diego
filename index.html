@@ -424,6 +424,38 @@ body:has(.scrim.on){overflow:hidden}
 .sh-stad .s3{font-size:10.5px;color:var(--mut2);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
 .sh-links{display:flex;gap:8px;margin-top:12px}
 .sh-links button{flex:1;padding:10px;border-radius:11px;border:1px solid var(--line2);background:var(--card);color:var(--teal);font-weight:800;font-size:11.5px;cursor:pointer}
+/* ===== Official Match Center — factual score/status strip ===== */
+.mc-strip{position:relative;margin:14px 0 4px;padding:15px 14px 14px;border-radius:18px;border:1px solid var(--line2);background:linear-gradient(165deg,rgba(255,255,255,.045),rgba(255,255,255,.012));overflow:hidden}
+.mc-strip.tone-live{border-color:rgba(100,210,255,.42);background:linear-gradient(165deg,rgba(100,210,255,.12),rgba(20,30,60,.55))}
+.mc-strip.tone-final{border-color:rgba(48,209,88,.4);background:linear-gradient(165deg,rgba(48,209,88,.13),rgba(18,32,28,.5))}
+.mc-strip.tone-hold,.mc-strip.tone-pending{border-color:rgba(255,203,61,.34);background:linear-gradient(165deg,rgba(255,203,61,.1),rgba(34,30,18,.5))}
+.mc-statusrow{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:11px}
+.mc-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:5px 11px;border-radius:999px;color:var(--mut);background:rgba(255,255,255,.06);border:1px solid var(--line2)}
+.mc-pill.live{color:#bfe9ff;background:rgba(100,210,255,.16);border-color:rgba(100,210,255,.4)}
+.mc-pill.final{color:#aef5cf;background:rgba(48,209,88,.16);border-color:rgba(48,209,88,.42)}
+.mc-pill.hold,.mc-pill.pending{color:#ffe39a;background:rgba(255,203,61,.14);border-color:rgba(255,203,61,.38)}
+.mc-dot{width:7px;height:7px;border-radius:50%;background:#64d2ff;box-shadow:0 0 0 0 rgba(100,210,255,.6);animation:mcpulse 1.6s ease-out infinite}
+@keyframes mcpulse{0%{box-shadow:0 0 0 0 rgba(100,210,255,.5)}70%{box-shadow:0 0 0 7px rgba(100,210,255,0)}100%{box-shadow:0 0 0 0 rgba(100,210,255,0)}}
+.mc-clk{font-size:11px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--blue2)}
+.mc-vsrow{display:flex;align-items:center;justify-content:center;gap:10px}
+.mc-side{flex:1;min-width:0;text-align:center}
+.mc-side .fl{font-size:38px;line-height:1;display:block}
+.mc-side .nm{font-size:13.5px;font-weight:900;margin-top:6px;overflow-wrap:break-word;min-width:0;line-height:1.15}
+.mc-side .rt3{font-size:9px;color:var(--mut2);font-weight:800;margin-top:2px}
+.mc-score{flex:none;display:flex;align-items:center;gap:7px;font-family:'Space Grotesk',sans-serif;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.mc-score .mc-sc{font-size:38px;line-height:1}
+.mc-score .mc-dash{font-size:24px;font-style:normal;color:var(--mut3);transform:translateY(-2px)}
+.mc-score .mc-novs{font-size:20px;font-weight:800;color:var(--mut3);letter-spacing:0}
+.mc-sub{margin-top:11px;font-size:11.5px;line-height:1.45;color:var(--mut2);font-weight:600;text-align:center}
+.mc-conseq{margin-top:12px;padding:13px 14px;border-radius:15px;border:1px solid var(--line2);background:rgba(255,255,255,.03)}
+.mc-conseq-k{font-size:9.5px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--teal2);margin-bottom:6px}
+.mc-conseq-t{font-size:13px;line-height:1.5;color:var(--txt);font-weight:700}
+.mc-conseq-t b{font-weight:900}
+.mc-conseq-go{margin-top:11px;width:100%;padding:11px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--teal);font-family:inherit;font-weight:850;font-size:12.5px;cursor:pointer}
+.mc-conseq-go:active{transform:scale(.99)}
+.mc-events{margin-top:12px;padding:13px 14px;border-radius:15px;border:1px solid var(--line);background:rgba(255,255,255,.022)}
+.mc-events-h{font-size:9.5px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut3);margin-bottom:6px}
+.mc-events-e{font-size:12px;line-height:1.5;color:var(--mut2);font-weight:600}
 
 /* share modal */
 .share-box{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:14px;margin-top:10px}
@@ -1973,6 +2005,13 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .third-qual{margin:10px 0 14px;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:linear-gradient(168deg,rgba(48,62,132,.32),rgba(18,25,64,.42));padding:12px;overflow:hidden}.third-qual-h{display:flex;flex-direction:column;gap:2px;margin-bottom:9px}.third-qual-h b{font-size:15px;color:#fff}.third-qual-h span{font-size:10.5px;color:var(--mut2);font-weight:850}.third-qual-row{display:grid;grid-template-columns:24px minmax(0,1fr) 46px 44px;gap:8px;align-items:center;min-height:38px;padding:7px 8px;border-top:1px solid rgba(255,255,255,.06);font-size:11.5px}.third-qual-row:first-of-type{border-top:0}.third-qual-rank{font-weight:950;color:var(--gold);font-variant-numeric:tabular-nums}.third-qual-team{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:900}.third-qual-stat{text-align:right;color:var(--mut);font-weight:850;font-variant-numeric:tabular-nums}.third-qual-state{grid-column:2/-1;color:var(--mut2);font-size:10px;font-weight:850;margin-top:-3px}.third-qual-row.in .third-qual-state{color:var(--teal2)}.third-qual-line{margin:8px 0;padding:8px 10px;border-radius:12px;background:rgba(255,203,61,.10);border:1px solid rgba(255,203,61,.22);font-size:10.5px;font-weight:950;color:var(--gold);text-align:center}
 .tour-more-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.tour-more-grid button{min-height:64px;text-align:left;border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;color:#fff;padding:11px 12px;font-size:12px;font-weight:900}.tour-more-grid span{display:block;font-size:10.5px;color:var(--mut);font-weight:700;margin-top:3px}
 @media(max-width:430px){.wrap{padding-left:16px!important;padding-right:16px!important}.home-picks{grid-template-columns:1fr 1fr}.home-picks .home-action{grid-column:1/-1}.home-card.hero .home-score{font-size:26px}.tour-switch{top:50px}}
+/* Matchday hierarchy: a live fixture row reads as "Now" without breaking the
+   timeline rhythm — a quiet left accent + wash, calmer than a full card swap. */
+.home-fixture.islive{box-shadow:inset 3px 0 0 var(--teal2);background:linear-gradient(90deg,rgba(100,210,255,.09),transparent 70%);border-radius:9px}
+.home-fixture.islive .hf-tm{color:#fff}
+.home-time-label{font-size:10.5px}
+.today-rail-head b{letter-spacing:-.2px}
+.home-live-row .home-team{font-weight:850}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 #offline-badge{display:none;font-size:10px;font-weight:800;letter-spacing:.4px;color:var(--red);background:rgba(255,69,58,.16);border:1px solid rgba(255,69,58,.3);padding:2px 7px;border-radius:999px;align-self:center}
 #offline-badge.on{display:inline-block}
@@ -2267,6 +2306,17 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .fre-tchip:hover{border-color:var(--cy-line,rgba(100,210,255,.4))}
 .fre-allbtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;min-height:44px;padding:11px 13px;border:1px solid rgba(100,210,255,.55);border-radius:12px;background:linear-gradient(135deg,rgba(100,210,255,.20),rgba(10,132,255,.16));color:#cdeeff;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer}
 .fre-allbtn:active{transform:scale(.99)}
+/* ===== Route Explorer editorial polish — "Road to the Final" (visual only,
+   no wording/route-math change). Stronger team identity, clearer qualification
+   state, more readable path cards. ===== */
+.fre-head{padding:15px 14px;background:linear-gradient(135deg,rgba(28,40,108,.7),rgba(10,16,46,.55));border-color:var(--line2);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 26px -18px rgba(10,132,255,.6)}
+.fre-head .fre-fl-lg{font-size:34px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+.fre-hnm{font-size:20px;letter-spacing:-.3px}
+.fre-emph{font-weight:800;line-height:1.5;border-left-width:3px}
+.fre-node{padding:11px 12px}
+.fre-node-self{box-shadow:0 0 0 1px var(--cy-line) inset}
+.fre-node-self .fre-dot{color:var(--cy);border-color:var(--cy-line);background:var(--cy-soft)}
+.fre-stchip.fre-confirmed,.fre-stchip.fre-locked{box-shadow:0 0 0 1px rgba(255,214,10,.18)}
 .rat-list{display:flex;flex-direction:column;gap:12px;margin-top:6px}
 .rat-grp{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:rgba(29,42,114,.3)}
 .rat-gh{font-size:10px;font-weight:950;letter-spacing:.6px;text-transform:uppercase;color:#64d2ff;margin-bottom:8px}
@@ -2669,7 +2719,7 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .mx-back:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
 .mx-pktitle{font-size:15px;font-weight:900}
 .mx-pktitle span{display:block;font-size:11px;font-weight:700;color:var(--mut2);letter-spacing:.2px;text-transform:none}
-.mx-search{position:relative;margin-bottom:14px}
+.mx-search{position:relative;margin-bottom:0}
 .mx-search input{width:100%;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:13px;padding:13px 14px 13px 40px;color:var(--txt);font-size:16px;line-height:1.3;font-family:inherit;font-weight:600;-webkit-text-size-adjust:100%;transition:border-color .14s,background .14s,box-shadow .14s}
 .mx-search input::placeholder{color:var(--mut3)}
 .mx-search input:focus{outline:none;border-color:rgba(100,210,255,.5);background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(100,210,255,.12)}
@@ -2749,8 +2799,11 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .mx-vib:focus-visible{outline:2px solid var(--teal2);outline-offset:2px}
 .mx-prov{font-size:10.5px;color:var(--mut3);line-height:1.5;margin:14px 2px 0;text-align:center}
 /* keyboard-safe picker: sticky search header + room for the on-screen keyboard */
-.mx-pksticky{position:sticky;top:0;z-index:3;background:linear-gradient(180deg,var(--bg2) 82%,rgba(16,22,74,.78));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:4px 2px 8px;margin:0 -2px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-.mx-grid-scroll{padding-top:12px;padding-bottom:46vh}
+/* Header + search read as ONE solid block with the sheet — no translucent
+   gradient, no backdrop blur, no horizontal bleed. That glassy floating layer
+   was what made the search feel like a detached pill hovering over the results. */
+.mx-pksticky{position:sticky;top:0;z-index:3;background:var(--bg2);padding:2px 0 10px;margin:0;border-bottom:1px solid var(--line)}
+.mx-grid-scroll{padding-top:12px;padding-bottom:24vh}
 .mx-slot-chg2{font-size:11px;font-weight:800;color:var(--teal2)}
 /* scenario answer hero */
 .mx-q{font-size:20px;font-weight:900;letter-spacing:-.4px;line-height:1.18;margin-bottom:9px;overflow-wrap:break-word}
@@ -5825,7 +5878,7 @@ function render(){
   // Settlement + wallet always run against the TRUE sandbox (S), independent of view mode.
   settleAllBets();try{checkPicks();}catch(e){}try{checkAchv();}catch(e){}renderBankroll();
   try{renderModeBar();}catch(e){}
-  activeViewRender();renderFloatingControls();updateTabBadges();try{tournamentMoments();}catch(e){}saveState();}
+  activeViewRender();renderFloatingControls();updateTabBadges();try{tournamentMoments();}catch(e){}try{refreshMatchCenterTruth();}catch(e){}saveState();}
 /* ⚡ DOM batching: coalesce rapid render() calls into one 60fps frame */
 var _origRender=render,_renderPending=false;
 render=function(){if(_renderPending)return;_renderPending=true;(window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){_renderPending=false;try{_origRender();}catch(e){}});};
@@ -7444,6 +7497,120 @@ function loadBlurb(code){if(!code)return;
      _wiki[code]={ex:ex,img:img};applyWiki(code);
    }).catch(function(){_wiki[code]={ex:"",img:""};});}
 var _openSheetNum=null;
+/* ============================================================================
+   OFFICIAL MATCH CENTER — single factual truth read-model.
+   The fixture cards show a score read from the official/live truth layer
+   (truthOfficialFinalScore + S.real/S.realko for finals, truthLiveStateFor /
+   S.rwState for provisional live/hold). The Match Center sheet used to read its
+   score only from S.sc[num] — which is empty during a live match — so a card
+   could show "1–0" while the Match Center showed "– : –". matchCenterTruth()
+   reads the SAME existing containers, in the same precedence, with no new fetch,
+   no separate state container, and never invents a score. ====================== */
+function matchCenterTruth(num){
+  var m=M[num];if(!m)return null;
+  var ko=m.stage!=='group';
+  var parts=ko?koParts(num):[m.home,m.away];
+  var base={num:num,ko:ko,hCode:parts[0]||null,aCode:parts[1]||null};
+  var lab=(S.rwState&&S.rwState[num]&&S.rwState[num].label)||'';
+  // 1) Official final — factual, from the official result containers.
+  var fin=truthOfficialFinalScore(num);
+  var officialFinal=!!((S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]));
+  if(fin&&officialFinal){
+    var st='Final';
+    if(/penalt/i.test(lab))st='Final · penalties';
+    else if(/extra/i.test(lab))st='Final · after extra time';
+    return Object.assign(base,{phase:'final',score:{h:fin.h,a:fin.a},statusText:st,tone:'final',live:false});
+  }
+  // 2) Live / hold provisional — factual, source-derived (never synthesised).
+  var live=truthLiveStateFor(num);
+  if(live){
+    var has=(live.sh!=null&&live.sa!=null);
+    if(live.kind==='hold')
+      return Object.assign(base,{phase:'hold',score:has?{h:live.sh,a:live.sa}:null,
+        statusText:safeStatusText(live.label,'Delayed'),tone:'hold',live:true});
+    return Object.assign(base,{phase:'live',score:has?{h:live.sh,a:live.sa}:null,
+      statusText:'Live · provisional',clock:(live.min!=null?live.min+"'":''),
+      subStatus:safeStatusText(live.label,'Live'),tone:'live',live:true});
+  }
+  // 3) Live update pending the official feed.
+  if(livePendingOfficial(num))
+    return Object.assign(base,{phase:'pending',score:null,
+      statusText:'Live update pending official feed',tone:'pending',live:true});
+  // 4) Scheduled — no invented score.
+  return Object.assign(base,{phase:'scheduled',score:null,statusText:'',tone:'scheduled',live:false});
+}
+/* Premium, compact factual score/status strip. Rendered into #mcStrip so a live
+   truth refresh can update it IN PLACE (see refreshMatchCenterTruth) without
+   rebuilding the sheet, resetting scroll, or closing an open sub-sheet. */
+function matchCenterStripHTML(num,t,factualMode){
+  if(!t)return'';var m=M[num];
+  var hName=t.hCode?nm(t.hCode):slotLabel(m.home),aName=t.aCode?nm(t.aCode):slotLabel(m.away);
+  var hFl=t.hCode?fl(t.hCode):'<span class="flbadge">?</span>',aFl=t.aCode?fl(t.aCode):'<span class="flbadge">?</span>';
+  var pwr=function(c){return (factualMode||!c||RAT[c]==null)?'':'<div class="rt3">Power '+RAT[c]+'</div>';};
+  var scoreMid=t.score?('<span class="mc-sc">'+t.score.h+'</span><i class="mc-dash">–</i><span class="mc-sc">'+t.score.a+'</span>')
+    :('<span class="mc-novs">'+(t.ko?'vs':'– : –')+'</span>');
+  var dot=(t.tone==='live')?'<span class="mc-dot" aria-hidden="true"></span>':'';
+  var clk=t.clock?'<span class="mc-clk">'+esc(t.clock)+'</span>':'';
+  var pill=t.statusText?('<span class="mc-pill '+t.tone+'">'+dot+esc(t.statusText)+'</span>'+clk):'';
+  var sub='';
+  if(t.phase==='live')sub='Provisional live score from the official feed. Standings and bracket update only when a final is confirmed.';
+  else if(t.phase==='hold')sub='Official play status is on hold. The score stays as last confirmed until the feed resumes.';
+  else if(t.phase==='pending')sub='No score or clock is shown until the provider confirms the official feed.';
+  else if(t.phase==='final')sub='Confirmed by official final data.';
+  else if(t.phase==='scheduled')sub=ko_kickoffLine(num);
+  return '<div class="mc-strip tone-'+t.tone+'" id="mcStrip">'+
+    (pill?'<div class="mc-statusrow">'+pill+'</div>':'')+
+    '<div class="mc-vsrow">'+
+      '<div class="mc-side"><span class="fl">'+hFl+'</span><div class="nm">'+esc(hName)+'</div>'+pwr(t.hCode)+'</div>'+
+      '<div class="mc-score" id="mcScoreVal">'+scoreMid+'</div>'+
+      '<div class="mc-side r"><span class="fl">'+aFl+'</span><div class="nm">'+esc(aName)+'</div>'+pwr(t.aCode)+'</div>'+
+    '</div>'+
+    (sub?'<div class="mc-sub" id="mcSub">'+esc(sub)+'</div>':'')+
+  '</div>';
+}
+function ko_kickoffLine(num){var m=M[num];if(!m)return'';return fullDay(m.wd)+' · '+to12(m.time)+' ET · '+VEN[m.venue][0];}
+/* Factual standings / bracket consequence of an official final (read-only:
+   reads existing NEXTWIN bracket mapping and S.realko, changes no math). */
+function matchConsequenceHTML(num,t){
+  if(!t||t.phase!=='final')return'';
+  var m=M[num];
+  if(!t.ko){
+    var winTxt=(t.score.h>t.score.a)?(nm(m.home)+' win'):(t.score.a>t.score.h?(nm(m.away)+' win'):'Draw');
+    return '<div class="mc-conseq"><div class="mc-conseq-k">Tournament impact</div>'+
+      '<div class="mc-conseq-t"><b>'+esc(winTxt)+'.</b> Official Group '+esc(m.group)+' result — now counted in the standings.</div>'+
+      '<button class="mc-conseq-go" onclick="closeSheet();goGroups()">See Group '+esc(m.group)+' standings →</button></div>';
+  }
+  var nx=NEXTWIN[num],line;
+  if(num===104)line='World Champions decided.';
+  else if(num===103)line='Third place decided.';
+  else if(nx)line='Winner advances to the '+roundName(nx)+'.';
+  else line='Knockout result confirmed.';
+  var who=(S.realko&&S.realko[num]&&T[S.realko[num]])?(nm(S.realko[num])+' go through. '):'';
+  return '<div class="mc-conseq"><div class="mc-conseq-k">Bracket impact</div>'+
+    '<div class="mc-conseq-t"><b>'+esc(who)+'</b>'+esc(line)+'</div>'+
+    '<button class="mc-conseq-go" onclick="closeSheet();goBracket()">Open the bracket →</button></div>';
+}
+/* Calm "confirmed events" state for an official live/final match. We do not
+   synthesise an event timeline — only the truth layer's score is factual, so
+   we state plainly when no confirmed event feed is published. */
+function matchCenterEventsHTML(t){
+  if(!t||(t.phase!=='live'&&t.phase!=='final'&&t.phase!=='hold'))return'';
+  return '<div class="mc-events"><div class="mc-events-h">Confirmed events</div>'+
+    '<div class="mc-events-e">No confirmed event timeline is published for this match. The official score above is the confirmed truth.</div></div>';
+}
+/* In-place live refresh of the open Match Center. Updates only the factual
+   score/status strip from the same truth read-model. Never rebuilds the sheet,
+   resets scroll, closes the sheet, or closes an open sub-sheet. */
+function refreshMatchCenterTruth(){
+  try{
+    if(_openSheetNum==null||_matchcastOpen)return;
+    var strip=document.getElementById('mcStrip');if(!strip)return;
+    var t=matchCenterTruth(_openSheetNum);if(!t)return;
+    var factualMode=(typeof activeMode==='function'&&activeMode()==='real');
+    strip.outerHTML=matchCenterStripHTML(_openSheetNum,t,factualMode);
+    var ev=document.getElementById('mcEvents');if(ev)ev.outerHTML='<div id="mcEvents">'+matchCenterEventsHTML(t)+'</div>';
+  }catch(e){}
+}
 function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group";const[ph,pa]=ko?koParts(num):[mt.home,mt.away];const s=ko?null:S.sc[num];
   const ven=VEN[mt.venue];const _kIn=(!s&&!(S.real&&S.real[num]))?kickoffIn(mt):"";
   let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(mt.wd)}, ${longDate(mt.date)} · ${to12(mt.time)} ET${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
@@ -7453,14 +7620,26 @@ function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group
   if(!factualMode){try{inner+=matchFraming(num,ph,pa,ko);}catch(e){}}
   function side(code,slot){if(!code)return `<div class="sh-side"><span class="fl">·</span><div class="nm ph">${slotLabel(slot)}</div></div>`;
     return `<div class="sh-side"><span class="fl">${fl(code)}</span><div class="nm">${nm(code)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[code]||'–'}</div>`}</div>`;}
-  if(ko){inner+=`<div class="sh-vs">${side(ph,mt.home)}<div class="sh-mid">vs</div>${side(pa,mt.away)}</div>`;
-    if(ph&&pa){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
-    else inner+=`<div class="sh-when" style="margin-top:8px">Teams decided once earlier rounds finish.</div>`;}
-  else{const sh=s?s.h:0,sa=s?s.a:0;
-    inner+=`<div class="sh-vs"><div class="sh-side"><span class="fl">${fl(mt.home)}</span><div class="nm">${nm(mt.home)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[mt.home]}</div>`}</div><div class="sh-score">${s?`${s.h} - ${s.a}`:'– : –'}</div><div class="sh-side"><span class="fl">${fl(mt.away)}</span><div class="nm">${nm(mt.away)}</div>${factualMode?'':`<div class="rt3">Power ${RAT[mt.away]}</div>`}</div></div>`;
-    inner+=`<div class="sh-edit"><div class="col"><div class="lab">${mt.home}</div><div class="stepper"><button onclick="bump(${num},'h',-1);sheet(${num})">−</button><span class="sc">${s?s.h:'–'}</span><button onclick="bump(${num},'h',1);sheet(${num})">+</button></div></div><div class="col"><div class="lab">${mt.away}</div><div class="stepper"><button onclick="bump(${num},'a',-1);sheet(${num})">−</button><span class="sc">${s?s.a:'–'}</span><button onclick="bump(${num},'a',1);sheet(${num})">+</button></div></div></div>`;
-    if(s&&!S.real[num])inner+=goalTL(num,s);
-    if(S.real[num]){inner+=`<div class="sh-when" style="color:var(--green);font-weight:800">● Official live result</div>`;inner+='<div id="mstats" class="mstats-slot"></div>';}}
+  // ===== Official Match Center: factual score/status strip — same truth the
+  // fixture cards read (final/live/hold/pending/scheduled). Parity-correct. =====
+  var _mct=matchCenterTruth(num);
+  var _locked=_mct&&(_mct.phase==='final'||_mct.phase==='live'||_mct.phase==='hold');
+  inner+=matchCenterStripHTML(num,_mct,factualMode);
+  if(ko){
+    // Prediction picker only for an open tie with no official/live truth.
+    if(ph&&pa&&!_locked){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
+    else if(!(ph&&pa))inner+=`<div class="sh-when" style="margin-top:8px">Teams decided once earlier rounds finish.</div>`;
+  }else{
+    // Prediction steppers + simulated timeline only in sim mode for an open match
+    // (never for an official/live match, and never in the factual Match Center).
+    if(!_locked&&!factualMode){
+      inner+=`<div class="sh-edit"><div class="col"><div class="lab">${mt.home}</div><div class="stepper"><button onclick="bump(${num},'h',-1);sheet(${num})">−</button><span class="sc">${s?s.h:'–'}</span><button onclick="bump(${num},'h',1);sheet(${num})">+</button></div></div><div class="col"><div class="lab">${mt.away}</div><div class="stepper"><button onclick="bump(${num},'a',-1);sheet(${num})">−</button><span class="sc">${s?s.a:'–'}</span><button onclick="bump(${num},'a',1);sheet(${num})">+</button></div></div></div>`;
+      if(s&&!S.real[num])inner+=goalTL(num,s);
+    }
+    if(S.real[num])inner+='<div id="mstats" class="mstats-slot"></div>';
+  }
+  if(_mct&&_mct.phase==='final')inner+=matchConsequenceHTML(num,_mct);
+  inner+='<div id="mcEvents">'+matchCenterEventsHTML(_mct)+'</div>';
   if(ph&&pa&&!factualMode){var _fh=formGuideHTML(ph),_fa=formGuideHTML(pa);if(_fh||_fa)inner+='<div class="formrow"><div class="fr-s">'+_fh+'</div><div class="fr-c">FORM</div><div class="fr-s right">'+_fa+'</div></div>';inner+=attrCompareHTML(ph,pa);}
   if(!factualMode&&!ko&&!s&&!(S.real&&S.real[num])&&!(S.live&&S.live.num===num))inner+=predictorHTML(num,mt.home,mt.away);
   {const _h=ko?ph:mt.home,_a=ko?pa:mt.away;if(_h&&_a){if(!factualMode){inner+=sheetProbViz(num,_h,_a,ko);inner+=liveProbHTML(num,_h,_a);inner+=sheetExtra(num,_h,_a,ko);}inner+=matchActionZone(num,_h,_a,ko);}}
