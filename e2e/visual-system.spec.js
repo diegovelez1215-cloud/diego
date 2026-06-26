@@ -116,10 +116,19 @@ test.describe('Reduced motion is respected', () => {
   test.use({ reducedMotion: 'reduce' });
   test('animated transitions collapse under prefers-reduced-motion', async ({ page }) => {
     await gotoApp(page, 'final-matchday');
+    // Establish the reduced-motion environment explicitly, then PROVE it is active
+    // before asserting any computed style — a stale or unset media state would make
+    // the rest of the test meaningless.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const reduceActive = await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    expect(reduceActive, 'prefers-reduced-motion: reduce must be active').toBe(true);
+
     await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
     await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
+    await expect(page.locator('.mx-entry')).toBeVisible();
     const dur = await page.locator('.mx-entry').evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration) || 0);
-    // The global reduced-motion rule forces transition-duration to ~0.
+    // With the media genuinely active, the reduced-motion rule collapses the entry's
+    // transition to ~0.
     expect(dur).toBeLessThan(0.05);
   });
 });
