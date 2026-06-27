@@ -42,6 +42,7 @@ function loadApp() {
       openSlip: openSlip,
       slipDec: slipDec,
       amerToDec: amerToDec,
+      decToAmer: decToAmer,
       slipLegsGroupedHTML: slipLegsGroupedHTML,
       ticketDisplayState: ticketDisplayState,
       ticketLegDetailHTML: ticketLegDetailHTML,
@@ -298,7 +299,8 @@ test('SIM$ slip grouping preserves existing odds and payout math', () => withApp
   input.value = '25';
   window.tkUpd();
   assert.equal(app.slipDec(), decBefore, 'open slip UI does not change combined odds');
-  assert.equal(window.document.getElementById('tkRet').textContent, '$' + Math.round(25 * decBefore).toLocaleString(), 'potential return follows existing decimal odds math');
+  const normalizedDec = app.amerToDec(app.decToAmer(decBefore));
+  assert.equal(window.document.getElementById('tkRet').textContent, '$' + Math.round(25 * normalizedDec).toLocaleString(), 'potential return follows existing decimal to American odds display math');
   assert.equal(app.getState().bank, bankBefore, 'opening/editing slip does not move wallet');
 }));
 
