@@ -1,6 +1,6 @@
 /* United 2026 · service worker — network-first for shell assets.
    Dynamic API truth is never cached here; official data must fail closed. */
-const CACHE = 'united2026-v54-stable';
+const CACHE = 'united2026-v55-brand-mark';
 const ASSETS = ['./', './index.html', './icon.png', './icon-180.png', './manifest.webmanifest'];
 
 self.addEventListener('install', function (e) {
