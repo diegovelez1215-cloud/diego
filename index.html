@@ -2060,8 +2060,18 @@ nav,.tabbar{background:rgba(7,11,22,.84)!important;backdrop-filter:blur(26px) sa
 .tour-switch button{color:var(--mut)!important;font-weight:800!important;transition:background .16s var(--ease),color .16s var(--ease)!important}
 .tour-switch button.on{background:linear-gradient(180deg,rgba(94,168,255,.22),rgba(94,168,255,.08))!important;color:var(--txt)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 16px -12px rgba(0,0,0,.9)!important}
 .tour-switch button:active{transform:scale(.985)}
-.brk-mode button.on{background:linear-gradient(180deg,rgba(94,168,255,.20),rgba(94,168,255,.07))!important;color:var(--txt)!important}
-.brk-rpill.on{background:linear-gradient(180deg,rgba(94,168,255,.24),rgba(94,168,255,.08))!important;border-color:rgba(94,168,255,.3)!important;box-shadow:0 6px 18px -10px rgba(94,168,255,.55)!important}
+.brk-mode button{color:var(--mut)!important}
+.brk-mode button.on{background:linear-gradient(180deg,rgba(94,168,255,.26),rgba(94,168,255,.10))!important;color:#F5F7FF!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)!important}
+/* Round selector: SOLID official-blue fill so the dark in-chip label/count
+   (#06202c, authored for a bright fill) reads at high contrast; unselected
+   chips keep light label + legible (never faint) count. */
+.brk-rpill{border:1px solid var(--line2)!important}
+.brk-rpill .brp-t{color:#DCE6FF!important}
+.brk-rpill .brp-n{color:var(--mut2)!important}
+.brk-rpill.done .brp-n{color:var(--qualified)!important}
+.brk-rpill.on{background:#5EA8FF!important;border-color:transparent!important;box-shadow:0 7px 18px -8px rgba(94,168,255,.7)!important}
+.brk-rpill.on .brp-full{color:#04111E!important}
+.brk-rpill.on .brp-n,.brk-rpill.on.done .brp-n{color:#04111E!important}
 
 /* ---- HOME: dominant live-or-next unit + quiet supporting cards ----------- */
 .home-card{border-radius:14px!important;background:linear-gradient(165deg,rgba(18,29,50,.82),rgba(9,14,30,.92))!important;border:1px solid var(--line)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 16px 36px -26px rgba(0,0,0,.85)!important}
@@ -2109,15 +2119,37 @@ nav,.tabbar{background:rgba(7,11,22,.84)!important;backdrop-filter:blur(26px) sa
 /* ---- TOURNAMENT: vertical step bracket, truthful state distinction ------- */
 .kpath-round{background:linear-gradient(168deg,rgba(16,26,45,.5),rgba(9,14,30,.62))!important;border:1px solid var(--line)!important;border-radius:16px!important}
 .kpath-round.focus{border-color:rgba(94,168,255,.3)!important;background:linear-gradient(168deg,rgba(18,34,62,.6),rgba(9,15,32,.72))!important;box-shadow:0 18px 40px -28px rgba(94,168,255,.5)!important}
-.kpath-card{background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015))!important;border-radius:12px!important}
-.kpath-card.confirmed{border-color:rgba(94,168,255,.32)!important;box-shadow:inset 3px 0 0 rgba(94,168,255,.55)!important}
-.kpath-card.one{border-color:rgba(94,168,255,.22)!important;box-shadow:inset 3px 0 0 rgba(94,168,255,.34)!important}
-.kpath-chip.conf{background:linear-gradient(135deg,var(--official),var(--official-soft))!important;color:#06132A!important}
-.kpath-chip.one{color:var(--official)!important;background:rgba(94,168,255,.12)!important;border-color:rgba(94,168,255,.3)!important}
+/* Raised navy card so it reads as a distinct surface above the round panel.
+   NOTE: background is intentionally NOT !important so the state variants
+   (.confirmed/.projected/.pending/.final) keep their own fills + edges and
+   stay visually distinct. */
+.kpath-card{background:linear-gradient(160deg,rgba(30,45,74,.52),rgba(18,29,52,.46));border:1px solid var(--line2);border-radius:12px!important}
+.kpath-card.confirmed{border-color:rgba(94,168,255,.34)!important;box-shadow:inset 3px 0 0 rgba(94,168,255,.6)!important}
+.kpath-card.one{border-color:rgba(94,168,255,.24)!important;box-shadow:inset 3px 0 0 rgba(94,168,255,.36)!important}
+.kpath-chip.conf{background:linear-gradient(135deg,var(--official),var(--official-soft))!important;color:#04111E!important}
+.kpath-chip.one{color:var(--official-soft)!important;background:rgba(94,168,255,.16)!important;border-color:rgba(94,168,255,.34)!important}
 .kpath-card.confirmed .kpath-state{color:var(--official-soft)!important}
 .kph-sub{color:var(--official-soft)!important}
-.kpath-route{color:var(--official-soft)!important}
+.kpath-route{color:var(--official-soft)!important;border-color:var(--line2)!important}
 .brk-swipe-hint{color:var(--official-soft)!important}
+/* Bracket typography: stronger hierarchy, metadata legible (never faint) on the
+   card's actual surface — fixture id strongest, date/state clearly readable. */
+.kpath-top{color:var(--mut2)!important}
+.kpath-no{color:var(--mut)!important;font-weight:900!important}
+.kpath-date{color:var(--mut2)!important}
+.kpath-min{color:var(--mut2)!important}
+.kpath-meta{color:var(--mut)!important}
+.kpath-state{color:var(--mut)!important}
+.kpath-team.pending .kpt-nm{color:var(--mut)!important}
+/* Left rail / card relationship — verified NOT clipping (connector lands at the
+   round content edge; names truncate). Give cards a touch more room on iPhone
+   and keep the branch connector aligned to the reduced indent. */
+@media(max-width:430px){
+  .kpath-round{padding:13px 12px!important}
+  .kpath-card{margin-left:13px!important}
+  .kpath-card::before{left:-13px!important;width:13px!important}
+  .kpath-empty{margin-left:13px!important}
+}
 
 /* ---- sheets / scrim ------------------------------------------------------ */
 .sheet{background:var(--bg2)!important;border:1px solid var(--line2)!important;border-radius:18px 18px 0 0!important}
