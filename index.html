@@ -3083,6 +3083,61 @@ nav,.tabbar{background:rgba(7,11,22,.84)!important;backdrop-filter:blur(26px) sa
 }
 /* guarantee no horizontal page overflow from any night-layer surface */
 html,body{overflow-x:hidden!important}
+
+/* =============================================================================
+   RELEASE 1.2 — Real Tournament polish (CSS-only). One premium iPhone sports
+   system: score + real status as the hero, calm truthful state distinction,
+   factual blue for official emphasis, SIM$ kept quiet and separate. ========== */
+
+/* ---- Official Match Center: real score + status are the hero ------------- */
+.mc-strip{background:linear-gradient(168deg,rgba(18,29,50,.72),rgba(9,14,30,.66))!important;border:1px solid var(--line2)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 40px -26px rgba(0,0,0,.85)!important}
+.mc-strip.tone-live{border-color:rgba(94,168,255,.45)!important;background:linear-gradient(168deg,rgba(20,40,72,.74),rgba(9,16,34,.7))!important}
+.mc-strip.tone-final{border-color:rgba(64,214,152,.40)!important;background:linear-gradient(168deg,rgba(15,38,31,.6),rgba(9,16,28,.68))!important}
+.mc-strip.tone-hold{border-color:rgba(242,185,75,.38)!important;background:linear-gradient(168deg,rgba(40,32,14,.5),rgba(12,15,26,.7))!important}
+.mc-strip.tone-pending,.mc-strip.tone-scheduled{border-color:var(--line2)!important;background:linear-gradient(168deg,rgba(20,28,46,.6),rgba(9,14,28,.66))!important}
+.mc-strip.tone-confirmed{border-color:rgba(94,168,255,.26)!important;background:linear-gradient(168deg,rgba(18,32,56,.64),rgba(9,15,30,.66))!important}
+.mc-pill.confirmed{color:var(--official-soft)!important;background:rgba(94,168,255,.12)!important;border-color:rgba(94,168,255,.30)!important}
+/* status pill: truthful + visually distinct tones */
+.mc-pill{color:var(--mut)!important;background:rgba(255,255,255,.06)!important;border:1px solid var(--line2)!important}
+.mc-pill.live{color:#CFE6FF!important;background:rgba(94,168,255,.18)!important;border-color:rgba(94,168,255,.46)!important}
+.mc-pill.final{color:#B7F2D6!important;background:rgba(64,214,152,.16)!important;border-color:rgba(64,214,152,.42)!important}
+.mc-pill.hold{color:#FFE0A6!important;background:rgba(242,185,75,.16)!important;border-color:rgba(242,185,75,.42)!important}
+.mc-pill.pending{color:var(--mut)!important;background:rgba(255,255,255,.06)!important;border-color:var(--line2)!important}
+.mc-dot{background:#5EA8FF!important}
+.mc-clk{color:var(--official-soft)!important}
+/* the score is the single hero: largest, strongest, tabular white — flags subordinate */
+.mc-score .mc-sc{font-size:46px!important;color:#F5F7FF!important;letter-spacing:-1.5px}
+.mc-score .mc-dash{font-size:25px!important;color:var(--mut2)!important}
+.mc-score .mc-novs{color:var(--mut2)!important}
+.mc-side .fl{font-size:30px!important}
+.mc-side .nm{font-size:13.5px!important;color:#F5F7FF!important;font-weight:800}
+.mc-sub{color:var(--mut)!important}
+.mc-conseq{border-color:var(--line2)!important;background:rgba(255,255,255,.035)!important}
+.mc-conseq-k{color:var(--official-soft)!important}
+.mc-conseq-t{color:var(--txt)!important}
+.mc-conseq-go{color:var(--official)!important;border-color:var(--line2)!important;background:rgba(94,168,255,.08)!important}
+@media(max-width:390px){.mc-score .mc-sc{font-size:40px!important}.mc-side .fl{font-size:27px!important}}
+
+/* ---- Matches list: consistent status hierarchy, SIM$ kept quieter -------- */
+.mrow .gtag{color:var(--mut2)!important;background:rgba(255,255,255,.05)!important}
+.mrow .gtag.ko{color:var(--official-soft)!important;background:rgba(94,168,255,.12)!important}
+.mrow .gtag.featured{color:var(--official-soft)!important;background:rgba(94,168,255,.16)!important}
+.gtag.ft{color:var(--qualified)!important;background:rgba(64,214,152,.16)!important}        /* confirmed / final + live-active */
+.gtag.bs{color:var(--caution)!important;background:rgba(242,185,75,.15)!important}           /* delayed / on hold */
+.gtag.sm{color:var(--play-gold)!important;background:rgba(239,197,108,.10)!important;opacity:.92} /* SIM$ — quieter, separate */
+.gtag.up{color:var(--mut2)!important;background:rgba(255,255,255,.05)!important}              /* upcoming */
+
+/* ---- Home: one dominant Live/Next moment; supporting cards quieter ------- */
+.home-card.hero{box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 22px 46px -24px rgba(0,0,0,.92),0 0 0 1px rgba(94,168,255,.06)!important}
+.home-stack>.home-card:not(.hero){box-shadow:0 12px 26px -24px rgba(0,0,0,.85)!important}
+.home-stack>.home-card:not(.hero) .home-k{color:var(--mut2)!important;font-size:9.5px!important}
+.home-card.play{border-color:rgba(239,197,108,.18)!important}   /* Active Picks (SIM$) sits quietly below official content */
+.home-card.play .home-k{color:var(--mut2)!important}
+
+/* ---- Standings: number hierarchy — points strongest, tabular ------------- */
+.strow .pts{color:#F5F7FF!important;font-weight:900!important}
+.strow.head{color:var(--mut2)!important}
+.strow .n{color:var(--mut)!important}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
