@@ -387,4 +387,125 @@ export async function apiSportsQuotaSnapshot(resource = 'live', cacheKey = 'live
   return snap;
 }
 
+/* ----------------------------------------------------------------------------
+ * Preview-only API-Sports R32 schedule contract probe.
+ *
+ * Determines whether the configured API-Sports plan can return NAMED future
+ * FIFA World Cup 2026 Round-of-32 fixtures (league 1, season 2026, Round of 32).
+ * It routes through guardedApiSports() on the reserved `schedule` quota lane,
+ * makes at most one guarded upstream call, caches the normalized result for 24h,
+ * and returns ONLY safe normalized evidence. The raw provider payload and the
+ * API key never leave this function. Plan/season denial is normalized to a clear
+ * `no_access` result rather than thrown.
+ * --------------------------------------------------------------------------- */
+export async function apiSportsR32Probe() {
+  const PROBE = 'api-sports-r32';
+  const empty = (providerStatus, httpStatus) => ({
+    probe: PROBE,
+    providerStatus: providerStatus,
+    httpStatus: httpStatus == null ? null : httpStatus,
+    r32FutureCount: 0,
+    r32NamedCount: 0,
+    samples: [],
+    presence: { 'Germany-Paraguay': false, 'France-Sweden': false, 'Australia-Egypt': false, 'Argentina-Cape Verde': false }
+  });
+
+  const key = process.env.API_SPORTS_KEY;
+  if (!key) {
+    return { state: 'blocked', result: empty('unconfigured', null), quota: null, cacheAgeSeconds: 0, isStale: false, nextRefreshAt: null };
+  }
+
+  function isNamed(n) {
+    if (!n) return false;
+    const s = String(n).trim();
+    if (!s) return false;
+    return !/^(tbd|winner|runner|loser|to be|q\d|group |1st|2nd|w\d|l\d)/i.test(s);
+  }
+  function pairKey(a, b) {
+    return [String(a).toLowerCase().trim(), String(b).toLowerCase().trim()].sort().join(' v ');
+  }
+  const TARGETS = {
+    'Germany-Paraguay': ['germany', 'paraguay'],
+    'France-Sweden': ['france', 'sweden'],
+    'Australia-Egypt': ['australia', 'egypt'],
+    'Argentina-Cape Verde': ['argentina', 'cape verde']
+  };
+
+  function normalize(arr, httpStatus, providerStatus) {
+    if (!Array.isArray(arr)) return empty(providerStatus, httpStatus);
+    const nowTs = Date.now();
+    const future = arr.filter(function (f) {
+      const st = f && f.fixture && f.fixture.status ? f.fixture.status.short : '';
+      const dateStr = f && f.fixture ? f.fixture.date : '';
+      const ts = dateStr ? Date.parse(dateStr) : NaN;
+      const done = ['FT', 'AET', 'PEN', 'FINISHED'].indexOf(st) !== -1;
+      return !done && (st === 'NS' || st === 'TBD' || (Number.isFinite(ts) && ts > nowTs));
+    });
+    const named = future.filter(function (f) {
+      const h = f && f.teams && f.teams.home ? f.teams.home.name : '';
+      const a = f && f.teams && f.teams.away ? f.teams.away.name : '';
+      return isNamed(h) && isNamed(a);
+    });
+    const samples = named.slice(0, 4).map(function (f) {
+      return { home: f.teams.home.name, away: f.teams.away.name, kickoff: (f.fixture && f.fixture.date) || null };
+    });
+    const present = new Set(named.map(function (f) { return pairKey(f.teams.home.name, f.teams.away.name); }));
+    const presence = {};
+    Object.keys(TARGETS).forEach(function (label) {
+      const t = TARGETS[label];
+      presence[label] = present.has([t[0], t[1]].sort().join(' v '));
+    });
+    return {
+      probe: PROBE,
+      providerStatus: providerStatus,
+      httpStatus: httpStatus == null ? null : httpStatus,
+      r32FutureCount: future.length,
+      r32NamedCount: named.length,
+      samples: samples,
+      presence: presence
+    };
+  }
+
+  const url = 'https://v3.football.api-sports.io/fixtures?league=1&season=2026&round=' + encodeURIComponent('Round of 32');
+  const fetcher = async function () {
+    let got;
+    try {
+      got = await fetchJson(url, { method: 'GET', headers: { 'x-apisports-key': key, 'Accept': 'application/json' } }, 9000);
+    } catch (e) {
+      const st = e && e.status;
+      const denied = st === 401 || st === 403;
+      return normalize(null, st || 0, denied ? 'no_access' : 'error');
+    }
+    const data = got.data;
+    const errs = data && data.errors;
+    const hasErr = errs && (Array.isArray(errs) ? errs.length > 0 : (typeof errs === 'object' ? Object.keys(errs).length > 0 : !!errs));
+    if (hasErr) return normalize(null, got.status, 'no_access');
+    if (!data || !Array.isArray(data.response)) return normalize(null, got.status, 'error');
+    return normalize(data.response, got.status, 'ok');
+  };
+
+  const guarded = await guardedApiSports({
+    route: '/api/diag',
+    resource: 'schedule',
+    cacheKey: 'schedule:wc:r32',
+    freshMs: GOOD_TTL_SECONDS * 1000, // cache this probe for >= 24h
+    buildEmpty: function () { return empty('unavailable', null); },
+    validate: function (b) { return !!(b && b.probe === PROBE); },
+    fetcher: fetcher
+  });
+
+  let state = 'blocked';
+  if (guarded.sourceStatus === 'fresh') state = 'attempted';
+  else if (guarded.sourceStatus === 'cache') state = 'cache-served';
+
+  return {
+    state: state,
+    result: guarded.body,
+    quota: guarded.quota,
+    cacheAgeSeconds: guarded.cacheAgeSeconds,
+    isStale: guarded.isStale,
+    nextRefreshAt: guarded.nextRefreshAt
+  };
+}
+
 export { safeLog, rateLimit };
