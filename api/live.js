@@ -18,7 +18,7 @@
  * QUOTA: short edge + in-function cache. Live consumers can poll every
  * 30-60s during active states, while Vercel cache/coalescing shields upstream.
  */
-import { cachedRoute, fetchJson } from './_shared.js';
+import { fetchJson, guardedApiSports, rateLimit, safeLog } from './_shared.js';
 
 const WC_LEAGUE_ID = 1;
 const LIVE_CODES = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY', 'PAUSED', 'HALFTIME', 'BREAK', 'EXTRA_TIME', 'PENALTY_SHOOTOUT'];
@@ -56,8 +56,8 @@ function slimFootballData(m) {
 }
 
 export default async function handler(req, res) {
-  // Browser / edge caches must not serve live truth. cachedRoute still coalesces
-  // upstream requests in-process, but uncertain provider data fails closed.
+  // Browser / edge caches must not serve live truth. The quota guard coalesces
+  // upstream requests across instances, and uncertain provider data fails closed.
   res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   const key = process.env.API_SPORTS_KEY;
@@ -78,21 +78,42 @@ export default async function handler(req, res) {
     };
   }
 
-  await cachedRoute(req, res, {
+  // Per-IP throttle (unchanged behavior); the upstream quota guard is separate.
+  const limited = rateLimit(req, '/api/live', 90, 60000);
+  if (!limited.ok) {
+    safeLog('route_throttled', { route: '/api/live', retryAfterSeconds: limited.retryAfterSeconds });
+    res.setHeader('Retry-After', String(limited.retryAfterSeconds));
+    res.status(429).json({
+      configured: true,
+      error: 'throttled',
+      sourceStatus: 'throttled',
+      retryAfterSeconds: limited.retryAfterSeconds,
+      fetchedAt: new Date().toISOString()
+    });
+    return;
+  }
+
+  // Every API-Sports upstream call for /api/live flows through this one guarded
+  // helper. Reads from cache cost zero quota; refusals/failures fall back to the
+  // last-known-good response (clearly marked stale) or the safe empty fallback.
+  const guarded = await guardedApiSports({
     route: '/api/live',
-    provider: 'api-sports',
+    resource: 'live',
     cacheKey: 'live:wc:all',
-    ttlMs: 30000,
-    staleMs: 2 * 60000,
-    rateLimit: { limit: 90, windowMs: 60000 },
-    fallback: { response: [], finished: [] },
+    freshMs: 10 * 60 * 1000,
+    buildEmpty: function () { return { configured: true, response: [], finished: [] }; },
+    validate: function (body) { return !!(body && Array.isArray(body.response) && Array.isArray(body.finished)); },
     fetcher: async function () {
     const got = await fetchJson('https://v3.football.api-sports.io/fixtures?live=all', {
       method: 'GET',
       headers: { 'x-apisports-key': key, 'Accept': 'application/json' }
     }, 9000);
     const data = got.data;
-    const all = Array.isArray(data && data.response) ? data.response : [];
+    if (!data || !Array.isArray(data.response)) {
+      const err = new Error('malformed_response');
+      throw err;
+    }
+    const all = data.response;
 
     // Keep ONLY the real FIFA World Cup (league id 1).
     const wc = all.filter(function (f) { return f.league && f.league.id === WC_LEAGUE_ID; });
@@ -142,4 +163,16 @@ export default async function handler(req, res) {
 
     return { configured: true, response: live, finished: finished, sources: sources, fetchedAt: new Date().toISOString() };
   }});
+
+  // Emit safe metadata only (used/cap, cache age, freshness, next refresh). The
+  // body carries its own fetchedAt; we never relabel stale data as current.
+  const payload = Object.assign({}, guarded.body, {
+    sourceStatus: guarded.sourceStatus,
+    isStale: guarded.isStale,
+    cacheAgeSeconds: guarded.cacheAgeSeconds,
+    fetchedAt: guarded.fetchedAt,
+    quota: guarded.quota,
+    nextRefreshAt: guarded.nextRefreshAt
+  });
+  res.status(200).json(payload);
 }

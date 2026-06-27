@@ -138,4 +138,253 @@ export async function cachedRoute(req, res, opts) {
   }
 }
 
-export { safeLog };
+/* ----------------------------------------------------------------------------
+ * Persistent API-Sports quota guard (Upstash Redis REST, fail-closed).
+ *
+ * Every API-Sports upstream call must flow through guardedApiSports(). Before any
+ * upstream call, ONE atomic Redis EVAL reserves both a global slot AND a
+ * per-resource slot for the current UTC day. If either cap is hit, the request
+ * is refused and ZERO API-Sports calls are made.
+ *
+ *   global cap : 60 attempted upstream calls / UTC day
+ *   live cap   : 56 / UTC day
+ *   schedule   : 4  / UTC day (reserved for future use; 56 + 4 = 60)
+ *
+ * Cache/lock behavior (shared across all Vercel instances via Redis):
+ *   - fresh live cache window: >= 10 minutes (reads cost zero quota)
+ *   - last-known-good retained: >= 24 hours (same key, long TTL)
+ *   - short cache-miss lock so concurrent misses trigger ONE upstream call
+ *   - failures consume their reserved allowance; no automatic retries
+ *   - lock contention, quota refusal, failed/malformed upstream, unavailable or
+ *     unconfigured Redis -> return stale last-known-good (clearly marked stale)
+ *     or the safe empty fallback. Never label stale data as current.
+ *   - missing/broken Redis makes ZERO API-Sports calls (fail closed).
+ * --------------------------------------------------------------------------- */
+
+const QUOTA_GLOBAL_CAP = 60;
+const QUOTA_RES_CAPS = { live: 56, schedule: 4 };
+const LIVE_FRESH_MS = 10 * 60 * 1000;      // fresh window: 10 minutes minimum
+const GOOD_TTL_SECONDS = 24 * 60 * 60;     // last-known-good retained >= 24h
+const LOCK_TTL_SECONDS = 12;               // short lock; > upstream timeout safety
+
+const memGood = root.__wc26ApiSportsGood || (root.__wc26ApiSportsGood = new Map());
+
+// Atomic reserve-both-or-nothing. Returns {allowed, g, r, reason}.
+const RESERVE_LUA = [
+  "local g = tonumber(redis.call('GET', KEYS[1]) or '0')",
+  "local r = tonumber(redis.call('GET', KEYS[2]) or '0')",
+  "local gc = tonumber(ARGV[1])",
+  "local rc = tonumber(ARGV[2])",
+  "local ttl = tonumber(ARGV[3])",
+  "if g >= gc then return {0, g, r, 'global'} end",
+  "if r >= rc then return {0, g, r, 'resource'} end",
+  "g = redis.call('INCR', KEYS[1]); if g == 1 then redis.call('EXPIRE', KEYS[1], ttl) end",
+  "r = redis.call('INCR', KEYS[2]); if r == 1 then redis.call('EXPIRE', KEYS[2], ttl) end",
+  "return {1, g, r, 'ok'}"
+].join('\n');
+
+function redisConfigured() {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+}
+
+async function redisCmd(args) {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+      signal: ctrl.signal
+    });
+    let j = null;
+    try { j = await r.json(); } catch (e) { throw new Error('redis_parse'); }
+    if (!r.ok || (j && j.error)) throw new Error('redis_error');
+    return j ? j.result : null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function utcDate(now) { return new Date(now).toISOString().slice(0, 10); }
+
+function secondsToUtcMidnight(now) {
+  const d = new Date(now);
+  const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0, 0);
+  return Math.max(60, Math.ceil((next - now) / 1000));
+}
+
+function quotaKeys(resource, now) {
+  const date = utcDate(now);
+  return { gKey: 'wc26:as:q:global:' + date, rKey: 'wc26:as:q:' + resource + ':' + date };
+}
+
+async function reserveQuota(resource, now) {
+  const { gKey, rKey } = quotaKeys(resource, now);
+  const rcap = QUOTA_RES_CAPS[resource] || 0;
+  const ttl = secondsToUtcMidnight(now) + 60;
+  const res = await redisCmd(['EVAL', RESERVE_LUA, '2', gKey, rKey, String(QUOTA_GLOBAL_CAP), String(rcap), String(ttl)]);
+  const a = Array.isArray(res) ? res : [0, 0, 0, 'error'];
+  return { allowed: Number(a[0]) === 1, g: Number(a[1]) || 0, r: Number(a[2]) || 0, reason: a[3] };
+}
+
+async function readUsage(resource, now) {
+  const { gKey, rKey } = quotaKeys(resource, now);
+  const res = await redisCmd(['MGET', gKey, rKey]);
+  return { g: Number((res && res[0]) || 0), r: Number((res && res[1]) || 0) };
+}
+
+export async function guardedApiSports(opts) {
+  const resource = opts.resource;
+  const cacheKey = opts.cacheKey;
+  const freshMs = opts.freshMs || LIVE_FRESH_MS;
+  const now = (opts.now || Date.now)();
+  const globalCap = QUOTA_GLOBAL_CAP;
+  const resourceCap = QUOTA_RES_CAPS[resource] || 0;
+  const empty = () => (typeof opts.buildEmpty === 'function' ? opts.buildEmpty() : {});
+
+  function out(body, sourceStatus, storedAt, usage, nextRefreshAt) {
+    const isStale = sourceStatus === 'stale-fallback';
+    const ageSec = storedAt ? Math.max(0, Math.round((now - storedAt) / 1000)) : 0;
+    return {
+      body: body || empty(),
+      sourceStatus,
+      isStale,
+      cacheAgeSeconds: ageSec,
+      fetchedAt: storedAt ? new Date(storedAt).toISOString() : new Date(now).toISOString(),
+      quota: {
+        resource,
+        globalUsed: usage ? usage.g : null,
+        globalCap,
+        resourceUsed: usage ? usage.r : null,
+        resourceCap
+      },
+      nextRefreshAt: nextRefreshAt || (storedAt ? new Date(storedAt + freshMs).toISOString() : null)
+    };
+  }
+
+  // FAIL CLOSED: without Redis we cannot verify quota atomically -> zero upstream.
+  if (!redisConfigured()) {
+    safeLog('quota_guard_redis_unconfigured', { route: opts.route, resource });
+    const mem = memGood.get(cacheKey);
+    if (mem) return out(mem.body, 'stale-fallback', mem.storedAt, null);
+    return out(empty(), 'empty', null, null);
+  }
+
+  // 1) Fresh cache read (zero quota cost).
+  let stored = null;
+  try {
+    const raw = await redisGet(cacheKey);
+    if (raw) stored = JSON.parse(raw);
+  } catch (e) {
+    // Redis broken -> fail closed, serve in-memory stale or empty, zero upstream.
+    safeLog('quota_guard_redis_unavailable', { route: opts.route, resource });
+    const mem = memGood.get(cacheKey);
+    if (mem) return out(mem.body, 'stale-fallback', mem.storedAt, null);
+    return out(empty(), 'empty', null, null);
+  }
+  if (stored && (now - stored.storedAt) <= freshMs) {
+    memGood.set(cacheKey, stored);
+    const usage = await readUsage(resource, now).catch(() => null);
+    return out(stored.body, 'cache', stored.storedAt, usage);
+  }
+  if (stored) memGood.set(cacheKey, stored);
+  const staleNow = stored || memGood.get(cacheKey) || null;
+  const nextMidnight = new Date(now + secondsToUtcMidnight(now) * 1000).toISOString();
+
+  // 2) Short distributed lock so concurrent misses trigger ONE upstream call.
+  const lockKey = 'wc26:as:lock:' + resource;
+  const lockId = String(now) + ':' + Math.random().toString(36).slice(2);
+  let locked = false;
+  try { locked = await redisLock(lockKey, lockId, LOCK_TTL_SECONDS); }
+  catch (e) { locked = false; }
+  if (!locked) {
+    safeLog('quota_guard_lock_contention', { route: opts.route, resource });
+    if (staleNow) return out(staleNow.body, 'stale-fallback', staleNow.storedAt, null);
+    return out(empty(), 'empty', null, null);
+  }
+
+  try {
+    // 3) ONE atomic Redis op confirms BOTH global and resource allowance.
+    let reserved;
+    try { reserved = await reserveQuota(resource, now); }
+    catch (e) {
+      safeLog('quota_guard_reserve_unavailable', { route: opts.route, resource });
+      if (staleNow) return out(staleNow.body, 'stale-fallback', staleNow.storedAt, null);
+      return out(empty(), 'empty', null, null);
+    }
+    if (!reserved.allowed) {
+      const usage = { g: reserved.g, r: reserved.r };
+      safeLog('quota_guard_refused', { route: opts.route, resource, reason: reserved.reason, globalUsed: reserved.g, resourceUsed: reserved.r });
+      if (staleNow) return out(staleNow.body, 'stale-fallback', staleNow.storedAt, usage, nextMidnight);
+      return out(empty(), 'empty', null, usage, nextMidnight);
+    }
+    const usage = { g: reserved.g, r: reserved.r };
+
+    // 4) Exactly one upstream call. No automatic retries.
+    let body;
+    try { body = await opts.fetcher(); }
+    catch (e) {
+      // Reservation already consumed; do not retry.
+      safeLog('quota_guard_upstream_failed', { route: opts.route, resource, category: e && e.message });
+      if (staleNow) return out(staleNow.body, 'stale-fallback', staleNow.storedAt, usage);
+      return out(empty(), 'empty', null, usage);
+    }
+    if (typeof opts.validate === 'function' && !opts.validate(body)) {
+      safeLog('quota_guard_upstream_malformed', { route: opts.route, resource });
+      if (staleNow) return out(staleNow.body, 'stale-fallback', staleNow.storedAt, usage);
+      return out(empty(), 'empty', null, usage);
+    }
+
+    const fresh = { body, storedAt: now };
+    memGood.set(cacheKey, fresh);
+    try { await redisSetGood(cacheKey, JSON.stringify(fresh)); } catch (e) {}
+    return out(body, 'fresh', now, usage);
+  } finally {
+    try { await redisDel(lockKey); } catch (e) {}
+  }
+}
+
+async function redisGet(key) { return redisCmd(['GET', key]); }
+async function redisDel(key) { return redisCmd(['DEL', key]); }
+async function redisLock(key, val, ttl) {
+  const r = await redisCmd(['SET', key, val, 'NX', 'EX', String(ttl)]);
+  return r === 'OK';
+}
+async function redisSetGood(key, val) {
+  return redisCmd(['SET', key, val, 'EX', String(GOOD_TTL_SECONDS)]);
+}
+
+// Safe, non-secret snapshot for diagnostics. Only GETs -> zero quota cost.
+export async function apiSportsQuotaSnapshot(resource = 'live', cacheKey = 'live:wc:all', freshMs = LIVE_FRESH_MS) {
+  const snap = {
+    redisConfigured: redisConfigured(),
+    globalCap: QUOTA_GLOBAL_CAP,
+    resourceCaps: Object.assign({}, QUOTA_RES_CAPS)
+  };
+  if (!snap.redisConfigured) return snap;
+  try {
+    const now = Date.now();
+    const usage = await readUsage(resource, now);
+    snap.resource = resource;
+    snap.globalUsed = usage.g;
+    snap.resourceUsed = usage.r;
+    snap.resourceCap = QUOTA_RES_CAPS[resource] || 0;
+    snap.nextResetAt = new Date(now + secondsToUtcMidnight(now) * 1000).toISOString();
+    let storedAt = null;
+    try {
+      const raw = await redisGet(cacheKey);
+      if (raw) { const s = JSON.parse(raw); storedAt = s.storedAt; }
+    } catch (e) {}
+    snap.cacheAgeSeconds = storedAt ? Math.max(0, Math.round((now - storedAt) / 1000)) : null;
+    snap.cacheFresh = storedAt ? (now - storedAt) <= freshMs : false;
+    snap.nextRefreshAt = storedAt ? new Date(storedAt + freshMs).toISOString() : null;
+  } catch (e) {
+    snap.readError = true;
+  }
+  return snap;
+}
+
+export { safeLog, rateLimit };

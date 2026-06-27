@@ -2,7 +2,9 @@
  * Enable by setting DIAG_TOKEN in Vercel and calling /api/diag?token=...
  * Without the token it returns 404 so public production users cannot discover it.
  */
-export default function handler(req, res) {
+import { apiSportsQuotaSnapshot } from './_shared.js';
+
+export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const token = process.env.DIAG_TOKEN;
   const given = (req.query && req.query.token) || req.headers['x-diag-token'];
@@ -10,6 +12,10 @@ export default function handler(req, res) {
     res.status(404).json({ ok: false, note: 'diagnostic unavailable' });
     return;
   }
+
+  // Safe, non-secret view of the API-Sports quota guard. Reads only (zero quota).
+  let apiSportsQuota = { redisConfigured: false };
+  try { apiSportsQuota = await apiSportsQuotaSnapshot('live', 'live:wc:all'); } catch (e) { apiSportsQuota = { redisConfigured: false, readError: true }; }
 
   const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown';
   const now = new Date().toISOString();
@@ -38,6 +44,7 @@ export default function handler(req, res) {
     environment: env,
     production: env === 'production',
     checkedAt: now,
+    apiSportsQuota: apiSportsQuota,
     diagnostics: endpoints
   });
 }
