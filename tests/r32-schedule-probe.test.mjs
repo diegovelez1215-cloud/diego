@@ -86,7 +86,9 @@ function installFetch(redis) {
 }
 
 function setEnv({ env, redis = true, key = true }) {
-  process.env.DIAG_TOKEN = TOKEN;
+  // Intentionally leave DIAG_TOKEN UNSET: the probe must work on Preview access
+  // protection alone, with no token required.
+  delete process.env.DIAG_TOKEN;
   if (env === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = env;
   if (redis) { process.env.KV_REST_API_URL = REDIS_URL; process.env.KV_REST_API_TOKEN = 'mock'; }
   else { delete process.env.KV_REST_API_URL; delete process.env.KV_REST_API_TOKEN; }
@@ -114,7 +116,21 @@ function makeRes() {
   return res;
 }
 
-function probeReq() { return { query: { token: TOKEN, probe: 'api-sports-r32' }, headers: {} }; }
+// No token in the request: probe access is gated by Vercel Preview protection.
+function probeReq() { return { query: { probe: 'api-sports-r32' }, headers: {} }; }
+
+test('Preview probe works without DIAG_TOKEN', async () => {
+  upstreamCalls = 0; upstreamMode = 'success';
+  setEnv({ env: 'preview' });
+  assert.equal(process.env.DIAG_TOKEN, undefined, 'no DIAG_TOKEN configured');
+  const redis = makeRedis(); installFetch(redis);
+  const handler = await loadDiag();
+  const res = makeRes();
+  await handler(probeReq(), res); // request carries no token
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.probe, 'api-sports-r32');
+  assert.equal(res.body.state, 'attempted');
+});
 
 test('probe is disabled (404) outside Preview, with zero upstream calls', async () => {
   upstreamCalls = 0; upstreamMode = 'success';

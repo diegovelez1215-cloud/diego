@@ -6,16 +6,12 @@ import { apiSportsQuotaSnapshot, apiSportsR32Probe } from './_shared.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const token = process.env.DIAG_TOKEN;
-  const given = (req.query && req.query.token) || req.headers['x-diag-token'];
-  if (!token || given !== token) {
-    res.status(404).json({ ok: false, note: 'diagnostic unavailable' });
-    return;
-  }
 
-  // Opt-in, Preview-only API-Sports R32 schedule contract probe. Hidden (404) in
-  // Production. Routes through the guarded `schedule` quota lane and returns only
-  // safe normalized evidence — never the API key or raw provider payload.
+  // Opt-in, Preview-only API-Sports R32 schedule contract probe. Gated solely by
+  // Vercel Preview access protection — no DIAG_TOKEN required, so the user can
+  // open it in their authenticated Preview browser. Hidden (404) in Production.
+  // Routes through the guarded `schedule` quota lane and returns only safe
+  // normalized evidence — never the API key, Redis values, or raw provider payload.
   if (req.query && req.query.probe === 'api-sports-r32') {
     const probeEnv = process.env.VERCEL_ENV || '';
     if (probeEnv !== 'preview') {
@@ -40,6 +36,13 @@ export default async function handler(req, res) {
       isStale: probe.isStale,
       nextRefreshAt: probe.nextRefreshAt
     });
+    return;
+  }
+
+  const token = process.env.DIAG_TOKEN;
+  const given = (req.query && req.query.token) || req.headers['x-diag-token'];
+  if (!token || given !== token) {
+    res.status(404).json({ ok: false, note: 'diagnostic unavailable' });
     return;
   }
 
