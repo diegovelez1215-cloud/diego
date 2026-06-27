@@ -213,8 +213,8 @@ test('Matchboard runtime frames visibly move and Speed Up preserves outcome safe
   assert.equal(f8.scoreVisible, true, 'score reveals after endpoint');
   const oneWatch = app.ts2EstimatePlayback([leg], 'cinematic');
   const oneFast = app.ts2EstimatePlayback([leg], 'fast');
-  assert.ok(oneWatch >= 36000 && oneWatch <= 42000, `Watch Live timing ${oneWatch}`);
-  assert.ok(oneFast >= 13000 && oneFast <= 16000, `Speed Up timing ${oneFast}`);
+  assert.ok(oneWatch >= 28000 && oneWatch <= 34000, `Watch Live timing ${oneWatch}`);
+  assert.ok(oneFast >= 10000 && oneFast <= 13000, `Speed Up timing ${oneFast}`);
   assert.ok(oneWatch / oneFast >= 2.5, `Speed Up ratio ${(oneWatch / oneFast).toFixed(2)}x`);
   assert.deepEqual(app.ts2BuildStops(leg).map((ev) => ev.type), ['goal', 'halftime', 'red_card', 'final_whistle']);
   window.document.querySelectorAll('script').forEach((el) => el.remove());

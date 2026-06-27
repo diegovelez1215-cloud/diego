@@ -215,8 +215,8 @@ test('Matchcast V4 frame model is deterministic and reveals captured events only
   const stops = ts2.ts2BuildStops(leg);
   const watch = ts2.ts2EstimatePlayback([sampleLeg()], 'cinematic');
   const fast = ts2.ts2EstimatePlayback([sampleLeg()], 'fast');
-  assert.ok(watch >= 36000 && watch <= 42000, `Watch live regulation was ${watch}`);
-  assert.ok(fast >= 13000 && fast <= 16000, `Speed Up regulation was ${fast}`);
+  assert.ok(watch >= 28000 && watch <= 34000, `Watch live regulation was ${watch}`);
+  assert.ok(fast >= 10000 && fast <= 13000, `Speed Up regulation was ${fast}`);
   assert.ok(watch / fast >= 2.5, `Speed Up ratio was ${(watch / fast).toFixed(2)}x`);
 
   const seqA = [0, 2500, 9000, 16000, 26000, 36000, 46000].map((ms) => ts2.ts2FrameModel(leg, stops, ms, 'cinematic', 1));
@@ -253,9 +253,9 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
   const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
   const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
-  assert.ok(oneWatch >= 36000 && oneWatch <= 42000, `one-leg Watch live was ${oneWatch}`);
+  assert.ok(oneWatch >= 28000 && oneWatch <= 34000, `one-leg Watch live was ${oneWatch}`);
   assert.ok(fourWatch >= 30000 && fourWatch <= 50000, `four-leg Watch live was ${fourWatch}`);
-  assert.ok(oneFast >= 13000 && oneFast <= 16000, `one-leg Speed Up was ${oneFast}`);
+  assert.ok(oneFast >= 10000 && oneFast <= 13000, `one-leg Speed Up was ${oneFast}`);
   assert.ok(oneWatch / oneFast >= 2.5, `Speed up ratio was ${(oneWatch / oneFast).toFixed(2)}x`);
   assert.deepEqual(ts2.ts2BuildStops(sampleLeg()).map((s) => s.type), ['goal', 'halftime', 'red_card', 'goal', 'final_whistle']);
 

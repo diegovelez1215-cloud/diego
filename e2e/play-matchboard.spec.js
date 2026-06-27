@@ -61,6 +61,44 @@ test.describe('Play and Matchboard rendered runtime', () => {
     expect(after.bank).toBe(result.bank);
   });
 
+  test('Director runtime: 12-14 markers, fast first motion, and a bright ball', async ({ page }, testInfo) => {
+    await page.evaluate(() => window.__wc26E2E.startMatchboard());
+    await expect(page.locator('.ts2-matchboard')).toBeVisible();
+    const markerCount = await page.locator('.ts2-mb-marker').count();
+    expect(markerCount).toBeGreaterThanOrEqual(12);
+    expect(markerCount).toBeLessThanOrEqual(14);
+    await expect(page.locator('.ts2-ball')).toBeVisible();
+
+    // The deterministic Director Plan moves the ball within 250ms and presents a
+    // captured late goal well inside the budget — never after a literal-minute wait.
+    const timing = await page.evaluate(() => {
+      const ts2 = window.__ts2;
+      const lateGoalLeg = { num: 5, pick: 'h', simple: true, label: 'late', finalState: 'win',
+        result: { teams: { h: 'BRA', a: 'CRO' }, seed: 777, replayKey: 'late-e2e', score: { h: 1, a: 0 }, minute: 90, period: 'final',
+          events: [{ minute: 84, type: 'goal', side: 'h', score: { h: 1, a: 0 }, headline: 'late' }] } };
+      const watch = ts2.ts2BuildDirectorPlan(lateGoalLeg, 'cinematic', 1);
+      const fast = ts2.ts2BuildDirectorPlan(lateGoalLeg, 'fast', 1);
+      const b0 = ts2.ts2DirectorFrame(watch, lateGoalLeg, 0).frame.ball;
+      const b250 = ts2.ts2DirectorFrame(watch, lateGoalLeg, 250).frame.ball;
+      const goalSeg = (p) => p.segments.find((s) => p.stops[s.stopIndex].type === 'goal');
+      return {
+        firstMotion: Math.hypot(b250.x - b0.x, b250.y - b0.y),
+        watchGoal: goalSeg(watch).revealAt, fastGoal: goalSeg(fast).revealAt,
+        watchMaxBeat: Math.max(...watch.beats.map((b) => b.dur)),
+        fastMaxBeat: Math.max(...fast.beats.map((b) => b.dur)),
+        ratio: watch.total / fast.total
+      };
+    });
+    expect(timing.firstMotion).toBeGreaterThan(0.5);
+    expect(timing.watchGoal).toBeLessThanOrEqual(9000);
+    expect(timing.fastGoal).toBeLessThanOrEqual(3500);
+    expect(timing.watchMaxBeat).toBeLessThanOrEqual(650);
+    expect(timing.fastMaxBeat).toBeLessThanOrEqual(300);
+    expect(timing.ratio).toBeGreaterThanOrEqual(2.5);
+    await expectNoHorizontalOverflow(page, 'Director matchboard');
+    await screenshot(page, testInfo, 'matchboard-director');
+  });
+
   test('Cash Out remains clickable and clear of the pitch', async ({ page }) => {
     await page.evaluate(() => {
       window.__wc26E2E.startMatchboard();

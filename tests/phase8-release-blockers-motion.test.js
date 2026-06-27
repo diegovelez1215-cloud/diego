@@ -183,9 +183,9 @@ test('Watch live duration targets and Speed up ratio are enforced', () => withAp
   const oneWatch = ts2.ts2EstimatePlayback(one, 'cinematic');
   const fourWatch = ts2.ts2EstimatePlayback(four, 'cinematic');
   const oneFast = ts2.ts2EstimatePlayback(one, 'fast');
-  assert.ok(oneWatch >= 36000 && oneWatch <= 42000, `one-leg Watch live target failed: ${oneWatch}`);
+  assert.ok(oneWatch >= 28000 && oneWatch <= 34000, `one-leg Watch live target failed: ${oneWatch}`);
   assert.ok(fourWatch >= 30000 && fourWatch <= 56000, `four-leg Watch live target failed: ${fourWatch}`);
-  assert.ok(oneFast >= 13000 && oneFast <= 16000, `one-leg Speed up target failed: ${oneFast}`);
+  assert.ok(oneFast >= 10000 && oneFast <= 13000, `one-leg Speed up target failed: ${oneFast}`);
   assert.ok(oneWatch / oneFast >= 2.5, `Speed up ratio failed: ${(oneWatch / oneFast).toFixed(2)}x`);
 }));
 

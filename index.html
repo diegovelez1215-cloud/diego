@@ -8898,17 +8898,23 @@ function ts2VisualEventState(lg,ev,score,period){
   else if(type==='halftime'||period==='halftime'){cls='reset';tag='Half-time';bx=50;by=50;push=0;mx='0%';bend=0;}
   else if(type==='extra_time'||type==='extra_time_start'||period==='extra time'){cls='pen';tag='Extra time';bx=50+dir*8;by=43;push=dir*6;mx=side==='a'?'-12%':'12%';bend=dir*10;}
   else if(type==='final_whistle'||period==='final'||period==='full time'){cls='final';tag='Full time';bx=50;by=50;push=0;mx='0%';bend=0;}
-  // Stable formation: markers lean toward the attacking side, no minute-driven churn.
+  // Compact 14-marker formation (7 per side). Markers lean toward the attacking
+  // side; only the two forwards nearest the ball get an extra "active" lead so the
+  // rest hold believable shapes. Deterministic seed offset, tiny amplitude — no
+  // minute-driven churn, no robotic jitter, no formation dancing.
   function marker(x,y,team,active,spot,i){
-    var lead=active?dir*6:-dir*2,off=ts2Wave(seed,0,i,3);
-    return {x:Math.max(10,Math.min(90,x+push+lead)),y:Math.max(16,Math.min(84,y+off)),team:team,active:!!active,spot:!!spot};
+    var lead=active?dir*7:-dir*2,off=ts2Wave(seed,0,i,2.2),offx=ts2Wave(seed,1,i,1.6);
+    return {x:Math.max(8,Math.min(92,x+push+lead+offx)),y:Math.max(14,Math.min(86,y+off)),team:team,active:!!active,spot:!!spot};
   }
-  var h=res.teams.h,a=res.teams.a,hActive=side==='h',aActive=side==='a';
+  var h=res.teams.h,a=res.teams.a;
+  // Home attacks right, away attacks left. Index >=5 are the two forwards per side.
+  var HX=[9,24,24,40,40,57,60],HY=[50,30,70,42,58,46,56];
+  var AX=[91,76,76,60,60,43,40],AY=[50,30,70,42,58,46,56];
+  var markers=[],mi;
+  for(mi=0;mi<7;mi++){markers.push(marker(HX[mi],HY[mi],h,side==='h'&&mi>=5,type==='red_card'&&side==='h'&&mi===1,mi+1));}
+  for(mi=0;mi<7;mi++){markers.push(marker(AX[mi],AY[mi],a,side==='a'&&mi>=5,type==='red_card'&&side==='a'&&mi===1,mi+8));}
   return {type:type,cls:cls,tag:tag,attack:attack,bend:bend,ball:{x:Math.max(8,Math.min(92,bx)),y:Math.max(16,Math.min(84,by))},
-    markers:[
-      marker(24,30,h,hActive,type==='red_card'&&side==='h',1),marker(34,52,h,hActive,false,2),marker(46,72,h,hActive,false,3),
-      marker(76,30,a,aActive,type==='red_card'&&side==='a',4),marker(66,52,a,aActive,false,5),marker(54,72,a,aActive,false,6)
-    ],
+    markers:markers,
     score:{h:(score&&score.h)||0,a:(score&&score.a)||0},minute:min,period:period||'first half',motion:mx,seed:seed};
 }
 function ts2Clamp01(t){return Math.max(0,Math.min(1,+t||0));}
@@ -8949,24 +8955,20 @@ function ts2VisualFrame(lg,ev,score,period,step,opts){
   frame.path={from:sBall,to:eBall,progress:t};
   return frame;
 }
+/* Legacy frame model, now a thin read of the deterministic Director Plan so the
+   pure helper, the runtime, and ts2EstimatePlayback all share one timeline. The
+   passed `stops` are used verbatim so returned `event` references match callers. */
 function ts2FrameModel(lg,stops,elapsedMs,speedKey,nLegs){
-  stops=stops||ts2BuildStops(lg);var d=ts2StepDurations(stops,ts2Speeds()[speedKey]||ts2Speeds().cinematic,nLegs||1),acc=0,from=0;
-  for(var i=0;i<stops.length;i++){
-    var ev=stops[i],dur=d[i]||1,next=acc+dur,clock=ts2ClockMs(from,ev.minute,ts2Speeds()[speedKey]||ts2Speeds().cinematic)*ts2LegScale(nLegs||1),p=ts2Clamp01((elapsedMs-acc)/Math.max(1,dur));
-    var move=ts2Clamp01((elapsedMs-acc)/Math.max(1,clock)),min=ts2Lerp(from,ev.minute,move*(2-move));
-    var preScore=(i>0&&stops[i-1].score)?stops[i-1].score:{h:0,a:0},sc=(p>=.82&&ev.score)?ev.score:preScore;
-    if(elapsedMs<=next)return {index:i,elapsed:elapsedMs,event:ev,minute:min,frame:ts2VisualFrame(lg,ev,sc,ev.period||lg.result.period,p),done:elapsedMs>=next};
-    acc=next;from=ev.minute;
-  }
-  var last=stops[stops.length-1]||{},frame=ts2VisualFrame(lg,last,last.score||lg.result.score,last.period||lg.result.period,1);
-  return {index:stops.length-1,elapsed:elapsedMs,event:last,minute:last.minute||lg.result.minute,frame:frame,done:true};
+  stops=stops||ts2BuildStops(lg);
+  var plan=ts2BuildDirectorPlan(lg,speedKey,nLegs||1,stops),fr=ts2DirectorFrame(plan,lg,elapsedMs);
+  return {index:fr.index,elapsed:elapsedMs,event:fr.event,minute:fr.minute,frame:fr.frame,done:fr.done};
 }
 function ts2MatchboardHTML(lg,ev,score,period){
   var v=ts2VisualEventState(lg,ev,score,period),h=lg.result.teams.h,a=lg.result.teams.a;
   var markers=v.markers.map(function(m){return '<i class="ts2-mb-marker '+(m.team===h?'h':'a')+(m.active?' on':'')+(m.spot?' spot':'')+'" style="left:'+m.x+'%;top:'+m.y+'%"></i>';}).join('');
   return '<div class="ts2-matchboard '+esc(v.cls)+'" data-event="'+esc(v.type)+'" data-attack="'+esc(v.attack)+'" style="--mx:'+esc(v.motion)+'" aria-label="Simulated matchboard">'
     +'<div class="ts2-mb-band"></div><div class="ts2-mb-circle"></div>'
-    +'<svg class="ts2-mb-svg" viewBox="0 0 100 100" aria-hidden="true"><path class="ts2-mb-trail"></path></svg>'
+    +'<svg class="ts2-mb-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="ts2-mb-trail"></path></svg>'
     +'<div class="ts2-mb-tag">'+esc(v.tag)+'</div>'+markers
     +'<div class="ts2-goalchip">GOAL</div>'
     +'<div class="ts2-varbox"><span class="ts2-var-tx">SIM VAR CHECK</span></div>'
@@ -9112,9 +9114,102 @@ function ts2StepDurations(stops,spd,nLegs){
 /* Total real elapsed playback for a set of legs at a given speed. Lets the suite
    prove Speed up is materially faster than Watch live without running timers. */
 function ts2EstimatePlayback(legs,speedKey){
-  var spd=ts2Speeds()[speedKey]||ts2Speeds().cinematic,n=(legs||[]).length,total=0;
-  (legs||[]).forEach(function(lg){ts2StepDurations(ts2BuildStops(lg),spd,n).forEach(function(d){total+=d;});});
+  var n=(legs||[]).length,total=0;
+  (legs||[]).forEach(function(lg){total+=ts2BuildDirectorPlan(lg,speedKey,n).total;});
   return Math.round(total);
+}
+/* ===== Virtual Matchcast — Director Rebuild =====================================
+   The presentation is no longer paced by captured event minutes. A captured goal at
+   78' must NOT cost the user 26s of empty opening. Captured minutes drive ONLY event
+   order, the displayed virtual clock, score changes, ticket state and settlement —
+   never when the next exciting visual beat arrives.
+
+   ts2BuildDirectorPlan : pure, deterministic. Turns captured seed + event log + final
+                          result + speed mode into a fixed wall-clock beat timeline.
+   ts2DirectorFrame     : pure. Resolves the visual frame, virtual clock and score at
+                          any playback time. No Math.random, no Date.
+   ts2ApplyDirectorFrame: DOM-only application via the single runtime loop.
+   Wall-clock budgets are independent of captured minutes, so Speed Up only shortens
+   real time — it never changes order, result, ticket state, Cash Out or settlement. */
+function ts2Now(){try{if(typeof performance!=='undefined'&&performance.now)return performance.now();}catch(e){}return Date.now();}
+function ts2DirectorBudget(speedKey){
+  if(speedKey==='fast')
+    return {reg:11500,etAdd:1700,penAdd:2400,settle:200,firstApp:1500,beatMax:290,minApp:480,trans:380};
+  return {reg:30000,etAdd:5000,penAdd:7000,settle:520,firstApp:4200,beatMax:620,minApp:1100,trans:880};
+}
+function ts2IsTransStop(s){return !!s&&(s.type==='halftime'||s.type==='final_whistle'||s.type==='full time');}
+function ts2IsPlayStop(s){return !!s&&!ts2IsTransStop(s);}
+/* Build the deterministic beat plan for one leg at one speed. total == regulation
+   budget (+ extra time / penalties add-ons), scaled for multi-leg slips, by
+   construction — so a dense regulation match always lands in the pacing window while
+   sparse matches stay short instead of being padded with dead time. */
+function ts2BuildDirectorPlan(lg,speedKey,nLegs,stops){
+  speedKey=(speedKey==='fast')?'fast':'cinematic';
+  var spd=ts2Speeds()[speedKey]||ts2Speeds().cinematic;
+  stops=stops||ts2BuildStops(lg);
+  var B=ts2DirectorBudget(speedKey==='fast'?'fast':'watch');
+  var scale=ts2LegScale(nLegs||1),i;
+  var hasET=stops.some(function(s){return s.type==='extra_time'||s.type==='extra_time_start'||s.period==='extra time';});
+  var hasPen=stops.some(function(s){return s.type==='penalties';});
+  var target=B.reg+(hasET?B.etAdd:0)+(hasPen?B.penAdd:0);
+  var playIdx=[];for(i=0;i<stops.length;i++){if(ts2IsPlayStop(stops[i]))playIdx.push(i);}
+  var nPlay=Math.max(1,playIdx.length);
+  // captured-event dwell: holds for play stops only (transitions get a fixed budget)
+  var holdOf={},holdSum=0;
+  playIdx.forEach(function(idx){var hh=ts2EventHold(stops[idx],spd);holdOf[idx]=hh;holdSum+=hh;});
+  var transCount=stops.length-playIdx.length,transTime=transCount*B.trans;
+  var approachTotal=Math.max(nPlay*B.minApp,target-holdSum-transTime-B.settle);
+  // first attacking approach is bounded so the first captured event presents fast;
+  // the remaining approach budget fills the later build-ups (neutral visual beats).
+  var firstApp=Math.min(B.firstApp,approachTotal);
+  var restEach=(nPlay>1)?Math.max(0,(approachTotal-firstApp)/(nPlay-1)):0;
+  var approachOf={};playIdx.forEach(function(idx,p){approachOf[idx]=(p===0)?firstApp:restEach;});
+  var segs=[],acc=0,fromMin=0,fromBall={x:50,y:50},preScore={h:0,a:0};
+  for(i=0;i<stops.length;i++){
+    var s=stops[i],trans=ts2IsTransStop(s);
+    var appr=trans?(B.trans*0.34):(approachOf[i]||B.minApp);
+    var hold=trans?(B.trans*0.66):(holdOf[i]||0);
+    var segDur=appr+hold;
+    segs.push({stopIndex:i,start:Math.round(acc*scale),end:Math.round((acc+segDur)*scale),
+      approach:Math.round(appr*scale),hold:Math.round(hold*scale),revealAt:Math.round((acc+appr)*scale),
+      fromMin:fromMin,fromBall:fromBall,preScore:preScore,trans:trans});
+    acc+=segDur;
+    fromMin=(s.minute!=null)?s.minute:fromMin;
+    fromBall=ts2VisualEventState(lg,s,s.score||preScore,s.period||lg.result.period).ball;
+    if(s.score)preScore=s.score;
+  }
+  var total=Math.round((acc+B.settle)*scale);
+  // fine-grained beats (<= beatMax) so no single beat is a dead visual gap
+  var beats=[],bmax=Math.max(60,Math.round(B.beatMax*scale));
+  segs.forEach(function(sg){
+    var dur=Math.max(1,sg.end-sg.start),parts=Math.max(1,Math.ceil(dur/bmax)),per=Math.round(dur/parts),apprParts=Math.max(1,Math.round(sg.approach/dur*parts));
+    for(var b=0;b<parts;b++)beats.push({stopIndex:sg.stopIndex,dur:per,kind:sg.trans?'transition':(b<apprParts?'approach':'hold')});
+  });
+  beats.push({stopIndex:stops.length-1,dur:Math.max(1,Math.round(B.settle*scale)),kind:'settle'});
+  return {segments:segs,beats:beats,total:total,stops:stops,speedKey:speedKey,scale:scale,
+    target:Math.round(target*scale),firstRevealMs:(segs[playIdx[0]!=null?playIdx[0]:0]||{}).revealAt||0,
+    beatMax:bmax};
+}
+/* Resolve the deterministic frame at a playback time. The ball arc completes across
+   the APPROACH (reaching the goal mouth at step .82), then the captured event reveals
+   exactly at the approach/hold boundary and the score holds through the celebration. */
+function ts2DirectorFrame(plan,lg,elapsedMs){
+  var segs=plan.segments,stops=plan.stops,n=segs.length;
+  elapsedMs=Math.max(0,+elapsedMs||0);
+  var i,seg=null;
+  for(i=0;i<n;i++){if(elapsedMs<segs[i].end){seg=segs[i];break;}}
+  if(!seg){seg=segs[n-1];i=n-1;}
+  var ev=stops[seg.stopIndex],local=elapsedMs-seg.start;
+  var step;
+  if(seg.approach<=0)step=1;
+  else if(local<=seg.approach)step=0.82*ts2Clamp01(local/seg.approach);
+  else step=0.82+0.18*ts2Clamp01((local-seg.approach)/Math.max(1,seg.hold));
+  var revealed=(seg.approach<=0)||(local>=seg.approach);
+  var score=(revealed&&ev.score)?ev.score:seg.preScore;
+  var minute=(local>=seg.approach)?ev.minute:ts2Lerp(seg.fromMin,ev.minute,ts2Clamp01(local/Math.max(1,seg.approach)));
+  var frame=ts2VisualFrame(lg,ev,score,ev.period||lg.result.period,step,{from:seg.fromBall});
+  return {index:seg.stopIndex,segIndex:i,event:ev,minute:minute,frame:frame,score:score,
+    revealed:revealed,done:elapsedMs>=plan.total};
 }
 function ts2ApplyMatchboardFrame(frame){
   if(!frame)return;var v=frame.frame||frame,mb=document.querySelector('#ts2stage .ts2-matchboard');if(!mb)return;
@@ -9127,6 +9222,15 @@ function ts2ApplyMatchboardFrame(frame){
   var tag=mb.querySelector('.ts2-mb-tag');if(tag)tag.textContent=v.tag||'Simulation · Virtual match';
   var ms=[].slice.call(mb.querySelectorAll('.ts2-mb-marker'));
   (v.markers||[]).forEach(function(m,i){var el=ms[i];if(!el)return;el.style.left=m.x+'%';el.style.top=m.y+'%';el.className='ts2-mb-marker '+(el.className.indexOf(' a')>=0?'a':'h')+(m.active?' on':'')+(m.spot?' spot':'');});
+}
+/* Per-frame DOM application for the Director runtime: ball, markers, trail and the
+   accelerated virtual clock only. The score and period are committed separately at the
+   captured reveal beat (ts2ApplyEvent), so this never reveals an outcome early. */
+function ts2ApplyDirectorFrame(dframe){
+  if(!dframe||!_ts2)return;
+  ts2ApplyMatchboardFrame(dframe.frame);
+  _ts2.liveMin=dframe.minute;
+  var clk=document.getElementById('ts2clock');if(clk&&_ts2.livePeriod!=='halftime'&&_ts2.livePeriod!=='penalties'&&_ts2.livePeriod!=='final'&&_ts2.livePeriod!=='full time')clk.textContent=ts2ClockText();
 }
 /* Post-event SIM VAR: a purely visual, deterministic confirmation of ONE eligible
    captured event per match (goal / penalty / red card). It only writes to the DOM —
@@ -9180,33 +9284,58 @@ function ts2ApplyEvent(i,ev,spd){
   }else if(ev.type==='red_card'){try{haptic('bust');}catch(e){}}
   ts2MaybeSimVar(lg,ev,spd);
 }
+/* Director-driven playback. ONE requestAnimationFrame loop reads the deterministic
+   Director Plan by elapsed wall-clock time. Captured events reveal (score, drama,
+   flash, SIM VAR, haptics) exactly once at their planned beat — never early, always in
+   captured order. No per-frame app rerender: only ball/markers/clock transform. */
 function ts2PlayLeg(i,instant){
-  if(!_ts2)return;_ts2.cur=i;var t=_ts2,lg=t.legs[i];
+  if(!_ts2)return;ts2Cancel();_ts2.cur=i;var t=_ts2,lg=t.legs[i];
   if(!lg)return ts2Recap();
   // reset live view for this leg
   t.liveScore={h:0,a:0};t.liveRed={h:0,a:0};t.livePeriod='first half';t.liveMin=0;t.liveEvent=null;t.shootout=null;t.drama=null;t.liveBall={x:50,y:50};lg._varDone=false;
   // Deciding-leg framing: when the slip comes down to its final unresolved leg, name it.
   if(!instant&&t.legs.length>1&&ts2LastAliveLeg())t.drama={text:'One result left',cls:'tense'};
   ts2RenderStage();ts2RenderRail();ts2RenderTop();ts2RenderCash();
-  var res=lg.result,stops=ts2BuildStops(lg);
+  var stops=ts2BuildStops(lg);
   if(instant){ // skip: apply all instantly
     stops.forEach(function(ev){ts2ApplyEvent(i,ev,null);});
     lg._done=true;ts2RenderRail();
     return ts2PlayLeg(i+1,true);
   }
-  var spd=ts2Speeds()[t.speed]||ts2Speeds().cinematic,scale=ts2LegScale(t.legs.length),k=0;
-  function nextStop(){
-    if(!_ts2||_ts2.cur!==i)return;
-    if(k>=stops.length){lg._done=true;ts2RenderRail();_ts2Timer=setTimeout(function(){ts2PlayLeg(i+1,false);},Math.round(Math.max(260,spd.settle)*scale));return;}
-    var ev=stops[k++],fromMin=t.liveMin||0,toMin=ev.minute;
-    ts2TweenClock(lg,ev,fromMin,toMin,Math.round(ts2ClockMs(fromMin,toMin,spd)*scale),function(){
-      ts2ApplyEvent(i,ev,spd);
-      _ts2Timer=setTimeout(nextStop,Math.round(ts2EventHold(ev,spd)*scale));
-    });
+  var plan=ts2BuildDirectorPlan(lg,t.speed,t.legs.length,stops);
+  var rt={plan:plan,start:ts2Now(),i:i,revealed:-1};t.runtime=rt;
+  function frame(){
+    if(!_ts2||_ts2.cur!==i||t.runtime!==rt){return;}
+    var el=ts2Now()-rt.start,p=rt.plan;
+    // fire any captured reveals whose planned beat has been reached, in order
+    var spd=ts2Speeds()[t.speed]||ts2Speeds().cinematic;
+    for(var k=rt.revealed+1;k<p.segments.length;k++){
+      if(el>=p.segments[k].revealAt){rt.revealed=k;ts2ApplyEvent(i,p.stops[k],spd);}
+      else break;
+    }
+    ts2ApplyDirectorFrame(ts2DirectorFrame(p,lg,el));
+    if(el>=p.total){
+      // ensure every captured reveal has been applied before settling
+      for(var z=rt.revealed+1;z<p.segments.length;z++){rt.revealed=z;ts2ApplyEvent(i,p.stops[z],spd);}
+      _ts2RAF=null;t.runtime=null;lg._done=true;ts2RenderRail();
+      _ts2Timer=setTimeout(function(){ts2PlayLeg(i+1,false);},90);
+      return;
+    }
+    _ts2RAF=requestAnimationFrame(frame);
   }
-  nextStop();
+  _ts2RAF=requestAnimationFrame(frame);
 }
-function ts2SetSpeed(s){if(!_ts2)return;_ts2.speed=s;try{S._ts2&&(S._ts2.speed=s);}catch(e){}ts2RenderTop();try{haptic('tap');}catch(e){}}
+/* Speed Up changes wall-clock only. Rebuild the plan for the new speed and re-anchor
+   so already-revealed captured events stay revealed and future ones keep their order —
+   never altering result, ticket state, Cash Out, or settlement. */
+function ts2SetSpeed(s){if(!_ts2)return;var t=_ts2;t.speed=s;try{S._ts2&&(S._ts2.speed=s);}catch(e){}
+  if(t.runtime&&t.cur!=null&&t.legs[t.cur]){
+    var rt=t.runtime,lg=t.legs[t.cur];
+    var np=ts2BuildDirectorPlan(lg,s,t.legs.length,rt.plan.stops);
+    var anchor=(rt.revealed>=0&&np.segments[rt.revealed])?np.segments[rt.revealed].end:0;
+    rt.plan=np;rt.start=ts2Now()-anchor;
+  }
+  ts2RenderTop();try{haptic('tap');}catch(e){}}
 function ts2Skip(){if(!_ts2)return;ts2Cancel();var i=_ts2.cur;
   // finish current + remaining legs instantly, then recap
   for(var j=i;j<_ts2.legs.length;j++){var lg=_ts2.legs[j];if(!lg._done){lg._done=true;}}
@@ -9366,6 +9495,7 @@ try{window.__ts2={ts2Legs:ts2Legs,ts2Simple:ts2Simple,ts2StateAt:ts2StateAt,ts2F
   ts2Speeds:ts2Speeds,ts2SetSpeed:ts2SetSpeed,ts2BuildStops:ts2BuildStops,ts2StepDurations:ts2StepDurations,ts2EstimatePlayback:ts2EstimatePlayback,
   ts2EventHold:ts2EventHold,ts2LegScale:ts2LegScale,ts2ClockMs:ts2ClockMs,ts2IsKey:ts2IsKey,
   ts2VisualEventState:ts2VisualEventState,ts2VisualFrame:ts2VisualFrame,ts2FrameModel:ts2FrameModel,ts2ApplyMatchboardFrame:ts2ApplyMatchboardFrame,ts2MatchboardHTML:ts2MatchboardHTML,
+  ts2BuildDirectorPlan:ts2BuildDirectorPlan,ts2DirectorFrame:ts2DirectorFrame,ts2ApplyDirectorFrame:ts2ApplyDirectorFrame,ts2DirectorBudget:ts2DirectorBudget,
   ts2MaybeSimVar:ts2MaybeSimVar,ts2TicketKey:ts2TicketKey,ts2ConfettiShouldFire:ts2ConfettiShouldFire,
   canOpenVirtualMatchcast:canOpenVirtualMatchcast,
   getCtx:function(){return _ts2;},setCtx:function(v){_ts2=v;},runtimeState:function(){return {timer:!!_ts2Timer,raf:!!_ts2RAF,runtime:!!(_ts2&&_ts2.runtime)};}};}catch(e){}

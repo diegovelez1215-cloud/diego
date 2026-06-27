@@ -155,7 +155,7 @@ test('Confetti is not triggered by placement or cash out, only by full ticket wi
   assert.ok(!/burst\(/.test(app.functionText('tkPlace')), 'placing a ticket does not trigger confetti');
   assert.ok(!/burst\(/.test(app.functionText('ts2CashConfirm')), 'cash-out confirm does not trigger confetti');
   assert.ok(!/burst\(/.test(app.functionText('ts2RecapCashed')), 'cash-out recap does not trigger confetti');
-  assert.ok(/if\(won\)\{burst\(\)/.test(app.functionText('ts2Recap')), 'full win recap may still celebrate');
+  assert.ok(/allWon[\s\S]*?ts2ConfettiShouldFire\(t\)\)\{burst\(\)/.test(app.functionText('ts2Recap')), 'full win recap may still celebrate');
 }));
 
 test('Stake display separates bankroll, selected stake, and payout, and blocks over-bankroll stake', () => withApp((app, window) => {
