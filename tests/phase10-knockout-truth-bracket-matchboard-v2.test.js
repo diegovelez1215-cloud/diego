@@ -289,3 +289,82 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   assert.equal(runtime.runtime, false, 'close clears runtime marker');
   assert.equal(errors.length, 0, 'no console errors: ' + errors.join(' | '));
 }));
+
+/* ===== Phase 19 — Arcade Matchcast motion (visual-only restoration) ===== */
+
+test('Arcade Matchcast: visual frame sequence is deterministic for the same seed + log + elapsed time', () => withApp((app, window, ts2) => {
+  const leg = penaltyLeg(), stops = ts2.ts2BuildStops(leg);
+  const sample = () => [0, 3000, 9000, 15000, 22000, 30000].map((ms) => JSON.stringify(ts2.ts2FrameModel(leg, stops, ms, 'cinematic', 1).frame));
+  assert.deepEqual(sample(), sample(), 'same seed + event log + elapsed playback time give identical frames');
+  const a = ts2.ts2VisualFrame(leg, stops[0], stops[0].score, 'first half', .4, { from: { x: 50, y: 50 } });
+  const b = ts2.ts2VisualFrame(leg, stops[0], stops[0].score, 'first half', .4, { from: { x: 50, y: 50 } });
+  assert.deepEqual(a.ball, b.ball, 'continuity-anchored arc is deterministic');
+}));
+
+test('Arcade Matchcast: attacking ball travel is non-linear (arcs/diagonals, not a straight lerp)', () => withApp((app, window, ts2) => {
+  const leg = sampleLeg();
+  const goal = ts2.ts2BuildStops(leg).find((e) => e.type === 'goal');
+  const A = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .3).ball;
+  const B = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .55).ball;
+  const C = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .8).ball;
+  const cross = (B.x - A.x) * (C.y - A.y) - (B.y - A.y) * (C.x - A.x);
+  assert.ok(Math.abs(cross) > 1, `ball path is curved, not collinear (cross ${cross.toFixed(2)})`);
+  const fr = ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .78);
+  assert.ok(fr.ball.x >= 88 || fr.ball.x <= 12, 'the arc still resolves at the goal area before the score reveal');
+  assert.ok(fr.trail && fr.trail.on && /^M[\d.]+ [\d.]+ Q/.test(fr.trail.d), 'a meaningful attack draws a short curved (quadratic) trail/streak');
+}));
+
+test('Arcade Matchcast: never reveals score, future penalty kicks, or events ahead of schedule', () => withApp((app, window, ts2) => {
+  const leg = penaltyLeg(), stops = ts2.ts2BuildStops(leg);
+  const goal = stops.find((e) => e.type === 'goal');
+  assert.equal(ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .5).scoreVisible, false, 'goal score stays hidden mid-flight');
+  assert.equal(ts2.ts2VisualFrame(leg, goal, goal.score, 'first half', .9).scoreVisible, true, 'score reveals only after the ball arrives');
+  const pen = stops.find((e) => e.type === 'penalties');
+  const early = ts2.ts2VisualFrame(leg, pen, pen.score, 'penalties', .2);
+  assert.ok(early.penaltyReveal.shown >= 1 && early.penaltyReveal.shown < early.penaltyReveal.total, 'only the current penalty kick shows; future kicks stay hidden');
+  const before = ts2.ts2FrameModel(leg, stops, 4000, 'cinematic', 1);
+  assert.notEqual(before.event.type, 'penalties', 'penalties never surface before their captured minute');
+}));
+
+test('Arcade Matchcast: replay and leave/re-enter never stack RAF or timer loops', () => withApp((app, window, ts2) => {
+  const s = app.blankState(); s.mode = 'sim';
+  Object.keys(app.GROUPS).forEach((g) => { s.order[g] = app.GROUPS[g].slice(); });
+  s.bank = 1000; s.bets = [{ id: 'loop', num: 1, pick: 'h', stake: 20, odds: 120, settled: false, state: 'pending' }];
+  app.setState(s);
+  window.ts2Launch(0);
+  window.ts2Replay(); window.ts2Replay();
+  window.ts2Skip();
+  window.ts2Close();
+  const rt = ts2.runtimeState();
+  assert.equal(rt.timer, false, 'no timer loop survives replay + close');
+  assert.equal(rt.raf, false, 'no RAF loop survives replay + close');
+  assert.equal(rt.runtime, false, 'runtime marker cleared');
+}));
+
+test('SIM VAR is post-event and visual-only: it never changes score, ticket, Cash Out, or settlement', () => withApp((app, window, ts2) => {
+  const s = app.blankState(); s.mode = 'sim';
+  Object.keys(app.GROUPS).forEach((g) => { s.order[g] = app.GROUPS[g].slice(); });
+  s.bank = 1000; s.bets = [{ id: 'var-test', num: 1, pick: 'h', stake: 25, odds: 140, settled: false, state: 'pending' }];
+  app.setState(s);
+  window.ts2Launch(0);
+  const ctx = ts2.getCtx(), leg = ctx.legs[0];
+  const goal = ts2.ts2BuildStops(leg).find((e) => e.type === 'goal');
+  const snap = () => JSON.stringify({ bank: app.getState().bank, score: ctx.liveScore || {}, targets: ctx.targets, cash: ctx.cashOutAmount || 0, settled: app.getState().bets.filter((b) => b.settled).length });
+  const before = snap();
+  const fired = ts2.ts2MaybeSimVar(leg, goal, ts2.ts2Speeds().cinematic);
+  assert.equal(fired, true, 'SIM VAR shows for one eligible captured goal');
+  assert.ok(window.document.querySelector('#ts2stage .ts2-varbox.show'), 'a SIM VAR overlay is shown on the pitch (no full-screen modal)');
+  assert.equal(ts2.ts2MaybeSimVar(leg, goal, ts2.ts2Speeds().cinematic), false, 'at most one VAR check per match');
+  assert.equal(snap(), before, 'VAR changed no score, ticket, Cash Out, or settlement state');
+}));
+
+test('Confetti fires once per settled full-win ticket — not on partial legs, replays, or re-renders', () => withApp((app, window, ts2) => {
+  const ticket = { replayKey: 'tk-1', legs: [{ pick: 'h', result: { seed: 111, score: { h: 2, a: 0 } } }] };
+  assert.equal(ts2.ts2ConfettiShouldFire(ticket), true, 'first full-win settlement fires the single burst');
+  assert.equal(ts2.ts2ConfettiShouldFire(ticket), false, 'the same settled ticket never fires again (replay/re-render guard)');
+  const same = { replayKey: 'tk-1', legs: [{ pick: 'h', result: { seed: 111, score: { h: 2, a: 0 } } }] };
+  assert.equal(ts2.ts2TicketKey(ticket), ts2.ts2TicketKey(same), 'ticket identity is stable for the same captured outcome');
+  assert.equal(ts2.ts2ConfettiShouldFire(same), false, 'a re-created context for the same outcome is still de-duplicated');
+  const other = { replayKey: 'tk-2', legs: [{ pick: 'a', result: { seed: 222, score: { h: 1, a: 3 } } }] };
+  assert.equal(ts2.ts2ConfettiShouldFire(other), true, 'a genuinely different ticket can fire its own single burst');
+}));
