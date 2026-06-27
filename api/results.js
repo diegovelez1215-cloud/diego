@@ -20,6 +20,7 @@
  * keeps using its built-in results — nothing breaks.
  */
 import { cachedRoute, fetchJson, safeLog } from './_shared.js';
+import { verifiedR32ScheduledFixtures } from './officialR32Fixtures.js';
 
 export default async function handler(req, res) {
   // Official results drive standings, qualifiers, and bracket truth. Do not let
@@ -73,6 +74,14 @@ export default async function handler(req, res) {
     });
 
     if (finished.length) safeLog('final_result_confirmation', { provider: 'football-data', route: '/api/results', count: finished.length });
-    return { configured: true, count: finished.length, finished: finished, live: live, hold: hold, scheduled: scheduled, fetchedAt: new Date().toISOString() };
+
+    // Display-only verified R32 fallback. Appended AFTER provider scheduled
+    // fixtures so a provider-named fixture is ingested first and always wins; the
+    // manifest only fills slots the provider left blank. These carry names only —
+    // no scores, no finals, no advancement, and they never touch standings,
+    // qualification, Player Leaders, or SIM state (the client keys them by stable
+    // slot number and treats source 'verified_fixture' strictly as a fallback).
+    const verifiedR32 = verifiedR32ScheduledFixtures();
+    return { configured: true, count: finished.length, finished: finished, live: live, hold: hold, scheduled: scheduled.concat(verifiedR32), koFixtures: verifiedR32, fetchedAt: new Date().toISOString() };
   }});
 }

@@ -8479,7 +8479,8 @@ function truthResolveProviderKOFixture(f){
   var num=truthProviderKOFixtureNum(f);if(!num||!M[num]||M[num].stage==='group')return null;
   if(rwKind(f)!=='scheduled'||officialFinalPayload(f))return null;
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac||hc===ac)return null;
-  return {num:num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||''};
+  var source=(f&&f.source==='verified_fixture')?'verified_fixture':'official_provider_fixture';
+  return {num:num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',source:source};
 }
 function ingestProviderKOFixtures(arr,opts){
   if(!opts||opts.authoritative!==true)return false;
@@ -8490,8 +8491,17 @@ function ingestProviderKOFixtures(arr,opts){
   arr.forEach(function(f){
     var num=truthProviderKOFixtureNum(f);if(!num)return;
     var next=truthResolveProviderKOFixture(f),prev=S.officialKOFixtures[num];
-    if(!next){if(prev){delete S.officialKOFixtures[num];changed=true;}return;}
-    if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status){
+    var prevVerified=!!(prev&&prev.source==='verified_fixture');
+    if(!next){
+      // A blank/withdrawn provider fixture clears a provider-sourced name, but must
+      // never delete the verified fallback that is standing in for a missing name.
+      if(prev&&!prevVerified){delete S.officialKOFixtures[num];changed=true;}
+      return;
+    }
+    // Provider-named scheduled fixtures always win; the verified manifest only fills
+    // a slot the provider left unnamed (display-only fallback).
+    if(next.source==='verified_fixture'&&prev&&!prevVerified)return;
+    if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status||prev.source!==next.source){
       S.officialKOFixtures[num]=Object.assign({},next,{updatedAt:Date.now()});changed=true;
     }
   });
@@ -8532,7 +8542,7 @@ function tournamentTruthSnapshot(){
   var finals={},ko={},namedKO={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
   Object.keys(REAL||{}).forEach(function(n){var s=truthOfficialFinalScore(+n);if(s)finals[n]={num:+n,score:s,source:'official_final'};});
   Object.keys(S&&S.realko||{}).forEach(function(n){if(S.realko[n])ko[n]=S.realko[n];});
-  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',source:'official_provider_fixture'};});
+  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',source:f.source||'official_provider_fixture'};});
   if(S&&S.rwState)Object.keys(S.rwState).forEach(function(n){var st=truthLiveStateFor(+n);if(!st)return;var row={num:+n,kind:st.kind,score:(st.sh!=null&&st.sa!=null)?{h:st.sh,a:st.sa}:null,min:st.min,status:st.status||'',label:st.label||'',provisional:true};if(st.kind==='hold')hold[n]=row;else live[n]=row;});
   if(S&&S.live)virtual.activeMatch={num:S.live.num,score:{h:S.live.sh||0,a:S.live.sa||0},minute:S.live.min||0,source:'virtual'};
   if(S&&S.bets)virtual.openTickets=S.bets.filter(function(b){return b&&!b.settled;}).length;
