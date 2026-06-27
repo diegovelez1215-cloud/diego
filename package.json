@@ -3,7 +3,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test:logic": "node --test tests/*.test.js",
+    "test:logic": "node --test tests/*.test.js tests/*.test.mjs",
     "test:ui": "playwright test",
     "test:release": "npm run test:logic && npm run test:ui"
   },
