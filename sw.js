@@ -1,6 +1,6 @@
-/* United 2026 · service worker — network-first so updates are always fresh,
-   with an offline cache fallback. Enables Add to Home Screen / standalone. */
-const CACHE = 'united2026-v53-stable';
+/* United 2026 · service worker — network-first for shell assets.
+   Dynamic API truth is never cached here; official data must fail closed. */
+const CACHE = 'united2026-v54-stable';
 const ASSETS = ['./', './index.html', './icon.png', './icon-180.png', './manifest.webmanifest'];
 
 self.addEventListener('install', function (e) {
@@ -21,6 +21,10 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // let cross-origin (fonts/CDN) pass through
+  if (url.pathname.indexOf('/api/') === 0) {
+    e.respondWith(fetch(req));
+    return;
+  }
   e.respondWith(
     fetch(req).then(function (res) {
       var copy = res.clone();

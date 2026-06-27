@@ -22,7 +22,10 @@
 import { cachedRoute, fetchJson, safeLog } from './_shared.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
+  // Official results drive standings, qualifiers, and bracket truth. Do not let
+  // browser or edge cache replay stale official truth; cachedRoute only coalesces
+  // within the live server process and marks stale fallbacks explicitly.
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   const key = process.env.FOOTBALL_DATA_KEY;
   if (!key) { res.status(200).json({ configured: false, finished: [], live: [], hold: [], fetchedAt: new Date().toISOString(), sourceStatus: 'missing-config' }); return; }

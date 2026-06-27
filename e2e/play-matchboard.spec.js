@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const {
   gotoApp,
+  tapBottomTab,
   expectNoHorizontalOverflow,
   expectRectsInsideViewport,
   screenshot
@@ -9,6 +10,23 @@ const {
 test.describe('Play and Matchboard rendered runtime', () => {
   test.beforeEach(async ({ page }) => {
     await gotoApp(page, 'final-matchday');
+  });
+
+  test('Play disclosure is immediately visible and does not cover controls', async ({ page }) => {
+    await tapBottomTab(page, 'bet');
+    const disc = page.locator('.play-disclosure');
+    await expect(disc).toBeVisible();
+    await expect(disc).toHaveText('SIM $ · NO REAL MONEY');
+    await expectRectsInsideViewport(page, '.play-disclosure', 'Play disclosure');
+
+    await page.evaluate(() => window.__wc26E2E.openTicketBuilder());
+    await expect(page.locator('#tkPlace')).toBeVisible();
+    const covered = await page.locator('#tkPlace').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!(top && top.closest && top.closest('.play-disclosure'));
+    });
+    expect(covered).toBe(false);
   });
 
   test('Play ticket builder is reachable and mobile-safe', async ({ page }, testInfo) => {

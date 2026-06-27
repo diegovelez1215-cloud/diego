@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const FINAL = { FT: 1, AET: 1, PEN: 1, FINISHED: 1 };
 const LIVE = { '1H': 1, '2H': 1, HT: 1, ET: 1, BT: 1, P: 1, LIVE: 1, IN_PLAY: 1, PAUSED: 1 };
@@ -101,4 +103,13 @@ test('duplicate and corrected final payloads are idempotent by fixture key', () 
   assert.equal(applyFinal(10, { status: 'FT', gh: 1, ga: 0 }), true);
   assert.equal(applyFinal(10, { status: 'FT', gh: 1, ga: 0 }), false);
   assert.equal(applyFinal(10, { status: 'FT', gh: 2, ga: 0 }), true);
+});
+
+test('service worker never caches dynamic API truth endpoints', () => {
+  const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+  assert.match(sw, /url\.pathname\.indexOf\('\/api\/'\)\s*===\s*0/);
+  assert.match(sw, /e\.respondWith\(fetch\(req\)\)/);
+  const apiBypass = sw.indexOf("url.pathname.indexOf('/api/') === 0");
+  const cachePut = sw.indexOf('c.put(req, copy)');
+  assert.ok(apiBypass >= 0 && cachePut >= 0 && apiBypass < cachePut, 'API requests return before cache writes');
 });

@@ -2489,14 +2489,14 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 .phl-more{margin-top:3px;font-size:10.5px;font-weight:700;letter-spacing:0;color:var(--mut)}
 .phl-fixture{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 .phl-fixture.live{border-color:rgba(100,210,255,.25);background:rgba(100,210,255,.08)}
-.phl-fixture.hold,.phl-fixture.pending_official_feed{border-color:rgba(255,159,10,.25);background:rgba(255,159,10,.08)}
+.phl-fixture.hold,.phl-fixture.pending_official_feed,.phl-fixture.awaiting_confirmed_update{border-color:rgba(255,159,10,.25);background:rgba(255,159,10,.08)}
 .phl-tm{font-size:13px;font-weight:800;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .phl-tm.r{text-align:right}
 .phl-mid{font-size:16px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
 .phl-fixture .phl-mid{min-width:56px;text-align:center;font-size:14px;line-height:1.05}
 .phl-state{display:block;margin-top:2px;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.35px;color:var(--mut3)}
 .phl-fixture.live .phl-state{color:var(--blue2)}
-.phl-fixture.hold .phl-state,.phl-fixture.pending_official_feed .phl-state{color:var(--orange)}
+.phl-fixture.hold .phl-state,.phl-fixture.pending_official_feed .phl-state,.phl-fixture.awaiting_confirmed_update .phl-state{color:var(--orange)}
 .phl-sub{font-size:11.5px;color:var(--mut);font-weight:600;line-height:1.4}
 .phl-tickets{margin-top:9px;font-size:11px;font-weight:800;color:var(--gold);background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.24);border-radius:10px;padding:7px 10px}
 .phl-go{margin-top:11px;width:100%;min-height:44px;border:none;border-radius:12px;padding:11px;font-weight:900;font-size:12.5px;cursor:pointer;color:#10164a;background:linear-gradient(180deg,#ffd60a,#f5b400)}
@@ -3043,7 +3043,7 @@ function nm(c){return (T[c]&&T[c][0])||c;}
    edge<1 compresses favourite advantage (more upsets); goal scales scoring frequency. */
 var SIMMODE={chaos:{edge:0.32,goal:1,t:"🌀 Chaos"},laser:{edge:1,goal:2.0,t:"⚡ Laser Boots"},bus:{edge:1,goal:0.48,t:"🧱 Park the Bus"}};
 function simM(){return SIMMODE[S&&S.simMode]||{edge:1,goal:1};}
-function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
+function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
 /* ===== Global view mode: REAL LIFE vs MY SIM =====
    'real' → the whole tracker renders from official results only (a pristine,
             read-only live tracker). 'sim' → the user's editable sandbox + bets.
@@ -3111,11 +3111,13 @@ function seedLive(){var w=walletSnap();S=blankState();walletRestore(w);
   "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=GROUPS[g].slice());
   Object.keys(REAL).forEach(n=>{S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});}
 /* ---- persistence + shareable links ---- */
-function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
+function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
 function saveState(){try{if(!Array.isArray(S.bankHist))S.bankHist=[S.bank];if(S.bankHist[S.bankHist.length-1]!==S.bank){S.bankHist.push(S.bank);if(S.bankHist.length>120)S.bankHist=S.bankHist.slice(-120);}localStorage.setItem("wc26_v1",JSON.stringify(persistKeys()));}catch(e){}}
 function applyState(o){try{if(!o||typeof o!=="object")return false;
   if(o.sc&&typeof o.sc==="object"){var _sc={};Object.keys(o.sc).forEach(function(k){var n=+k,v=o.sc[k];if(n>=1&&n<=104&&v&&typeof v==="object"&&typeof v.h==="number"&&typeof v.a==="number"&&v.h>=0&&v.a>=0&&v.h<=99&&v.a<=99)_sc[n]={h:v.h|0,a:v.a|0};});S.sc=_sc;}
   if(o.ko&&typeof o.ko==="object")S.ko=o.ko;if(o.order&&typeof o.order==="object")S.order=o.order;if("thirds" in o)S.thirds=o.thirds;
+  if(o.officialKOFinals&&typeof o.officialKOFinals==="object")S.officialKOFinals=o.officialKOFinals;
+  if(o.providerGroupOrder&&typeof o.providerGroupOrder==="object")S.providerGroupOrder=o.providerGroupOrder;
   if(o.betsim&&typeof o.betsim==="object"){var _bs={};Object.keys(o.betsim).forEach(function(k){var n=+k;if(n>=1&&n<=104&&o.betsim[k])_bs[n]=1;});S.betsim=_bs;}
   S.mode=(o.mode==='sim')?'sim':'real';
   if(typeof o.favNation==="string"&&o.favNation.length<=3)S.favNation=o.favNation;else S.favNation=null;
@@ -3172,16 +3174,32 @@ function baseTable(g,subset){const st={};GROUPS[g].forEach(t=>st[t]=blankStat())
   /* In real-life mode, fold in any in-play real scores so the table + "as it stands"
      projections react live to games happening right now (cleared once the final lands in S.sc). */
   var _lv=(S._rwlive&&typeof activeMode==='function'&&activeMode()==='real')?S._rwlive:null;
-  gMatches(g).forEach(m=>{let r=S.sc[m.num];if(!r&&_lv&&_lv[m.num]&&_lv[m.num].sh!=null)r={h:_lv[m.num].sh,a:_lv[m.num].sa};if(!r)return;if(isBetSim(m.num))return;if(subset&&(subset.indexOf(m.home)<0||subset.indexOf(m.away)<0))return;
+  gMatches(g).forEach(m=>{let r=S.sc[m.num];if(!r&&_lv&&_lv[m.num]&&_lv[m.num].sh!=null&&!truthProvisionalExpired(_lv[m.num]))r={h:_lv[m.num].sh,a:_lv[m.num].sa};if(!r)return;if(isBetSim(m.num))return;if(subset&&(subset.indexOf(m.home)<0||subset.indexOf(m.away)<0))return;
     const h=st[m.home],a=st[m.away];h.Pl++;a.Pl++;h.GF+=r.h;h.GA+=r.a;a.GF+=r.a;a.GA+=r.h;
     if(r.h>r.a){h.W++;a.L++;h.Pts+=3;}else if(r.h<r.a){a.W++;h.L++;a.Pts+=3;}else{h.D++;a.D++;h.Pts++;a.Pts++;}});
   Object.values(st).forEach(s=>s.GD=s.GF-s.GA);return st;}
+function providerGroupOrder(g){var o=S&&S.providerGroupOrder&&S.providerGroupOrder[g];if(!Array.isArray(o)||o.length!==GROUPS[g].length)return null;
+  var seen={};for(var i=0;i<o.length;i++){if(GROUPS[g].indexOf(o[i])<0||seen[o[i]])return null;seen[o[i]]=1;}return o.slice();}
+function groupOrderForStandings(g){var po=providerGroupOrder(g);return po||S.order[g]||GROUPS[g].slice();}
+function groupHasAuthoritativeOrder(g){return !!providerGroupOrder(g);}
+function truthIngestProviderRankings(d){
+  var src=d&&(d.standings||d.groups||d.rankings||d.tables);if(!src)return false;
+  var next={},changed=false;
+  function put(g,rows){if(!GROUPS[g]||!Array.isArray(rows))return;var order=rows.map(function(r){return rwResolve((r&&(r.team||r.name||r.shortName||r.code))||r);}).filter(Boolean);
+    if(order.length===GROUPS[g].length&&order.every(function(c,i){return GROUPS[g].indexOf(c)>=0&&order.indexOf(c)===i;})){next[g]=order;}}
+  if(Array.isArray(src))src.forEach(function(x){put(x&&x.group,x&&x.table||x&&x.standings||x&&x.teams||x&&x.rows);});
+  else Object.keys(src).forEach(function(g){put(g,src[g]);});
+  if(!Object.keys(next).length)return false;
+  S.providerGroupOrder=S.providerGroupOrder||{};
+  Object.keys(next).forEach(function(g){if((S.providerGroupOrder[g]||[]).join('|')!==next[g].join('|')){S.providerGroupOrder[g]=next[g];changed=true;}});
+  return changed;
+}
 /* FIFA 2026 tiebreakers (official order): equal points are first split by
    head-to-head (points, then GD, then goals among the tied teams), and only
-   THEN by overall goal difference / goals / seeding. This head-to-head-first
+   THEN by overall goal difference / goals / authoritative provider order. This head-to-head-first
    order is what mathematically locks group winners and eliminates teams while
    fixtures remain (e.g. a side that lost to everyone it could tie with). */
-function standings(g){const st=baseTable(g),ord=S.order[g],idx={};ord.forEach((t,i)=>idx[t]=i);
+function standings(g){const st=baseTable(g),ord=groupOrderForStandings(g),idx={};ord.forEach((t,i)=>idx[t]=i);
   let arr=ord.map(t=>({code:t,...st[t]}));
   arr.sort((a,b)=>b.Pts-a.Pts||idx[a.code]-idx[b.code]);
   let i=0;while(i<arr.length){let j=i+1;while(j<arr.length&&arr[j].Pts===arr[i].Pts)j++;
@@ -4162,6 +4180,7 @@ function fdFixtureCardHTML(fx){
   if(kind==='official_final'){badge='<span class="fmd-badge ft">Full time</span>';scoreMid='<span class="fmd-sc">'+fx.score.h+'<i>–</i>'+fx.score.a+'</span>';}
   else if(kind==='live'){badge='<span class="fmd-badge live"><span class="fmd-livedot"></span>LIVE'+(fx.min!=null?' '+fx.min+"'":'')+'</span>';scoreMid='<span class="fmd-sc live">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub=esc(safeStatusText(fx.label,'Live'))+' · provisional until final whistle';}
   else if(kind==='hold'){badge='<span class="fmd-badge hold">'+esc(safeStatusText(fx.label,'Paused'))+'</span>';scoreMid='<span class="fmd-sc hold">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub='Official result pending — nothing is final yet';}
+  else if(kind==='awaiting_confirmed_update'){badge='<span class="fmd-badge pend">Awaiting confirmed update</span>';scoreMid='<span class="fmd-sc">–<i>–</i>–</span>';sub='The prior live update expired; standings wait for confirmed data.';}
   else if(kind==='pending_official_feed'){badge='<span class="fmd-badge pend">Awaiting feed</span>';scoreMid='<span class="fmd-sc">–<i>–</i>–</span>';sub='Live update pending official feed';}
   else {badge='<span class="fmd-badge sched">'+(fx.time?to12(fx.time)+' ET':'Scheduled')+'</span>';scoreMid='<span class="fmd-vs">v</span>';sub=fx.date?shortDate(fx.date):'';}
   return '<div class="fmd-fx '+kind+'" onclick="openSheet('+fx.num+')">'+
@@ -4195,7 +4214,7 @@ function fmdGroupSectionHTML(model){
 function finalMatchdayCenterHTML(){
   var groups=[];"ABCDEFGHIJKL".split("").forEach(function(g){var m;try{m=finalMatchdayGroupModel(g);}catch(e){m=null;}if(m&&m.isFinalMatchday)groups.push(m);});
   if(!groups.length)return '';
-  groups.sort(function(a,b){function key(m){var r=9,tm=Infinity,rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4};(m.fixtures||[]).forEach(function(fx){r=Math.min(r,Object.prototype.hasOwnProperty.call(rank,fx.kind)?rank[fx.kind]:5);var mm=M[fx.num],dt=mm&&koDateTime(mm);if(dt)tm=Math.min(tm,dt.getTime());});return [r,tm,m.group];}var ka=key(a),kb=key(b);return ka[0]-kb[0]||ka[1]-kb[1]||(ka[2]<kb[2]?-1:1);}
+  groups.sort(function(a,b){function key(m){var r=9,tm=Infinity,rank={live:0,hold:1,awaiting_confirmed_update:2,pending_official_feed:2,scheduled:3,official_final:4};(m.fixtures||[]).forEach(function(fx){r=Math.min(r,Object.prototype.hasOwnProperty.call(rank,fx.kind)?rank[fx.kind]:5);var mm=M[fx.num],dt=mm&&koDateTime(mm);if(dt)tm=Math.min(tm,dt.getTime());});return [r,tm,m.group];}var ka=key(a),kb=key(b);return ka[0]-kb[0]||ka[1]-kb[1]||(ka[2]<kb[2]?-1:1);}
   );
   return '<div class="fmd-center"><div class="fmd-center-h"><span class="fmd-k">⚡ Final Matchday</span><span class="fmd-sub">Both deciding fixtures, the official table, and the live “as it stands” picture — side by side.</span></div>'+groups.map(fmdGroupSectionHTML).join('')+'</div>';
 }
@@ -4231,6 +4250,7 @@ function phlFixtureStatusText(fx){
   if(fx.kind==='official_final')return 'Full time';
   if(fx.kind==='live')return fx.min!=null?('LIVE · '+fx.min+"'"):'LIVE';
   if(fx.kind==='hold')return safeStatusText(fx.label,'Paused');
+  if(fx.kind==='awaiting_confirmed_update')return 'Awaiting confirmed update';
   if(fx.kind==='pending_official_feed')return 'Awaiting feed';
   if(fx.time)return to12(fx.time)+' ET';
   return 'Scheduled';
@@ -4245,7 +4265,7 @@ function phlFinalFixtureRowHTML(fx){
   return '<div class="phl-fixture '+esc(fx.kind||'scheduled')+'" data-num="'+esc(fx.num||'')+'"><span class="phl-tm">'+fl(fx.home)+' '+nm(fx.home)+'</span>'+phlFixtureMidHTML(fx)+'<span class="phl-tm r">'+nm(fx.away)+' '+fl(fx.away)+'</span></div>';
 }
 function phlPickFinalModel(groups){
-  var rank={live:0,hold:1,pending_official_feed:2,scheduled:3,official_final:4},picked=null,pickedRank=9,pickedTime=Infinity;
+  var rank={live:0,hold:1,awaiting_confirmed_update:2,pending_official_feed:2,scheduled:3,official_final:4},picked=null,pickedRank=9,pickedTime=Infinity;
   (groups||[]).forEach(function(g){var m;try{m=finalMatchdayGroupModel(g);}catch(e){m=null;}if(!m||!m.fixtures||m.fixtures.length<2)return;
     var r=9,tm=Infinity;m.fixtures.forEach(function(fx){r=Math.min(r,Object.prototype.hasOwnProperty.call(rank,fx.kind)?rank[fx.kind]:5);var mm=M[fx.num],dt=mm&&koDateTime(mm);if(dt)tm=Math.min(tm,dt.getTime());});
     if(!picked||r<pickedRank||(r===pickedRank&&tm<pickedTime)){picked=m;pickedRank=r;pickedTime=tm;}
@@ -6115,10 +6135,12 @@ function tccIsDecider(num){var m=M[num];if(!m||m.stage!=='group')return false;if
 function tccProfile(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);var r=(RAT[pr[0]]||60)+(RAT[pr[1]]||60);if(m.stage!=='group')r+=40;return r;}
 /* official(+live) standings, independent of My-Sim sandbox or active mode */
 function tccRealTable(g){var liveScores=S._rwlive;return withTour(liveTour(),function(){
-  if(liveScores)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&liveScores[m.num]&&liveScores[m.num].sh!=null)S.sc[m.num]={h:liveScores[m.num].sh,a:liveScores[m.num].sa};});
+  if(liveScores)gMatches(g).forEach(function(m){if(!S.sc[m.num]&&liveScores[m.num]&&liveScores[m.num].sh!=null&&!truthProvisionalExpired(liveScores[m.num]))S.sc[m.num]={h:liveScores[m.num].sh,a:liveScores[m.num].sa};});
   return standings(g);});}
 function tccOffTable(g){var lv=S._rwlive;S._rwlive=null;try{return withTour(liveTour(),function(){return standings(g);});}finally{S._rwlive=lv;}}
-function tccAdjacentTieRisk(table,pos){var r=table[pos-1];if(!r)return false;return table.some(function(o,i){return i!==pos-1&&o.Pts===r.Pts&&o.GD===r.GD&&o.GF===r.GF&&Math.abs((i+1)-pos)<=1;});}
+function tccScoreTied(a,b){return !!(a&&b&&a.Pts===b.Pts&&a.GD===b.GD&&a.GF===b.GF);}
+function tccAdjacentTieRisk(table,pos,g){var r=table[pos-1];if(!r)return false;if(g&&groupHasAuthoritativeOrder(g))return false;return table.some(function(o,i){return i!==pos-1&&tccScoreTied(o,r)&&Math.abs((i+1)-pos)<=1;});}
+function tccGroupPositionUnresolved(g,pos){var table=tccOffTable(g);return tccAdjacentTieRisk(table,pos,g);}
 var _tccOutCache={};
 function tccGroupOutcomeSig(g){return g+'|'+gMatches(g).map(function(m){var v=tccOfficialFinal(m.num)?(REAL[m.num][0]+'-'+REAL[m.num][1]):'_';return m.num+':'+v;}).join(',');}
 function tccGroupOutcomeTables(g){
@@ -6162,7 +6184,7 @@ function tccThirdPlaceSafeStatus(g,code){
   if(!withTour(liveTour(),function(){return allDone();}))return {known:false,qual:false,ambiguous:false};
   var ranked=withTour(liveTour(),function(){return thirdsRanked();}),idx=ranked.findIndex(function(x){return x.g===g&&x.code===code;});
   if(idx<0)return {known:false,qual:false,ambiguous:false};
-  var row=ranked[idx],near=ranked.filter(function(x,i){return Math.abs(i-idx)<=1&&i!==idx&&x.Pts===row.Pts&&x.GD===row.GD&&x.GF===row.GF;});
+  var row=ranked[idx],near=groupHasAuthoritativeOrder(g)?[]:ranked.filter(function(x,i){return Math.abs(i-idx)<=1&&i!==idx&&x.Pts===row.Pts&&x.GD===row.GD&&x.GF===row.GF;});
   return {known:true,qual:idx<8,ambiguous:near.length>0};
 }
 /* Shared tournament-status resolver. Every surface (standings, stakes,
@@ -6189,7 +6211,7 @@ function tccResolveGroupStatus(g){
     var lockedQualified=lockedTopTwo;
     var tieRisk,type,label,tone,headline,detail;
     if(complete){
-      tieRisk=(tccAdjacentTieRisk(table,pos)||thirdSafe.ambiguous);
+      tieRisk=(tccAdjacentTieRisk(table,pos,g)||thirdSafe.ambiguous);
       if(pos===1&&!tieRisk){type='officially_confirmed';label='Group winners';detail='Group winners';lockedWinner=true;lockedQualified=true;}
       else if(pos<=2&&!tieRisk){type='officially_confirmed';label='Qualified for Round of 32';detail='Through to the Round of 32';lockedQualified=true;}
       else if(pos===3){
@@ -6227,12 +6249,13 @@ function fdFixtureState(num){
   var m=M[num],live=tccLiveState(num),fin=tccOfficialFinal(num);
   if(fin)return {num:num,kind:'official_final',label:'Official final',score:{h:REAL[num][0],a:REAL[num][1]}};
   if(live)return {num:num,kind:live.kind==='hold'?'hold':'live',label:live.label||(live.kind==='hold'?'Pending official update':'Live'),score:(live.sh!=null&&live.sa!=null)?{h:live.sh,a:live.sa}:null,min:live.min,status:live.status};
+  if(truthExpiredProvisionalState(num))return {num:num,kind:'awaiting_confirmed_update',label:'Awaiting confirmed update',score:null,min:null,status:'stale'};
   if(m&&marketPastKickoff(num))return {num:num,kind:'pending_official_feed',label:'Live update pending official feed',score:null};
   return {num:num,kind:'scheduled',label:'Scheduled',score:null};
 }
 function fdRowSig(table){return (table||[]).map(function(r){return r.code+':'+r.Pts+':'+r.GD+':'+r.GF;}).join('|');}
 function fdFinalMatchdayStakes(g,official,projected,fixtures){
-  var stakes=[],live=fixtures.some(function(f){return f.kind==='live'||f.kind==='hold'||f.kind==='pending_official_feed';});
+  var stakes=[],live=fixtures.some(function(f){return f.kind==='live'||f.kind==='hold'||f.kind==='awaiting_confirmed_update'||f.kind==='pending_official_feed';});
   if(live&&projected&&projected[0]&&official&&official[0]&&projected[0].code!==official[0].code){
     stakes.push(nm(projected[0].code)+' moves into first with this score.');
   }
@@ -6256,18 +6279,19 @@ function finalMatchdayGroupModel(g){
   var states=deciders.map(function(m){var st=fdFixtureState(m.num);st.home=m.home;st.away=m.away;st.date=m.date;st.time=m.time;return st;});
   var complete=gCompleteOfficial(g),active=states.some(function(st){return st.kind!=='official_final';});
   var official=tccOffTable(g),projected=tccRealTable(g);
-  return {group:g,isFinalMatchday:!complete&&active,complete:complete,asItStands:!complete&&states.some(function(st){return st.kind==='live'||st.kind==='hold'||st.kind==='pending_official_feed';}),
+  return {group:g,isFinalMatchday:!complete&&active,complete:complete,asItStands:!complete&&states.some(function(st){return st.kind==='live'||st.kind==='hold'||st.kind==='awaiting_confirmed_update'||st.kind==='pending_official_feed';}),
     fixtures:states,officialTable:official,projectedTable:projected,stakes:fdFinalMatchdayStakes(g,official,projected,states),
     resolver:tccResolveGroupStatus(g)};
 }
 function r32SlotTeam(raw,matchNum){
   if(T[raw])return raw;
   var m=String(raw||'').match(/^([12])([A-L])$/);
-  if(m){var g=m[2],pos=+m[1];if(!gCompleteOfficial(g))return null;var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return row?row.code:null;}
+  if(m){var g=m[2],pos=+m[1];if(!gCompleteOfficial(g)||tccGroupPositionUnresolved(g,pos))return null;var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return row?row.code:null;}
   if(String(raw||'').indexOf('3:')===0){
     if(!withTour(liveTour(),function(){return allDone();}))return null;
     var as=withTour(liveTour(),function(){return assignThirds();});if(!as)return null;
     var ag=as[matchNum],row3=ag&&withTour(liveTour(),function(){return standings(ag)[2];});
+    if(ag&&tccGroupPositionUnresolved(ag,3))return null;
     return row3?row3.code:null;
   }
   return null;
@@ -7467,15 +7491,18 @@ function koSlotOfficialTeam(raw,matchNum){
   if(T[raw])return {team:raw,locked:true,reason:'fixed'};
   var m=String(raw||'').match(/^([12])([A-L])$/);
   if(m){var g=m[2],pos=+m[1];if(!gCompleteOfficial(g))return {team:resolveSlot(raw),locked:false,reason:'unfinished_group'};
-    var row=withTour(liveTour(),function(){return standings(g)[pos-1];});return {team:row?row.code:null,locked:!!row,reason:row?'official_group':'pending_official_final'};}
+    var row=withTour(liveTour(),function(){return standings(g)[pos-1];});
+    if(row&&tccGroupPositionUnresolved(g,pos))return {team:row.code,locked:false,reason:'unresolved_group_tie'};
+    return {team:row?row.code:null,locked:!!row,reason:row?'official_group':'pending_official_final'};}
   if(String(raw||'').indexOf('3:')===0){
     if(!withTour(liveTour(),function(){return allDone();}))return {team:null,locked:false,reason:'best_third_race'};
     var as=withTour(liveTour(),function(){return assignThirds();});if(!as)return {team:null,locked:false,reason:'best_third_matrix'};
     var g3=as[matchNum],row3=g3&&withTour(liveTour(),function(){return standings(g3)[2];});
+    if(g3&&row3&&tccGroupPositionUnresolved(g3,3))return {team:row3.code,locked:false,reason:'unresolved_group_tie'};
     return {team:row3?row3.code:null,locked:!!row3,reason:row3?'official_best_third':'pending_official_final'};
   }
-  if(/^W\d+$/.test(String(raw||''))){var w=resolveSlot(raw),src=+String(raw).slice(1);return {team:w,locked:!!(w&&S.realko&&S.realko[src]),reason:w?'official_knockout_winner':'pending_official_final'};}
-  if(/^L\d+$/.test(String(raw||''))){var l=resolveSlot(raw),srcL=+String(raw).slice(1);return {team:l,locked:!!(l&&S.realko&&S.realko[srcL]),reason:l?'official_knockout_loser':'pending_official_final'};}
+  if(/^W\d+$/.test(String(raw||''))){var src=+String(raw).slice(1),w=(S.realko&&S.realko[src])||resolveSlot(raw);return {team:w,locked:!!(w&&S.realko&&S.realko[src]),reason:w?'official_knockout_winner':'pending_official_final'};}
+  if(/^L\d+$/.test(String(raw||''))){var srcL=+String(raw).slice(1),lw=S.realko&&S.realko[srcL],pL=lw?withTour(liveTour(),function(){return koParts(srcL);}):[null,null],l=lw?(pL[0]===lw?pL[1]:pL[0]):resolveSlot(raw);return {team:l,locked:!!(l&&lw),reason:l?'official_knockout_loser':'pending_official_final'};}
   return {team:null,locked:false,reason:'pending_official_final'};
 }
 function knockoutSlotStatus(num,liveMode){
@@ -8274,7 +8301,7 @@ var RW_NMIDX=null;
 function rwBuildIdx(){RW_NMIDX={};Object.keys(RAT).forEach(function(c){RW_NMIDX[rwNorm(nm(c))]=c;RW_NMIDX[rwNorm(c)]=c;});}
 function rwResolve(name){if(!RW_NMIDX)rwBuildIdx();var n=rwNorm(name);return RW_SYN[n]||RW_NMIDX[n]||null;}
 function rwMatchFixture(hc,ac){if(!hc||!ac)return null;for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i];if(S.real&&S.real[m.num])continue;var pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);if(!(pr[0]&&pr[1]))continue;if((pr[0]===hc&&pr[1]===ac)||(pr[0]===ac&&pr[1]===hc))return {num:m.num,flip:pr[0]===ac};}return null;}
-function rwLiveTag(num){var L=matchLiveState(num);if(!L)return "";var sc=(L.sh==null?'–':L.sh)+'–'+(L.sa==null?'–':L.sa);return '<span class="rwlive '+(L.kind==='hold'?'hold':'')+'">'+(L.kind==='hold'?esc(safeStatusText(L.label,'Delayed')):(sc+(L.min!=null?' '+L.min+"'":'')))+'</span>';}
+function rwLiveTag(num){var L=matchLiveState(num);if(!L)return "";if(L.stale)return '<span class="rwlive hold">Awaiting confirmed update</span>';var sc=(L.sh==null?'–':L.sh)+'–'+(L.sa==null?'–':L.sa);return '<span class="rwlive '+(L.kind==='hold'?'hold':'')+'">'+(L.kind==='hold'?esc(safeStatusText(L.label,'Delayed')):(sc+(L.min!=null?' '+L.min+"'":'')))+'</span>';}
 /* central API fetch helper: one in-flight request per route, stale-safe backoff on throttles/failures */
 var ApiBus={inflight:{},last:{},backoff:{},status:{},timer:null,started:false};
 function apiFresh(path,ttl){var x=ApiBus.last[path];return x&&x.t&&(Date.now()-x.t)<ttl;}
@@ -8350,6 +8377,8 @@ function fmtAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/100
 function fmtFeedAgo(t){if(!t)return"";var s=Math.max(0,Math.round((Date.now()-t)/1000));if(s<45)return"just now";var m=Math.round(s/60);if(m<1)return"just now";if(m<60)return m+" min ago";var h=Math.round(m/60);return h+" hr ago";}
 function liveFeedTs(){var x=(typeof ApiBus!=="undefined"&&ApiBus.last)?ApiBus.last['/api/live']:null;var t=(x&&x.t)?x.t:0;return Math.max(t,_lastSync||0);}
 var TRUTH_HEALTH={healthy:'healthy',delayed:'delayed',unavailable:'unavailable',stale:'stale'};
+var TRUTH_LIVE_POLL_MS=45000;
+var TRUTH_PROVISIONAL_EXPIRY_MS=TRUTH_LIVE_POLL_MS*3;
 var TruthBus={seq:0,applied:{official:0,live:0},receipts:{},health:{},lastSuccessful:null};
 function truthStablePairs(obj){
   return Object.keys(obj||{}).sort(function(a,b){return(+a)-(+b)||String(a).localeCompare(String(b));}).map(function(k){
@@ -8359,7 +8388,10 @@ function truthStablePairs(obj){
   });
 }
 function truthOfficialFinalScore(num){var r=REAL&&REAL[num];return (r&&r.length===2&&r[0]!=null&&r[1]!=null)?{h:+r[0],a:+r[1]}:null;}
-function truthLiveStateFor(num){var st=S&&S.rwState&&S.rwState[num];return (st&&(st.kind==='live'||st.kind==='hold')&&!truthOfficialFinalScore(num))?st:null;}
+function truthProvisionalAgeMs(st){return st&&st.at?Math.max(0,Date.now()-st.at):0;}
+function truthProvisionalExpired(st){return !!(st&&(st.kind==='live'||st.kind==='hold')&&st.at&&truthProvisionalAgeMs(st)>TRUTH_PROVISIONAL_EXPIRY_MS);}
+function truthExpiredProvisionalState(num){var st=S&&S.rwState&&S.rwState[num];return (!truthOfficialFinalScore(num)&&truthProvisionalExpired(st))?st:null;}
+function truthLiveStateFor(num){var st=S&&S.rwState&&S.rwState[num];return (st&&(st.kind==='live'||st.kind==='hold')&&!truthOfficialFinalScore(num)&&!truthProvisionalExpired(st))?st:null;}
 function truthRefreshStart(path){return {path:path,seq:++TruthBus.seq,issuedAt:Date.now()};}
 function truthChannelCurrent(channel){return TruthBus.applied[channel]||0;}
 function truthChannelAccepts(channel,receipt){return !receipt||!receipt.seq||receipt.seq>=truthChannelCurrent(channel);}
@@ -8376,7 +8408,7 @@ function truthRecordReceipt(path,d,receipt){
 }
 function truthOverallHealth(){
   var now=Date.now(),live=TruthBus.health['/api/live'],results=TruthBus.health['/api/results'];
-  if(S&&S.rwState){for(var k in S.rwState){var st=S.rwState[k];if(st&&st.kind==='hold'&&!truthOfficialFinalScore(+k))return TRUTH_HEALTH.delayed;}}
+  if(S&&S.rwState){for(var k in S.rwState){var st=S.rwState[k];if(st&&st.kind==='hold'&&!truthOfficialFinalScore(+k)&&!truthProvisionalExpired(st))return TRUTH_HEALTH.delayed;}}
   if(live===TRUTH_HEALTH.unavailable&&results===TRUTH_HEALTH.unavailable)return TRUTH_HEALTH.unavailable;
   var last=TruthBus.lastSuccessful&&TruthBus.lastSuccessful.localReceiptAt;if(last&&now-last>20*60000)return TRUTH_HEALTH.stale;
   if(live===TRUTH_HEALTH.stale||results===TRUTH_HEALTH.stale)return TRUTH_HEALTH.stale;
@@ -8406,8 +8438,9 @@ function truthApplyProvisional(f,receipt){
   var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac),kind=rwKind(f);if(!mm||kind==='final')return false;
   var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga;
   S.rwState=S.rwState||{};
-  S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:Date.now(),receiptSeq:receipt&&receipt.seq};
-  if(kind==='live'&&sh!=null&&sa!=null){S._rwlive=S._rwlive||{};S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),receiptSeq:receipt&&receipt.seq};}
+  var at=Date.now();
+  S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq};
+  if(kind==='live'&&sh!=null&&sa!=null){S._rwlive=S._rwlive||{};S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq};}
   return true;
 }
 function truthFreshness(){
@@ -8438,6 +8471,7 @@ function fetchResults(){
     truthRecordReceipt('/api/results',d,receipt);
     if(!d||!d.configured||d.error)return;
     _lastSync=Date.now();   // data freshness for the "updated …" stamp
+    try{truthIngestProviderRankings(d);}catch(e){}
     try{ingestMatchStates((d.live||[]).concat(d.hold||[]),{receipt:receipt});}catch(e){}
     if(!d.finished||!d.finished.length){truthRenderIfChanged(before);return;}
     ingestFinished(d.finished,{receipt:receipt});   // non-destructive: only fills matches not already official
@@ -8454,7 +8488,7 @@ function rwStatusLabel(f){var s=String((f&&f.status)||'').toUpperCase(),txt=Stri
 function livePendingOfficial(num){var m=M[num];if(!m||(S.real&&S.real[num])||(S.rwState&&S.rwState[num]))return false;var d=koDateTime(m);if(!d)return false;var now=Date.now(),t=d.getTime();return now>=t&&now<=t+3*3600000;}
 function marketPastKickoff(num){var m=M[num];if(!m)return false;var d=koDateTime(m);return !!(d&&Date.now()>=d.getTime());}
 function matchHoldState(num){return (S.rwState&&S.rwState[num]&&S.rwState[num].kind==='hold')?S.rwState[num]:null;}
-function matchLiveState(num){return (S.rwState&&S.rwState[num]&&(S.rwState[num].kind==='live'||S.rwState[num].kind==='hold'))?S.rwState[num]:null;}
+function matchLiveState(num){var st=truthLiveStateFor(num);if(st)return st;var stale=truthExpiredProvisionalState(num);return stale?Object.assign({},stale,{kind:'awaiting_confirmation',label:'Awaiting confirmed update',stale:true,sh:null,sa:null,min:null}):null;}
 function officialFinalPayload(f){return f&&f.gh!=null&&f.ga!=null&&rwKind(f)==='final';}
 function knockoutOfficialWinnerFromPayload(f,hc,ac){
   if(!officialFinalPayload(f)||!hc||!ac)return null;
@@ -8545,7 +8579,9 @@ function rwFindFixtureAny(hc,ac){if(!hc||!ac)return null;
     if((m.home===hc&&m.away===ac)||(m.home===ac&&m.away===hc))return {m:m,flip:(m.home===ac)};}
   return null;}
 function rwFindFixtureAnyStage(hc,ac){if(!hc||!ac)return null;
-  for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i],p=m.stage==="group"?[m.home,m.away]:koParts(m.num);if(!p[0]||!p[1])continue;
+  for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i];if(m.stage==="group")continue;var p=withTour(liveTour(),function(){return koParts(m.num);});if(!p[0]||!p[1])continue;
+    if((p[0]===hc&&p[1]===ac)||(p[0]===ac&&p[1]===hc))return {m:m,flip:(p[0]===ac)};}
+  for(var i=0;i<MATCHES.length;i++){var m=MATCHES[i],p=m.stage==="group"?[m.home,m.away]:withTour(liveTour(),function(){return koParts(m.num);});if(!p[0]||!p[1])continue;
     if((p[0]===hc&&p[1]===ac)||(p[0]===ac&&p[1]===hc))return {m:m,flip:(p[0]===ac)};}
   return null;}
 function ingestFinished(arr,opts){if(!Array.isArray(arr)||!arr.length)return false;
@@ -8565,34 +8601,49 @@ function ingestFinished(arr,opts){if(!Array.isArray(arr)||!arr.length)return fal
 /* Knockout auto-advance: when a real KO game finishes, set the winner so the
    live "as it stands" bracket advances itself, round by round, to the Final.
    Stored in S.realko (separate from your own predictions in S.ko). */
+function truthOfficialTourWithKO(ko){
+  var sc={};Object.keys(REAL||{}).forEach(function(n){var v=truthOfficialFinalScore(+n);if(v)sc[n]={h:v.h,a:v.a};});
+  var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
+  return {sc:sc,ko:ko||{},order:order,thirds:null};
+}
+function truthKOFinalFor(num){return S&&S.officialKOFinals&&S.officialKOFinals[num];}
+function truthStoreKOPayload(f){
+  var fx=truthResolveOfficialFixture(f,true);if(!fx||fx.match.stage==='group')return false;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away),win=knockoutOfficialWinnerFromPayload(f,hc,ac);if(!win)return false;
+  var pair=withTour(liveTour(),function(){return koParts(fx.num);});if(!pair[0]||!pair[1])return false;
+  S.officialKOFinals=S.officialKOFinals||{};
+  var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:pair[0],away:pair[1],winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};
+  var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away;
+  S.officialKOFinals[fx.num]=next;return changed;
+}
+function truthRebuildOfficialKO(){
+  var stored=S.officialKOFinals||{},rounds=[[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],[89,90,91,92,93,94,95,96],[97,98,99,100],[101,102],[103,104]],next={},pruned=[],changed=false;
+  rounds.forEach(function(rd){rd.forEach(function(n){var rec=stored[n];if(!rec)return;
+    var t=truthOfficialTourWithKO(next),p=withTour(t,function(){return koParts(n);});
+    var pairOk=p[0]&&p[1]&&((p[0]===rec.home&&p[1]===rec.away)||(p[0]===rec.away&&p[1]===rec.home));
+    if(pairOk&&(rec.winner===p[0]||rec.winner===p[1]))next[n]=rec.winner;
+    else{pruned.push(n);delete stored[n];}
+  });});
+  S.realko=S.realko||{};
+  Object.keys(S.realko).forEach(function(n){if(S.realko[n]!==next[n])changed=true;});
+  Object.keys(next).forEach(function(n){if(S.realko[n]!==next[n])changed=true;});
+  S.realko=next;
+  if(pruned.length){try{console.warn(JSON.stringify({event:'official_knockout_pruned',fixtures:pruned.join(','),reason:'upstream_official_correction'}));}catch(e){}changed=true;}
+  return changed;
+}
 function ingestKO(arr,opts){
   if(!Array.isArray(arr)||!arr.length)return false;
   var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
-  var byPair={};
-  arr.forEach(function(f){
-    if(!officialFinalPayload(f))return;
-    if((f.stage||'')==='GROUP_STAGE')return;            // group games handled separately
-    var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return;
-    var win=knockoutOfficialWinnerFromPayload(f,hc,ac);
-    if(win)byPair[[hc,ac].sort().join('|')]=win;          // decided KO game
-  });
-  if(!Object.keys(byPair).length)return false;
-  if(!S.realko)S.realko={};
-  var t=liveTour();t.ko=S.realko;                         // resolve pairings from REAL results so far
-  var changed=false;
-  withTour(t,function(){
-    [[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],[89,90,91,92,93,94,95,96],[97,98,99,100],[101,102],[103,104]].forEach(function(rd){
-      rd.forEach(function(n){
-        var p=koParts(n);if(!p[0]||!p[1])return;
-        var win=byPair[[p[0],p[1]].sort().join('|')];
-        if(win&&(win===p[0]||win===p[1])){
-          if(S.realko[n]===win)return;
-          S.realko[n]=win;changed=true;
-        }
-      });
+  var stored=false,rebuilt=false,pass=0,again=true;
+  while(again&&pass++<6){again=false;
+    arr.forEach(function(f){
+      if(!officialFinalPayload(f))return;
+      if((f.stage||'')==='GROUP_STAGE')return;            // group games handled separately
+      if(truthStoreKOPayload(f)){stored=true;again=true;}
     });
-  });
-  return changed;
+    if(truthRebuildOfficialKO()){rebuilt=true;again=true;}
+  }
+  return !!(stored||rebuilt);
 }
 function idleTask(fn,timeout){var run=function(){try{fn();}catch(e){}};if(window.requestIdleCallback)requestIdleCallback(run,{timeout:timeout||2200});else setTimeout(run,Math.min(timeout||900,1200));}
 var _playDataStarted=false,_socialDataStarted=false,_coreDataStarted=false;
@@ -9058,8 +9109,8 @@ function ts2EnsureActiveLegVisible(){
   }catch(e){}
 }
 /* ===== Virtual Matchcast V4 pacing =====
-   One central controller: Watch live targets 36-42s for a regulation match, Speed up
-   targets 13-16s from the same captured events. Extra time and penalties are add-ons,
+   One central controller: Watch live targets 20-24s for a regulation match, Speed up
+   targets 7-9s from the same captured events. Extra time and penalties are add-ons,
    never new outcomes. Pure math here is mirrored exactly by the live scheduler. */
 function ts2Speeds(){
   var KEY={final_whistle:900,penalties:8800,red_card:920,extra_time:1000,extra_time_start:1000,goal:1950,own_goal:1950,halftime:850,ordinary:620};
@@ -9070,8 +9121,8 @@ function ts2Speeds(){
     fast:{key:'fast',mpm:117,etMpm:42,minStep:70,lateClock:120,lateHold:100,settle:180,holds:FAST}
   };
 }
-/* More legs ⇒ each leg is paced a little tighter so the whole slip still lands in the
-   30–50s window instead of multiplying linearly. One leg is never compressed. */
+/* More legs ⇒ each leg is paced a little tighter so the whole slip stays fast
+   instead of multiplying linearly. One leg is never compressed. */
 function ts2LegScale(n){n=Math.max(1,n||1);return n===1?1:(1/(1+0.56*n));}
 /* Post-event hold (ms): key beats (goal, red, extra time, penalties, whistle) hold
    materially longer than ordinary moments, and goals in the closing minutes longer still. */
@@ -9134,8 +9185,8 @@ function ts2EstimatePlayback(legs,speedKey){
 function ts2Now(){try{if(typeof performance!=='undefined'&&performance.now)return performance.now();}catch(e){}return Date.now();}
 function ts2DirectorBudget(speedKey){
   if(speedKey==='fast')
-    return {reg:11500,etAdd:1700,penAdd:2400,settle:200,firstApp:1500,beatMax:290,minApp:480,trans:380};
-  return {reg:30000,etAdd:5000,penAdd:7000,settle:520,firstApp:4200,beatMax:620,minApp:1100,trans:880};
+    return {reg:8000,etAdd:1300,penAdd:1900,settle:180,firstApp:1000,beatMax:240,minApp:360,trans:300};
+  return {reg:22000,etAdd:3800,penAdd:5400,settle:420,firstApp:3000,beatMax:520,minApp:820,trans:680};
 }
 function ts2IsTransStop(s){return !!s&&(s.type==='halftime'||s.type==='final_whistle'||s.type==='full time');}
 function ts2IsPlayStop(s){return !!s&&!ts2IsTransStop(s);}

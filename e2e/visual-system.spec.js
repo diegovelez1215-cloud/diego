@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, expectNoHorizontalOverflow, expectRectsInsideViewport } = require('./helpers');
+const { gotoApp, tapBottomTab, openTournament, expectNoHorizontalOverflow, expectRectsInsideViewport } = require('./helpers');
 
 // Presentation-only checks for the premium Official / Virtual-Play visual system.
 // No engine, navigation, wallet, odds, or simulation logic is exercised or changed.
@@ -39,7 +39,7 @@ test.describe('Premium Official / Virtual-Play visual system', () => {
   });
 
   test('Simulation and Play surfaces clearly disclose virtual / SIM $ / no real money', async ({ page }) => {
-    await page.locator('.tabbar button[data-screen="bet"]').click({ force: true });
+    await tapBottomTab(page, 'bet');
     const disc = page.locator('.play-disclosure');
     await expect(disc).toBeVisible();
     await expect(disc).toContainText(/SIM \$/);
@@ -123,8 +123,7 @@ test.describe('Reduced motion is respected', () => {
     const reduceActive = await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     expect(reduceActive, 'prefers-reduced-motion: reduce must be active').toBe(true);
 
-    await page.locator('.tabbar button[data-screen="matches"]').click({ force: true });
-    await page.locator('.tour-switch button[data-sub="bracket"]').click({ force: true });
+    await openTournament(page, 'bracket');
     await expect(page.locator('.mx-entry')).toBeVisible();
     const dur = await page.locator('.mx-entry').evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration) || 0);
     // With the media genuinely active, the reduced-motion rule collapses the entry's

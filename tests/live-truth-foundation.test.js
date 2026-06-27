@@ -34,6 +34,8 @@ function loadApp() {
       truthRecordReceipt:truthRecordReceipt, ingestFinished:ingestFinished,
       ingestMatchStates:ingestMatchStates, tccOffTable:tccOffTable, tccRealTable:tccRealTable,
       tccTeamTournamentStatus:tccTeamTournamentStatus, matchLiveState:matchLiveState,
+      knockoutSlotStatus:knockoutSlotStatus, fdFixtureState:fdFixtureState,
+      TRUTH_PROVISIONAL_EXPIRY_MS:TRUTH_PROVISIONAL_EXPIRY_MS,
       scheduleRefresh:scheduleRefresh, ApiBus:ApiBus, dataStatusHTML:dataStatusHTML,
       mxRefreshIfStale:mxRefreshIfStale, fetchRealWorldData:fetchRealWorldData,
       mxState:function(){return _mxState;}, setMxState:function(v){_mxState=v;},
@@ -74,6 +76,25 @@ function livePayload(m, h, a, status = 'IN_PLAY') {
   return { home: m.home, away: m.away, gh: h, ga: a, min: 62, status, kind: 'live', statusLong: status };
 }
 
+function setOfficial(app, state, num, h, a) {
+  app.REAL[num] = [h, a];
+  state.sc[num] = { h, a };
+  state.real[num] = 1;
+}
+
+function finishAllGroupsTiedWithAuthority(app, state) {
+  state.providerGroupOrder = {};
+  Object.keys(app.GROUPS).forEach((g) => {
+    state.providerGroupOrder[g] = app.GROUPS[g].slice();
+    app.gMatches(g).forEach((m) => setOfficial(app, state, m.num, 0, 0));
+  });
+  app.setState(state);
+}
+
+function koPayload(home, away, winner, gh = 1, ga = 0) {
+  return { home, away, gh, ga, status: 'FINISHED', kind: 'final', stage: 'LAST_32', winner };
+}
+
 test('official final payload updates the centralized truth snapshot', () => withApp((app) => {
   resetOfficial(app);
   const m = app.gMatches('A')[0];
@@ -111,6 +132,63 @@ test('delayed, suspended, empty, failed, and stale responses preserve official t
   assert.equal(snap.official.finalResults[official.num].score.h, 1);
   assert.equal(snap.official.finalResults[official.num].score.a, 0);
   assert.equal(snap.provisional.hold[delayed.num].kind, 'hold');
+}));
+
+test('expired provisional states are removed from truth and shown as awaiting confirmed update', () => withApp((app) => {
+  const s = resetOfficial(app);
+  const m = app.gMatches('B')[0];
+  const at = Date.now() - app.TRUTH_PROVISIONAL_EXPIRY_MS - 1000;
+  s.rwState[m.num] = { kind: 'live', sh: 4, sa: 0, min: 90, status: '2H', label: 'Live', at };
+  s._rwlive = { [m.num]: { kind: 'live', sh: 4, sa: 0, min: 90, status: '2H', label: 'Live', at } };
+  app.setState(s);
+  const snap = app.tournamentTruthSnapshot();
+  assert.equal(snap.provisional.live[m.num], undefined, 'expired live state is not current truth');
+  assert.equal(app.tccRealTable(m.group).find((r) => r.code === m.home).GF, 0, 'expired live score does not move projected table');
+  assert.equal(app.matchLiveState(m.num).label, 'Awaiting confirmed update');
+  assert.equal(app.fdFixtureState(m.num).kind, 'awaiting_confirmed_update');
+}));
+
+test('corrected official knockout result rebuilds the bracket and prunes impossible downstream winners', () => withApp((app) => {
+  const s = resetOfficial(app);
+  finishAllGroupsTiedWithAuthority(app, s);
+  const r32a = app.knockoutSlotStatus(73, true);
+  const r32b = app.knockoutSlotStatus(75, true);
+  assert.equal(r32a.state, 'confirmed');
+  assert.equal(r32b.state, 'confirmed');
+  app.ingestFinished([
+    koPayload(r32a.home, r32a.away, 'HOME_TEAM', 2, 0),
+    koPayload(r32b.home, r32b.away, 'HOME_TEAM', 1, 0)
+  ], { receipt: app.truthRefreshStart('/api/results') });
+  const r16 = app.knockoutSlotStatus(90, true);
+  assert.equal(r16.home, r32a.home);
+  assert.equal(r16.away, r32b.home);
+  app.ingestFinished([koPayload(r16.home, r16.away, 'HOME_TEAM', 1, 0)], { receipt: app.truthRefreshStart('/api/results') });
+  assert.equal(app.getState().realko[90], r32a.home, 'downstream result stored under original bracket path');
+
+  app.ingestFinished([koPayload(r32a.home, r32a.away, 'AWAY_TEAM', 0, 1)], { receipt: app.truthRefreshStart('/api/results') });
+  assert.equal(app.getState().realko[73], r32a.away, 'earlier official correction is applied');
+  assert.equal(app.getState().realko[75], r32b.home, 'unrelated valid official result is preserved');
+  assert.equal(app.getState().realko[90], undefined, 'impossible downstream winner is pruned');
+  assert.equal(app.knockoutSlotStatus(90, true).home, r32a.away, 'downstream slot is rebuilt from latest official state');
+}));
+
+test('exact score ties stay unresolved unless authoritative provider order exists', () => withApp((app) => {
+  const s = resetOfficial(app);
+  app.gMatches('A').forEach((m) => setOfficial(app, s, m.num, 0, 0));
+  app.setState(s);
+  app.GROUPS.A.forEach((code) => {
+    const st = app.tccTeamTournamentStatus(code);
+    assert.equal(st.provisionalByTiebreaker, true, `${code} remains unresolved without provider order`);
+    assert.notEqual(st.type, 'officially_confirmed');
+  });
+  const slot = app.MATCHES.find((m) => m.home === '1A' || m.away === '1A');
+  assert.ok(slot, 'test fixture includes 1A slot');
+  assert.notEqual(app.knockoutSlotStatus(slot.num, true).state, 'confirmed', 'manual fallback order cannot confirm bracket slot');
+
+  s.providerGroupOrder = { A: app.GROUPS.A.slice() };
+  app.setState(s);
+  assert.equal(app.tccTeamTournamentStatus(app.GROUPS.A[0]).type, 'officially_confirmed', 'authoritative provider order resolves exact tie');
+  assert.equal(app.knockoutSlotStatus(slot.num, true).state, 'one', 'direct slot can lock once its tied group has authority');
 }));
 
 test('failed live refresh updates source health without global rerender', async () => withApp(async (app, window) => {
