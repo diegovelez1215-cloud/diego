@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     ttlMs: 10 * 60000,
     staleMs: 30 * 60000,
     rateLimit: { limit: 120, windowMs: 60000 },
-    fallback: { finished: [], live: [], hold: [] },
+    fallback: { finished: [], live: [], hold: [], scheduled: [] },
     fetcher: async function () {
     const url = 'https://api.football-data.org/v4/competitions/WC/matches';
     const got = await fetchJson(url, { headers: { 'X-Auth-Token': key } }, 9000);
@@ -47,6 +47,7 @@ export default async function handler(req, res) {
     function slim(m) {
       const ft = m.score && m.score.fullTime ? m.score.fullTime : {};
       return {
+        providerId: m.id || null,
         home: m.homeTeam ? (m.homeTeam.name || m.homeTeam.shortName || '') : '',
         away: m.awayTeam ? (m.awayTeam.name || m.awayTeam.shortName || '') : '',
         gh: (ft.home == null ? null : ft.home),
@@ -54,6 +55,7 @@ export default async function handler(req, res) {
         winner: m.score ? (m.score.winner || '') : '', // HOME_TEAM | AWAY_TEAM | DRAW (decides KO ties incl. penalties)
         status: m.status || '',
         stage: m.stage || '',
+        matchday: m.matchday || null,
         utcDate: m.utcDate || ''
       };
     }
@@ -61,14 +63,16 @@ export default async function handler(req, res) {
     const finished = [];
     const live = [];
     const hold = [];
+    const scheduled = [];
     matches.forEach(function (m) {
       const s = slim(m);
       if (m.status === 'FINISHED') { if (s.gh != null && s.ga != null) finished.push(s); }
       else if (m.status === 'IN_PLAY' || m.status === 'PAUSED') live.push(s);
       else if (m.status === 'SUSPENDED' || m.status === 'POSTPONED' || m.status === 'CANCELLED') hold.push(s);
+      else scheduled.push(s);
     });
 
     if (finished.length) safeLog('final_result_confirmation', { provider: 'football-data', route: '/api/results', count: finished.length });
-    return { configured: true, count: finished.length, finished: finished, live: live, hold: hold, fetchedAt: new Date().toISOString() };
+    return { configured: true, count: finished.length, finished: finished, live: live, hold: hold, scheduled: scheduled, fetchedAt: new Date().toISOString() };
   }});
 }

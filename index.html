@@ -3043,7 +3043,7 @@ function nm(c){return (T[c]&&T[c][0])||c;}
    edge<1 compresses favourite advantage (more upsets); goal scales scoring frequency. */
 var SIMMODE={chaos:{edge:0.32,goal:1,t:"🌀 Chaos"},laser:{edge:1,goal:2.0,t:"⚡ Laser Boots"},bus:{edge:1,goal:0.48,t:"🧱 Park the Bus"}};
 function simM(){return SIMMODE[S&&S.simMode]||{edge:1,goal:1};}
-function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
+function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},officialKOFixtures:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
 /* ===== Global view mode: REAL LIFE vs MY SIM =====
    'real' → the whole tracker renders from official results only (a pristine,
             read-only live tracker). 'sim' → the user's editable sandbox + bets.
@@ -3111,12 +3111,13 @@ function seedLive(){var w=walletSnap();S=blankState();walletRestore(w);
   "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=GROUPS[g].slice());
   Object.keys(REAL).forEach(n=>{S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});}
 /* ---- persistence + shareable links ---- */
-function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
+function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,officialKOFixtures:S.officialKOFixtures,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
 function saveState(){try{if(!Array.isArray(S.bankHist))S.bankHist=[S.bank];if(S.bankHist[S.bankHist.length-1]!==S.bank){S.bankHist.push(S.bank);if(S.bankHist.length>120)S.bankHist=S.bankHist.slice(-120);}localStorage.setItem("wc26_v1",JSON.stringify(persistKeys()));}catch(e){}}
 function applyState(o){try{if(!o||typeof o!=="object")return false;
   if(o.sc&&typeof o.sc==="object"){var _sc={};Object.keys(o.sc).forEach(function(k){var n=+k,v=o.sc[k];if(n>=1&&n<=104&&v&&typeof v==="object"&&typeof v.h==="number"&&typeof v.a==="number"&&v.h>=0&&v.a>=0&&v.h<=99&&v.a<=99)_sc[n]={h:v.h|0,a:v.a|0};});S.sc=_sc;}
   if(o.ko&&typeof o.ko==="object")S.ko=o.ko;if(o.order&&typeof o.order==="object")S.order=o.order;if("thirds" in o)S.thirds=o.thirds;
   if(o.officialKOFinals&&typeof o.officialKOFinals==="object")S.officialKOFinals=o.officialKOFinals;
+  if(o.officialKOFixtures&&typeof o.officialKOFixtures==="object")S.officialKOFixtures=o.officialKOFixtures;
   if(o.providerGroupOrder&&typeof o.providerGroupOrder==="object")S.providerGroupOrder=o.providerGroupOrder;
   if(o.betsim&&typeof o.betsim==="object"){var _bs={};Object.keys(o.betsim).forEach(function(k){var n=+k;if(n>=1&&n<=104&&o.betsim[k])_bs[n]=1;});S.betsim=_bs;}
   S.mode=(o.mode==='sim')?'sim':'real';
@@ -3222,7 +3223,10 @@ function resolveSlot(s){if(s==null)return null;if(T[s])return s;let m;
   if(m=s.match(/^W(\d+)$/))return winner(+m[1]);if(m=s.match(/^L(\d+)$/))return loser(+m[1]);return null;}
 function koParts(num){const mt=M[num];let h=resolveSlot(mt.home),a=resolveSlot(mt.away);
   if(typeof mt.away==="string"&&mt.away.indexOf("3:")===0){const as=assignThirds();
-    if(as){const g=as[num];var r3=g?standings(g)[2]:null;a=r3?r3.code:null;}else a=null;}return[h,a];}
+    if(as){const g=as[num];var r3=g?standings(g)[2]:null;a=r3?r3.code:null;}else a=null;}
+  var named=(typeof truthProviderNamedKOFixture==="function")?truthProviderNamedKOFixture(num):null;
+  if(named&&!S.ko[num]&&(activeMode()==='real'||(S.ko&&S.ko.__officialDisplayKO))){h=named.home;a=named.away;}
+  return[h,a];}
 function winner(n){const w=S.ko[n];if(!w)return null;const[h,a]=koParts(n);return(w===h||w===a)?w:null;}
 function loser(n){const w=S.ko[n];if(!w)return null;const[h,a]=koParts(n);if(w!==h&&w!==a)return null;return w===h?a:h;}
 
@@ -6650,6 +6654,7 @@ function miGroupMeeting(a,b){
   return{exists:true,state:fin?'completed':'scheduled',fixtureId:'M'+m.num,matchNum:m.num,group:m.group,home:m.home,away:m.away,score:r?{home:r[0],away:r[1]}:null,metadata:miFixtureMeta(m),evidence:{source:'DATA.matches + REAL',officialFinal:!!fin}};
 }
 function miThirdComboSet(c){
+  if(c&&c.providerNamed)return null;
   if(!c||c.finishPositionNumber!==3||!c.slot)return null;
   var ki=TP3C.indexOf(c.slot.matchNum);if(ki<0)return[];
   var all=withTour(liveTour(),function(){return allDone();});
@@ -6675,6 +6680,7 @@ function miEntryCompatible(a,b){
 }
 function miAddReq(reqs,seen,req){if(!req||!req.text)return;var k=req.type+'|'+(req.team||'')+'|'+(req.group||'')+'|'+(req.matchNum||'')+'|'+req.text;if(seen[k])return;seen[k]=1;reqs.push(req);}
 function miEntryRequirements(c,label,reqs,seen){
+  if(c&&c.providerNamed)return;
   var teamName=label==='A'?'Team A':'Team B',ts=c.status||{},locked=ts.lockedQualified&&ts.complete&&ts.tone==='confirmed';
   if(c.finishPositionNumber<=2&&!locked)miAddReq(reqs,seen,{type:'group_finish',team:label,group:c.group,text:teamName+' must finish '+freOrdinal(c.finishPositionNumber)+' in Group '+c.group+'.'});
   if(c.finishPositionNumber===3){
@@ -6782,6 +6788,7 @@ function miAdvancementPath(code,entry,target){
   return out;
 }
 function miScenarioDependencies(code,entry,out){
+  if(entry&&entry.providerNamed)return;
   out.push(nm(code)+' must finish '+miFinishLabel(entry)+'.');
   if(entry.finishPositionNumber===3){
     out.push(nm(code)+' must qualify as one of the valid best third-place teams.');
@@ -6796,7 +6803,7 @@ function miSharedThirdCombos(ea,eb){
   return{checked:checked,compatibleCombinations:combos||[],compatibleCombinationCount:combos?combos.length:null};
 }
 function miScenarioTeam(code,entry,target){
-  return{code:code,name:nm(code),group:entry.group,requiredFinish:miFinishLabel(entry),requiredEntrySlot:entry.slot,advancementPath:miAdvancementPath(code,entry,target),evidence:{finishPositionNumber:entry.finishPositionNumber,entryCertainty:entry.entryCertainty,slotSource:entry.finishPositionNumber===3?'TP3/TP3C':'Round-of-32 bracket slot'}};
+  return{code:code,name:nm(code),group:entry.group,requiredFinish:entry.providerNamed?'Provider named':miFinishLabel(entry),requiredEntrySlot:entry.slot,advancementPath:entry.providerNamed?[]:miAdvancementPath(code,entry,target),evidence:{finishPositionNumber:entry.finishPositionNumber,entryCertainty:entry.entryCertainty,slotSource:entry.providerNamed?'official provider fixture':(entry.finishPositionNumber===3?'TP3/TP3C':'Round-of-32 bracket slot')}};
 }
 function miRouteHeadline(a,b,p){
   var where=p.round==='Final'?'the Final':p.round;
@@ -6870,6 +6877,17 @@ function miFutureKnockoutPossibilities(a,b){
       if(seenPoss[key])continue;seenPoss[key]=1;out.push(miPossibility(num,a,b,A,B,reqs,seenReq));
     }
   });});
+  for(var n=73;n<=104;n++){
+    var named=truthProviderNamedKOFixture(n);if(!named)continue;
+    if(!((named.home===a&&named.away===b)||(named.home===b&&named.away===a)))continue;
+    var slotA={matchNum:n,side:named.home===a?'home':'away',slot:named.home===a?M[n].home:M[n].away};
+    var slotB={matchNum:n,side:named.home===b?'home':'away',slot:named.home===b?M[n].home:M[n].away};
+    var key=n+'|provider:'+a+'|provider:'+b;if(seenPoss[key])continue;seenPoss[key]=1;
+    out.push(miPossibility(n,a,b,
+      {team:a,group:TG[a],finishPositionNumber:0,finishPosition:'Provider named',slot:slotA,status:{complete:true,tone:'confirmed',lockedQualified:true},entryCertainty:'confirmed',providerNamed:true},
+      {team:b,group:TG[b],finishPositionNumber:0,finishPosition:'Provider named',slot:slotB,status:{complete:true,tone:'confirmed',lockedQualified:true},entryCertainty:'confirmed',providerNamed:true},
+      [],{}));
+  }
   out.sort(function(x,y){return (x.stageOrder||miStageOrder(x.round))-(y.stageOrder||miStageOrder(y.round))||x.matchNum-y.matchNum||x.teamA.requiredEntrySlot.matchNum-y.teamA.requiredEntrySlot.matchNum||x.teamB.requiredEntrySlot.matchNum-y.teamB.requiredEntrySlot.matchNum;});
   return out;
 }
@@ -7441,6 +7459,7 @@ function bracketBetHTML(){
 function liveTour(){var sc={},snap=tournamentTruthSnapshot();Object.keys(snap.official.finalResults||{}).forEach(function(n){var v=snap.official.finalResults[n];if(v&&v.score)sc[n]={h:v.score.h,a:v.score.a};});
   var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
   var ko={};Object.keys(snap.official.knockoutWinners||{}).forEach(function(n){ko[n]=snap.official.knockoutWinners[n];}); // real knockout winners → bracket advances live
+  try{Object.defineProperty(ko,'__officialDisplayKO',{value:true,enumerable:false});}catch(e){ko.__officialDisplayKO=true;}
   return {sc:sc,ko:ko,order:order,thirds:null};}
 function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85,87],r16=[89,90,93,94,91,92,95,96],qf=[97,98,99,100],sf=[101,102];
   const pathSet=new Set(S.focus?pathChain(S.focus):[]);
@@ -7488,6 +7507,11 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   if(m!=='live')h+=bracketBetHTML();
   document.getElementById("bracket").innerHTML=h;}
 function koSlotOfficialTeam(raw,matchNum){
+  var named=(typeof truthProviderNamedKOFixture==="function")?truthProviderNamedKOFixture(matchNum):null;
+  if(named&&!(S.realko&&S.realko[matchNum])){
+    if(raw===M[matchNum].home)return {team:named.home,locked:true,reason:'official_provider_fixture'};
+    if(raw===M[matchNum].away)return {team:named.away,locked:true,reason:'official_provider_fixture'};
+  }
   if(T[raw])return {team:raw,locked:true,reason:'fixed'};
   var m=String(raw||'').match(/^([12])([A-L])$/);
   if(m){var g=m[2],pos=+m[1];if(!gCompleteOfficial(g))return {team:resolveSlot(raw),locked:false,reason:'unfinished_group'};
@@ -8422,6 +8446,57 @@ function truthResolveOfficialFixture(f,allowKnockout){
   var sh=hit.flip?f.ga:f.gh,sa=hit.flip?f.gh:f.ga;
   return {num:hit.m.num,match:hit.m,home:hit.m.home,away:hit.m.away,score:{h:+sh,a:+sa},payload:f,flip:!!hit.flip};
 }
+function truthKOStageNums(stage){
+  var s=String(stage||'').toUpperCase().replace(/[^A-Z0-9]+/g,'_');
+  if(!s)return null;
+  if(/LAST_?32|ROUND_?OF_?32|ROUND_?32/.test(s))return [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88];
+  if(/LAST_?16|ROUND_?OF_?16|ROUND_?16/.test(s))return [89,90,91,92,93,94,95,96];
+  if(/QUARTER/.test(s))return [97,98,99,100];
+  if(/SEMI/.test(s))return [101,102];
+  if(/THIRD|BRONZE/.test(s))return [103];
+  if(/FINAL/.test(s))return [104];
+  return null;
+}
+function truthProviderTimeKey(f){
+  if(!f||!f.utcDate)return null;
+  var d=new Date(f.utcDate);if(isNaN(d.getTime()))return null;
+  return d.getUTCFullYear()+"-"+("0"+(d.getUTCMonth()+1)).slice(-2)+"-"+("0"+d.getUTCDate()).slice(-2)+" "+("0"+d.getUTCHours()).slice(-2)+":"+("0"+d.getUTCMinutes()).slice(-2);
+}
+function truthMatchTimeKey(m){return m?(m.date+" "+m.time):null;}
+function truthProviderKOFixtureNum(f){
+  if(!f)return null;
+  var explicit=+(f.matchNum||f.fixtureNum||f.num||f.number),stageNums=truthKOStageNums(f.stage||f.round||f.phase),m;
+  if(explicit&&M[explicit]&&M[explicit].stage!=='group'&&(!stageNums||stageNums.indexOf(explicit)>=0))return explicit;
+  if(!stageNums)return null;
+  var tk=truthProviderTimeKey(f);if(tk){for(var i=0;i<stageNums.length;i++){m=M[stageNums[i]];if(truthMatchTimeKey(m)===tk)return m.num;}}
+  return null;
+}
+function truthProviderNamedKOFixture(num){
+  var f=S&&S.officialKOFixtures&&S.officialKOFixtures[num];
+  return (f&&T[f.home]&&T[f.away]&&f.home!==f.away)?f:null;
+}
+function truthResolveProviderKOFixture(f){
+  var num=truthProviderKOFixtureNum(f);if(!num||!M[num]||M[num].stage==='group')return null;
+  if(rwKind(f)!=='scheduled'||officialFinalPayload(f))return null;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac||hc===ac)return null;
+  return {num:num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||''};
+}
+function ingestProviderKOFixtures(arr,opts){
+  if(!opts||opts.authoritative!==true)return false;
+  if(!Array.isArray(arr)||!arr.length)return false;
+  var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
+  S.officialKOFixtures=S.officialKOFixtures||{};
+  var changed=false;
+  arr.forEach(function(f){
+    var num=truthProviderKOFixtureNum(f);if(!num)return;
+    var next=truthResolveProviderKOFixture(f),prev=S.officialKOFixtures[num];
+    if(!next){if(prev){delete S.officialKOFixtures[num];changed=true;}return;}
+    if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status){
+      S.officialKOFixtures[num]=Object.assign({},next,{updatedAt:Date.now()});changed=true;
+    }
+  });
+  return changed;
+}
 function truthApplyOfficialFinal(fx){
   if(!fx||!fx.score||fx.score.h==null||fx.score.a==null)return false;
   var num=fx.num,sh=+fx.score.h,sa=+fx.score.a,cur=truthOfficialFinalScore(num),same=cur&&cur.h===sh&&cur.a===sa;
@@ -8444,24 +8519,25 @@ function truthApplyProvisional(f,receipt){
   return true;
 }
 function truthFreshness(){
-  var officialResults=truthStablePairs(REAL),officialKo=truthStablePairs(S&&S.realko),liveStates=[];
+  var officialResults=truthStablePairs(REAL),officialKo=truthStablePairs(S&&S.realko),officialNamedKo=truthStablePairs(S&&S.officialKOFixtures),liveStates=[];
   if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=truthLiveStateFor(+k);if(st)liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
-  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']',lfp='live['+liveStates.join('|')+']';
+  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']|namedKo['+officialNamedKo.join('|')+']',lfp='live['+liveStates.join('|')+']';
   return {officialStateFingerprint:fp,liveStateFingerprint:lfp,lastSuccessfulLocalRefreshReceipt:TruthBus.lastSuccessful||null,sourceHealthState:truthOverallHealth(),
-    sourceReceipts:Object.assign({},TruthBus.receipts),officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];})},
+    sourceReceipts:Object.assign({},TruthBus.receipts),officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialNamedKnockoutCount:officialNamedKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];}),officialNamedKnockoutFixtures:officialNamedKo.map(function(x){return +x.split(':')[0];})},
     liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
 }
 function truthEffectiveFingerprint(){var f=truthFreshness();return f.officialStateFingerprint+'||'+f.liveStateFingerprint;}
 function truthRenderIfChanged(before){if(before!==truthEffectiveFingerprint()){render();return true;}return false;}
 function tournamentTruthSnapshot(){
-  var finals={},ko={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
+  var finals={},ko={},namedKO={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
   Object.keys(REAL||{}).forEach(function(n){var s=truthOfficialFinalScore(+n);if(s)finals[n]={num:+n,score:s,source:'official_final'};});
   Object.keys(S&&S.realko||{}).forEach(function(n){if(S.realko[n])ko[n]=S.realko[n];});
+  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',source:'official_provider_fixture'};});
   if(S&&S.rwState)Object.keys(S.rwState).forEach(function(n){var st=truthLiveStateFor(+n);if(!st)return;var row={num:+n,kind:st.kind,score:(st.sh!=null&&st.sa!=null)?{h:st.sh,a:st.sa}:null,min:st.min,status:st.status||'',label:st.label||'',provisional:true};if(st.kind==='hold')hold[n]=row;else live[n]=row;});
   if(S&&S.live)virtual.activeMatch={num:S.live.num,score:{h:S.live.sh||0,a:S.live.sa||0},minute:S.live.min||0,source:'virtual'};
   if(S&&S.bets)virtual.openTickets=S.bets.filter(function(b){return b&&!b.settled;}).length;
   if(S&&S.betsim)virtual.simulatedResults=Object.keys(S.betsim).map(function(n){return +n;}).sort(function(a,b){return a-b;});
-  return {version:'live-truth-v1',official:{finalResults:finals,confirmedFixtures:MATCHES.map(function(m){return {num:m.num,stage:m.stage,home:m.home,away:m.away,date:m.date,time:m.time};}),knockoutWinners:ko},provisional:{live:live,hold:hold},freshness:truthFreshness(),virtual:virtual};
+  return {version:'live-truth-v1',official:{finalResults:finals,confirmedFixtures:MATCHES.map(function(m){return {num:m.num,stage:m.stage,home:m.home,away:m.away,date:m.date,time:m.time};}),knockoutWinners:ko,confirmedKnockoutFixtures:namedKO},provisional:{live:live,hold:hold},freshness:truthFreshness(),virtual:virtual};
 }
 function fetchResults(){
   if(_resFetching||document.hidden)return;_resFetching=true;
@@ -8473,8 +8549,11 @@ function fetchResults(){
     _lastSync=Date.now();   // data freshness for the "updated …" stamp
     try{truthIngestProviderRankings(d);}catch(e){}
     try{ingestMatchStates((d.live||[]).concat(d.hold||[]),{receipt:receipt});}catch(e){}
-    if(!d.finished||!d.finished.length){truthRenderIfChanged(before);return;}
+    var fixtureChanged=false;
+    if(truthPayloadHealth('/api/results',d)===TRUTH_HEALTH.healthy)try{fixtureChanged=ingestProviderKOFixtures((d.scheduled||d.fixtures||d.matches||[]),{receipt:receipt,authoritative:true});}catch(e){}
+    if(!d.finished||!d.finished.length){if(fixtureChanged)saveState();truthRenderIfChanged(before);return;}
     ingestFinished(d.finished,{receipt:receipt});   // non-destructive: only fills matches not already official
+    if(fixtureChanged)saveState();
     truthRenderIfChanged(before);
   }).catch(function(){_resFetching=false;});}catch(e){_resFetching=false;}
 }

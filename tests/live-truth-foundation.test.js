@@ -32,9 +32,11 @@ function loadApp() {
       MATCHES:MATCHES, GROUPS:GROUPS, REAL:REAL, M:M, gMatches:gMatches,
       tournamentTruthSnapshot:tournamentTruthSnapshot, truthRefreshStart:truthRefreshStart,
       truthRecordReceipt:truthRecordReceipt, ingestFinished:ingestFinished,
+      ingestProviderKOFixtures:ingestProviderKOFixtures,
       ingestMatchStates:ingestMatchStates, tccOffTable:tccOffTable, tccRealTable:tccRealTable,
       tccTeamTournamentStatus:tccTeamTournamentStatus, matchLiveState:matchLiveState,
-      knockoutSlotStatus:knockoutSlotStatus, fdFixtureState:fdFixtureState,
+      knockoutSlotStatus:knockoutSlotStatus, knockoutPathCardHTML:knockoutPathCardHTML,
+      matchupIntelligence:matchupIntelligence, koParts:koParts, fdFixtureState:fdFixtureState,
       TRUTH_PROVISIONAL_EXPIRY_MS:TRUTH_PROVISIONAL_EXPIRY_MS,
       scheduleRefresh:scheduleRefresh, ApiBus:ApiBus, dataStatusHTML:dataStatusHTML,
       mxRefreshIfStale:mxRefreshIfStale, fetchRealWorldData:fetchRealWorldData,
@@ -93,6 +95,10 @@ function finishAllGroupsTiedWithAuthority(app, state) {
 
 function koPayload(home, away, winner, gh = 1, ga = 0) {
   return { home, away, gh, ga, status: 'FINISHED', kind: 'final', stage: 'LAST_32', winner };
+}
+
+function scheduledKOPayload(matchNum, home, away, extra = {}) {
+  return Object.assign({ matchNum, home, away, gh: null, ga: null, status: 'TIMED', kind: 'scheduled', stage: 'LAST_32' }, extra);
 }
 
 test('official final payload updates the centralized truth snapshot', () => withApp((app) => {
@@ -189,6 +195,74 @@ test('exact score ties stay unresolved unless authoritative provider order exist
   app.setState(s);
   assert.equal(app.tccTeamTournamentStatus(app.GROUPS.A[0]).type, 'officially_confirmed', 'authoritative provider order resolves exact tie');
   assert.equal(app.knockoutSlotStatus(slot.num, true).state, 'one', 'direct slot can lock once its tied group has authority');
+}));
+
+test('named future provider knockout fixture is confirmed in bracket and Route Explorer', () => withApp((app) => {
+  const s = resetOfficial(app);
+  app.ingestProviderKOFixtures([scheduledKOPayload(73, 'Germany', 'Paraguay')], { authoritative: true });
+  const st = app.knockoutSlotStatus(73, true);
+  assert.equal(st.state, 'confirmed');
+  assert.equal(st.home, 'GER');
+  assert.equal(st.away, 'PAR');
+  const card = app.knockoutPathCardHTML(73, new Set(), false, true);
+  assert.match(card, /Germany/);
+  assert.match(card, /Paraguay/);
+  assert.match(card, /Confirmed/);
+  const route = app.matchupIntelligence('GER', 'PAR');
+  assert.equal(route.verdict, 'confirmed');
+  assert.equal(route.knockoutPossibilities[0].matchNum, 73);
+  assert.equal(s.realko[73], undefined);
+}));
+
+test('named provider fixture overrides unresolved inferred slots for participant display only', () => withApp((app) => {
+  resetOfficial(app);
+  app.ingestProviderKOFixtures([scheduledKOPayload(74, 'Australia', 'Egypt')], { authoritative: true });
+  const st = app.knockoutSlotStatus(74, true);
+  assert.equal(st.state, 'confirmed');
+  assert.deepEqual([st.home, st.away], ['AUS', 'EGY']);
+  assert.deepEqual(Array.from(app.koParts(74)), ['AUS', 'EGY']);
+  const snap = app.tournamentTruthSnapshot();
+  assert.equal(snap.official.confirmedKnockoutFixtures[74].home, 'AUS');
+  assert.equal(snap.official.knockoutWinners[74], undefined);
+}));
+
+test('TBD provider knockout fixture stays pending', () => withApp((app) => {
+  resetOfficial(app);
+  app.ingestProviderKOFixtures([scheduledKOPayload(75, 'TBD', 'Sweden')], { authoritative: true });
+  const st = app.knockoutSlotStatus(75, true);
+  assert.notEqual(st.state, 'confirmed');
+  assert.equal(app.tournamentTruthSnapshot().official.confirmedKnockoutFixtures[75], undefined);
+}));
+
+test('scheduled named provider fixture does not advance either team', () => withApp((app) => {
+  const s = resetOfficial(app);
+  app.ingestProviderKOFixtures([scheduledKOPayload(76, 'France', 'Sweden')], { authoritative: true });
+  assert.equal(app.knockoutSlotStatus(76, true).state, 'confirmed');
+  assert.equal(s.realko[76], undefined);
+  assert.equal(app.knockoutSlotStatus(91, true).state === 'confirmed', false);
+  assert.deepEqual(Array.from(app.koParts(91)), [null, null]);
+}));
+
+test('virtual simulation cannot affect provider-named fixture confirmation', () => withApp((app) => {
+  const s = resetOfficial(app);
+  app.ingestProviderKOFixtures([scheduledKOPayload(77, 'Argentina', 'Cape Verde')], { authoritative: true });
+  s.sc[77] = { h: 9, a: 0 };
+  s.betsim[77] = 1;
+  app.setState(s);
+  const st = app.knockoutSlotStatus(77, true);
+  assert.equal(st.state, 'confirmed');
+  assert.deepEqual([st.home, st.away], ['ARG', 'CPV']);
+  assert.equal(s.realko[77], undefined);
+}));
+
+test('provider failure or stale data cannot invent a confirmed knockout fixture', () => withApp((app) => {
+  resetOfficial(app);
+  assert.equal(app.ingestProviderKOFixtures([scheduledKOPayload(78, 'Australia', 'Egypt')], { authoritative: false }), false);
+  assert.notEqual(app.knockoutSlotStatus(78, true).state, 'confirmed');
+  const receipt = app.truthRefreshStart('/api/results');
+  app.truthRecordReceipt('/api/results', { configured: true, sourceStatus: 'stale-fallback' }, receipt);
+  assert.equal(app.ingestProviderKOFixtures([scheduledKOPayload(78, 'Australia', 'Egypt')], { receipt, authoritative: false }), false);
+  assert.notEqual(app.knockoutSlotStatus(78, true).state, 'confirmed');
 }));
 
 test('failed live refresh updates source health without global rerender', async () => withApp(async (app, window) => {
