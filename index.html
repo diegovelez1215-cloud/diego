@@ -3289,7 +3289,7 @@ function nm(c){return (T[c]&&T[c][0])||c;}
    edge<1 compresses favourite advantage (more upsets); goal scales scoring frequency. */
 var SIMMODE={chaos:{edge:0.32,goal:1,t:"🌀 Chaos"},laser:{edge:1,goal:2.0,t:"⚡ Laser Boots"},bus:{edge:1,goal:0.48,t:"🧱 Park the Bus"}};
 function simM(){return SIMMODE[S&&S.simMode]||{edge:1,goal:1};}
-function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},officialKOFixtures:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
+function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},officialKOFixtures:{},providerGroupOrder:{},betsim:{},rwState:{},play:{scores:{},scoreMeta:{},ko:{},koMeta:{},order:null,thirds:null,betsim:{},betsimMeta:{}},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
 /* ===== Global view mode: REAL LIFE vs MY SIM =====
    'real' → the whole tracker renders from official results only (a pristine,
             read-only live tracker). 'sim' → the user's editable sandbox + bets.
@@ -3357,8 +3357,31 @@ function seedLive(){var w=walletSnap();S=blankState();walletRestore(w);
   "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=GROUPS[g].slice());
   Object.keys(REAL).forEach(n=>{S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});}
 /* ---- persistence + shareable links ---- */
+var PLAY_SAVE_KEY="wc26_play_v1",USER_SAVE_KEY="wc26_user_v1",LEGACY_WC26_RAW=null,LEGACY_WC26_SCORE_OVERLAY={},LEGACY_WC26_BETSIM_OVERLAY={},LEGACY_WC26_KO_OVERLAY=null,LEGACY_WC26_ORDER_OVERLAY=null,LEGACY_WC26_THIRDS_OVERLAY=null;
+function clonePlain(v){try{return JSON.parse(JSON.stringify(v));}catch(e){return v;}}
+function defaultGroupOrder(){var o={};"ABCDEFGHIJKL".split("").forEach(function(g){o[g]=GROUPS[g].slice();});return o;}
+function validScore(v){return v&&typeof v==="object"&&typeof v.h==="number"&&typeof v.a==="number"&&v.h>=0&&v.a>=0&&v.h<=99&&v.a<=99;}
+function sanitizedScores(o){var out={};if(!o||typeof o!=="object")return out;Object.keys(o).forEach(function(k){var n=+k,v=o[k];if(n>=1&&n<=104&&validScore(v))out[n]={h:v.h|0,a:v.a|0};});return out;}
+function ensurePlay(){if(!S.play||typeof S.play!=="object")S.play={};S.play.scores=S.play.scores||{};S.play.scoreMeta=S.play.scoreMeta||{};S.play.ko=S.play.ko||{};S.play.koMeta=S.play.koMeta||{};S.play.betsim=S.play.betsim||{};S.play.betsimMeta=S.play.betsimMeta||{};return S.play;}
+function captureLegacyWc26(o){LEGACY_WC26_SCORE_OVERLAY=sanitizedScores(o&&o.sc);LEGACY_WC26_BETSIM_OVERLAY={};if(o&&o.betsim&&typeof o.betsim==="object")Object.keys(o.betsim).forEach(function(k){var n=+k;if(n>=1&&n<=104&&o.betsim[k])LEGACY_WC26_BETSIM_OVERLAY[n]=1;});LEGACY_WC26_KO_OVERLAY=(o&&o.ko&&typeof o.ko==="object")?clonePlain(o.ko):null;LEGACY_WC26_ORDER_OVERLAY=(o&&o.order&&typeof o.order==="object")?clonePlain(o.order):null;LEGACY_WC26_THIRDS_OVERLAY=(o&&"thirds" in o)?clonePlain(o.thirds):null;}
+function restoreOfficialScoreOverlays(){S.real=S.real||{};Object.keys(REAL||{}).forEach(function(n){var r=REAL[n];if(r&&r.length===2){S.sc[n]={h:r[0],a:r[1]};S.real[n]=1;if(S.betsim)delete S.betsim[n];}});}
+function markPlayScore(num,score,kind){num=+num;if(!(num>=1&&num<=104)||!validScore(score)||(S.real&&S.real[num]))return;var p=ensurePlay();p.scores[num]={h:score.h|0,a:score.a|0};p.scoreMeta[num]={owner:"play",kind:kind||"simulation",at:Date.now()};}
+function clearPlayScore(num){var p=ensurePlay();delete p.scores[num];delete p.scoreMeta[num];}
+function markPlayBetSim(num,kind){num=+num;if(!(num>=1&&num<=104)||(S.real&&S.real[num]))return;var p=ensurePlay();p.betsim[num]=1;p.betsimMeta[num]={owner:"play",kind:kind||"bet-sim",at:Date.now()};}
+function clearPlayBetSim(num){var p=ensurePlay();delete p.betsim[num];delete p.betsimMeta[num];}
+function markPlayKO(num,code,kind){num=+num;if(!(num>=73&&num<=104))return;var p=ensurePlay();if(code){p.ko[num]=code;p.koMeta[num]={owner:"play",kind:kind||"bracket",at:Date.now()};}else{delete p.ko[num];delete p.koMeta[num];}}
+function markPlayOrder(){var p=ensurePlay();p.order=clonePlain(S.order||defaultGroupOrder());}
+function markPlayThirds(){var p=ensurePlay();p.thirds=clonePlain(S.thirds);}
+function restoreLegacyTournamentOverlays(){var p=ensurePlay();Object.keys(p.scores||{}).forEach(function(n){if(S.real&&S.real[n])return;if(LEGACY_WC26_SCORE_OVERLAY&&LEGACY_WC26_SCORE_OVERLAY[n])S.sc[n]=clonePlain(LEGACY_WC26_SCORE_OVERLAY[n]);else delete S.sc[n];});S.ko=LEGACY_WC26_KO_OVERLAY?clonePlain(LEGACY_WC26_KO_OVERLAY):{};S.order=LEGACY_WC26_ORDER_OVERLAY?clonePlain(LEGACY_WC26_ORDER_OVERLAY):defaultGroupOrder();S.thirds=LEGACY_WC26_THIRDS_OVERLAY?clonePlain(LEGACY_WC26_THIRDS_OVERLAY):null;S.betsim=clonePlain(LEGACY_WC26_BETSIM_OVERLAY||{});if(S.betsim)Object.keys(S.betsim).forEach(function(n){if(S.real&&S.real[n])delete S.betsim[n];});restoreOfficialScoreOverlays();revalidateKO();}
+function playSaveFromState(){var p=ensurePlay();return {v:1,owner:"play",key:PLAY_SAVE_KEY,savedAt:Date.now(),scores:clonePlain(p.scores),scoreMeta:clonePlain(p.scoreMeta),ko:clonePlain(p.ko),koMeta:clonePlain(p.koMeta),order:clonePlain(p.order),thirds:clonePlain(p.thirds),betsim:clonePlain(p.betsim),betsimMeta:clonePlain(p.betsimMeta),live:clonePlain(S.live),_ts2:clonePlain(S._ts2),ts2Return:clonePlain(S.ts2Return)};}
+function applyPlaySave(o){try{if(!o||typeof o!=="object"||o.owner!=="play")return false;restoreLegacyTournamentOverlays();var p=ensurePlay();p.scores=sanitizedScores(o.scores);p.scoreMeta={};Object.keys(p.scores).forEach(function(n){var meta=o.scoreMeta&&o.scoreMeta[n];p.scoreMeta[n]=(meta&&meta.owner==="play")?clonePlain(meta):{owner:"play",kind:"simulation",at:Date.now()};if(!(S.real&&S.real[n]))S.sc[n]=clonePlain(p.scores[n]);});p.ko=(o.ko&&typeof o.ko==="object")?clonePlain(o.ko):{};p.koMeta=(o.koMeta&&typeof o.koMeta==="object")?clonePlain(o.koMeta):{};S.ko=clonePlain(p.ko);p.order=(o.order&&typeof o.order==="object")?clonePlain(o.order):null;S.order=p.order?clonePlain(p.order):(LEGACY_WC26_ORDER_OVERLAY?clonePlain(LEGACY_WC26_ORDER_OVERLAY):defaultGroupOrder());p.thirds=("thirds" in o)?clonePlain(o.thirds):null;S.thirds=clonePlain(p.thirds);p.betsim={};p.betsimMeta={};if(o.betsim&&typeof o.betsim==="object")Object.keys(o.betsim).forEach(function(k){var n=+k;if(n>=1&&n<=104&&o.betsim[k]&&!(S.real&&S.real[n])){p.betsim[n]=1;p.betsimMeta[n]=(o.betsimMeta&&o.betsimMeta[n]&&o.betsimMeta[n].owner==="play")?clonePlain(o.betsimMeta[n]):{owner:"play",kind:"bet-sim",at:Date.now()};S.betsim[n]=1;}});if("live" in o)S.live=clonePlain(o.live);if("_ts2" in o)S._ts2=clonePlain(o._ts2);if("ts2Return" in o)S.ts2Return=clonePlain(o.ts2Return);restoreOfficialScoreOverlays();revalidateKO();return true;}catch(e){return false;}}
+function persistPlaySave(){try{localStorage.setItem(PLAY_SAVE_KEY,JSON.stringify(playSaveFromState()));}catch(e){}}
+function userSaveFromState(){return {v:1,owner:"user",key:USER_SAVE_KEY,savedAt:Date.now(),bank:S.bank,bets:clonePlain(S.bets||[]),slip:clonePlain(S.slip||[]),bankHist:clonePlain(S.bankHist||[S.bank]),lastStory:S.lastStory||null,achv:clonePlain(S.achv||{}),boostUsed:S.boostUsed||null,boostArmed:!!S.boostArmed,lastBailout:S.lastBailout||0,powerups:clonePlain(S.powerups||{boost:0,insure:0,streak:0}),insureArmed:!!S.insureArmed,_betSeq:S._betSeq||0};}
+function applyUserSave(o){try{if(!o||typeof o!=="object"||o.owner!=="user")return false;if(typeof o.bank==="number"&&isFinite(o.bank))S.bank=Math.max(0,Math.min(100000000,Math.floor(o.bank)));if(Array.isArray(o.bets))S.bets=clonePlain(o.bets);if(Array.isArray(o.slip))S.slip=clonePlain(o.slip);if(Array.isArray(o.bankHist)){var bh=o.bankHist.filter(function(x){return typeof x==="number"&&isFinite(x);}).slice(-120);if(bh.length)S.bankHist=bh;}if(typeof o.lastStory==="string")S.lastStory=o.lastStory.slice(0,180);else if("lastStory" in o)S.lastStory=null;if(o.achv&&typeof o.achv==="object")S.achv=clonePlain(o.achv);S.boostUsed=o.boostUsed||null;S.boostArmed=!!o.boostArmed;S.lastBailout=+o.lastBailout||0;if(o.powerups&&typeof o.powerups==="object")S.powerups={boost:+o.powerups.boost||0,insure:+o.powerups.insure||0,streak:+o.powerups.streak||0};S.insureArmed=!!o.insureArmed;S._betSeq=+o._betSeq||0;return true;}catch(e){return false;}}
+function persistUserSave(){try{localStorage.setItem(USER_SAVE_KEY,JSON.stringify(userSaveFromState()));}catch(e){}}
+function resetMyPlaySave(){try{ts2Cancel();}catch(e){}try{if(typeof _ts2!=="undefined")_ts2=null;}catch(e){}restoreLegacyTournamentOverlays();S.play={scores:{},scoreMeta:{},ko:{},koMeta:{},order:null,thirds:null,betsim:{},betsimMeta:{}};S.live=null;S._ts2=null;S.ts2Return=null;persistPlaySave();}
 function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,officialKOFixtures:S.officialKOFixtures,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
-function saveState(){try{if(!Array.isArray(S.bankHist))S.bankHist=[S.bank];if(S.bankHist[S.bankHist.length-1]!==S.bank){S.bankHist.push(S.bank);if(S.bankHist.length>120)S.bankHist=S.bankHist.slice(-120);}localStorage.setItem("wc26_v1",JSON.stringify(persistKeys()));}catch(e){}}
+function saveState(){try{if(!Array.isArray(S.bankHist))S.bankHist=[S.bank];if(S.bankHist[S.bankHist.length-1]!==S.bank){S.bankHist.push(S.bank);if(S.bankHist.length>120)S.bankHist=S.bankHist.slice(-120);}persistUserSave();persistPlaySave();}catch(e){}}
 function applyState(o){try{if(!o||typeof o!=="object")return false;
   if(o.sc&&typeof o.sc==="object"){var _sc={};Object.keys(o.sc).forEach(function(k){var n=+k,v=o.sc[k];if(n>=1&&n<=104&&v&&typeof v==="object"&&typeof v.h==="number"&&typeof v.a==="number"&&v.h>=0&&v.a>=0&&v.h<=99&&v.a<=99)_sc[n]={h:v.h|0,a:v.a|0};});S.sc=_sc;}
   if(o.ko&&typeof o.ko==="object")S.ko=o.ko;if(o.order&&typeof o.order==="object")S.order=o.order;if("thirds" in o)S.thirds=o.thirds;
@@ -3404,7 +3427,9 @@ function applyShareBracket(o){try{if(!o||typeof o!=="object")return false;
   revalidateKO();return true;}catch(e){return false;}}
 function restoreState(){
   // Load THIS device's own saved wallet + state first (per-phone, isolated).
-  try{var raw=localStorage.getItem("wc26_v1");if(raw){applyState(JSON.parse(raw));}}catch(e){}
+  try{var raw=localStorage.getItem("wc26_v1");if(raw){LEGACY_WC26_RAW=raw;var legacy=JSON.parse(raw);captureLegacyWc26(legacy);applyState(legacy);}}catch(e){}
+  try{var user=localStorage.getItem(USER_SAVE_KEY);if(user)applyUserSave(JSON.parse(user));else persistUserSave();}catch(e){}
+  try{var play=localStorage.getItem(PLAY_SAVE_KEY);if(play)applyPlaySave(JSON.parse(play));}catch(e){}
   // A share link overlays only the shared BRACKET — the opener's wallet is never touched.
   var h=location.hash||"";var m=h.match(/[#&]s=([^&]+)/);
   if(m){var o=decodeShare(m[1]);if(o&&applyShareBracket(o)){setTimeout(function(){toast("🔗 Loaded a shared bracket · your wallet is untouched");},450);}}
@@ -3760,11 +3785,12 @@ function liveLoop(num){clearLive();
 function finishLive(num){var L=S.live;if(!L)return;var h=L.h,a=L.a,sh=L.sh,sa=L.sa;
   var pens="";if(L.isKO&&sh===sa){if(Math.random()<shootoutProb(h,a))sh++;else sa++;pens=" (pens)";}
   S.sc[num]={h:sh,a:sa};
+  markPlayScore(num,S.sc[num],'matchcast');
   // Tag this as a BET SIM — it settles your wager but is NOT real life: it must
   // not move official standings, qualification, the "as it stands" bracket, or
   // the match-progress counter. (Cleared automatically if the real result lands.)
-  if(!(S.real&&S.real[num])){(S.betsim=S.betsim||{})[num]=1;}
-  if(L.isKO){S.ko[num]=sh>sa?h:a;revalidateKO();}
+  if(!(S.real&&S.real[num])){(S.betsim=S.betsim||{})[num]=1;markPlayBetSim(num,'matchcast');}
+  if(L.isKO){S.ko[num]=sh>sa?h:a;markPlayKO(num,S.ko[num],'matchcast');revalidateKO();}
   endLive();render();if(_matchcastOpen&&_matchcastNum===num)renderMatchcast();else openSheet(num);toast("⏱ Full time · "+nm(h)+" "+sh+"–"+sa+" "+nm(a)+pens+" · sim only");if(SOUND){sfxWhistle();}try{document.title="United 2026 · World Cup Simulator";}catch(e){}}
 var _matchcastOpen=false,_matchcastNum=null,_matchcastBet=null;
 function matchcastPhase(num){var L=S.live;if(L&&L.num===num){if(L.varReview)return'VAR review';if(L.min>=90)return'Full time pending';if(L.min>=45&&L.min<46)return'Halftime';return (L.min<45?'First half':'Second half')+' · '+L.min+"'";}var s=S.sc[num];if(s)return'Full time · simulated result';var st=matchLiveState(num);if(st&&st.kind==='hold')return safeStatusText(st.label,'Delayed');return'Before kickoff';}
@@ -4590,7 +4616,7 @@ function renderHome(){
   '<button class="qbtn" onclick="toggleChallenge()">🎯 Challenge</button><button class="qbtn" onclick="shareBracket()">↗ Share</button>'+
   '<button class="qbtn ghost" onclick="doReset()">↺ Reset to live</button><button class="qbtn ghost" onclick="toggleSound()">'+snd+' Crowd FX</button>'+
   '<button class="qbtn ghost" onclick="favSheet()">🎨 Team colours</button><button class="qbtn ghost" onclick="syndicateSheet()">👥 League</button>'+
-  '<button class="qbtn ghost" style="grid-column:1/-1" onclick="doClear()">✕ Clear all to blank slate</button>'+
+  '<button class="qbtn ghost" style="grid-column:1/-1" onclick="doClear()">Reset My Play Save</button>'+
   '<div class="sbx" style="grid-column:1/-1"><div class="sbx-h">🧪 Sandbox engine</div><div class="sbx-row">'+
    [['','Normal'],['chaos','🌀 Chaos'],['laser','⚡ Laser Boots'],['bus','🧱 Park the Bus']].map(function(o){return '<button class="sbx-b'+(((S.simMode||'')===o[0])?' on':'')+'" onclick="setSimMode(\''+o[0]+'\')">'+o[1]+'</button>';}).join('')+
    '</div><div class="sbx-note">Bends future sims — upsets, goal floods or lockdowns. Never touches real results.</div></div></div></details>';
@@ -5120,7 +5146,7 @@ function askConfirm(title,msg,okLabel,danger,fn){window.__cfn=fn;
  '<button class="tbtn" style="width:100%;justify-content:center;margin-top:8px;background:var(--solid)" onclick="window.__cfn=null;closeSheet();">Cancel</button>';
  document.getElementById("sheet").innerHTML=html;document.getElementById("scrim").classList.add("on");}
 function doReset(){askConfirm("Reset to live","Restore the real tournament — every official result so far — and clear your simulated picks. Your bankroll, bets and progress are kept.","Reset to live results",false,function(){seedLive();render();toast("✓ Reset to official results · wallet kept");});}
-function doClear(){askConfirm("Clear everything","Wipe ALL scores and picks, including the official results, for a blank-slate simulation. Your bankroll, bets and progress are kept. You can get the real results back any time with Reset to live.","Clear all",true,function(){var w=walletSnap();S=blankState();walletRestore(w);"ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=GROUPS[g].slice();});render();toast("✓ Cleared to blank slate · wallet kept");});}
+function doClear(){askConfirm("Reset My Play Save","Clear your isolated Play save: virtual results, virtual bracket/progression and virtual replay overlays. Legacy mixed local data, your SIM$ wallet, tickets and official World Cup truth are not changed.","Reset My Play Save",true,function(){resetMyPlaySave();render();toast("✓ Play save reset · official data unchanged");});}
 function toggleSound(){SOUND=!SOUND;try{localStorage.setItem('wc26_sound',SOUND?'1':'0');}catch(e){}if(SOUND){try{ac()&&ac().resume();sfxPick();}catch(e){}}render();toast(SOUND?"🔊 Crowd FX on":"🔇 Crowd FX off");}
 function weeklyChallengesHTML(){
  var settled=S.bets.filter(function(b){return b.settled;}),open=S.bets.filter(function(b){return !b.settled;});
@@ -5796,13 +5822,13 @@ function renderCompare(){var el=document.getElementById("compare");if(!el)return
  el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>'+routes;}
 function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
- MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
- "ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=standings(g).map(function(x){return x.code;});});
- S.thirds=null;revalidateKO();TAB="bracket";switchTab();
+ MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num]){S.sc[m.num]=simScore(m.home,m.away);markPlayScore(m.num,S.sc[m.num],'reveal');}});
+ "ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=standings(g).map(function(x){return x.code;});});markPlayOrder();
+ S.thirds=null;markPlayThirds();revalidateKO();TAB="bracket";switchTab();
  var rounds=[["Round of 32",[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]],["Round of 16",[89,90,91,92,93,94,95,96]],["Quarter-finals",[97,98,99,100]],["Semi-finals",[101,102]],["Final",[103,104]]];
  S._reveal=true;var idx=0;
  function step(){if(idx>=rounds.length){S._reveal=false;var c=winner(104);render();if(c){burst();if(SOUND){sfxRoar();sfxHorn();}toast("🏆 "+nm(c)+" are your champions!");setTimeout(celebrate,450);}return;}
-  var r=rounds[idx++];r[1].forEach(function(n){var p=koParts(n);if(p[0]&&p[1]&&!S.ko[n])S.ko[n]=koPick(p[0],p[1]);});
+  var r=rounds[idx++];r[1].forEach(function(n){var p=koParts(n);if(p[0]&&p[1]&&!S.ko[n]){S.ko[n]=koPick(p[0],p[1]);markPlayKO(n,S.ko[n],'reveal');}});
   render();if(SOUND)sfxWhistle();if(idx<rounds.length)toast("✨ "+r[0]+" revealed");
   var br=document.querySelector(".brk");if(br){br.classList.remove("reveal");void br.offsetWidth;br.classList.add("reveal");}
   setTimeout(step,820);}
@@ -6150,8 +6176,8 @@ function instantSimMatch(num){var m=M[num];if(!m)return false;
   var result=premiumSimMatch(num,{home:H,away:A,knockout:m.stage!=="group",replayKey:'instant:'+num+':'+(S.bets&&S.bets.length||0)+':'+S.simNonce});
   if(!result)return false;
   S._lastTicketSim=result;
-  S.sc[num]={h:result.score.h,a:result.score.a};(S.betsim=S.betsim||{})[num]=1;
-  if(m.stage!=="group")S.ko[num]=result.advancingTeam||((result.score.h>result.score.a)?H:A);
+  S.sc[num]={h:result.score.h,a:result.score.a};markPlayScore(num,S.sc[num],'bet-sim');(S.betsim=S.betsim||{})[num]=1;markPlayBetSim(num,'bet-sim');
+  if(m.stage!=="group"){S.ko[num]=result.advancingTeam||((result.score.h>result.score.a)?H:A);markPlayKO(num,S.ko[num],'bet-sim');}
   return true;}
 function betMatchNums(bets){var nums={};bets.forEach(function(b){if(b.settled)return;
   if(b.kind==="par"){(b.legs||[]).forEach(function(l){if((l.k==="m"||l.k==="mkt")&&l.num!=null)nums[l.num]=1;});}
@@ -8249,9 +8275,9 @@ function storylines(){let out=[];const c=winner(104);
   if(dem&&dd>=4){const hw=dem.s.h>dem.s.a;out.push({t:"🎯",h:nm(hw?dem.m.home:dem.m.away)+" dominant in statement win",s:nm(dem.m.home)+" "+dem.s.h+"-"+dem.s.a+" "+nm(dem.m.away)+"."});}
   return out.slice(0,5);}
 function nextStage(){const eg=MATCHES.filter(m=>m.stage==="group"&&!S.sc[m.num]);
-  if(eg.length){eg.forEach(m=>S.sc[m.num]=simScore(m.home,m.away));"ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=standings(g).map(x=>x.code));S.thirds=null;revalidateKO();return "Group stage";}
+  if(eg.length){eg.forEach(m=>{S.sc[m.num]=simScore(m.home,m.away);markPlayScore(m.num,S.sc[m.num],'next-stage');});"ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=standings(g).map(x=>x.code));markPlayOrder();S.thirds=null;markPlayThirds();revalidateKO();return "Group stage";}
   const rounds=[["Round of 32",[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]],["Round of 16",[89,90,91,92,93,94,95,96]],["Quarter-finals",[97,98,99,100]],["Semi-finals",[101,102]],["Final",[104,103]]];
-  for(const r of rounds){const nums=r[1];if(nums.some(n=>!S.ko[n])){nums.forEach(n=>{const[h,a]=koParts(n);if(h&&a&&!S.ko[n])S.ko[n]=koPick(h,a);});return r[0];}}
+  for(const r of rounds){const nums=r[1];if(nums.some(n=>!S.ko[n])){nums.forEach(n=>{const[h,a]=koParts(n);if(h&&a&&!S.ko[n]){S.ko[n]=koPick(h,a);markPlayKO(n,S.ko[n],'next-stage');}});return r[0];}}
   return null;}
 let autoT=null;
 function autoPlay(){if(!requireSim())return;const r=nextStage();if(r){if(SOUND)sfxWhistle();render();toast(r+" simulated…");autoT=setTimeout(autoPlay,780);}else{toast("🏆 Tournament complete!");}}
@@ -8330,16 +8356,16 @@ function bracketCard(){if(SOUND)try{sfxHorn();}catch(e){}
   exportCanvas(cv,"WC2026-MyBracket.png","📸 Bracket card saved");}
 
 // actions
-function bump(num,side,d){if(!requireSim())return;try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}let s=S.sc[num]||{h:0,a:0};s={h:s.h,a:s.a};s[side]=Math.max(0,Math.min(19,(s[side]||0)+d));S.sc[num]=s;delete S.real[num];if(S.betsim)delete S.betsim[num];try{maybeScoreEgg(s);}catch(e){}revalidateKO();render();}
+function bump(num,side,d){if(!requireSim())return;try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}let s=S.sc[num]||{h:0,a:0};s={h:s.h,a:s.a};s[side]=Math.max(0,Math.min(19,(s[side]||0)+d));S.sc[num]=s;delete S.real[num];markPlayScore(num,s,'manual-score');if(S.betsim)delete S.betsim[num];clearPlayBetSim(num);try{maybeScoreEgg(s);}catch(e){}revalidateKO();render();}
 function tapWin(num,side){if(!requireSim())return;try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}let s=S.sc[num];const o=side==="h"?"a":"h";
   if(s&&((side==="h"&&s.h>s.a)||(side==="a"&&s.a>s.h))){/* already winning: keep score */}
   else{s={h:0,a:0};s[side]=1;s[o]=0;}
-  S.sc[num]=s;delete S.real[num];if(S.betsim)delete S.betsim[num];revalidateKO();render();}
-function setDraw(num){if(!requireSim())return;let s=S.sc[num];if(!(s&&s.h===s.a)){s={h:1,a:1};}S.sc[num]={h:s.h,a:s.a};delete S.real[num];if(S.betsim)delete S.betsim[num];revalidateKO();render();}
-function simGroup(g){if(!requireSim())return;gMatches(g).forEach(m=>{if(!S.sc[m.num]&&!S.real[m.num])S.sc[m.num]=simScore(m.home,m.away);});S.order[g]=standings(g).map(x=>x.code);revalidateKO();render();}
-function mv(g,i,dir){const o=S.order[g],st=standings(g),j=i+dir;if(j<0||j>=o.length)return;const a=o.indexOf(st[i].code),b=o.indexOf(st[j].code);[o[a],o[b]]=[o[b],o[a]];revalidateKO();render();}
-function togThird(g){let q=new Set(qualThirds());if(q.has(g))q.delete(g);else q.add(g);S.thirds=[...q];revalidateKO();render();}
-function setKo(num,code){if(!requireSim())return;S.ko[num]=S.ko[num]===code?null:code;revalidateKO();render();}
+  S.sc[num]=s;delete S.real[num];markPlayScore(num,s,'manual-score');if(S.betsim)delete S.betsim[num];clearPlayBetSim(num);revalidateKO();render();}
+function setDraw(num){if(!requireSim())return;let s=S.sc[num];if(!(s&&s.h===s.a)){s={h:1,a:1};}S.sc[num]={h:s.h,a:s.a};delete S.real[num];markPlayScore(num,S.sc[num],'manual-score');if(S.betsim)delete S.betsim[num];clearPlayBetSim(num);revalidateKO();render();}
+function simGroup(g){if(!requireSim())return;gMatches(g).forEach(m=>{if(!S.sc[m.num]&&!S.real[m.num]){S.sc[m.num]=simScore(m.home,m.away);markPlayScore(m.num,S.sc[m.num],'group-sim');}});S.order[g]=standings(g).map(x=>x.code);markPlayOrder();revalidateKO();render();}
+function mv(g,i,dir){const o=S.order[g],st=standings(g),j=i+dir;if(j<0||j>=o.length)return;const a=o.indexOf(st[i].code),b=o.indexOf(st[j].code);[o[a],o[b]]=[o[b],o[a]];markPlayOrder();revalidateKO();render();}
+function togThird(g){let q=new Set(qualThirds());if(q.has(g))q.delete(g);else q.add(g);S.thirds=[...q];markPlayThirds();revalidateKO();render();}
+function setKo(num,code){if(!requireSim())return;S.ko[num]=S.ko[num]===code?null:code;markPlayKO(num,S.ko[num],'manual-bracket');revalidateKO();render();}
 function focusTeam(c){S.focus=c;TAB="road";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#road","🧭 "+nm(c)+" road opened");}
 function goBracket(){TAB="bracket";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#bracket","🏆 Bracket opened");}
 function goLiveBracket(){S.mode='real';_brkMode='live';TAB="bracket";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#brkVert","📡 Live knockout projection opened");}
@@ -8349,11 +8375,11 @@ function revalidateKO(){[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,9
 
 /* controls wired via Home buttons */
 function rsc(){const r=Math.random();return r<.34?0:r<.64?1:r<.84?2:r<.94?3:4;}
-function autoSim(mode){if(!requireSim())return;MATCHES.forEach(m=>{if(m.stage==="group"&&!S.real[m.num])S.sc[m.num]=mode==="real"?simScore(m.home,m.away):{h:rsc(),a:rsc()};});
-  "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=standings(g).map(x=>x.code));S.thirds=null;
-  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(n=>{const[h,a]=koParts(n);if(h&&a)S.ko[n]=mode==="real"?(Math.random()<koProb(h,a)?h:a):(Math.random()<.5?h:a);else S.ko[n]=h||a||null;});
-  let p=koParts(103);if(p[0]&&p[1])S.ko[103]=mode==="real"?(Math.random()<koProb(p[0],p[1])?p[0]:p[1]):(Math.random()<.5?p[0]:p[1]);
-  p=koParts(104);if(p[0]&&p[1])S.ko[104]=mode==="real"?(Math.random()<koProb(p[0],p[1])?p[0]:p[1]):(Math.random()<.5?p[0]:p[1]);
+function autoSim(mode){if(!requireSim())return;MATCHES.forEach(m=>{if(m.stage==="group"&&!S.real[m.num]){S.sc[m.num]=mode==="real"?simScore(m.home,m.away):{h:rsc(),a:rsc()};markPlayScore(m.num,S.sc[m.num],mode==="real"?'realistic-auto-sim':'random-auto-sim');}});
+  "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=standings(g).map(x=>x.code));markPlayOrder();S.thirds=null;markPlayThirds();
+  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(n=>{const[h,a]=koParts(n);if(h&&a)S.ko[n]=mode==="real"?(Math.random()<koProb(h,a)?h:a):(Math.random()<.5?h:a);else S.ko[n]=h||a||null;markPlayKO(n,S.ko[n],mode==="real"?'realistic-auto-sim':'random-auto-sim');});
+  let p=koParts(103);if(p[0]&&p[1]){S.ko[103]=mode==="real"?(Math.random()<koProb(p[0],p[1])?p[0]:p[1]):(Math.random()<.5?p[0]:p[1]);markPlayKO(103,S.ko[103],mode==="real"?'realistic-auto-sim':'random-auto-sim');}
+  p=koParts(104);if(p[0]&&p[1]){S.ko[104]=mode==="real"?(Math.random()<koProb(p[0],p[1])?p[0]:p[1]):(Math.random()<.5?p[0]:p[1]);markPlayKO(104,S.ko[104],mode==="real"?'realistic-auto-sim':'random-auto-sim');}
   render();toast(mode==="real"?"⚡ Realistic tournament simulated":"🎲 Random tournament simulated");}
 
 // share
@@ -8758,7 +8784,7 @@ function truthApplyOfficialFinal(fx){
   var num=fx.num,sh=+fx.score.h,sa=+fx.score.a,cur=truthOfficialFinalScore(num),same=cur&&cur.h===sh&&cur.a===sa;
   if(same&&S.real&&S.real[num])return false;
   REAL[num]=[sh,sa];
-  if(S.betsim)delete S.betsim[num];
+  if(S.betsim)delete S.betsim[num];clearPlayBetSim(num);clearPlayScore(num);
   var auto=(S._autoAdded&&S._autoAdded[num]);
   if(S.sc[num]&&!auto&&!S.real[num])return !same;
   S.sc[num]={h:sh,a:sa};S.real[num]=1;(S._autoAdded=S._autoAdded||{})[num]=1;
@@ -8857,7 +8883,7 @@ function ingestFinalScore(num,sh,sa){
   var m=M[num];if(!m||m.stage!=="group")return;     // group stage only
   if(REAL[num]&&S.real[num])return;                  // already fully official
   REAL[num]=[sh,sa];                                 // reality authoritative — always captured
-  if(S.betsim)delete S.betsim[num];
+  if(S.betsim)delete S.betsim[num];clearPlayBetSim(num);clearPlayScore(num);
   if(S.sc[num]&&!(S._autoAdded&&S._autoAdded[num])&&!S.real[num])return; // respect user's My-Sim pick (reality still in REAL[])
   S.sc[num]={h:sh,a:sa};S.real[num]=1;(S._autoAdded=S._autoAdded||{})[num]=1;
   revalidateKO();saveState();

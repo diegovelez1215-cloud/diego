@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-function loadApp() {
+function loadApp(options = {}) {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
@@ -20,6 +20,9 @@ function loadApp() {
   window.MutationObserver = class MutationObserver { observe() {} disconnect() {} };
   window.AudioContext = function AudioContext() {};
   window.webkitAudioContext = window.AudioContext;
+  if (options.legacyState) window.localStorage.setItem('wc26_v1', JSON.stringify(options.legacyState));
+  if (options.userState) window.localStorage.setItem('wc26_user_v1', JSON.stringify(options.userState));
+  if (options.playState) window.localStorage.setItem('wc26_play_v1', JSON.stringify(options.playState));
   window.eval(`${script}
     window.__renderCount = 0;
     var __truthOriginalRender = render;
@@ -35,12 +38,18 @@ function loadApp() {
       ingestProviderKOFixtures:ingestProviderKOFixtures,
       ingestMatchStates:ingestMatchStates, tccOffTable:tccOffTable, tccRealTable:tccRealTable,
       tccTeamTournamentStatus:tccTeamTournamentStatus, matchLiveState:matchLiveState,
+      matchCenterTruth:matchCenterTruth, standings:standings, winner:winner,
       knockoutSlotStatus:knockoutSlotStatus, knockoutPathCardHTML:knockoutPathCardHTML,
       matchupIntelligence:matchupIntelligence, koParts:koParts, fdFixtureState:fdFixtureState,
       TRUTH_PROVISIONAL_EXPIRY_MS:TRUTH_PROVISIONAL_EXPIRY_MS,
       scheduleRefresh:scheduleRefresh, ApiBus:ApiBus, dataStatusHTML:dataStatusHTML,
       mxRefreshIfStale:mxRefreshIfStale, fetchRealWorldData:fetchRealWorldData,
       mxState:function(){return _mxState;}, setMxState:function(v){_mxState=v;},
+      saveState:saveState, resetMyPlaySave:resetMyPlaySave, playSaveFromState:playSaveFromState,
+      userSaveFromState:userSaveFromState, applyUserSave:applyUserSave,
+      applyPlaySave:applyPlaySave, markPlayScore:markPlayScore, markPlayKO:markPlayKO,
+      markPlayOrder:markPlayOrder, bump:bump, setKo:setKo, settleAllBets:settleAllBets,
+      matchcastHTML:matchcastHTML,
       renderCount:function(){return window.__renderCount;},
       resetRenderCount:function(){window.__renderCount=0;},
       mountText:function(html){var d=document.createElement('div');d.innerHTML=html||'';return d.textContent;}
@@ -48,8 +57,8 @@ function loadApp() {
   return dom;
 }
 
-function withApp(fn) {
-  const dom = loadApp();
+function withApp(fn, options = {}) {
+  const dom = loadApp(options);
   try {
     const result = fn(dom.window.__truthTest, dom.window);
     if (result && typeof result.then === 'function') return result.finally(() => dom.window.close());
@@ -351,6 +360,150 @@ test('Virtual Play state remains separate from official tournament state', () =>
   assert.equal(snap.virtual.openTickets, 1);
   assert.equal(snap.official.finalResults[m.num].score.h, 0);
   assert.equal(snap.official.finalResults[m.num].score.a, 0);
+}));
+
+test('future Play results persist only in wc26_play_v1 and preserve legacy wc26_v1.sc', () => {
+  const legacyState = {
+    v: 1,
+    sc: { 55: { h: 7, a: 7 } },
+    ko: { 73: 'ARG' },
+    order: { A: ['MEX', 'RSA', 'KOR', 'FRA'] },
+    thirds: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+    betsim: {},
+    mode: 'sim',
+    bank: 12345,
+    bets: [{ id: 'legacy-ticket', num: 55, pick: 'h', stake: 25, settled: false }],
+  };
+  withApp((app, window) => {
+    const rawBefore = window.localStorage.getItem('wc26_v1');
+    const s = app.getState();
+    s.mode = 'sim';
+    app.setState(s);
+
+    app.bump(55, 'h', 1);
+    app.saveState();
+
+    assert.equal(window.localStorage.getItem('wc26_v1'), rawBefore);
+    const play = JSON.parse(window.localStorage.getItem('wc26_play_v1'));
+    assert.equal(play.owner, 'play');
+    assert.equal(play.scores['55'].h, 8);
+    assert.equal(play.scores['55'].a, 7);
+    assert.equal(play.scoreMeta['55'].owner, 'play');
+    assert.equal(play.scoreMeta['55'].kind, 'manual-score');
+    assert.equal(Object.prototype.hasOwnProperty.call(play, 'bank'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(play, 'bets'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(play, 'slip'), false);
+    const user = JSON.parse(window.localStorage.getItem('wc26_user_v1'));
+    assert.equal(user.owner, 'user');
+    assert.equal(user.bank, 12345);
+    assert.equal(user.bets[0].id, 'legacy-ticket');
+    assert.equal(JSON.parse(rawBefore).sc['55'].h, 7);
+
+    app.resetMyPlaySave();
+    const after = app.getState();
+    const resetSave = JSON.parse(window.localStorage.getItem('wc26_play_v1'));
+    assert.equal(window.localStorage.getItem('wc26_v1'), rawBefore);
+    assert.equal(after.sc[55].h, 7);
+    assert.equal(after.sc[55].a, 7);
+    assert.equal(Object.keys(resetSave.scores).length, 0);
+    assert.equal(Object.prototype.hasOwnProperty.call(resetSave, 'bets'), false);
+  }, { legacyState });
+});
+
+test('normal save and fresh load still restore authoritative official truth', () => {
+  let officialNum;
+  withApp((app) => {
+    const snap = app.tournamentTruthSnapshot();
+    officialNum = Number(Object.keys(snap.official.finalResults)[0]);
+    assert.ok(officialNum > 0);
+    app.saveState();
+    assert.equal(app.tournamentTruthSnapshot().official.finalResults[officialNum].source, 'official_final');
+  });
+  withApp((app) => {
+    const fresh = app.tournamentTruthSnapshot();
+    assert.equal(fresh.official.finalResults[officialNum].source, 'official_final');
+    assert.equal(fresh.official.finalResults[officialNum].score.h >= 0, true);
+    assert.equal(fresh.official.finalResults[officialNum].score.a >= 0, true);
+  });
+});
+
+test('Reset My Play Save cannot mutate official truth, standings, bracket, provider state, or Match Center', () => withApp((app) => {
+  const s = resetOfficial(app);
+  const officialMatch = app.gMatches('A')[0];
+  app.ingestFinished([finalPayload(officialMatch, 2, 0)], { receipt: app.truthRefreshStart('/api/results') });
+
+  const state = app.getState();
+  state.providerGroupOrder = { A: ['MEX', 'RSA', 'KOR', 'FRA'] };
+  state.rwState[2] = { sh: 1, sa: 1, min: 67, status: 'IN_PLAY', label: '67', kind: 'live', at: Date.now(), receiptSeq: 1 };
+  state.realko[73] = 'ARG';
+  state.officialKOFixtures[74] = { num: 74, home: 'BRA', away: 'GER', stage: 'Round of 32', status: 'TIMED', source: 'official_provider_fixture' };
+  state.mode = 'sim';
+  app.setState(state);
+
+  const playMatch = app.gMatches('B')[0];
+  state.sc[playMatch.num] = { h: 4, a: 3 };
+  app.markPlayScore(playMatch.num, state.sc[playMatch.num], 'test');
+  state.ko[89] = 'BRA';
+  app.markPlayKO(89, 'BRA', 'test');
+  state.bank = 9876;
+  state.bankHist = [10000, 9876];
+  state.slip = [{ k: 'm', num: officialMatch.num, pick: 'h', odds: -110, label: 'Official fixture pick', key: 'official-pick' }];
+  state.bets = [
+    { id: 'official-ticket', num: officialMatch.num, pick: 'h', stake: 124, odds: -110, settled: false, state: 'pending', sourceMode: 'sim' },
+    { id: 'settled-history', num: officialMatch.num, pick: 'a', stake: 40, odds: 125, settled: true, state: 'lost', net: -40, sourceMode: 'sim' },
+  ];
+  app.saveState();
+
+  const beforeSnap = app.tournamentTruthSnapshot();
+  const beforeStanding = app.standings('A').map((r) => `${r.code}:${r.Pts}:${r.GF}:${r.GA}`).join('|');
+  const beforeMatchCenter = app.matchCenterTruth(officialMatch.num);
+  const beforeProviderOrder = state.providerGroupOrder.A.join(',');
+  const beforeBets = state.bets.map((b) => `${b.id}:${b.num}:${b.stake}:${b.settled}:${b.state}:${b.net || 0}`).join('|');
+  const beforeSlip = state.slip.map((l) => `${l.key}:${l.num}:${l.pick}:${l.odds}`).join('|');
+  const beforeBank = state.bank;
+  const beforeBankHist = state.bankHist.join(',');
+  const userSaveBefore = app.userSaveFromState();
+
+  app.resetMyPlaySave();
+
+  const afterState = app.getState();
+  const afterSnap = app.tournamentTruthSnapshot();
+  const afterStanding = app.standings('A').map((r) => `${r.code}:${r.Pts}:${r.GF}:${r.GA}`).join('|');
+  const afterMatchCenter = app.matchCenterTruth(officialMatch.num);
+
+  assert.equal(afterSnap.official.finalResults[officialMatch.num].score.h, beforeSnap.official.finalResults[officialMatch.num].score.h);
+  assert.equal(afterSnap.official.finalResults[officialMatch.num].score.a, beforeSnap.official.finalResults[officialMatch.num].score.a);
+  assert.equal(afterSnap.freshness.officialStateFingerprint, beforeSnap.freshness.officialStateFingerprint);
+  assert.equal(afterSnap.provisional.live[2].score.h, 1);
+  assert.equal(afterState.providerGroupOrder.A.join(','), beforeProviderOrder);
+  assert.equal(afterState.realko[73], 'ARG');
+  assert.equal(afterState.officialKOFixtures[74].home, 'BRA');
+  assert.equal(afterStanding, beforeStanding);
+  assert.equal(afterMatchCenter.phase, beforeMatchCenter.phase);
+  assert.equal(afterMatchCenter.score.h, beforeMatchCenter.score.h);
+  assert.equal(afterMatchCenter.score.a, beforeMatchCenter.score.a);
+  assert.equal(afterState.sc[playMatch.num], undefined);
+  assert.equal(afterState.ko[89], undefined);
+  assert.equal(afterState.bank, beforeBank);
+  assert.equal(afterState.bankHist.join(','), beforeBankHist);
+  assert.equal(afterState.bets.map((b) => `${b.id}:${b.num}:${b.stake}:${b.settled}:${b.state}:${b.net || 0}`).join('|'), beforeBets);
+  assert.equal(afterState.slip.map((l) => `${l.key}:${l.num}:${l.pick}:${l.odds}`).join('|'), beforeSlip);
+  const userSaveAfter = app.userSaveFromState();
+  assert.equal(userSaveAfter.bank, userSaveBefore.bank);
+  assert.equal(userSaveAfter.bets.map((b) => b.id).join(','), userSaveBefore.bets.map((b) => b.id).join(','));
+  assert.equal(userSaveAfter.slip.map((l) => l.key).join(','), userSaveBefore.slip.map((l) => l.key).join(','));
+  app.settleAllBets();
+  assert.equal(afterState.bets[0].settled, true);
+  assert.equal(afterState.bets[0].state, 'won');
+  assert.equal(afterState.bank > beforeBank, true);
+}));
+
+test('simulation labels remain visible in Matchcast copy', () => withApp((app) => {
+  resetOfficial(app);
+  const text = app.mountText(app.matchcastHTML(1, null));
+  assert.match(text, /SIMULATED MATCHCAST/);
+  assert.match(text, /No real money/);
+  assert.match(text, /Does not affect official results/);
 }));
 
 test('internal feed-state enums do not leak into user-facing copy', () => withApp((app) => {
