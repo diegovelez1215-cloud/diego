@@ -8592,7 +8592,7 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
   try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
   try{idleTask(function(){refreshVisibleData(false);},700);scheduleRefresh(refreshLiveInterval());}catch(e){}
-  var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");void cur.offsetWidth;cur.classList.add("enter");}
+  var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");if(m[0]==="matches"){(window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){try{cur.classList.add("enter");}catch(e){}});}else{void cur.offsetWidth;cur.classList.add("enter");}}
   /* Today is no longer a floating control (it overlapped schedule rows). An in-flow
      "Jump to today" button lives in the schedule instead; keep the FAB hidden. */
   var tf=document.getElementById("todayFab");if(tf)tf.style.display="none";}
