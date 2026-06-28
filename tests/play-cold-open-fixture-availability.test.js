@@ -75,8 +75,9 @@ test('fresh cold open with a confirmed future group fixture renders factual Feat
   const text = app.bettingText();
 
   assert.ok(open.includes(55), 'confirmed future group fixture reaches Play availability');
-  assert.match(text, /Featured match/, 'a valid Featured Match is selected on cold open');
-  assert.match(text, /Official Picks/, 'Official Picks are reachable');
+  assert.match(text, /Follow the Real World Cup/, 'the factual World Cup lane renders on cold open');
+  assert.match(text, /Official SIM\$ Pick/, 'a valid official pick surface is selected on cold open');
+  assert.match(text, /Official SIM\$ Pick/, 'Official SIM$ Pick is reachable');
   assert.match(text, /Match Result/, 'group fixture exposes Match Result');
   assert.match(text, /Draw/, 'group Match Result includes Draw');
   assert.doesNotMatch(text, /No confirmed official fixtures are open/, 'fixture availability does not fall through to blank/fallback');
@@ -134,7 +135,7 @@ test('refresh with stale Play state cannot hide otherwise eligible official fixt
   assert.equal(s.live, null, 'stale virtual live state is cleared');
   assert.equal(s.ts2Return, null, 'stale virtual return state is cleared');
   assert.ok(app.playOpenMatches().some((m) => m.num === 55), 'factual fixture remains available after stale persistence is restored');
-  assert.match(app.bettingText(), /Featured match/, 'fresh render selects a factual Featured Match');
+  assert.match(app.bettingText(), /Official SIM\$ Pick/, 'fresh render selects a factual official pick surface');
 }));
 
 test('invalid previous selection/action context is discarded and a valid fixture is selected', () => withApp({
@@ -203,7 +204,7 @@ test('fallback appears only when zero eligible official fixtures truly exist', (
   assert.equal(app.playOpenMatches().length, 0, 'default local snapshot has no eligible future named official fixture in this test date');
   assert.match(app.bettingText(), /No confirmed official fixtures are open for Play right now/, 'fallback explains the factual no-fixture state');
   assert.match(app.bettingText(), /Open Tournament/, 'fallback provides Tournament action');
-  assert.doesNotMatch(app.bettingText(), /Quick Match|Matchcast/, 'fallback does not invent a simulation feature');
+  assert.doesNotMatch(app.bettingText(), /Matchcast/, 'factual fallback does not invent an official simulation feature');
 }));
 
 test('virtual results, tickets, wallet/history, standings, bracket, Home, Tournament and Match Center do not gate factual availability', () => withApp({

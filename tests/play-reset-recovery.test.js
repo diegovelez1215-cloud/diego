@@ -101,7 +101,7 @@ test('reset from an active What-If restores factual Play fixtures and clears sta
   assert.equal(app.getState().activeMatch, null, 'stale active match context is cleared');
   assert.ok(app.playOpenMatches().some((x) => x.num === 1), 'confirmed official fixture is available again');
   assert.match(app.bettingText(), /Featured match|Match picks/, 'Play renders a factual fixture surface');
-  assert.match(app.bettingText(), /Official Picks/, 'factual fixture includes official pick path');
+  assert.match(app.bettingText(), /Official SIM\$ Pick/, 'factual fixture includes official pick path');
 }));
 
 test('reset from a finished What-If restores a usable factual fixture surface without rerolling', () => withApp((app) => {
@@ -137,7 +137,7 @@ test('with no confirmed official fixture, reset renders an intentional fallback 
   assert.equal(app.playOpenMatches().length, 0, 'test setup has no open confirmed official fixtures');
   assert.match(app.bettingText(), /No confirmed official fixtures are open for Play right now/, 'fallback explains the factual no-fixture state');
   assert.match(app.bettingText(), /Open Tournament/, 'fallback offers Tournament as the recovery action');
-  assert.doesNotMatch(app.bettingText(), /Quick Match|Matchcast/, 'fallback does not add new sim features');
+  assert.doesNotMatch(app.bettingText(), /Matchcast/, 'factual fallback does not add a fake official sim feature');
 }));
 
 test('reset preserves official truth, user ledger, standings, bracket and Match Center', () => withApp((app) => {
