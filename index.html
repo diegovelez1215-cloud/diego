@@ -3567,6 +3567,8 @@ function openMatchDetails(n){openSheet(n);}
 function betOpen(num){return S.bets.find(b=>b.num===num&&!b.settled);}
 function betSettled(num){return S.bets.find(b=>b.num===num&&b.settled);}
 function betOutcome(num){const m=M[num];if(m.stage==="group"){const s=S.sc[num];if(!s)return null;return s.h>s.a?'h':s.h<s.a?'a':'d';}const w=S.ko[num];if(!w)return null;const p=koParts(num);return w===p[0]?'h':'a';}
+function officialBetOutcome(num){var m=M[num];if(!m)return null;if(m.stage==="group"){var s=truthOfficialFinalScore(num);if(!s)return null;return s.h>s.a?'h':s.h<s.a?'a':'d';}var w=S.realko&&S.realko[num],p=officialFixtureTeams(num);if(!w||!p)return null;return w===p[0]?'h':(w===p[1]?'a':null);}
+function betOutcomeFor(b){return b&&b.origin==='official'?officialBetOutcome(b.num):betOutcome(b&&b.num);}
 function nextBetId(){S._betSeq=(S._betSeq||0)+1;return 'bt'+Date.now().toString(36)+S._betSeq.toString(36);}
 function ensureBetId(b){if(!b.id)b.id=nextBetId();return b.id;}
 function displayStatusLabel(v,ctx){
@@ -3615,7 +3617,7 @@ function placeBet(num,pick,stake){try{navigator.vibrate&&navigator.vibrate(8);}c
 function settleAllBets(){let net=0,n=0,last="",bigWin=false,hadW=false,hadL=false,settledNow=[];S.bets.forEach(function(b){if(b.settled)return;var r;
   if(b.kind==='par'){var lose=false,pend=false;b.legs.forEach(function(l){var lr=legResult(l);if(lr==='lose')lose=true;else if(lr==null)pend=true;});r=lose?'lose':(pend?null:'win');}
   else if(b.kind==='award')r=awardResult(b.market,b.player);
-  else if(b.kind==='fut')r=futResult(b.code,b.mkt);else if(b.kind==='spc')r=spcResult(b.cat,b.sel);else if(b.kind==='mkt')r=mktResult(b);else{var o=betOutcome(b.num);r=(o==null)?null:(o===b.pick?'win':'lose');}
+  else if(b.kind==='fut')r=futResult(b.code,b.mkt);else if(b.kind==='spc')r=spcResult(b.cat,b.sel);else if(b.kind==='mkt')r=mktResult(b);else{var o=betOutcomeFor(b);r=(o==null)?null:(o===b.pick?'win':'lose');}
   var settled=settleTicket(b,r);if(!settled)return;n++;settledNow.push(b);net+=settled.net;
   if(settled.state==='won'){last="✅ Bet won +$"+settled.net.toLocaleString();hadW=true;bumpMission('won');try{addXP(b.kind==='par'?60:25);}catch(e){}
     if(b.net>=Math.max(500,S.bank*0.10)||(amerToDec(b.odds)>=3&&b.net>0))bigWin=true;}
@@ -5073,7 +5075,7 @@ function betCatTarget(c){return {matches:"#betMarketsTop",futures:"#futuresTop",
 function setBetCatFocus(c,msg){setBetCat(c);arriveAt(betCatTarget(c),msg||"Opened "+c);}
 function sgn(x){return (x>0?'+':'')+x;}
 function cellBtn(lbl,od,onclick){return '<button class="bmc-cell" onclick="'+onclick+'"><span class="cl">'+esc(lbl)+'</span><span class="co">'+fmtAmer(od)+'</span></button>';}
-function bigMatchCard(num){var m=M[num];var ko=m.stage!=="group";var pr=ko?koParts(num):[m.home,m.away];var h=pr[0],a=pr[1];if(!(h&&a))return"";
+function bigMatchCard(num){var m=M[num];var ko=m.stage!=="group",origin=ticketOriginForMode();var pr=fixtureTeamsForTicket(num,origin);var h=pr&&pr[0],a=pr&&pr[1];if(!(h&&a))return"";
  var o=matchOddsFor(num,h,a,ko);
  var active=(S.activeMatch===num)||!!(S.postBetAction&&S.postBetAction.num===num);var cls='bmc'+(ko?' ko':'')+(active?' active':'');var activeTag=active?'<div class="bmc-active-tag">Active match · next action ready</div>':'';
  var liveHere=(S.live&&S.live.num===num);var rw=S._rwlive&&S._rwlive[num];
@@ -5089,15 +5091,22 @@ function bigMatchCard(num){var m=M[num];var ko=m.stage!=="group";var pr=ko?koPar
 
 function playRecordHTML(){var settled=(S.bets||[]).filter(function(b){return b.settled&&canonicalBetState(b)!=='void';}),wins=settled.filter(function(b){return canonicalBetState(b)==='won';}).length;var open=(S.bets||[]).filter(function(b){return !b.settled;}).length;var streak=0;for(var i=settled.length-1;i>=0;i--){if(canonicalBetState(settled[i])==='won')streak++;else break;}return wins+'-'+Math.max(0,settled.length-wins)+(streak?' · '+streak+'W streak':'')+(open?' · '+open+' open':'');}
 function playHeaderHTML(){return '<div class="play-hero"><div class="play-head2"><div><div class="play-title">Play</div><div class="play-disclosure">SIM $ · NO REAL MONEY</div></div><div class="play-wallet"><span>Virtual balance</span><b>$'+S.bank.toLocaleString()+'</b><em class="play-record">'+esc(playRecordHTML())+'</em></div></div><button class="play-social-link" onclick="goSocial()">Friendly leaderboard <span>View</span></button></div>';}
-function playOpenMatches(){return MATCHES.filter(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num),st=matchLiveState(m.num);var played=(m.stage==='group'?S.sc[m.num]:S.ko[m.num]);return !st&&!played&&!(S.real&&S.real[m.num])&&!playMatchClosedReason(m.num)&&pr[0]&&pr[1]&&(m.stage==='group'||allDone());}).sort(function(x,y){var kx=(x.date||'')+' '+(x.time||'')+' '+('000'+x.num).slice(-3),ky=(y.date||'')+' '+(y.time||'')+' '+('000'+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;});}
-function playMatchClosedReason(num){if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
+function officialFixtureTeams(num){var m=M[num];if(!m)return null;if(m.stage==='group')return (T[m.home]&&T[m.away]&&m.home!==m.away)?[m.home,m.away]:null;var f=(typeof truthProviderNamedKOFixture==='function')?truthProviderNamedKOFixture(num):null;return f?[f.home,f.away]:null;}
+function officialFixtureClosedReason(num){var m=M[num],pr=officialFixtureTeams(num);if(!m||!pr)return 'Teams not confirmed yet';if(truthOfficialFinalScore(num)||(m.stage!=='group'&&S.realko&&S.realko[num]))return 'Official result confirmed';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(live&&live.kind==='hold')return (safeStatusText(live.label,'Match delayed'))+' · kickoff not open';if(livePendingOfficial(num))return 'Live update pending official feed';var dt=koDateTime(m);if(!dt)return 'Official kickoff unavailable';if(Date.now()>=dt.getTime())return 'Markets for this match are closed';return '';}
+function officialFixtureEligible(num){return !officialFixtureClosedReason(num);}
+function ticketOriginForMode(){return activeMode()==='real'?'official':'my_sim';}
+function fixtureTeamsForTicket(num,origin){origin=origin||ticketOriginForMode();if(origin==='official'||origin==='my_sim')return officialFixtureTeams(num);var m=M[num];return m?(m.stage==='group'?[m.home,m.away]:koParts(num)):null;}
+function ticketCanVirtualSim(b){return !!(b&&b.origin!=='official');}
+function betHasVirtualMatch(b){if(!ticketCanVirtualSim(b))return false;if(b&&b.kind==='par')return (b.legs||[]).some(function(l){return l.origin!=='official'&&(l.k==='m'||l.k==='mkt')&&l.num!=null&&betCanSim(l.num);});return !!(b&&b.num!=null&&betCanSim(b.num));}
+function playOpenMatches(){return MATCHES.filter(function(m){return officialFixtureEligible(m.num);}).sort(function(x,y){var kx=(x.date||'')+' '+(x.time||'')+' '+('000'+x.num).slice(-3),ky=(y.date||'')+' '+(y.time||'')+' '+('000'+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;});}
+function playMatchClosedReason(num,origin){origin=origin||ticketOriginForMode();if(origin==='official'||origin==='my_sim')return officialFixtureClosedReason(num);if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
 function playSelectPick(num,pick){S.playPick={num:num,pick:pick};try{haptic('pick');}catch(e){}renderBetting();arriveAt('#playFeaturedMarket','Selection ready',40);}
 function playOpenSelected(){var p=S.playPick;if(!p||p.num==null||!p.pick)return toast('Choose an outcome first');openMatchTicket(p.num,p.pick);}
-function playPickText(num,pick){var m=M[num],pr=m.stage==='group'?[m.home,m.away]:koParts(num);return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
-function playFeaturedMarketHTML(){var arr=playOpenMatches();if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible simulated match markets open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=ko?koParts(m.num):[m.home,m.away],o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num)||to12(m.time);return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>Featured match · MARKET ODDS</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add'+(!pick?' dis':'')+'" onclick="playOpenSelected()">'+(pick?'Add '+esc(playPickText(m.num,pick))+' to bet slip':'Choose an outcome')+'</button></div>';}
+function playPickText(num,pick){var pr=fixtureTeamsForTicket(num,ticketOriginForMode())||[];return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
+function playFeaturedMarketHTML(){var arr=playOpenMatches(),origin=ticketOriginForMode(),isReal=origin==='official';if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible official future fixtures open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=fixtureTeamsForTicket(m.num,origin),o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num,origin)||to12(m.time),label=isReal?'Official fixture · MARKET ODDS':'Simulate What-If · SIMULATED';return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>'+esc(label)+'</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add'+(!pick?' dis':'')+'" onclick="playOpenSelected()">'+(pick?(isReal?'Add official pick: ':'Simulate What-If: ')+esc(playPickText(m.num,pick)):'Choose an outcome')+'</button></div>';}
 function playLiveClosedHTML(){var rows=[];if(S.rwState){Object.keys(S.rwState).forEach(function(k){var st=S.rwState[k],m=M[k];if(!st||!m||(st.kind!=='live'&&st.kind!=='hold'))return;var pr=m.stage==='group'?[m.home,m.away]:koParts(+k);if(!(pr[0]&&pr[1]))return;rows.push({num:+k,st:st,pr:pr});});}
   if(!rows.length)return '';return '<div class="play-live-closed"><div class="plc-head"><b>Live matches</b><span>Markets closed</span></div>'+rows.slice(0,3).map(function(r){var st=r.st,score=(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa);return '<div class="plc-row"><div class="plc-main"><div class="plc-teams">'+fl(r.pr[0])+' '+esc(nm(r.pr[0]))+' '+esc(score)+' '+esc(nm(r.pr[1]))+' '+fl(r.pr[1])+'</div><div class="plc-meta">'+esc(safeStatusText(st.label,'Live'))+' · Awaiting settlement</div></div><button onclick="openMatchDetails('+r.num+')">Match Details</button></div>';}).join('')+'</div>';}
-function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7);if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · MARKET ODDS</div></div><button class="pm-act" onclick="sheet('+m.num+')">Markets</button></div>';}).join('')+'</div>';}
+function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7),origin=ticketOriginForMode(),isReal=origin==='official';if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=fixtureTeamsForTicket(m.num,origin);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · '+(isReal?'MARKET ODDS':'SIMULATED WHAT-IF')+'</div></div><button class="pm-act" onclick="sheet('+m.num+')">'+(isReal?'Markets':'What-If')+'</button></div>';}).join('')+'</div>';}
 function playLearnHTML(){try{if(localStorage.getItem('wc26_play_edu')==='1')return '';}catch(e){}return '<div class="play-learn" id="playLearn"><button class="learn-x" onclick="dismissPlayLearn()">Hide</button><b>How simulated picks work</b>Pick an outcome, choose a stake, then watch your simulated ticket settle only when the match result is official or when you run a My Sim match.</div>';}
 function dismissPlayLearn(){try{localStorage.setItem('wc26_play_edu','1');}catch(e){}var el=document.getElementById('playLearn');if(el)el.remove();}
 function playLandingHTML(){return playHeaderHTML()+playLiveClosedHTML()+playFeaturedMarketHTML()+playMoreMatchesHTML()+playLearnHTML();}
@@ -5105,7 +5114,7 @@ function ticketStatusInfo(b){var ds=betDelayState(b),state=canonicalBetState(b);
 function activeTicketsHTML(open){if(!open.length)return '<div class="play-empty"><b>You have no active simulated picks.</b>Explore available matches and your active ticket will appear here.<button onclick="setBetCatFocus(\'matches\',\'Markets ready\')">Explore markets</button></div>';return '<div class="bsec" id="openBetsTop">Active tickets ('+open.length+')</div>'+open.map(function(b,i){return openBetRow(b,S.bets.indexOf(b));}).join('');}
 function tkError(msg){var el=document.getElementById('tkAlert');if(el){el.textContent=msg;el.style.display='block';}else toast(msg);}
 function tkClearError(){var el=document.getElementById('tkAlert');if(el){el.textContent='';el.style.display='none';}}
-function ticketBlockedReason(t){if(!t)return 'No selection';if(!(isFinite(t.odds)))return 'Market odds are unavailable right now.';if(t.num!=null){var r=playMatchClosedReason(t.num);if(r)return r;}return '';}
+function ticketBlockedReason(t){if(!t)return 'No selection';if(!(isFinite(t.odds)))return 'Market odds are unavailable right now.';if(t.num!=null){var r=playMatchClosedReason(t.num,t.origin);if(r)return r;}return '';}
 
 function promoHTML(){return '<div class="promo" onclick="runSupercomputer()"><div class="promo-i">🔮</div><div class="promo-tx"><div class="promo-h">The Supercomputer</div><div class="promo-s">1,000 simulations from today’s results — every team’s title odds</div></div><div class="promo-go">Run ›</div></div>';}
 function slipCommandHTML(open,settled,staked,pnl){
@@ -5326,8 +5335,9 @@ function probBar(o,h,a,ko){var ph=Math.round(o.pH*100),pd=ko?0:Math.round(o.pD*1
   var lbl='<div class="problbl"><span>'+fl(h)+' '+ph+'%</span>'+(ko?'':'<span>Draw '+pd+'%</span>')+'<span>'+pa+'% '+fl(a)+'</span></div>';
   return '<div style="margin-top:11px">'+bar+lbl+'</div>';}
 function sheetProbViz(num,h,a,ko){var o=matchOddsFor(num,h,a,ko),mid=ko?'KO · ':fmtAmer(o.d)+' · ';return '<div class="probviz"><div class="probviz-h"><span>Model win projection</span><span>'+fmtAmer(o.h)+' · '+mid+fmtAmer(o.a)+'</span></div>'+probBar(o,h,a,ko)+'</div>';}
-function matchActionZone(num,h,a,ko){var open=S.bets.filter(function(b){return !b.settled&&((b.num===num)||(b.kind==='mkt'&&b.num===num)||(b.kind==='par'&&b.legs&&b.legs.some(function(l){return l.num===num;})));}).length;
- var closed=playMatchClosedReason(num),live=matchLiveState(num);
+function matchActionZone(num,h,a,ko){var origin=ticketOriginForMode(),pr=fixtureTeamsForTicket(num,origin);if(pr&&pr[0]&&pr[1]){h=pr[0];a=pr[1];}
+ var open=S.bets.filter(function(b){return !b.settled&&((b.num===num)||(b.kind==='mkt'&&b.num===num)||(b.kind==='par'&&b.legs&&b.legs.some(function(l){return l.num===num;})));}).length;
+ var closed=playMatchClosedReason(num,origin),live=matchLiveState(num);
  if(closed){var officialFinished=(S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]),finished=officialFinished||(S.sc&&S.sc[num])||(ko&&S.ko&&S.ko[num]),isLive=live&&live.kind==='live',hold=live&&live.kind==='hold';
   var title=finished?'View result':(isLive?'Live match':'Match command zone');
   var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((safeStatusText(live.label,'Delayed'))+' · markets closed'):(closed||'Markets closed')));
@@ -5338,12 +5348,11 @@ function matchActionZone(num,h,a,ko){var open=S.bets.filter(function(b){return !
       ?'<button class="primary" onclick="openMatchResult('+num+')">View result</button><button onclick="closeThenGoSchedule()">All fixtures</button>'
       :'<button class="primary" onclick="refreshOfficialData()">Refresh status</button><button onclick="closeThenGoSchedule()">All fixtures</button>')
    +'</div></div>';}
- if(ko){return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Knockout markets open once both teams are officially set.</div><div class="az-row"><button class="primary" onclick="closeThenGoSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';}
- var o=matchOddsFor(num,h,a,false),ok=isFinite(o.h)&&isFinite(o.d)&&isFinite(o.a);
+ var o=matchOddsFor(num,h,a,ko),ok=isFinite(o.h)&&isFinite(o.a)&&(ko||isFinite(o.d));
  if(!ok)return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Market odds are unavailable right now.</div><div class="az-row"><button class="primary" onclick="closeThenGoSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';
- return '<div class="action-zone"><div class="az-k">'+(open?open+' open bet'+(open>1?'s':'')+' on this match':'Match Result · 1X2')+'</div><div class="az-market">'
+ return '<div class="action-zone"><div class="az-k">'+(open?open+' open bet'+(open>1?'s':'')+' on this match':(origin==='official'?'Official Match Result':(origin==='my_sim'?'Simulate What-If':'Match Result · 1X2')))+'</div><div class="az-market">'
   +'<button class="az-pick" onclick="openMatchTicket('+num+',\'h\')"><span>'+esc(nm(h))+' win</span><b class="odd">'+fmtAmer(o.h)+'</b></button>'
-  +'<button class="az-pick" onclick="openMatchTicket('+num+',\'d\')"><span>Draw</span><b class="odd">'+fmtAmer(o.d)+'</b></button>'
+  +(ko?'':'<button class="az-pick" onclick="openMatchTicket('+num+',\'d\')"><span>Draw</span><b class="odd">'+fmtAmer(o.d)+'</b></button>')
   +'<button class="az-pick" onclick="openMatchTicket('+num+',\'a\')"><span>'+esc(nm(a))+' win</span><b class="odd">'+fmtAmer(o.a)+'</b></button>'
   +'</div></div>';}
 function matchOddsFor(num,h,a,ko){var ro=(!ko)&&((S._odds&&S._odds[num])||REALODDS[num]);
@@ -5573,7 +5582,7 @@ function tkUpd(){var inp=document.getElementById("tkStake");if(!inp||!_tk)return
  if(P){var bad=!!msg;P.classList.toggle("dis",bad);P.textContent=bad?msg:((_tk&&_tk.parlay)?'Place simulated parlay':'Place simulated pick')+' · $'+st.toLocaleString();}}
 var _betDoneCtx=null;
 function tkPlace(){var inp=document.getElementById("tkStake");if(!inp||!_tk)return;var st=Math.floor(+inp.value)||0,block=ticketBlockedReason(_tk);if(block)return tkError(block);if(!(st>0))return tkError("Enter a valid stake.");if(st>S.bank)return tkError("Insufficient simulated balance.");
- try{haptic('bet');_lastStake=st;S.bank-=st;var ctx={num:(_tk.num!=null?_tk.num:null),leg:_tk.leg||null,line:_tk.line||"",title:_tk.title||"",odds:_tk.odds,stake:st,flow:_tk.flow||null,kind:_tk.kind||null,code:_tk.code||null,mkt:_tk.mkt||null,cat:_tk.cat||null,sel:_tk.sel||null,market:_tk.market||null,player:_tk.player||null};_tk.place(st);var bz=boostLastBet();ctx.boosted=!!bz;bumpMission('placed');try{addXP(10);}catch(e){}_tk=null;
+ try{haptic('bet');_lastStake=st;S.bank-=st;var ctx={num:(_tk.num!=null?_tk.num:null),leg:_tk.leg||null,line:_tk.line||"",title:_tk.title||"",odds:_tk.odds,stake:st,flow:_tk.flow||null,kind:_tk.kind||null,code:_tk.code||null,mkt:_tk.mkt||null,cat:_tk.cat||null,sel:_tk.sel||null,market:_tk.market||null,player:_tk.player||null,origin:_tk.origin||null};_tk.place(st);var bz=boostLastBet();ctx.boosted=!!bz;bumpMission('placed');try{addXP(10);}catch(e){}_tk=null;
   setActiveMatch(ctx.num,'postBet');S.postBetAction=ctx;
   var y=window.scrollY||0;render();window.scrollTo(0,y);
   _betDoneCtx=ctx;betPlacedTray(ctx);
@@ -5600,7 +5609,7 @@ function tournamentBetTray(ctx,win){
   +'</div></div>';
  var sh=document.getElementById("sheet");if(sh){sh.innerHTML=h;sh.style.transform="";}document.getElementById("scrim").classList.add("on");try{haptic('win');}catch(e){}}
 function parlayPlacedTray(ctx,win){
- var n=(ctx.legs||[]).length,canSim=betMatchNums([{kind:'par',legs:ctx.legs||[],settled:false}]).length>0;
+ var n=(ctx.legs||[]).length,canSim=betHasVirtualMatch({kind:'par',legs:ctx.legs||[],settled:false});
  var h='<div class="grab"></div><div class="betdone"><div class="bd-check">✓</div>'
   +'<div class="bd-h">Parlay locked'+(ctx.boosted?' <span class="bd-boost">⚡ boosted</span>':'')+'</div>'
   +'<div class="bd-sub">'+n+' leg'+(n===1?'':'s')+' · '+fmtAmer(ctx.odds)+'</div>'
@@ -5617,20 +5626,20 @@ function betPlacedTray(ctx){
  var win=Math.round(ctx.stake*amerToDec(ctx.odds)-ctx.stake);
  if(ctx&&(ctx.flow==='parlay'||ctx.kind==='par'))return parlayPlacedTray(ctx,win);
  if(ctx&&(ctx.flow==='future'||ctx.kind==='fut'||ctx.kind==='award'||ctx.kind==='spc'))return tournamentBetTray(ctx,win);
- var canSim=betCanSim(ctx.num);
+ var canSim=ticketCanVirtualSim(ctx)&&betCanSim(ctx.num);
  var h='<div class="grab"></div><div class="betdone"><div class="bd-check">✓</div>'
-  +'<div class="bd-h">Bet placed'+(ctx.boosted?' <span class="bd-boost">⚡ boosted</span>':'')+'</div>'
+  +'<div class="bd-h">'+(ctx.origin==='official'?'Official pick placed':'Bet placed')+(ctx.boosted?' <span class="bd-boost">⚡ boosted</span>':'')+'</div>'
  +'<div class="bd-sub">'+esc(ctx.line||ctx.title)+' · '+fmtAmer(ctx.odds)+'</div>'
   +'<div class="bd-fig"><span class="bd-stake">$'+ctx.stake.toLocaleString()+'</span><i>to win</i><b class="bd-win">$'+win.toLocaleString()+'</b></div>'
   +'<div class="bd-actions">';
- h+='<button class="bd-act primary" onclick="'+(canSim?'betDoneSim()':'betDoneAnother()')+'">⚡ Simulate now</button>';
+ h+='<button class="bd-act primary" onclick="'+(ctx.origin==='official'?'betDoneMyBets()':(canSim?'betDoneSim()':'betDoneAnother()'))+'">'+(ctx.origin==='official'?'📋 Track official ticket':'⚡ Simulate now')+'</button>';
  h+='<button class="bd-act" onclick="betDoneParlay()">🎫 Add to parlay</button>';
  h+='<button class="bd-act" onclick="betDoneMyBets()">📋 View slip</button>';
  h+='</div></div>';
  var sh=document.getElementById("sheet");if(sh){sh.innerHTML=h;sh.style.transform="";}document.getElementById("scrim").classList.add("on");
  try{haptic('win');}catch(e){}}
 function betDoneSim(){var c=_betDoneCtx;if(!c||c.num==null)return;closeSheet();
-  var idx=-1;for(var i=S.bets.length-1;i>=0;i--){var b=S.bets[i];if(!b.settled&&(b.kind===undefined||b.kind==='mkt')&&b.num===c.num){idx=i;break;}}
+  var idx=-1;for(var i=S.bets.length-1;i>=0;i--){var b=S.bets[i];if(!b.settled&&ticketCanVirtualSim(b)&&(b.kind===undefined||b.kind==='mkt')&&b.num===c.num){idx=i;break;}}
   if(idx>=0)ts2Launch(idx);else{sheet(c.num);try{playLive(c.num);}catch(e){}}}
 function betDoneAnother(){var c=_betDoneCtx;if(!c||c.num==null)return;_betMode='single';closeSheet();sheet(c.num);}
 function betDoneParlay(){var c=_betDoneCtx;closeSheet();if(c&&c.leg){_betMode='parlay';try{addToSlip(c.leg);}catch(e){}try{openSlip();}catch(e){}}}
@@ -5640,10 +5649,10 @@ function betDoneFutureAdvance(){closeSheet();S.mode='sim';_brkMode='sim';TAB='br
 function betDoneFutureRoad(){var c=_betDoneCtx;if(!c||!c.code)return;closeSheet();S.mode='sim';focusTeam(c.code);}
 function betDoneParlaySim(){var c=_betDoneCtx;if(!c||c.betIndex==null)return;closeSheet();ts2Launch(c.betIndex);}
 function betDoneBuildParlay(){closeSheet();_betMode='parlay';_betCat='matches';TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0,behavior:"smooth"});toast("🎫 Parlay mode armed — tap prices to add legs");}
-function openMatchTicket(num,pick){var m=M[num];if(!m)return;var blocked=playMatchClosedReason(num);if(blocked)return toast(blocked);var pr=m.stage==="group"?[m.home,m.away]:koParts(num);if(!(pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
- var legObj={k:'m',num:num,pick:pick,odds:odds,label:sel+' · '+roundShort(num)+' #'+num,key:'m'+num+pick};
+function openMatchTicket(num,pick){var m=M[num];if(!m)return;var origin=ticketOriginForMode(),blocked=playMatchClosedReason(num,origin);if(blocked)return toast(blocked);var pr=fixtureTeamsForTicket(num,origin);if(!(pr&&pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";if(ko&&pick==='d')return toast("Knockout fixtures do not have a draw market");var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
+ var legObj={k:'m',num:num,pick:pick,odds:odds,label:sel+' · '+roundShort(num)+' #'+num,key:'m'+num+pick+origin,origin:origin};
  if(_betMode==='parlay'){addToSlip(legObj);return;}
- betTicket({title:fl(pr[0])+' '+nm(pr[0])+'  v  '+nm(pr[1])+' '+fl(pr[1]),line:sel+' · Match Result',odds:odds,num:num,place:function(st){S.bets.push({id:nextBetId(),num:num,pick:pick,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim'});},leg:legObj});}
+ betTicket({title:fl(pr[0])+' '+nm(pr[0])+'  v  '+nm(pr[1])+' '+fl(pr[1]),line:sel+' · '+(origin==='official'?'Official Match Result':'Simulated What-If'),odds:odds,num:num,origin:origin,place:function(st){S.bets.push({id:nextBetId(),num:num,pick:pick,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim',origin:origin});},leg:legObj});}
 function openFutTicket(code,mkt){var odds=MARKET[code][mkt];if(odds==null)return toast("No price for this market");var ml={w:'to win the World Cup',f:'to reach the Final',sf:'to reach the Semi-finals',qf:'to reach the Quarter-finals',wg:'to win Group '+TG[code],q:'to qualify from Group '+TG[code]}[mkt];
  betTicket({title:fl(code)+' '+nm(code),line:ml,odds:odds,kind:'fut',flow:'future',code:code,mkt:mkt,place:function(st){S.bets.push({id:nextBetId(),kind:'fut',code:code,mkt:mkt,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim'});},leg:{k:'fut',code:code,mkt:mkt,odds:odds,label:fl(code)+' '+nm(code)+' '+ml,key:'fut'+code+mkt}});}
 function openSpcTicket(cat,sel,odds){betTicket({title:SPECBET[cat].label,line:spcSelLabel(cat,sel),odds:odds,kind:'spc',flow:'future',cat:cat,sel:sel,place:function(st){S.bets.push({id:nextBetId(),kind:'spc',cat:cat,sel:sel,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim'});},leg:{k:'spc',cat:cat,sel:sel,odds:odds,label:spcSelLabel(cat,sel),key:'spc'+cat+sel}});}
@@ -5958,7 +5967,7 @@ function slipDec(){var legs=S.slip||[];if(!legs.length)return 1;
    if(p<0.0015)p=0.0015;var fair=1/p;dec*=(1+(fair-1)*0.92);});
  return dec;}
 function slipHasSGP(){var g={};return (S.slip||[]).some(function(l){var num=(l.k==='m'||l.k==='mkt')?l.num:null;if(num==null)return false;g[num]=(g[num]||0)+1;return g[num]>1;});}
-function legResult(l){if(l.k==='m'){var o=betOutcome(l.num);return o==null?null:(o===l.pick?'win':'lose');}if(l.k==='fut')return futResult(l.code,l.mkt);if(l.k==='spc')return spcResult(l.cat,l.sel);if(l.k==='award')return awardResult(l.market,l.player);if(l.k==='mkt')return mktResult(l);return null;}
+function legResult(l){if(l.k==='m'){var o=(l.origin==='official')?officialBetOutcome(l.num):betOutcome(l.num);return o==null?null:(o===l.pick?'win':'lose');}if(l.k==='fut')return futResult(l.code,l.mkt);if(l.k==='spc')return spcResult(l.cat,l.sel);if(l.k==='award')return awardResult(l.market,l.player);if(l.k==='mkt')return mktResult(l);return null;}
 function addToSlip(leg){if(!leg)return;if(!S.slip)S.slip=[];if(S.slip.some(function(l){return l.key===leg.key;})){toast("Already in your slip");return;}if(S.slip.length>=12)return toast("Max 12 legs");S.slip.push(leg);try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}
  var scrimOn=(function(){var sc=document.getElementById("scrim");return sc&&sc.classList.contains("on");})();
  var keepOpen=(leg.num!=null&&leg.num===_openSheetNum&&scrimOn);
@@ -5981,19 +5990,19 @@ function quickParlay(mode){if(!S.slip)S.slip=[];
   if(!added)return toast("No upcoming matches to build a parlay right now");
   try{haptic('pick');}catch(e){}render();openSlip();toast("🎲 "+(mode==='long'?'Longshot':'Favourites')+" parlay built · "+S.slip.length+" legs — tweak or place it");}
 function nextOpenActionBet(){if(!S.bets||!S.bets.length)return null;
- var idx=-1,b=null;if(S.postBetAction&&S.postBetAction.num!=null){idx=S.bets.findIndex(function(x){return !x.settled&&x.num===S.postBetAction.num;});}
- if(idx<0)idx=S.bets.findIndex(function(x){return !x.settled&&x.num!=null&&betCanSim(x.num);});
+ var idx=-1,b=null;if(S.postBetAction&&S.postBetAction.num!=null){idx=S.bets.findIndex(function(x){return !x.settled&&x.num===S.postBetAction.num&&ticketCanVirtualSim(x);});}
+ if(idx<0)idx=S.bets.findIndex(function(x){return !x.settled&&betHasVirtualMatch(x);});
  if(idx<0)idx=S.bets.findIndex(function(x){return !x.settled&&betMatchNums([x]).length>0;});
  if(idx<0)idx=S.bets.findIndex(function(x){return !x.settled&&betNeedsTournament(x);});
  if(idx<0)idx=S.bets.findIndex(function(x){return !x.settled;});
- if(idx<0)return null;b=S.bets[idx];return {i:idx,b:b,canSim:(b.num!=null&&betCanSim(b.num))};}
+ if(idx<0)return null;b=S.bets[idx];return {i:idx,b:b,canSim:betHasVirtualMatch(b)};}
 function goSlipCommand(){_betCat='history';TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#openBetsTop","🎛 Open actions ready");}
 function railActionHTML(kind,title,sub,cta,icon){return '<span class="sf-i">'+icon+'</span><div class="sf-mid"><span class="sf-n">'+esc(title)+'</span><span class="sf-mult">'+esc(sub)+'</span></div><span class="sf-win">'+esc(cta)+'</span>';}
 function renderSlipFab(){var el=document.getElementById("slipfab");if(!el)return;var tf=document.getElementById("todayFab"),n=(S.slip||[]).length;el.onclick=null;
  if(S.live){var L=S.live;S.actionRail={type:'live',matchId:L.num,label:'Live match in progress'};el.style.display="flex";el.innerHTML=railActionHTML('live','Live match in progress',nm(L.h)+' '+L.sh+'-'+L.sa+' '+nm(L.a)+' · '+L.min+"'",'Resume','🔴');el.onclick=function(){openSheet(L.num);};if(tf)tf.style.bottom='calc(150px + env(safe-area-inset-bottom))';return;}
  if(n){var dec=slipDec(),win=Math.round(10*dec)-10;S.actionRail={type:'parlay',label:n+' leg'+(n===1?'':'s')+' staged'};el.style.display="flex";el.innerHTML=railActionHTML('slip','Parlay Lab waiting',n+' '+(n===1?'leg':'legs')+' · '+dec.toFixed(2)+'× combined','Open','🎫');el.onclick=openSlip;if(tf)tf.style.bottom='calc(150px + env(safe-area-inset-bottom))';return;}
  var act=nextOpenActionBet();if(!act){S.actionRail=null;el.style.display="none";if(tf)tf.style.bottom='calc(86px + env(safe-area-inset-bottom))';return;}
- var b=act.b,short=betLabel(b).replace(/ · #\d+$/,""),nums=betMatchNums([b]),isPath=betNeedsTournament(b),canSim=nums.length>0,cta=canSim?'Sim':(isPath?'Path':'View'),title=canSim?(b.kind==='par'?'Parlay ready to run':'Bet ready to settle'):(isPath?'Future path waiting':'Open bet waiting');
+ var b=act.b,short=betLabel(b).replace(/ · #\d+$/,""),nums=betMatchNums([b]),isPath=betNeedsTournament(b),canSim=betHasVirtualMatch(b),cta=canSim?'Sim':(isPath?'Path':'View'),title=canSim?(b.kind==='par'?'Parlay ready to run':'Bet ready to settle'):(isPath?'Future path waiting':'Open bet waiting');
  S.actionRail={type:isPath?'future':'openBet',betIndex:act.i,matchId:b.num||null,label:short};
  el.style.display="flex";el.innerHTML=railActionHTML('bet',title,short,cta,canSim?'⚡':(isPath?'🔮':'🎟'));
  el.onclick=function(){if(canSim)ts2Launch(act.i);else if(isPath)advanceFutureBet(act.i);else goSlipCommand();};if(tf)tf.style.bottom='calc(150px + env(safe-area-inset-bottom))';}
@@ -6063,7 +6072,7 @@ function openSlip(){if(!S.slip||!S.slip.length)return;var dec=slipDec(),od=decTo
   +'<button class="tbtn" style="width:100%;justify-content:center;margin-top:8px;background:var(--solid)" onclick="clearSlip()">Clear slip</button></div>';
  document.getElementById("sheet").innerHTML=html;document.getElementById("scrim").classList.add("on");tkUpd();}
 function placeParlay(){var inp=document.getElementById("tkStake");if(!inp||!_tk)return;var st=Math.floor(+inp.value)||0;if(!(st>0))return tkError("Enter a valid stake.");if(st>S.bank)return tkError("Insufficient simulated balance.");if(!S.slip.length)return tkError("No selections in this parlay.");
- var blocked=(S.slip||[]).map(function(l){return l.num!=null?playMatchClosedReason(l.num):'';}).filter(Boolean)[0];if(blocked)return tkError(blocked);
+ var blocked=(S.slip||[]).map(function(l){return l.num!=null?playMatchClosedReason(l.num,l.origin):'';}).filter(Boolean)[0];if(blocked)return tkError(blocked);
  try{haptic('bet');_lastStake=st;var od=_tk.odds;var legs=S.slip.slice();var bpBoost=false;
    if(S._boostParlayClaim){od=decToAmer(1+(amerToDec(od)-1)*1.4);S.boostParlayUsed=todayStr();S._boostParlayClaim=false;bpBoost=true;}
    S.bank-=st;var betIndex=S.bets.length;S.bets.push({id:nextBetId(),kind:'par',legs:legs,stake:st,odds:od,settled:false,state:'pending',sourceMode:'sim',boosted:bpBoost});var bz=bpBoost?false:boostLastBet();
@@ -6103,7 +6112,7 @@ function _fillSim(R){withTour(R,function(){MATCHES.forEach(function(m){if(m.stag
  [[73,88],[89,96],[97,100],[101,102],[103,104]].forEach(function(rg){for(var n=rg[0];n<=rg[1];n++){var p=koParts(n);if(p[0]&&p[1]&&!R.ko[n])R.ko[n]=koPick(p[0],p[1]);}});});}
 function teamChances(code,N){var c=0,f=0,sf=0;for(var k=0;k<N;k++){var R=_simBase(true);_fillSim(R);withTour(R,function(){if(winner(104)===code)c++;var fp=koParts(104);if(fp[0]===code||fp[1]===code)f++;[101,102].forEach(function(n){var p=koParts(n);if(p[0]===code||p[1]===code)sf++;});});}return {c:c/N,f:f/N,sf:sf/N,N:N};}
 function runTeamMC(){var code=S.focus;if(!code)return;if(S._tmcRun)return;S._tmcRun=true;toast("🔮 Simulating "+nm(code)+"'s chances…");setTimeout(function(){var r=teamChances(code,500);if(!S._tmc)S._tmc={};S._tmc[code]=r;S._tmcRun=false;render();toast(nm(code)+" — "+ttp(r.c)+" to win it all");},40);}
-function betWinsNow(b){if(b.kind==='par')return b.legs.every(function(l){return legResult(l)==='win';});if(b.kind==='award')return awardResult(b.market,b.player)==='win';if(b.kind==='fut')return futResult(b.code,b.mkt)==='win';if(b.kind==='spc')return spcResult(b.cat,b.sel)==='win';if(b.kind==='mkt')return mktResult(b)==='win';var o=betOutcome(b.num);return o===b.pick;}
+function betWinsNow(b){if(b.kind==='par')return b.legs.every(function(l){return legResult(l)==='win';});if(b.kind==='award')return awardResult(b.market,b.player)==='win';if(b.kind==='fut')return futResult(b.code,b.mkt)==='win';if(b.kind==='spc')return spcResult(b.cat,b.sel)==='win';if(b.kind==='mkt')return mktResult(b)==='win';var o=betOutcomeFor(b);return o===b.pick;}
 function cashValue(b){var N=250,win=0;for(var k=0;k<N;k++){var R=_simBase(true);_fillSim(R);withTour(R,function(){if(betWinsNow(b))win++;});}var p=win/N;
   /* Realistic cash-out: ANCHORED to the price you took. You start slightly underwater
      (the book's margin) and only move into profit once your bet's win probability has
@@ -6186,6 +6195,7 @@ function betMatchNums(bets){var nums={};bets.forEach(function(b){if(b.settled)re
 function scoreLine(num){var m=M[num],s=S.sc[num];if(!m||!s)return"";var pr=m.stage==="group"?[m.home,m.away]:koParts(num);return nm(pr[0])+" "+s.h+"–"+s.a+" "+nm(pr[1]);}
 function simOpenBets(idx){
   var targets=(idx==null)?S.bets.filter(function(b){return !b.settled;}):(S.bets[idx]&&!S.bets[idx].settled?[S.bets[idx]]:[]);
+  targets=targets.filter(ticketCanVirtualSim);
   if(!targets.length)return toast("Nothing open to simulate");
   var nums=betMatchNums(targets);
   if(!nums.length)return toast("These resolve as the tournament plays out — simulate the Bracket to settle them 🔮");
@@ -8031,7 +8041,7 @@ function refreshMatchCenterTruth(){
     var ev=document.getElementById('mcEvents');if(ev)ev.outerHTML='<div id="mcEvents">'+matchCenterEventsHTML(t)+'</div>';
   }catch(e){}
 }
-function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group";const[ph,pa]=ko?koParts(num):[mt.home,mt.away];const s=ko?null:S.sc[num];
+function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group";const _opr=ko?officialFixtureTeams(num):null;const[ph,pa]=ko?((activeMode()==='sim'&&_opr)?_opr:koParts(num)):[mt.home,mt.away];const s=ko?null:S.sc[num];
   const ven=VEN[mt.venue];const _kIn=(!s&&!(S.real&&S.real[num]))?kickoffIn(mt):"";
   let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(mt.wd)}, ${longDate(mt.date)} · ${to12(mt.time)} ET${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
   var realState=matchLiveState(num);if(realState){inner+='<div class="bethint" style="border-color:'+(realState.kind==='hold'?'rgba(255,203,61,.35)':'rgba(100,210,255,.35)')+';color:'+(realState.kind==='hold'?'var(--gold)':'var(--blue2)')+'"><b>'+esc(safeStatusText(realState.label,'Official status'))+'</b> · Official result pending. Bets and bracket paths stay open until a confirmed final arrives.</div>';}
@@ -8047,7 +8057,7 @@ function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group
   inner+=matchCenterStripHTML(num,_mct,factualMode);
   if(ko){
     // Prediction picker only for an open tie with no official/live truth.
-    if(ph&&pa&&!_locked){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
+    if(ph&&pa&&!_locked&&!factualMode){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
     else if(!(ph&&pa))inner+=`<div class="sh-when" style="margin-top:8px">Teams decided once earlier rounds finish.</div>`;
   }else{
     // Prediction steppers + simulated timeline only in sim mode for an open match
@@ -9081,9 +9091,11 @@ function ts2FinalState(result,pick){return tseOutcomeForPick(result,pick)==='win
 function ts2Legs(targets){
   var legs=[];
   (targets||[]).forEach(function(b){
+    if(!ticketCanVirtualSim(b))return;
     var idx=S.bets.indexOf(b);
     if(b&&b.kind==='par'){
       (b.legs||[]).forEach(function(l){
+        if(l.origin==='official')return;
         if((l.k==='m'||l.k==='mkt')&&l.num!=null)
           legs.push({betIndex:idx,num:l.num,pick:(l.pick||'h'),label:String(l.label||'').replace(/ · #\d+$/,''),parlay:true});
       });
@@ -9118,6 +9130,7 @@ function ts2Launch(idx){
   if(typeof idx==='string')idx=(idx===''?null:parseInt(idx,10));
   var targets=(idx==null)?S.bets.filter(function(b){return !b.settled;})
                          :(S.bets[idx]&&!S.bets[idx].settled?[S.bets[idx]]:[]);
+  targets=targets.filter(ticketCanVirtualSim);
   if(!targets.length){toast('Nothing open to simulate');return;}
   var legs=ts2Legs(targets);
   if(!legs.length)return simOpenBets(idx);            // futures/specials: keep existing settle path

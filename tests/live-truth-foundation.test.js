@@ -17,9 +17,11 @@ function loadApp(options = {}) {
   window.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
   window.requestAnimationFrame = (fn) => window.setTimeout(fn, 16);
   window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+  window.scrollTo = () => {};
   window.MutationObserver = class MutationObserver { observe() {} disconnect() {} };
   window.AudioContext = function AudioContext() {};
   window.webkitAudioContext = window.AudioContext;
+  if (options.nowMs) window.Date.now = () => options.nowMs;
   if (options.legacyState) window.localStorage.setItem('wc26_v1', JSON.stringify(options.legacyState));
   if (options.userState) window.localStorage.setItem('wc26_user_v1', JSON.stringify(options.userState));
   if (options.playState) window.localStorage.setItem('wc26_play_v1', JSON.stringify(options.playState));
@@ -49,7 +51,11 @@ function loadApp(options = {}) {
       userSaveFromState:userSaveFromState, applyUserSave:applyUserSave,
       applyPlaySave:applyPlaySave, markPlayScore:markPlayScore, markPlayKO:markPlayKO,
       markPlayOrder:markPlayOrder, bump:bump, setKo:setKo, settleAllBets:settleAllBets,
-      matchcastHTML:matchcastHTML,
+      matchcastHTML:matchcastHTML, setMode:setMode,
+      officialFixtureTeams:officialFixtureTeams, officialFixtureEligible:officialFixtureEligible,
+      officialFixtureClosedReason:officialFixtureClosedReason, playOpenMatches:playOpenMatches,
+      playFeaturedMarketHTML:playFeaturedMarketHTML, openMatchTicket:openMatchTicket,
+      tkPlace:tkPlace, currentTicket:function(){return _tk;}, ts2Launch:ts2Launch,
       renderCount:function(){return window.__renderCount;},
       resetRenderCount:function(){window.__renderCount=0;},
       mountText:function(html){var d=document.createElement('div');d.innerHTML=html||'';return d.textContent;}
@@ -108,6 +114,20 @@ function koPayload(home, away, winner, gh = 1, ga = 0) {
 
 function scheduledKOPayload(matchNum, home, away, extra = {}) {
   return Object.assign({ matchNum, home, away, gh: null, ga: null, status: 'TIMED', kind: 'scheduled', stage: 'LAST_32' }, extra);
+}
+
+function preMatch55Time() {
+  return new Date('2026-06-24T12:00:00-04:00').getTime();
+}
+
+function placeCurrentTicket(app, window, stake = 100) {
+  const input = window.document.getElementById('tkStake');
+  assert.ok(input, 'ticket sheet stake input is open');
+  input.value = String(stake);
+  app.tkPlace();
+  const bets = app.getState().bets;
+  assert.ok(bets.length > 0, 'ticket was placed');
+  return bets[bets.length - 1];
 }
 
 test('official final payload updates the centralized truth snapshot', () => withApp((app) => {
@@ -273,6 +293,128 @@ test('provider failure or stale data cannot invent a confirmed knockout fixture'
   assert.equal(app.ingestProviderKOFixtures([scheduledKOPayload(78, 'Australia', 'Egypt')], { receipt, authoritative: false }), false);
   assert.notEqual(app.knockoutSlotStatus(78, true).state, 'confirmed');
 }));
+
+test('confirmed future official fixtures appear as Real Life pick opportunities', () => withApp((app, window) => {
+  const s = resetOfficial(app);
+  s.mode = 'real';
+  app.setState(s);
+
+  assert.equal(app.officialFixtureEligible(55), true);
+  assert.equal(app.playOpenMatches().some((m) => m.num === 55), true);
+  assert.match(app.mountText(app.playFeaturedMarketHTML()), /Official fixture/);
+
+  app.ingestProviderKOFixtures([scheduledKOPayload(74, 'Australia', 'Egypt')], { authoritative: true });
+  assert.equal(app.officialFixtureEligible(74), true);
+  app.openMatchTicket(74, 'h');
+  assert.equal(app.currentTicket().origin, 'official');
+  const koTeams = app.officialFixtureTeams(74);
+  assert.equal(koTeams[0], 'AUS');
+  assert.equal(koTeams[1], 'EGY');
+}, { nowMs: preMatch55Time() }));
+
+test('TBD, projected, live, delayed, past-kickoff, and final fixtures cannot create official tickets', () => {
+  withApp((app) => {
+    const s = resetOfficial(app);
+    s.mode = 'real';
+    app.setState(s);
+    assert.equal(app.officialFixtureEligible(74), false, 'unresolved knockout fixture is not eligible');
+    app.ingestProviderKOFixtures([scheduledKOPayload(75, 'TBD', 'Sweden')], { authoritative: true });
+    assert.equal(app.officialFixtureEligible(75), false, 'TBD provider fixture is not eligible');
+    app.openMatchTicket(74, 'h');
+    assert.equal(app.currentTicket(), null);
+  }, { nowMs: preMatch55Time() });
+
+  withApp((app) => {
+    const s = resetOfficial(app);
+    s.mode = 'real';
+    s.rwState[55] = { kind: 'live', sh: 0, sa: 0, min: 10, status: 'IN_PLAY', label: 'Live', at: Date.now() };
+    app.setState(s);
+    assert.equal(app.officialFixtureEligible(55), false, 'live fixture is not eligible');
+  }, { nowMs: preMatch55Time() });
+
+  withApp((app) => {
+    const s = resetOfficial(app);
+    s.mode = 'real';
+    s.rwState[55] = { kind: 'hold', status: 'POSTPONED', label: 'Postponed', at: Date.now() };
+    app.setState(s);
+    assert.equal(app.officialFixtureEligible(55), false, 'delayed/held fixture is not eligible');
+  }, { nowMs: preMatch55Time() });
+
+  withApp((app) => {
+    const s = resetOfficial(app);
+    s.mode = 'real';
+    app.setState(s);
+    assert.equal(app.officialFixtureEligible(55), false, 'past-kickoff fixture is not eligible without a final');
+  }, { nowMs: new Date('2026-06-25T16:00:00-04:00').getTime() });
+
+  withApp((app) => {
+    const s = resetOfficial(app);
+    s.mode = 'real';
+    app.setState(s);
+    app.ingestFinished([finalPayload(app.M[55], 1, 0)], { receipt: app.truthRefreshStart('/api/results') });
+    assert.equal(app.officialFixtureEligible(55), false, 'final fixture is not eligible');
+  }, { nowMs: preMatch55Time() });
+});
+
+test('new official tickets persist origin and settle only from official truth', () => withApp((app, window) => {
+  const s = resetOfficial(app);
+  s.mode = 'real';
+  app.setState(s);
+  app.openMatchTicket(55, 'h');
+  const ticket = placeCurrentTicket(app, window, 100);
+
+  assert.equal(ticket.origin, 'official');
+  s.sc[55] = { h: 0, a: 4 };
+  app.markPlayScore(55, s.sc[55], 'what-if-test');
+  app.settleAllBets();
+  assert.equal(ticket.settled, false, 'virtual score cannot settle an official ticket');
+
+  app.ingestFinished([finalPayload(app.M[55], 2, 0)], { receipt: app.truthRefreshStart('/api/results') });
+  app.settleAllBets();
+  assert.equal(ticket.settled, true);
+  assert.equal(ticket.state, 'won');
+  assert.equal(app.tournamentTruthSnapshot().official.finalResults[55].score.h, 2);
+}, { nowMs: preMatch55Time() }));
+
+test('What-If simulation tickets stay separate from official truth and official tickets', () => withApp((app, window) => {
+  const s = resetOfficial(app);
+  s.mode = 'real';
+  app.setState(s);
+  app.openMatchTicket(55, 'h');
+  const officialTicket = placeCurrentTicket(app, window, 100);
+
+  s.mode = 'sim';
+  app.setState(s);
+  const beforeSnap = app.tournamentTruthSnapshot();
+  const beforeStanding = app.tccOffTable(app.M[55].group).map((r) => `${r.code}:${r.Pts}:${r.GF}:${r.GA}`).join('|');
+  const beforeMatchCenter = app.matchCenterTruth(55);
+  app.openMatchTicket(55, 'a');
+  const simTicket = placeCurrentTicket(app, window, 75);
+
+  assert.equal(simTicket.origin, 'my_sim');
+  s.sc[55] = { h: 0, a: 2 };
+  app.markPlayScore(55, s.sc[55], 'what-if-test');
+  app.settleAllBets();
+
+  assert.equal(officialTicket.settled, false);
+  assert.equal(simTicket.settled, true);
+  assert.equal(simTicket.state, 'won');
+  assert.equal(app.tournamentTruthSnapshot().official.finalResults[55], undefined);
+  assert.equal(app.tournamentTruthSnapshot().freshness.officialStateFingerprint, beforeSnap.freshness.officialStateFingerprint);
+  assert.equal(app.tccOffTable(app.M[55].group).map((r) => `${r.code}:${r.Pts}:${r.GF}:${r.GA}`).join('|'), beforeStanding);
+  const afterMatchCenter = app.matchCenterTruth(55);
+  assert.equal(afterMatchCenter.phase, beforeMatchCenter.phase);
+  assert.equal(afterMatchCenter.home, beforeMatchCenter.home);
+  assert.equal(afterMatchCenter.away, beforeMatchCenter.away);
+
+  app.saveState();
+  const play = JSON.parse(window.localStorage.getItem('wc26_play_v1'));
+  const user = JSON.parse(window.localStorage.getItem('wc26_user_v1'));
+  assert.equal(play.scores['55'].h, 0);
+  assert.equal(play.scoreMeta['55'].owner, 'play');
+  assert.equal(user.bets.some((b) => b.origin === 'official'), true);
+  assert.equal(user.bets.some((b) => b.origin === 'my_sim'), true);
+}, { nowMs: preMatch55Time() }));
 
 test('failed live refresh updates source health without global rerender', async () => withApp(async (app, window) => {
   const s = resetOfficial(app);
@@ -447,9 +589,9 @@ test('Reset My Play Save cannot mutate official truth, standings, bracket, provi
   app.markPlayKO(89, 'BRA', 'test');
   state.bank = 9876;
   state.bankHist = [10000, 9876];
-  state.slip = [{ k: 'm', num: officialMatch.num, pick: 'h', odds: -110, label: 'Official fixture pick', key: 'official-pick' }];
+  state.slip = [{ k: 'm', num: officialMatch.num, pick: 'h', odds: -110, label: 'Official fixture pick', key: 'official-pick', origin: 'official' }];
   state.bets = [
-    { id: 'official-ticket', num: officialMatch.num, pick: 'h', stake: 124, odds: -110, settled: false, state: 'pending', sourceMode: 'sim' },
+    { id: 'official-ticket', num: officialMatch.num, pick: 'h', stake: 124, odds: -110, settled: false, state: 'pending', sourceMode: 'sim', origin: 'official' },
     { id: 'settled-history', num: officialMatch.num, pick: 'a', stake: 40, odds: 125, settled: true, state: 'lost', net: -40, sourceMode: 'sim' },
   ];
   app.saveState();
@@ -505,6 +647,15 @@ test('simulation labels remain visible in Matchcast copy', () => withApp((app) =
   assert.match(text, /No real money/);
   assert.match(text, /Does not affect official results/);
 }));
+
+test('What-If Play action remains visibly simulated', () => withApp((app) => {
+  const s = resetOfficial(app);
+  s.mode = 'sim';
+  app.setState(s);
+  const text = app.mountText(app.playFeaturedMarketHTML());
+  assert.match(text, /Simulate What-If/);
+  assert.match(text, /SIMULATED/);
+}, { nowMs: preMatch55Time() }));
 
 test('internal feed-state enums do not leak into user-facing copy', () => withApp((app) => {
   resetOfficial(app);
