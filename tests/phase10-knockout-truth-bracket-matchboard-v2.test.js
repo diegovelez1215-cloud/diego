@@ -266,7 +266,7 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   s.bets = [{ id: 'p10-settle', num: 1, pick: 'h', stake: 20, odds: 120, settled: false, state: 'pending' }];
   app.setState(s);
   window.ts2Launch(0);
-  assert.match(window.document.getElementById('ts2top').textContent, /Simulation/);
+  assert.match(window.document.getElementById('ts2top').textContent, /SIMULATION/);
   assert.match(window.document.getElementById('ts2top').textContent, /Virtual match/);
   assert.match(window.document.getElementById('ts2top').textContent, /SIM \$|SIM \$/);
   assert.match(window.document.getElementById('ts2top').textContent, /No real money/);
