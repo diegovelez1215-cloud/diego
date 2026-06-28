@@ -173,3 +173,47 @@ test('8 · What-If cannot alter official truth, standings, bracket or official t
   assert.equal(officialBet.origin, 'official', 'the official ticket is untouched and still official');
   assert.equal(app.ticketCanVirtualSim(officialBet), false, 'the official ticket can never be virtually simulated');
 }));
+
+test('9 · What-If is stable across surfaces — one fixture, one live match, one stored result', () => withApp((app) => {
+  setup(app);
+  const num = GROUP, m = app.M[num];
+  const desk = () => app.mountText(app.matchDeskHTML(num, 'feature'));        // Featured uses matchDeskHTML
+  const sheet = () => app.mountText(app.matchActionZone(num, m.home, m.away, false)); // match sheet
+
+  // before any run, every surface offers "Run What-If"
+  assert.equal(app.whatIfLabel(num), 'Run What-If');
+  assert.match(desk(), /Run What-If/);
+  assert.match(sheet(), /Run What-If/);
+
+  // 1) Start Run What-If from the Featured match
+  try { app.runWhatIf(num); } catch (e) { /* DOM side-effects after S.live is set */ }
+  const live = app.getState().live;
+  assert.ok(live && live.num === num, 'Featured Run What-If created the live virtual match');
+  const seedMarker = JSON.stringify({ k: live.kickoff, h: live.h, a: live.a, min: live.min });
+
+  // 2/3) Opening the SAME fixture from a list row and the match sheet resumes it:
+  //      "Continue What-If" everywhere, same live object, no new seed/outcome.
+  assert.equal(app.whatIfState(num), 'active');
+  assert.equal(app.whatIfLabel(num), 'Continue What-If');
+  assert.match(desk(), /Continue What-If/);
+  assert.match(sheet(), /Continue What-If/);
+  try { app.runWhatIf(num); } catch (e) {} // tap from a match-list row
+  try { app.runWhatIf(num); } catch (e) {} // tap from the match sheet
+  assert.equal(app.getState().live, live, 'every surface resumes the SAME live object — never a second match');
+  assert.equal(JSON.stringify({ k: app.getState().live.kickoff, h: app.getState().live.h, a: app.getState().live.a, min: app.getState().live.min }),
+    seedMarker, 'the live virtual match is never restarted or reseeded');
+
+  // 4) Finish it, then reopen through every surface — one identical stored result.
+  app.getState().live.sh = 2; app.getState().live.sa = 1; app.getState().live.min = 90;
+  try { app.finishLive(num); } catch (e) {}
+  const stored = JSON.stringify(app.getState().sc[num]);
+  assert.ok(stored && stored !== 'null', 'a virtual result is stored');
+  assert.equal(app.whatIfState(num), 'result');
+  assert.equal(app.whatIfLabel(num), 'View simulated result');
+  assert.match(desk(), /View simulated result/);
+  assert.match(sheet(), /View simulated result/);
+  // the compact list row reads from the same fixture state
+  assert.equal(['Run What-If', 'Continue What-If', 'View simulated result'].indexOf(app.whatIfLabel(num)), 2);
+  try { app.runWhatIf(num); } catch (e) {} // re-tap any surface → View result, never reseed
+  assert.equal(JSON.stringify(app.getState().sc[num]), stored, 'the stored simulated result is identical from every surface');
+}));
