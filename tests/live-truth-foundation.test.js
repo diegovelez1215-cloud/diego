@@ -301,7 +301,7 @@ test('confirmed future official fixtures appear as Real Life pick opportunities'
 
   assert.equal(app.officialFixtureEligible(55), true);
   assert.equal(app.playOpenMatches().some((m) => m.num === 55), true);
-  assert.match(app.mountText(app.playFeaturedMarketHTML()), /Official fixture/);
+  assert.match(app.mountText(app.playFeaturedMarketHTML()), /Official Picks/);
 
   app.ingestProviderKOFixtures([scheduledKOPayload(74, 'Australia', 'Egypt')], { authoritative: true });
   assert.equal(app.officialFixtureEligible(74), true);
@@ -653,7 +653,7 @@ test('What-If Play action remains visibly simulated', () => withApp((app) => {
   s.mode = 'sim';
   app.setState(s);
   const text = app.mountText(app.playFeaturedMarketHTML());
-  assert.match(text, /Simulate What-If/);
+  assert.match(text, /Run What-If/);
   assert.match(text, /SIMULATED/);
 }, { nowMs: preMatch55Time() }));
 

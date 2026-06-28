@@ -3194,6 +3194,42 @@ body[data-mode="sim"] #sheet .tk-odds{color:var(--play-gold)!important}
 #betting .play-empty,#betting .emptyst{border-color:var(--line)!important;background:rgba(255,255,255,.03)!important}
 body[data-mode="real"] #betting .play-empty button,body[data-mode="real"] #betting .emptyst button{border-color:rgba(94,168,255,.28)!important;color:var(--official-soft)!important}
 body[data-mode="sim"] #betting .play-empty button,body[data-mode="sim"] #betting .emptyst button{border-color:rgba(239,197,108,.28)!important;color:var(--play-gold)!important}
+
+/* =============================================================================
+   MATCH DESK — one confirmed fixture, two direct paths (no mode switch).
+   Official Picks = factual blue · Run What-If = restrained gold. ============= */
+.match-desk{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.match-desk.feature{margin-top:14px}
+.md-path{border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+.md-path.official{border-color:rgba(94,168,255,.26);background:linear-gradient(180deg,rgba(94,168,255,.08),rgba(255,255,255,.015))}
+.md-path.whatif{border-color:rgba(239,197,108,.24);background:linear-gradient(180deg,rgba(239,197,108,.07),rgba(8,11,26,.5))}
+.md-k{display:flex;flex-direction:column;gap:1px;font-size:12.5px;font-weight:900;color:#F5F7FF;margin-bottom:9px}
+.md-k em{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.md-path.official .md-k em{color:var(--official-soft)}
+.md-path.whatif .md-k em,.az-whatif .md-k em{color:var(--play-gold)}
+.md-mkt-k{font-size:9px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--mut2);margin-bottom:6px}
+.md-mkt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.md-mkt.ko{grid-template-columns:repeat(2,minmax(0,1fr))}
+.md-pick{min-height:52px;border:1px solid rgba(94,168,255,.24);border-radius:12px;background:rgba(94,168,255,.07);color:#F5F7FF;padding:7px 5px;font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:transform .14s var(--ease),background .14s var(--ease)}
+.md-pick span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-pick b{font-size:14px;font-weight:900;color:var(--official-soft);font-variant-numeric:tabular-nums}
+.md-pick:active{transform:scale(.96);background:rgba(94,168,255,.15)}
+.md-act{width:100%;min-height:48px;border-radius:13px;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:transform .14s var(--ease)}
+.md-act:active{transform:scale(.985)}
+.md-act.whatif{background:linear-gradient(135deg,var(--play-gold),#D9A94A);color:#241803}
+.md-act .md-t{font-size:13.5px;font-weight:950}
+.md-act .md-s{font-size:9px;font-weight:800;letter-spacing:.3px;opacity:.85}
+.md-unavail{font-size:11.5px;font-weight:700;color:var(--mut);line-height:1.4;padding:6px 2px}
+.az-whatif{margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+.az-whatif .md-k{margin-bottom:8px}
+.action-zone.md-zone{padding:0!important;border:0!important;background:none!important;box-shadow:none!important;backdrop-filter:none!important}
+.pm-acts{display:flex;gap:6px;flex-shrink:0}
+.pm-acts .pm-act{min-height:44px;padding:0 11px;font-size:11px;font-weight:900;border-radius:11px}
+.pm-act.official{border:1px solid rgba(94,168,255,.30)!important;background:rgba(94,168,255,.10)!important;color:var(--official-soft)!important}
+.pm-act.whatif{border:1px solid rgba(239,197,108,.30)!important;background:rgba(239,197,108,.10)!important;color:var(--play-gold)!important}
+.pm-row .pm-main{cursor:pointer;min-width:0}
+/* Demote the global Real Life / My Sim switch from the primary Play viewport */
+body:has(#scr-bet.on) #modebar{display:none}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -5158,11 +5194,53 @@ function playOpenMatches(){return MATCHES.filter(function(m){return officialFixt
 function playMatchClosedReason(num,origin){origin=origin||ticketOriginForMode();if(origin==='official'||origin==='my_sim')return officialFixtureClosedReason(num);if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
 function playSelectPick(num,pick){S.playPick={num:num,pick:pick};try{haptic('pick');}catch(e){}renderBetting();arriveAt('#playFeaturedMarket','Selection ready',40);}
 function playOpenSelected(){var p=S.playPick;if(!p||p.num==null||!p.pick)return toast('Choose an outcome first');openMatchTicket(p.num,p.pick);}
+/* ===== Match Desk — two direct actions on one fixture, no mode switch =====
+   Official Picks → official-origin ticket (provider settlement, never simulates).
+   Run What-If    → the existing standalone playLive(num) virtual match.
+   Neither action reads or mutates S.mode. ================================== */
+function whatIfState(num){num=+num;
+  if(S.live&&S.live.num===num)return 'active';
+  if(!(S.real&&S.real[num])&&S.sc&&S.sc[num]&&isBetSim(num))return 'result';
+  return 'new';}
+function whatIfLabel(num){return ({active:'Continue What-If',result:'View simulated result'})[whatIfState(num)]||'Run What-If';}
+function whatIfEligible(num){num=+num;var m=M[num];if(!m)return false;
+  var ko=m.stage!=='group',pr=ko?koParts(num):[m.home,m.away];
+  if(!(pr[0]&&pr[1]&&T[pr[0]]&&T[pr[1]]))return false;          // needs two resolved teams
+  if(S.real&&S.real[num])return false;                          // official final exists
+  if(typeof truthOfficialFinalScore==='function'&&truthOfficialFinalScore(num))return false; // confirmed official final
+  if(ko&&S.realko&&S.realko[num])return false;
+  var live=matchLiveState(num);if(live&&(live.kind==='live'||live.kind==='hold'))return false; // official live/hold
+  return true;}
+/* Shared entry for Featured, list rows and the sheet — always the same
+   fixture-level virtual match (single S.live per num, single persisted result). */
+function runWhatIf(num){num=+num;var st=whatIfState(num);
+  if(st==='active'){openSheet(num);return;}                     // Continue What-If
+  if(st==='result'){openMatchResult(num);return;}               // View simulated result
+  if(!whatIfEligible(num))return toast('What-If is unavailable for this match');
+  try{playLive(num);}catch(e){toast('Could not start What-If');} // Run What-If (original engine)
+}
+function whatIfBtnHTML(num,cls){var st=whatIfState(num);
+  var sub=st==='active'?'In progress · SIMULATED':(st==='result'?'Your virtual result · SIM':'Your virtual match · SIMULATED');
+  return '<button class="md-act whatif'+(cls?' '+cls:'')+'" onclick="event.stopPropagation();runWhatIf('+num+')"><span class="md-t">'+esc(whatIfLabel(num))+'</span><span class="md-s">'+esc(sub)+'</span></button>';}
+/* Knockout official market is "To Advance" (no draw); group is 90' "Match Result". */
+function officialMarketLabel(num){var m=M[num];return (m&&m.stage!=='group')?'To Advance':'Match Result';}
+function officialMarketHTML(num){var m=M[num];if(!m)return'';var ko=m.stage!=='group';
+  var pr=officialFixtureTeams(num);if(!(pr&&pr[0]&&pr[1]))return '<div class="md-unavail">Teams confirm once earlier rounds finish.</div>';
+  var o=matchOddsFor(num,pr[0],pr[1],ko);if(!(isFinite(o.h)&&isFinite(o.a)&&(ko||isFinite(o.d))))return '<div class="md-unavail">Official market opens closer to kickoff.</div>';
+  var picks=[['h',nm(pr[0])+(ko?'':' win'),o.h]];if(!ko)picks.push(['d','Draw',o.d]);picks.push(['a',nm(pr[1])+(ko?'':' win'),o.a]);
+  return '<div class="md-mkt-k">'+officialMarketLabel(num)+'</div><div class="md-mkt'+(ko?' ko':'')+'">'+picks.map(function(c){return '<button class="md-pick" onclick="event.stopPropagation();openMatchTicket('+num+',\''+c[0]+'\',\'official\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div>';}
+/* One match, two paths — stacked (never a card grid). */
+function matchDeskHTML(num,ctx){var m=M[num];if(!m)return'';
+  var whatif=(whatIfEligible(num)||whatIfState(num)!=='new')?whatIfBtnHTML(num,'full'):'<div class="md-unavail">Run What-If unlocks once both teams are set.</div>';
+  return '<div class="match-desk'+(ctx?' '+ctx:'')+'">'
+    +'<div class="md-path official"><div class="md-k">Official Picks<em>Real World Cup result · SIM$</em></div>'+officialMarketHTML(num)+'</div>'
+    +'<div class="md-path whatif"><div class="md-k">Run What-If<em>Your virtual match · SIMULATED</em></div>'+whatif+'</div>'
+    +'</div>';}
 function playPickText(num,pick){var pr=fixtureTeamsForTicket(num,ticketOriginForMode())||[];return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
-function playFeaturedMarketHTML(){var arr=playOpenMatches(),origin=ticketOriginForMode(),isReal=origin==='official';if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible official future fixtures open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=fixtureTeamsForTicket(m.num,origin),o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num,origin)||to12(m.time),label=isReal?'Official fixture · MARKET ODDS':'Simulate What-If · SIMULATED';return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>'+esc(label)+'</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add'+(!pick?' dis':'')+'" onclick="playOpenSelected()">'+(pick?(isReal?'Add official pick: ':'Simulate What-If: ')+esc(playPickText(m.num,pick)):'Choose an outcome')+'</button></div>';}
+function playFeaturedMarketHTML(){var arr=playOpenMatches();if(!arr.length)return '<div class="play-empty"><b>No eligible future fixtures right now.</b>Confirmed World Cup fixtures appear here for Official Picks and Run What-If. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=officialFixtureTeams(m.num);if(!(pr&&pr[0]&&pr[1]))pr=ko?koParts(m.num):[m.home,m.away];var status=officialFixtureClosedReason(m.num)||(to12(m.time)+' ET');return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>Featured match · '+esc(roundShort(m.num))+'</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+esc(shortDate(m.date))+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div>'+matchDeskHTML(m.num,'feature')+'</div>';}
 function playLiveClosedHTML(){var rows=[];if(S.rwState){Object.keys(S.rwState).forEach(function(k){var st=S.rwState[k],m=M[k];if(!st||!m||(st.kind!=='live'&&st.kind!=='hold'))return;var pr=m.stage==='group'?[m.home,m.away]:koParts(+k);if(!(pr[0]&&pr[1]))return;rows.push({num:+k,st:st,pr:pr});});}
   if(!rows.length)return '';return '<div class="play-live-closed"><div class="plc-head"><b>Live matches</b><span>Markets closed</span></div>'+rows.slice(0,3).map(function(r){var st=r.st,score=(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa);return '<div class="plc-row"><div class="plc-main"><div class="plc-teams">'+fl(r.pr[0])+' '+esc(nm(r.pr[0]))+' '+esc(score)+' '+esc(nm(r.pr[1]))+' '+fl(r.pr[1])+'</div><div class="plc-meta">'+esc(safeStatusText(st.label,'Live'))+' · Awaiting settlement</div></div><button onclick="openMatchDetails('+r.num+')">Match Details</button></div>';}).join('')+'</div>';}
-function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7),origin=ticketOriginForMode(),isReal=origin==='official';if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=fixtureTeamsForTicket(m.num,origin);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · '+(isReal?'MARKET ODDS':'SIMULATED WHAT-IF')+'</div></div><button class="pm-act" onclick="sheet('+m.num+')">'+(isReal?'Markets':'What-If')+'</button></div>';}).join('')+'</div>';}
+function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7);if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var ko=m.stage!=='group',pr=officialFixtureTeams(m.num);if(!(pr&&pr[0]&&pr[1]))pr=ko?koParts(m.num):[m.home,m.away];var wst=whatIfState(m.num),wlbl=wst==='result'?'View sim':(wst==='active'?'Continue':'What-If');return '<div class="pm-row" id="pm-'+m.num+'"><div class="pm-main" onclick="sheet('+m.num+')"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' ET</div></div><div class="pm-acts"><button class="pm-act official" onclick="event.stopPropagation();sheet('+m.num+')">Official</button><button class="pm-act whatif" onclick="event.stopPropagation();runWhatIf('+m.num+')">'+esc(wlbl)+'</button></div></div>';}).join('')+'</div>';}
 function playLearnHTML(){try{if(localStorage.getItem('wc26_play_edu')==='1')return '';}catch(e){}return '<div class="play-learn" id="playLearn"><button class="learn-x" onclick="dismissPlayLearn()">Hide</button><b>How simulated picks work</b>Pick an outcome, choose a stake, then watch your simulated ticket settle only when the match result is official or when you run a My Sim match.</div>';}
 function dismissPlayLearn(){try{localStorage.setItem('wc26_play_edu','1');}catch(e){}var el=document.getElementById('playLearn');if(el)el.remove();}
 function playLandingHTML(){return playHeaderHTML()+playLiveClosedHTML()+playFeaturedMarketHTML()+playMoreMatchesHTML()+playLearnHTML();}
@@ -5391,26 +5469,25 @@ function probBar(o,h,a,ko){var ph=Math.round(o.pH*100),pd=ko?0:Math.round(o.pD*1
   var lbl='<div class="problbl"><span>'+fl(h)+' '+ph+'%</span>'+(ko?'':'<span>Draw '+pd+'%</span>')+'<span>'+pa+'% '+fl(a)+'</span></div>';
   return '<div style="margin-top:11px">'+bar+lbl+'</div>';}
 function sheetProbViz(num,h,a,ko){var o=matchOddsFor(num,h,a,ko),mid=ko?'KO · ':fmtAmer(o.d)+' · ';return '<div class="probviz"><div class="probviz-h"><span>Model win projection</span><span>'+fmtAmer(o.h)+' · '+mid+fmtAmer(o.a)+'</span></div>'+probBar(o,h,a,ko)+'</div>';}
-function matchActionZone(num,h,a,ko){var origin=ticketOriginForMode(),pr=fixtureTeamsForTicket(num,origin);if(pr&&pr[0]&&pr[1]){h=pr[0];a=pr[1];}
+function matchActionZone(num,h,a,ko){
  var open=S.bets.filter(function(b){return !b.settled&&((b.num===num)||(b.kind==='mkt'&&b.num===num)||(b.kind==='par'&&b.legs&&b.legs.some(function(l){return l.num===num;})));}).length;
- var closed=playMatchClosedReason(num,origin),live=matchLiveState(num);
- if(closed){var officialFinished=(S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]),finished=officialFinished||(S.sc&&S.sc[num])||(ko&&S.ko&&S.ko[num]),isLive=live&&live.kind==='live',hold=live&&live.kind==='hold';
+ var officialClosed=playMatchClosedReason(num,'official'),live=matchLiveState(num);
+ var officialFinished=(S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]);
+ if(officialClosed){var finished=officialFinished||(S.sc&&S.sc[num])||(ko&&S.ko&&S.ko[num]),isLive=live&&live.kind==='live',hold=live&&live.kind==='hold';
   var title=finished?'View result':(isLive?'Live match':'Match command zone');
-  var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((safeStatusText(live.label,'Delayed'))+' · markets closed'):(closed||'Markets closed')));
+  var pill=finished?(officialFinished?'Official result confirmed':'Result recorded'):(isLive?'Markets closed · official live match':(hold?((safeStatusText(live.label,'Delayed'))+' · markets closed'):(officialClosed||'Markets closed')));
+  /* Official market is closed — but a confirmed fixture can still run a What-If
+     (unless an official result/live match makes simulation invalid). */
+  var wif=(whatIfEligible(num)||whatIfState(num)!=='new')?'<div class="az-whatif"><div class="md-k">Run What-If<em>Your virtual match · SIMULATED</em></div>'+whatIfBtnHTML(num,'full')+'</div>':'';
   /* These buttons live INSIDE the match sheet, so they must navigate somewhere
      real — never re-open the same sheet (which looked like "nothing happened"). */
   return '<div class="action-zone"><div class="az-k">'+title+'</div><div class="az-status">'+esc(pill)+'</div><div class="az-row">'
    +(finished
       ?'<button class="primary" onclick="openMatchResult('+num+')">View result</button><button onclick="closeThenGoSchedule()">All fixtures</button>'
       :'<button class="primary" onclick="refreshOfficialData()">Refresh status</button><button onclick="closeThenGoSchedule()">All fixtures</button>')
-   +'</div></div>';}
- var o=matchOddsFor(num,h,a,ko),ok=isFinite(o.h)&&isFinite(o.a)&&(ko||isFinite(o.d));
- if(!ok)return '<div class="action-zone"><div class="az-k">Match command zone</div><div class="az-unavail">Market odds are unavailable right now.</div><div class="az-row"><button class="primary" onclick="closeThenGoSchedule()">All fixtures</button><button onclick="goLiveNow()">Live Now</button></div></div>';
- return '<div class="action-zone"><div class="az-k">'+(open?open+' open bet'+(open>1?'s':'')+' on this match':(origin==='official'?'Official Match Result':(origin==='my_sim'?'Simulate What-If':'Match Result · 1X2')))+'</div><div class="az-market">'
-  +'<button class="az-pick" onclick="openMatchTicket('+num+',\'h\')"><span>'+esc(nm(h))+' win</span><b class="odd">'+fmtAmer(o.h)+'</b></button>'
-  +(ko?'':'<button class="az-pick" onclick="openMatchTicket('+num+',\'d\')"><span>Draw</span><b class="odd">'+fmtAmer(o.d)+'</b></button>')
-  +'<button class="az-pick" onclick="openMatchTicket('+num+',\'a\')"><span>'+esc(nm(a))+' win</span><b class="odd">'+fmtAmer(o.a)+'</b></button>'
-  +'</div></div>';}
+   +'</div>'+wif+'</div>';}
+ /* Open confirmed fixture → one Match Desk, two direct paths, no mode switch. */
+ return '<div class="action-zone md-zone">'+(open?'<div class="az-status">'+open+' open ticket'+(open>1?'s':'')+' on this match</div>':'')+matchDeskHTML(num,'sheet')+'</div>';}
 function matchOddsFor(num,h,a,ko){var ro=(!ko)&&((S._odds&&S._odds[num])||REALODDS[num]);
   if(ro){var ih=impFromAmer(ro[0]),id=impFromAmer(ro[1]),ia=impFromAmer(ro[2]),sm=ih+id+ia;
     return {h:ro[0],d:ro[1],a:ro[2],pH:ih/sm,pD:id/sm,pA:ia/sm,real:true};}
@@ -5705,7 +5782,7 @@ function betDoneFutureAdvance(){closeSheet();S.mode='sim';_brkMode='sim';TAB='br
 function betDoneFutureRoad(){var c=_betDoneCtx;if(!c||!c.code)return;closeSheet();S.mode='sim';focusTeam(c.code);}
 function betDoneParlaySim(){var c=_betDoneCtx;if(!c||c.betIndex==null)return;closeSheet();ts2Launch(c.betIndex);}
 function betDoneBuildParlay(){closeSheet();_betMode='parlay';_betCat='matches';TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0,behavior:"smooth"});toast("🎫 Parlay mode armed — tap prices to add legs");}
-function openMatchTicket(num,pick){var m=M[num];if(!m)return;var origin=ticketOriginForMode(),blocked=playMatchClosedReason(num,origin);if(blocked)return toast(blocked);var pr=fixtureTeamsForTicket(num,origin);if(!(pr&&pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";if(ko&&pick==='d')return toast("Knockout fixtures do not have a draw market");var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
+function openMatchTicket(num,pick,originOverride){var m=M[num];if(!m)return;var origin=originOverride||ticketOriginForMode(),blocked=playMatchClosedReason(num,origin);if(blocked)return toast(blocked);var pr=fixtureTeamsForTicket(num,origin);if(!(pr&&pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";if(ko&&pick==='d')return toast("Knockout fixtures do not have a draw market");var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
  var legObj={k:'m',num:num,pick:pick,odds:odds,label:sel+' · '+roundShort(num)+' #'+num,key:'m'+num+pick+origin,origin:origin};
  if(_betMode==='parlay'){addToSlip(legObj);return;}
  betTicket({title:fl(pr[0])+' '+nm(pr[0])+'  v  '+nm(pr[1])+' '+fl(pr[1]),line:sel+' · '+(origin==='official'?'Official Match Result':'Simulated What-If'),odds:odds,num:num,origin:origin,place:function(st){S.bets.push({id:nextBetId(),num:num,pick:pick,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim',origin:origin});},leg:legObj});}
