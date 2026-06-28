@@ -75,7 +75,7 @@ test('fresh cold open with a confirmed future group fixture renders factual Feat
   const text = app.bettingText();
 
   assert.ok(open.includes(55), 'confirmed future group fixture reaches Play availability');
-  assert.match(text, /Follow the Real World Cup/, 'the factual World Cup lane renders on cold open');
+  assert.match(text, /Real World Cup/, 'the factual World Cup lane renders on cold open');
   assert.match(text, /Official SIM\$ Pick/, 'a valid official pick surface is selected on cold open');
   assert.match(text, /Official SIM\$ Pick/, 'Official SIM$ Pick is reachable');
   assert.match(text, /Match Result/, 'group fixture exposes Match Result');

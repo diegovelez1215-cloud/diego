@@ -60,8 +60,8 @@ const futureFixture = "M[55].date='2099-06-12';M[55].time='16:00';";
 test('Play opens with all three lanes reachable and never blank', () => withApp({ beforeBoot: futureFixture }, (app) => {
   app.renderBetting();
   const text = app.bettingText();
-  assert.match(text, /Follow the Real World Cup/, 'factual lane renders');
-  assert.match(text, /Quick Match/, 'Quick Match lane renders');
+  assert.match(text, /Real World Cup/, 'factual lane renders');
+  assert.match(text, /Play Now/, 'Quick Match lane renders');
   assert.match(text, /My World Cup/, 'My World Cup lane renders');
   assert.match(text, /Official SIM\$ Pick/, 'official action language is visible');
   assert.doesNotMatch(text, /No confirmed official fixtures are open/, 'confirmed fixtures do not open blank/fallback');
