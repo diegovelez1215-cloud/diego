@@ -39,6 +39,9 @@ function loadApp() {
       officialMarketLabel:officialMarketLabel, matchActionZone:matchActionZone,
       playFeaturedMarketHTML:playFeaturedMarketHTML, playMoreMatchesHTML:playMoreMatchesHTML,
       finishLive:finishLive, endLive:endLive, isBetSim:isBetSim,
+      livePanelInner:livePanelInner, nm:nm,
+      livePanelMounted:function(){return !!document.getElementById('livepanel');},
+      sheetText:function(){return document.getElementById('sheet').textContent;},
       ticketCanVirtualSim:ticketCanVirtualSim, koParts:koParts,
       getTk:function(){return _tk;},
       setPlayLive:function(fn){ playLive = fn; }, realPlayLive:playLive,
@@ -216,4 +219,36 @@ test('9 · What-If is stable across surfaces — one fixture, one live match, on
   assert.equal(['Run What-If', 'Continue What-If', 'View simulated result'].indexOf(app.whatIfLabel(num)), 2);
   try { app.runWhatIf(num); } catch (e) {} // re-tap any surface → View result, never reseed
   assert.equal(JSON.stringify(app.getState().sc[num]), stored, 'the stored simulated result is identical from every surface');
+}));
+
+test('10 · Run What-If shows a visible Simulation Launch (SIMULATION, teams, 0-0, KICK OFF) before the loop advances', () => withApp((app) => {
+  setup(app);
+  const num = GROUP, m = app.M[num];
+  try { app.runWhatIf(num); } catch (e) { /* rAF/timer side-effects are deferred */ }
+  const L = app.getState().live;
+  assert.ok(L && L.num === num, 'launch created the live virtual match');
+  assert.equal(L.min, 0, 'the live loop has NOT advanced yet (still at kickoff)');
+  assert.equal(L.kickoff, true, 'still in the kickoff launch state — progression is gated on the painted surface');
+  assert.ok(L.sh === 0 && L.sa === 0, 'score is 0–0 at launch');
+  // the launch surface is actually mounted in the sheet (real mode is the default)
+  assert.equal(app.getState().mode, 'real', 'default Play mode, no mode switch performed');
+  assert.equal(app.livePanelMounted(), true, 'Simulation Launch surface is mounted/visible in the sheet');
+  assert.match(app.sheetText(), /SIMULATION/, 'mounted launch sheet shows the persistent SIMULATION marker');
+  const panel = app.livePanelInner(num);
+  assert.match(panel, /SIMULATION/, 'persistent SIMULATION marker present');
+  assert.match(panel, new RegExp(app.nm(m.home)), 'home team shown at launch');
+  assert.match(panel, new RegExp(app.nm(m.away)), 'away team shown at launch');
+  assert.match(panel, /0\s*[–-]\s*0/, 'initial 0-0 score shown at launch');
+  assert.match(panel, /KICK OFF/, 'clear kickoff moment shown at launch');
+  try { app.endLive(); } catch (e) {}
+}));
+
+test('11 · Official Picks never enter the Simulation Launch or live loop', () => withApp((app) => {
+  setup(app);
+  app.openMatchTicket(GROUP, 'h', 'official');
+  app.getTk().place(10);
+  assert.ok(!app.getState().live, 'placing an official pick never starts a virtual match');
+  const bet = app.getState().bets[app.getState().bets.length - 1];
+  assert.equal(bet.origin, 'official', 'official pick stays official');
+  assert.equal(app.ticketCanVirtualSim(bet), false, 'official ticket can never reach the simulation path');
 }));

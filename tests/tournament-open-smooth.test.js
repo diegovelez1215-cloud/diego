@@ -35,7 +35,9 @@ function loadApp() {
       resetOffsetReads:function(){window.__offsetReads=0;},
       offsetReads:function(){return window.__offsetReads;},
       scheduleText:function(){return document.getElementById('schedule').textContent;},
-      isMatchesOn:function(){return document.getElementById('scr-matches').classList.contains('on');}
+      isMatchesOn:function(){return document.getElementById('scr-matches').classList.contains('on');},
+      matchesHasEnter:function(){return document.getElementById('scr-matches').classList.contains('enter');},
+      styleText:function(){return document.querySelector('style').textContent;}
     };`);
   return dom;
 }
@@ -50,6 +52,25 @@ test('Tournament tab activation avoids forced layout while rendering Matches con
     assert.equal(app.offsetReads(), 0);
     assert.match(app.scheduleText(), /All matches/);
     assert.match(app.scheduleText(), /Mexico|World Cup|Group/i);
+  } finally {
+    dom.window.close();
+  }
+});
+
+test('Tournament activation applies one lightweight root arrival without restoring forced layout', () => {
+  const dom = loadApp();
+  try {
+    const app = dom.window.__tournamentSmoothTest;
+    app.resetOffsetReads();
+    app.switchTo('schedule');
+    // one root-level arrival treatment on the Tournament screen itself
+    assert.equal(app.matchesHasEnter(), true, 'a single root-level arrival class is applied to the Tournament screen');
+    // performance fix preserved: no forced synchronous layout on activation
+    assert.equal(app.offsetReads(), 0, 'Tournament activation never forces layout (offsetWidth)');
+    // the arrival is a subtle vertical lift + opacity scoped to the screen root (not per-row)
+    const css = app.styleText();
+    assert.match(css, /#scr-matches\.enter\{[^}]*animation:tourArrive/, 'root arrival animation is defined on the Tournament screen');
+    assert.match(css, /@keyframes tourArrive\{[^}]*translateY/, 'arrival is a vertical lift + opacity transition');
   } finally {
     dom.window.close();
   }

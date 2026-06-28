@@ -3230,6 +3230,27 @@ body[data-mode="sim"] #betting .play-empty button,body[data-mode="sim"] #betting
 .pm-row .pm-main{cursor:pointer;min-width:0}
 /* Demote the global Real Life / My Sim switch from the primary Play viewport */
 body:has(#scr-bet.on) #modebar{display:none}
+
+/* =============================================================================
+   TOURNAMENT ARRIVAL — one lightweight root-level entrance (lift + opacity).
+   Pre-sets the entering state so the rAF-applied .enter animates cleanly with no
+   flash, preserving the no-forced-reflow performance fix. ~200ms, iPhone-native.
+   ========================================================================== */
+#scr-matches.on:not(.enter){opacity:0;transform:translateY(8px)}
+#scr-matches.enter{animation:tourArrive .2s cubic-bezier(.22,.61,.36,1) both}
+@keyframes tourArrive{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#scr-matches.on{opacity:1!important;transform:none!important}#scr-matches.enter{animation:none!important}}
+
+/* =============================================================================
+   SIMULATION LAUNCH — Matchcast Lite: persistent SIMULATION marker + a calm,
+   cinematic kickoff surface (deep navy, restrained gold, subtle stadium light).
+   ========================================================================== */
+.lv-sim{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#241803;background:linear-gradient(135deg,var(--play-gold,#EFC56C),#D9A94A);border-radius:999px;padding:3px 9px;line-height:1.3}
+.livev2.kickoff{min-height:288px!important;border:1px solid rgba(239,197,108,.24)!important;background:linear-gradient(180deg,rgba(22,17,7,.66),rgba(7,10,22,.92))!important;position:relative;overflow:hidden}
+.livev2.kickoff::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 70% at 50% -8%,rgba(239,197,108,.16),transparent 60%)}
+.livev2.kickoff>*{position:relative;z-index:1}
+.livev2.kickoff .lv-phase{color:var(--play-gold,#EFC56C);font-weight:900;letter-spacing:1.2px}
+.livev2.kickoff .lv-num{font-size:34px;letter-spacing:-.5px}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -3817,9 +3838,19 @@ function playLive(num){if(S.live&&S.live.num===num)return;endLive();var m=M[num]
   var xg=xgFor(h,a);var isKO=m.stage!=="group";
   S.live={num:num,h:h,a:a,isKO:isKO,min:0,sh:0,sa:0,momo:0,momoHist:[],ev:[],feed:[],comm:"🟢 KICK OFF — "+nm(h)+" v "+nm(a)+" is under way",commGoal:false,paused:false,xgH:xg[0],xgA:xg[1],xgHc:0,xgAc:0,xgHist:[],shtH:0,shtA:0,sotH:0,sotA:0,ylwH:0,ylwA:0,kickoff:true};
   openSheet(num);if(SOUND)sfxWhistle();requestWake();try{haptic('goal');}catch(e){}try{pitchStart();}catch(e){}
-  // bring the live match front-and-centre so you never miss kick-off, then a short cinematic beat before the clock runs
-  setTimeout(function(){var lp=document.getElementById("livePitchWrap")||document.getElementById("livepanel");if(lp){try{lp.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){try{lp.scrollIntoView();}catch(_){}}}},70);
-  liveTimers.push(setTimeout(function(){if(S.live&&S.live.num===num){S.live.kickoff=false;liveLoop(num);}},1150));}
+  /* Simulation Launch must be visibly mounted and painted BEFORE any live
+     progression: bring the launch surface front-and-centre on the first frame,
+     then start the kickoff count-in only after a second frame confirms it has
+     rendered. The engine, seed and persistence are unchanged — this only gates
+     when the existing live loop is allowed to advance. */
+  var _raf=window.requestAnimationFrame||function(f){return setTimeout(f,16);};
+  _raf(function(){
+    var lp=document.getElementById("livePitchWrap")||document.getElementById("livepanel");
+    if(lp){try{lp.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){try{lp.scrollIntoView();}catch(_){}}}
+    _raf(function(){
+      liveTimers.push(setTimeout(function(){if(S.live&&S.live.num===num&&S.live.kickoff){S.live.kickoff=false;liveLoop(num);}},900));
+    });
+  });}
 function liveLoop(num){clearLive();
   liveTimers.push(setTimeout(function tick(){
     var L=S.live;if(!L||L.num!==num)return;
@@ -3958,7 +3989,7 @@ function livePanelInner(num){var L=S.live;if(!L)return "";
   var detail=momoStripHTML(L)+liveStatsHTML(L)+xgTimelineHTML(L)+feed;
   var goalTag=L.commGoal?'<span class="lv-goaltag">⚽ GOAL</span>':(L.redFlash?'<span class="lv-goaltag red">🟥 RED</span>':(L.varReview?'<span class="lv-goaltag var">⏸ VAR</span>':''));
   return '<div class="livev2'+((L.varReview||L.suspended)?' suspended':'')+(L.kickoff?' kickoff':'')+'">'
-   +'<div class="lv-top"><span class="lv-clock">'+L.min+"'</span><span class=\"lv-phase\">"+(L.varReview?'VAR REVIEW':phase)+'</span><span class="lv-live">'+(live?'<span class="dotlive"></span>LIVE':'FT')+'</span></div>'
+   +'<div class="lv-top"><span class="lv-sim">SIMULATION</span><span class="lv-clock">'+L.min+"'</span><span class=\"lv-phase\">"+(L.varReview?'VAR REVIEW':phase)+'</span><span class="lv-live">'+(live?'<span class="dotlive"></span>LIVE':'FT')+'</span></div>'
    +'<div class="lv-score'+(L.commGoal?' goalflash':'')+(L.redFlash?' redflash':'')+'"><div class="lv-team"><span class="fl">'+fl(L.h)+'</span><div class="nm">'+nm(L.h)+(L.ylwH?' 🟨'+(L.ylwH>1?L.ylwH:''):'')+(L.redH?' 🟥':'')+'</div></div><div class="lv-num">'+L.sh+' – '+L.sa+goalTag+'</div><div class="lv-team"><span class="fl">'+fl(L.a)+'</span><div class="nm">'+nm(L.a)+(L.ylwA?' 🟨'+(L.ylwA>1?L.ylwA:''):'')+(L.redA?' 🟥':'')+'</div></div></div>'
    +momo+betTicker
    +'<div class="lv-ticker'+(L.commGoal?' goal':'')+'" aria-live="polite"><span class="tk-min">'+L.min+"'</span><span>"+esc(L.comm)+'</span></div>'
@@ -8188,6 +8219,11 @@ function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group
   var _mct=matchCenterTruth(num);
   var _locked=_mct&&(_mct.phase==='final'||_mct.phase==='live'||_mct.phase==='hold');
   inner+=matchCenterStripHTML(num,_mct,factualMode);
+  /* Simulation Launch surface: a running What-If must be visible in EVERY mode.
+     In sim mode sheetExtra() already mounts #livepanel; in Real mode sheetExtra is
+     skipped, so mount the launch surface here (once — no duplicate id) right under
+     the score so the kickoff is the first thing the user sees. */
+  if(factualMode&&S.live&&S.live.num===num){inner+='<div id="livePitchWrap" class="pitchwrap"></div><div class="livewrap" id="livepanel">'+livePanelInner(num)+'</div>';}
   if(ko){
     // Prediction picker only for an open tie with no official/live truth.
     if(ph&&pa&&!_locked&&!factualMode){const w=S.ko[num];inner+=`<div class="sh-pick"><button class="${w===ph?'on':''}" onclick="setKo(${num},'${ph}');sheet(${num})">${fl(ph)} ${nm(ph)}</button><button class="${w===pa?'on':''}" onclick="setKo(${num},'${pa}');sheet(${num})">${fl(pa)} ${nm(pa)}</button></div>`;}
