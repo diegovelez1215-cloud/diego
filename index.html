@@ -3138,6 +3138,62 @@ html,body{overflow-x:hidden!important}
 .strow .pts{color:#F5F7FF!important;font-weight:900!important}
 .strow.head{color:var(--mut2)!important}
 .strow .n{color:var(--mut)!important}
+
+/* =============================================================================
+   PLAY VISUAL POLISH — Real Life (factual blue, official) vs My Sim (warm gold,
+   cinematic) made unmistakable. CSS-only, scoped to #betting + the mode control.
+   ========================================================================== */
+
+/* Mode control identity: Real Life = factual blue, My Sim = warm gold */
+.modebar.real .mode-seg button.on{color:var(--official)!important}
+.modebar.real .mode-tag b{color:var(--official)!important}
+.modebar.sim .mode-seg button.on{color:var(--play-gold)!important}
+.modebar.sim .mode-tag b{color:var(--play-gold)!important}
+
+/* No marquee sweep on the Play hero (removes marketing-banner energy) */
+.play-hero::after{display:none!important;animation:none!important}
+
+/* ---- Play hero: mode-expressive identity, calm depth --------------------- */
+#betting .play-hero{border-radius:18px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 40px -26px rgba(0,0,0,.85)!important}
+body[data-mode="real"] #betting .play-hero{border-color:rgba(94,168,255,.26)!important;background:linear-gradient(150deg,rgba(20,40,72,.58),rgba(9,15,32,.92) 56%,rgba(8,12,26,.94))!important}
+body[data-mode="real"] #betting .play-hero::before{background:radial-gradient(78% 78% at 100% 0,rgba(94,168,255,.15),transparent 58%)!important}
+body[data-mode="sim"] #betting .play-hero{border-color:rgba(239,197,108,.30)!important;background:linear-gradient(150deg,rgba(40,30,10,.5),rgba(8,11,26,.94) 54%,rgba(6,9,20,.96))!important}
+body[data-mode="sim"] #betting .play-hero::before{background:radial-gradient(82% 82% at 100% 0,rgba(239,197,108,.16),transparent 56%)!important} /* warm stadium-light spill */
+
+/* SIM$ disclosure: always clearly SIM$ — calm blue in Real, gold in My Sim */
+body[data-mode="real"] #betting .play-disclosure{color:var(--official-soft)!important;border-color:rgba(94,168,255,.32)!important;background:rgba(94,168,255,.10)!important}
+body[data-mode="sim"] #betting .play-disclosure{color:var(--play-gold-soft)!important;border-color:rgba(239,197,108,.34)!important;background:rgba(239,197,108,.12)!important}
+body[data-mode="real"] #betting .play-social-link span{color:var(--official-soft)!important}
+body[data-mode="sim"] #betting .play-social-link span{color:var(--play-gold)!important}
+
+/* ---- Featured market (the lead): mode-colored, scannable ----------------- */
+body[data-mode="real"] #betting .play-feature{border-color:rgba(94,168,255,.20)!important;background:linear-gradient(180deg,rgba(20,34,60,.5),rgba(255,255,255,.02))!important}
+body[data-mode="sim"] #betting .play-feature{border-color:rgba(239,197,108,.22)!important;background:linear-gradient(180deg,rgba(36,28,10,.42),rgba(255,255,255,.02))!important}
+body[data-mode="real"] #betting .pf-k{color:var(--official-soft)!important}   /* "Official fixture · MARKET ODDS" */
+body[data-mode="sim"] #betting .pf-k{color:var(--play-gold)!important}        /* "Simulate What-If · SIMULATED" */
+body[data-mode="real"] #betting .pf-choice b{color:var(--official-soft)!important}
+body[data-mode="sim"] #betting .pf-choice b{color:var(--play-gold)!important}
+body[data-mode="real"] #betting .pf-choice.on{border-color:rgba(94,168,255,.6)!important;background:linear-gradient(180deg,rgba(94,168,255,.22),rgba(255,255,255,.05))!important;box-shadow:0 10px 28px -18px rgba(94,168,255,.85)!important}
+body[data-mode="real"] #betting .pf-add:not(.dis){background:linear-gradient(135deg,var(--official),#3E86E8)!important;color:#06132A!important}
+body[data-mode="sim"] #betting .pf-add:not(.dis){background:linear-gradient(135deg,var(--play-gold),#D9A94A)!important;color:#241803!important}
+
+/* ---- More matches + match cards: mode-colored actions -------------------- */
+body[data-mode="real"] #betting .pm-act{border-color:rgba(94,168,255,.30)!important;background:rgba(94,168,255,.10)!important;color:var(--official-soft)!important}
+body[data-mode="sim"] #betting .pm-act{border-color:rgba(239,197,108,.30)!important;background:rgba(239,197,108,.10)!important;color:var(--play-gold)!important}
+body[data-mode="real"] #betting .play-section-head button{color:var(--official-soft)!important}
+body[data-mode="sim"] #betting .play-section-head button{color:var(--play-gold)!important}
+#betting .bmc.ko{border-color:var(--line)!important}                          /* drop pink KO border on factual cards */
+body[data-mode="sim"] #betting .bmc-cell .co{color:var(--play-gold)!important}
+body[data-mode="sim"] #betting .bmc-cell:active{border-color:var(--play-gold)!important;background:rgba(239,197,108,.12)!important}
+
+/* ---- Ticket sheet (transient): keep the active universe coherent --------- */
+body[data-mode="sim"] #sheet .tk-place:not(.dis){background:linear-gradient(180deg,#EFC56C,#D9A94A)!important;color:#241803!important;box-shadow:0 8px 22px -8px rgba(239,197,108,.55)!important}
+body[data-mode="sim"] #sheet .tk-odds{color:var(--play-gold)!important}
+
+/* ---- empty / unavailable states: calm and guided ------------------------- */
+#betting .play-empty,#betting .emptyst{border-color:var(--line)!important;background:rgba(255,255,255,.03)!important}
+body[data-mode="real"] #betting .play-empty button,body[data-mode="real"] #betting .emptyst button{border-color:rgba(94,168,255,.28)!important;color:var(--official-soft)!important}
+body[data-mode="sim"] #betting .play-empty button,body[data-mode="sim"] #betting .emptyst button{border-color:rgba(239,197,108,.28)!important;color:var(--play-gold)!important}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
