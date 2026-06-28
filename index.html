@@ -3902,7 +3902,7 @@ function sheetExtra(num,h,a,ko){const real=S.real&&S.real[num];const played=ko?S
   else if(played){}
   else out+='<div class="bethint">↑ Tap a price above to place a bet</div>';
   if(canBet&&!ko){try{out+=sgpSuggestionsHTML(num,h,a);}catch(e){}out+='<div class="mlh" style="margin-top:13px">More markets · tap a price (adds to your slip too)</div>'+marketAccordions(num,h,a);}
-  if(!real&&!played&&!(S.live&&S.live.num===num))out+='<button class="tbtn purp" style="width:100%;justify-content:center;margin-top:11px" onclick="playLive('+num+')">▶ Play Simulation · SIMULATED $</button>';
+  if(!real&&!played&&!(S.live&&S.live.num===num))out+='<button class="tbtn purp" style="width:100%;justify-content:center;margin-top:11px" onclick="whatIfChallengeSheet('+num+',null)">▶ What-If Match · SIM$ Challenge</button>';
   out+='<div class="fatblk"><div class="mlh">Form &amp; fatigue · estimated from match load</div>'+condMeter(h)+condMeter(a)+'</div>';
   return out;}
 
@@ -4344,7 +4344,7 @@ function todayRailHTML(seen){
  var today=curISO(),tomorrow=nextISO(today),todayAll=homeTodayFixtures();
  var laterW=kickoffWindowModel({iso:today,seen:seen}),tomoW=kickoffWindowModel({iso:tomorrow,seen:seen});
  var later=kickoffWindowFixtureNums(laterW),tomo=kickoffWindowFixtureNums(tomoW);
- var doneToday=todayAll.length;
+ var doneToday=todayAll.filter(function(m){return !!truthOfficialFinalScore(m.num);}).length;
  var headLabel,headSub,headDate='',body='';
  if(later.length){
   headLabel='Later today';
@@ -5063,15 +5063,41 @@ function bigMatchCard(num){var m=M[num];var ko=m.stage!=="group";var pr=ko?koPar
 
 function playRecordHTML(){var settled=(S.bets||[]).filter(function(b){return b.settled&&canonicalBetState(b)!=='void';}),wins=settled.filter(function(b){return canonicalBetState(b)==='won';}).length;var open=(S.bets||[]).filter(function(b){return !b.settled;}).length;var streak=0;for(var i=settled.length-1;i>=0;i--){if(canonicalBetState(settled[i])==='won')streak++;else break;}return wins+'-'+Math.max(0,settled.length-wins)+(streak?' · '+streak+'W streak':'')+(open?' · '+open+' open':'');}
 function playHeaderHTML(){return '<div class="play-hero"><div class="play-head2"><div><div class="play-title">Play</div><div class="play-disclosure">SIM $ · NO REAL MONEY</div></div><div class="play-wallet"><span>Virtual balance</span><b>$'+S.bank.toLocaleString()+'</b><em class="play-record">'+esc(playRecordHTML())+'</em></div></div><button class="play-social-link" onclick="goSocial()">Friendly leaderboard <span>View</span></button></div>';}
-function playOpenMatches(){return MATCHES.filter(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num),st=matchLiveState(m.num);var played=(m.stage==='group'?S.sc[m.num]:S.ko[m.num]);return !st&&!played&&!(S.real&&S.real[m.num])&&!playMatchClosedReason(m.num)&&pr[0]&&pr[1]&&(m.stage==='group'||allDone());}).sort(function(x,y){var kx=(x.date||'')+' '+(x.time||'')+' '+('000'+x.num).slice(-3),ky=(y.date||'')+' '+(y.time||'')+' '+('000'+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;});}
-function playMatchClosedReason(num){if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num])return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num))return 'Markets for this match are closed';return '';}
+function playFixtureTeams(num){var m=M[num];if(!m)return[null,null];if(m.stage==='group')return[m.home,m.away];var named=(typeof truthProviderNamedKOFixture==='function')?truthProviderNamedKOFixture(num):null;if(named)return[named.home,named.away];return koParts(num);}
+function playOpenMatches(){return MATCHES.filter(function(m){var pr=playFixtureTeams(m.num),st=matchLiveState(m.num);var played=(m.stage==='group'?S.sc[m.num]:S.ko[m.num]);return !st&&!played&&!(S.real&&S.real[m.num])&&!playMatchClosedReason(m.num)&&pr[0]&&pr[1]&&(m.stage==='group'||allDone()||!!truthProviderNamedKOFixture(m.num));}).sort(function(x,y){var kx=(x.date||'')+' '+(x.time||'')+' '+('000'+x.num).slice(-3),ky=(y.date||'')+' '+(y.time||'')+' '+('000'+y.num).slice(-3);return kx<ky?-1:kx>ky?1:0;});}
+function playMatchClosedReason(num){if(S.real&&S.real[num])return 'Official result confirmed';if(S.sc&&S.sc[num]&&!isBetSim(num))return 'Markets for this match are closed';var hold=matchHoldState(num);if(hold)return (safeStatusText(hold.label,'Match delayed'))+' · tickets stay pending';var live=matchLiveState(num);if(live&&live.kind==='live')return 'Match already started';if(livePendingOfficial(num))return 'Live update pending official feed';if(marketPastKickoff(num)&&!isBetSim(num))return 'Markets for this match are closed';return '';}
 function playSelectPick(num,pick){S.playPick={num:num,pick:pick};try{haptic('pick');}catch(e){}renderBetting();arriveAt('#playFeaturedMarket','Selection ready',40);}
-function playOpenSelected(){var p=S.playPick;if(!p||p.num==null||!p.pick)return toast('Choose an outcome first');openMatchTicket(p.num,p.pick);}
-function playPickText(num,pick){var m=M[num],pr=m.stage==='group'?[m.home,m.away]:koParts(num);return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
-function playFeaturedMarketHTML(){var arr=playOpenMatches();if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible simulated match markets open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=ko?koParts(m.num):[m.home,m.away],o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num)||to12(m.time);return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>Featured match · MARKET ODDS</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add'+(!pick?' dis':'')+'" onclick="playOpenSelected()">'+(pick?'Add '+esc(playPickText(m.num,pick))+' to bet slip':'Choose an outcome')+'</button></div>';}
+function playOpenSelected(){var p=S.playPick;if(!p||p.num==null||!p.pick)return toast('Choose an outcome first');whatIfChallengeSheet(p.num,p.pick);}
+function playPickText(num,pick){var pr=playFixtureTeams(num);return pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);}
+function playFeaturedMarketHTML(){var arr=playOpenMatches();if(!arr.length)return '<div class="play-empty"><b>Market odds are unavailable right now.</b>There are no eligible simulated match markets open. Official Tournament info still works normally.<button onclick="goSchedule()">Open Tournament</button></div>';var m=arr[0],ko=m.stage!=='group',pr=playFixtureTeams(m.num),o=matchOddsFor(m.num,pr[0],pr[1],ko),pick=S.playPick&&S.playPick.num===m.num?S.playPick.pick:null;var choices=[['h',ko?nm(pr[0])+' To Advance':nm(pr[0])+' Win',o.h],['d','Draw',o.d],['a',ko?nm(pr[1])+' To Advance':nm(pr[1])+' Win',o.a]].filter(function(c){return !ko||c[0]!=='d';});var status=playMatchClosedReason(m.num)||to12(m.time);return '<div class="play-feature" id="playFeaturedMarket"><div class="pf-k"><span>What-If arcade · SIM$ Challenge</span><span>'+esc(status)+'</span></div><div class="pf-match"><div class="pf-team"><span class="fl">'+fl(pr[0])+'</span><b>'+esc(nm(pr[0]))+'</b></div><div class="pf-vs"><b>'+roundShort(m.num)+'</b>'+esc(to12(m.time))+'</div><div class="pf-team r"><span class="fl">'+fl(pr[1])+'</span><b>'+esc(nm(pr[1]))+'</b></div></div><div class="pf-choice-grid">'+choices.map(function(c){return '<button class="pf-choice'+(pick===c[0]?' on':'')+'" onclick="playSelectPick('+m.num+',\''+c[0]+'\')"><span>'+esc(c[1])+'</span><b>'+fmtAmer(c[2])+'</b></button>';}).join('')+'</div><button class="pf-add" onclick="'+(pick?'playOpenSelected()':'whatIfChallengeSheet('+m.num+',null)')+'">'+(pick?'Start '+esc(playPickText(m.num,pick))+' Challenge':'Open What-If Match')+'</button></div>';}
+function whatIfChallengeSheet(num,prePick){
+ var m=M[num],blocked=playMatchClosedReason(num);if(!m)return;if(blocked)return toast(blocked);
+ var ko=m.stage!=='group',pr=playFixtureTeams(num);if(!(pr[0]&&pr[1]))return toast('Teams not set yet');
+ var o=matchOddsFor(num,pr[0],pr[1],ko),pick=prePick||'',title=fl(pr[0])+' '+nm(pr[0])+'  v  '+nm(pr[1])+' '+fl(pr[1]);
+ function btn(pk,label,od){return '<button class="pf-choice'+(pick===pk?' on':'')+'" onclick="whatIfSetPick(\''+pk+'\')"><span>'+esc(label)+'</span><b>'+fmtAmer(od)+'</b></button>';}
+ var choices=btn('h',ko?nm(pr[0])+' To Advance':nm(pr[0])+' Win',o.h)+(ko?'':btn('d','Draw',o.d))+btn('a',ko?nm(pr[1])+' To Advance':nm(pr[1])+' Win',o.a);
+ var html='<div class="grab"></div><div class="tk" id="whatIfChallenge" data-num="'+num+'" data-pick="'+esc(pick)+'"><div class="tk-h">SIM$ Challenge</div><div class="tk-summary"><span>What-If matchup</span><b>'+esc(title)+'</b><em>Choose a call or skip. It locks at kickoff.</em></div>'
+  +'<div class="pf-choice-grid">'+choices+'</div><div class="tk-stakebox"><span>$</span><input id="whatIfStake" type="number" inputmode="numeric" min="1" max="'+Math.max(0,Math.floor(S.bank))+'" value="'+tkDefaultStake()+'" '+(S.bank<=0?'disabled':'')+'></div>'
+  +'<button class="tk-place" onclick="whatIfRunChallenge()">Run Match</button><button class="tk-remove" onclick="whatIfSkipChallenge()">Skip Challenge</button></div>';
+ document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');
+}
+function whatIfSetPick(p){var root=document.getElementById('whatIfChallenge');if(!root)return;root.setAttribute('data-pick',p);try{root.querySelectorAll('.pf-choice').forEach(function(b){b.classList.remove('on');});if(event&&event.currentTarget)event.currentTarget.classList.add('on');}catch(e){}}
+function whatIfRunChallenge(){var root=document.getElementById('whatIfChallenge');if(!root)return;var num=+root.getAttribute('data-num'),pick=root.getAttribute('data-pick')||'';if(!pick)return toast('Choose a SIM$ Challenge or Skip Challenge');var st=Math.floor(+(document.getElementById('whatIfStake')&&document.getElementById('whatIfStake').value)||0);if(!(st>0))return toast('Enter a stake or Skip Challenge');if(st>S.bank)return toast('Insufficient bankroll');whatIfStart(num,pick,st);}
+function whatIfSkipChallenge(){var root=document.getElementById('whatIfChallenge');if(!root)return;whatIfStart(+root.getAttribute('data-num'),null,0);}
+function whatIfStart(num,pick,stake){
+ var m=M[num],blocked=playMatchClosedReason(num);if(!m)return;if(blocked)return toast(blocked);
+ var ko=m.stage!=='group',pr=playFixtureTeams(num);if(!(pr[0]&&pr[1]))return toast('Teams not set yet');
+ var target=null;
+ if(pick){
+  var o=matchOddsFor(num,pr[0],pr[1],ko),odds=pick==='h'?o.h:pick==='d'?o.d:o.a,sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
+  S.bank-=stake;target={id:nextBetId(),num:num,pick:pick,stake:stake,odds:odds,settled:false,state:'pending',sourceMode:'sim',virtualChallenge:true};
+  S.bets.push(target);try{addXP(10);}catch(e){}
+ }
+ closeSheet();try{var sh=document.getElementById('sheet');if(sh)sh.innerHTML='';}catch(e){}ts2LaunchWhatIf(num,target);
+}
 function playLiveClosedHTML(){var rows=[];if(S.rwState){Object.keys(S.rwState).forEach(function(k){var st=S.rwState[k],m=M[k];if(!st||!m||(st.kind!=='live'&&st.kind!=='hold'))return;var pr=m.stage==='group'?[m.home,m.away]:koParts(+k);if(!(pr[0]&&pr[1]))return;rows.push({num:+k,st:st,pr:pr});});}
   if(!rows.length)return '';return '<div class="play-live-closed"><div class="plc-head"><b>Live matches</b><span>Markets closed</span></div>'+rows.slice(0,3).map(function(r){var st=r.st,score=(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa);return '<div class="plc-row"><div class="plc-main"><div class="plc-teams">'+fl(r.pr[0])+' '+esc(nm(r.pr[0]))+' '+esc(score)+' '+esc(nm(r.pr[1]))+' '+fl(r.pr[1])+'</div><div class="plc-meta">'+esc(safeStatusText(st.label,'Live'))+' · Awaiting settlement</div></div><button onclick="openMatchDetails('+r.num+')">Match Details</button></div>';}).join('')+'</div>';}
-function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7);if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=m.stage==='group'?[m.home,m.away]:koParts(m.num);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · MARKET ODDS</div></div><button class="pm-act" onclick="sheet('+m.num+')">Markets</button></div>';}).join('')+'</div>';}
+function playMoreMatchesHTML(){var arr=playOpenMatches().slice(1,7);if(!arr.length)return '';return '<div class="play-section-head"><b>More matches</b><button onclick="setBetCatFocus(\'matches\',\'All markets ready\')">All markets</button></div><div class="play-more-list">'+arr.map(function(m){var pr=playFixtureTeams(m.num);return '<div class="pm-row"><div class="pm-main"><div class="pm-teams">'+fl(pr[0])+' '+esc(nm(pr[0]))+' vs '+esc(nm(pr[1]))+' '+fl(pr[1])+'</div><div class="pm-meta">'+esc(roundName(m.num))+' · '+esc(to12(m.time))+' · MARKET ODDS</div></div><button class="pm-act" onclick="sheet('+m.num+')">Markets</button></div>';}).join('')+'</div>';}
 function playLearnHTML(){try{if(localStorage.getItem('wc26_play_edu')==='1')return '';}catch(e){}return '<div class="play-learn" id="playLearn"><button class="learn-x" onclick="dismissPlayLearn()">Hide</button><b>How simulated picks work</b>Pick an outcome, choose a stake, then watch your simulated ticket settle only when the match result is official or when you run a My Sim match.</div>';}
 function dismissPlayLearn(){try{localStorage.setItem('wc26_play_edu','1');}catch(e){}var el=document.getElementById('playLearn');if(el)el.remove();}
 function playLandingHTML(){return playHeaderHTML()+playLiveClosedHTML()+playFeaturedMarketHTML()+playMoreMatchesHTML()+playLearnHTML();}
@@ -5605,7 +5631,7 @@ function betPlacedTray(ctx){
  try{haptic('win');}catch(e){}}
 function betDoneSim(){var c=_betDoneCtx;if(!c||c.num==null)return;closeSheet();
   var idx=-1;for(var i=S.bets.length-1;i>=0;i--){var b=S.bets[i];if(!b.settled&&(b.kind===undefined||b.kind==='mkt')&&b.num===c.num){idx=i;break;}}
-  if(idx>=0)ts2Launch(idx);else{sheet(c.num);try{playLive(c.num);}catch(e){}}}
+  if(idx>=0)ts2Launch(idx);else whatIfChallengeSheet(c.num,null);}
 function betDoneAnother(){var c=_betDoneCtx;if(!c||c.num==null)return;_betMode='single';closeSheet();sheet(c.num);}
 function betDoneParlay(){var c=_betDoneCtx;closeSheet();if(c&&c.leg){_betMode='parlay';try{addToSlip(c.leg);}catch(e){}try{openSlip();}catch(e){}}}
 function betDoneMyBets(){closeSheet();goMyBets();}
@@ -5614,7 +5640,7 @@ function betDoneFutureAdvance(){closeSheet();S.mode='sim';_brkMode='sim';TAB='br
 function betDoneFutureRoad(){var c=_betDoneCtx;if(!c||!c.code)return;closeSheet();S.mode='sim';focusTeam(c.code);}
 function betDoneParlaySim(){var c=_betDoneCtx;if(!c||c.betIndex==null)return;closeSheet();ts2Launch(c.betIndex);}
 function betDoneBuildParlay(){closeSheet();_betMode='parlay';_betCat='matches';TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0,behavior:"smooth"});toast("🎫 Parlay mode armed — tap prices to add legs");}
-function openMatchTicket(num,pick){var m=M[num];if(!m)return;var blocked=playMatchClosedReason(num);if(blocked)return toast(blocked);var pr=m.stage==="group"?[m.home,m.away]:koParts(num);if(!(pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
+function openMatchTicket(num,pick){var m=M[num];if(!m)return;var blocked=playMatchClosedReason(num);if(blocked)return toast(blocked);var pr=playFixtureTeams(num);if(!(pr[0]&&pr[1]))return toast("Teams not set yet");var ko=m.stage!=="group";var o=matchOddsFor(num,pr[0],pr[1],ko);var odds=pick==='h'?o.h:pick==='d'?o.d:o.a;if(!isFinite(odds))return toast("Market odds are unavailable right now");var sel=pick==='h'?nm(pr[0]):pick==='d'?'Draw':nm(pr[1]);
  var legObj={k:'m',num:num,pick:pick,odds:odds,label:sel+' · '+roundShort(num)+' #'+num,key:'m'+num+pick};
  if(_betMode==='parlay'){addToSlip(legObj);return;}
  betTicket({title:fl(pr[0])+' '+nm(pr[0])+'  v  '+nm(pr[1])+' '+fl(pr[1]),line:sel+' · Match Result',odds:odds,num:num,place:function(st){S.bets.push({id:nextBetId(),num:num,pick:pick,stake:st,odds:odds,settled:false,state:'pending',sourceMode:'sim'});},leg:legObj});}
@@ -6145,7 +6171,7 @@ function instantSimMatch(num){var m=M[num];if(!m)return false;
   if(matchHoldState(num))return false;
   if(S.real&&S.real[num])return false;            // a real result already decides it
   if(S.sc[num]&&!isBetSim(num))return false;      // your own My-Sim prediction — respect it
-  var H,A;if(m.stage==="group"){H=m.home;A=m.away;}else{var p=koParts(num);H=p[0];A=p[1];if(!(H&&A))return false;}
+  var p=playFixtureTeams(num),H=p[0],A=p[1];if(!(H&&A))return false;
   S.simNonce=(S.simNonce||0)+1;
   var result=premiumSimMatch(num,{home:H,away:A,knockout:m.stage!=="group",replayKey:'instant:'+num+':'+(S.bets&&S.bets.length||0)+':'+S.simNonce});
   if(!result)return false;
@@ -6548,6 +6574,8 @@ function r32SlotTeam(raw,matchNum){
 }
 function r32FixtureStates(){
   return [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].map(function(n){
+    var named=(typeof truthProviderNamedKOFixture==='function')?truthProviderNamedKOFixture(n):null;
+    if(named)return {matchNum:n,home:named.home,away:named.away,rawHome:M[n].home,rawAway:M[n].away,state:'confirmed_pairing',pendingSlots:[],source:named.source||'official_provider_fixture'};
     var raw=[M[n].home,M[n].away];
     var p=[r32SlotTeam(raw[0],n),r32SlotTeam(raw[1],n)];
     var pending=[];
@@ -6571,7 +6599,7 @@ function tournamentPhaseState(){
   var allQual=fdAllQualifiersResolved(),r32Ready=r32PairingsConfirmed();
   var phase='group_stage';
   if(!allGroupsFinal)phase=finalGroups.length?'final_matchday':'group_stage';
-  else if(!allQual||!r32Ready)phase='groups_resolving';
+  else if(!r32Ready)phase='groups_resolving';
   else if(!knockoutRoundComplete([73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]))phase='round_of_32';
   else if(!knockoutRoundComplete([89,90,91,92,93,94,95,96]))phase='round_of_16';
   else if(!knockoutRoundComplete([97,98,99,100]))phase='quarterfinal';
@@ -9069,7 +9097,7 @@ function ts2Legs(targets){
 }
 /* graceful fallback when a match is already decided (real result / prior pick) */
 function ts2SynthResult(num){
-  var m=M[num],pr=m.stage==='group'?[m.home,m.away]:koParts(num),s=S.sc[num]||{h:0,a:0};
+  var m=M[num],pr=playFixtureTeams(num),s=S.sc[num]||{h:0,a:0};
   var adv=m.stage!=='group'?(S.ko[num]||(s.h>=s.a?pr[0]:pr[1])):null;
   return {kind:'ticket_simulation_2',num:num,teams:{h:pr[0],a:pr[1]},period:'final',minute:90,
     score:{h:s.h,a:s.a},regulationScore:{h:s.h,a:s.a},extraTimeScore:{h:s.h,a:s.a},shootout:null,advancingTeam:adv,
@@ -9113,10 +9141,33 @@ function ts2Launch(idx){
   ts2OpenStage();
   ts2PlayLeg(0,false);
 }
+function ts2LaunchWhatIf(num,target){
+  var m=M[num];if(!m)return;
+  ts2Cancel();
+  if(!instantSimMatch(num))return toast('Could not start What-If');
+  revalidateKO();
+  var result=S._lastTicketSim;if(!result)return toast('Could not start What-If');
+  var pr=playFixtureTeams(num),label=target?betLabel(target):(nm(pr[0])+' v '+nm(pr[1])+' · Skip Challenge');
+  var lg={betIndex:target?S.bets.indexOf(target):-1,num:num,pick:target?target.pick:null,label:label,parlay:false,result:result,simple:target?ts2Simple(target.pick):false,finalState:target?ts2FinalState(result,target.pick):'skip'};
+  var ret={type:'what_if',num:num,tab:TAB,cat:_betCat,scroll:(window.scrollY||0),when:Date.now()};
+  _ts2={idx:null,targets:target?[target]:[],legs:[lg],results:(function(){var o={};o[num]=result;return o;})(),bankStart:S.bank,settled:false,
+        settleTargetsOnly:true,arcade:true,whatIfTitle:'What-If · '+nm(pr[0])+' v '+nm(pr[1]),
+        speed:(_ts2&&_ts2.speed)||'cinematic',replayKey:result.replayKey,cur:0,phase:'play',
+        stakeTotal:target?(target.stake||0):0,maxPayout:target?Math.round((target.stake||0)*amerToDec(target.odds||0)):0,
+        _cashedOut:false,cashOutAmount:0,_cashPending:null,returnCtx:ret};
+  try{S._ts2={replayKey:_ts2.replayKey,when:Date.now()};}catch(e){}
+  try{haptic('tap');}catch(e){}
+  ts2OpenStage();
+  ts2PlayLeg(0,false);
+}
 /* settle the wallet exactly once through the existing path */
 function ts2Finalize(){
   if(!_ts2||_ts2.settled)return;
-  _suppressSettleToast=true;try{settleAllBets();}catch(e){}_suppressSettleToast=false;
+  _suppressSettleToast=true;try{
+    if(_ts2.settleTargetsOnly){
+      (_ts2.targets||[]).forEach(function(b){if(!b||b.settled)return;var o=betOutcome(b.num);settleTicket(b,o==null?null:(o===b.pick?'win':'lose'));});
+    }else settleAllBets();
+  }catch(e){}_suppressSettleToast=false;
   _ts2.settled=true;try{saveState();}catch(e){}
 }
 function ts2Close(){ts2Cancel();ts2Finalize();var o=document.getElementById('ts2');if(o)o.remove();_ts2=null;try{render();}catch(e){}}
@@ -9243,7 +9294,7 @@ function ts2OpenStage(){
 }
 function ts2RenderTop(){
   var el=document.getElementById('ts2top');if(!el||!_ts2)return;var t=_ts2;
-  var title=t.idx==null?'Open ticket · all legs':(t.targets[0]?betLabel(t.targets[0]):'Ticket');
+  var title=t.whatIfTitle||(t.idx==null?'Open ticket · all legs':(t.targets[0]?betLabel(t.targets[0]):'Ticket'));
   var nL=t.legs.length,bankCls=S.bank>t.bankStart?'up':(S.bank<t.bankStart?'dn':'');
   el.innerHTML='<div class="ts2-trow">'
    +'<button class="ts2-x" onclick="ts2Close()" aria-label="Close Matchday">✕</button>'
@@ -9251,9 +9302,10 @@ function ts2RenderTop(){
    +'<div class="ts2-bank"><b class="'+bankCls+'">$'+S.bank.toLocaleString()+'</b><span>Virtual bank</span></div>'
    +'</div>'
    +'<div class="ts2-legal"><span>SIM $</span><span>No real money</span><span>Does not affect official results</span></div>'
-   +'<div class="ts2-ctrl"><button class="ts2-skip" disabled>Watch live</button>'
-   +'<button class="ts2-skip" onclick="ts2SetSpeed(\''+(t.speed==='fast'?'cinematic':'fast')+'\')">'+(t.speed==='fast'?'Live pace':'Speed up')+'</button>'
-   +'<button class="ts2-skip" onclick="ts2Skip()">Skip to result</button></div>';
+   +(t.arcade?'<div class="ts2-ctrl"><button class="ts2-skip" onclick="ts2SetSpeed(\''+(t.speed==='fast'?'cinematic':'fast')+'\')">'+(t.speed==='fast'?'Live pace':'Speed up')+'</button></div>'
+    :'<div class="ts2-ctrl"><button class="ts2-skip" disabled>Watch live</button>'
+     +'<button class="ts2-skip" onclick="ts2SetSpeed(\''+(t.speed==='fast'?'cinematic':'fast')+'\')">'+(t.speed==='fast'?'Live pace':'Speed up')+'</button>'
+     +'<button class="ts2-skip" onclick="ts2Skip()">Skip to result</button></div>');
 }
 function ts2PeriodLabel(p){return ({'first half':'First half','halftime':'Half-time','second half':'Second half','extra time':'Extra time','penalties':'Penalties','final':'Full time','full time':'Full time'})[p]||'Kick-off';}
 function ts2ClockText(){var t=_ts2;if(!t)return"";var p=t.livePeriod;
@@ -9778,9 +9830,11 @@ function ts2Recap(){
     : '<div class="ts2-rc-pay dn">−$'+Math.abs(Math.min(0,net)).toLocaleString()+'</div>';
   var bankLine='<div class="ts2-rc-bank">Virtual bankroll '+(bankDelta>=0?'▲ ':'▼ ')+'<b>$'+S.bank.toLocaleString()+'</b> ('+(bankDelta>=0?'+':'−')+'$'+Math.abs(bankDelta).toLocaleString()+')</div>';
   var back=ts2BackCopy();
-  var actions='<button class="ts2-rc-btn primary" onclick="ts2BackToWorldCup()">'+back.primary+'</button>'
-    +'<div class="ts2-rc-back-sub">'+back.sub+'</div>'
-    +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn ghost" onclick="ts2WorldCupHome()">World Cup Home</button><button class="ts2-rc-btn ghost" onclick="ts2Replay()">↻ Replay</button></div>';
+  var actions=t.arcade
+    ? '<div class="ts2-rc-row"><button class="ts2-rc-btn ghost" onclick="ts2Replay()">↻ Replay</button><button class="ts2-rc-btn" onclick="ts2Rematch()">Rematch</button><button class="ts2-rc-btn primary" onclick="ts2BackToWorldCup()">'+back.primary+'</button></div><div class="ts2-rc-back-sub">'+back.sub+'</div>'
+    : '<button class="ts2-rc-btn primary" onclick="ts2BackToWorldCup()">'+back.primary+'</button>'
+      +'<div class="ts2-rc-back-sub">'+back.sub+'</div>'
+      +'<div class="ts2-rc-row"><button class="ts2-rc-btn" onclick="ts2NewSlip()">New slip</button><button class="ts2-rc-btn ghost" onclick="ts2WorldCupHome()">World Cup Home</button><button class="ts2-rc-btn ghost" onclick="ts2Replay()">↻ Replay</button></div>';
   var rc=document.createElement('div');rc.className='ts2-recap '+winCls;rc.id='ts2recap';
   rc.innerHTML='<button class="ts2-x rc-x" onclick="ts2Close()" aria-label="Close">✕</button>'
     +'<div class="ts2-rc-k">'+klabel+'</div>'
@@ -9792,7 +9846,7 @@ function ts2Recap(){
   try{haptic(won?'win':'bust');
     // Confetti fires once, only when the complete ticket settles as a full win — never
     // on Cash Out, never on a single leg, never twice for the same settled ticket.
-    if(allWon&&net>=0&&ts2ConfettiShouldFire(t)){burst();}
+    if(targets.length&&allWon&&net>=0&&ts2ConfettiShouldFire(t)){burst();}
     if(won&&typeof SOUND!=='undefined'&&SOUND){try{sfxWin();}catch(e){}}
   }catch(e){}
 }
@@ -9830,6 +9884,10 @@ function ts2RecapCashed(stage){
 function ts2Replay(){if(!_ts2)return;ts2Cancel();var old=document.getElementById('ts2recap');if(old)old.remove();
   _ts2.legs.forEach(function(l){l._done=false;l._liveState=null;});_ts2.phase='play';try{haptic('tap');}catch(e){}
   ts2PlayLeg(0,false);}
+function ts2Rematch(){var c=_ts2&&_ts2.returnCtx,n=c&&c.num;ts2Cancel();var o=document.getElementById('ts2');if(o)o.remove();_ts2=null;document.body.style.overflow='';
+  try{_betCat='matches';TAB='bet';if(typeof pushTab==='function')pushTab();switchTab();render();}catch(e){try{render();}catch(x){}}
+  if(n!=null){try{whatIfChallengeSheet(n,null);}catch(e){}}
+  else toast('Back to Play');}
 /* ---- run it back: brand-new clean simulation context ---- */
 function ts2RunItBack(){ts2Cancel();var o=document.getElementById('ts2');if(o)o.remove();_ts2=null;try{S._ts2=null;}catch(e){}
   document.body.style.overflow='';try{render();}catch(e){}
