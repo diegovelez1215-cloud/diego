@@ -3476,6 +3476,7 @@ function recoverPlayAfterLiveReset(){
   S.activeMatch=null;S.activeFlow=null;S.postBetAction=null;S.actionRail=null;
   _betCat='matches';_betMode='single';
 }
+function recoverPlayColdOpenState(){recoverPlayAfterLiveReset();}
 function resetToLiveNow(){seedLive();recoverPlayAfterLiveReset();}
 /* ---- persistence + shareable links ---- */
 var PLAY_SAVE_KEY="wc26_play_v1",USER_SAVE_KEY="wc26_user_v1",LEGACY_WC26_RAW=null,LEGACY_WC26_SCORE_OVERLAY={},LEGACY_WC26_BETSIM_OVERLAY={},LEGACY_WC26_KO_OVERLAY=null,LEGACY_WC26_ORDER_OVERLAY=null,LEGACY_WC26_THIRDS_OVERLAY=null;
@@ -3556,7 +3557,7 @@ function restoreState(){
   if(m){var o=decodeShare(m[1]);if(o&&applyShareBracket(o)){setTimeout(function(){toast("🔗 Loaded a shared bracket · your wallet is untouched");},450);}}
   var sm=h.match(/[#&]syn=([A-Za-z0-9]{4,8})/);
   if(sm){var sc=sm[1].toUpperCase();S.syndicate={code:sc,name:"League "+sc};setTimeout(function(){toast("👥 Joined league "+sc+" — post your score to join the board");},700);}}
-seedLive();restoreState();
+seedLive();restoreState();recoverPlayColdOpenState();
 
 // standings
 function gMatches(g){return MATCHES.filter(m=>m.stage==="group"&&m.group===g);}
