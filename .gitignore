@@ -26,6 +26,7 @@ temp/
 worldcup-*.js
 *-extracted.js
 _relite_test.js
+_probe.js
 *_test.scratch.js
 node_modules/
 playwright-report/

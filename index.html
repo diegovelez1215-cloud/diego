@@ -2101,6 +2101,15 @@ nav,.tabbar{background:rgba(7,11,22,.84)!important;backdrop-filter:blur(26px) sa
 .home-fixture .hf-mid.islive .hf-meta{color:var(--official-soft)!important}
 .home-fixture.islive{box-shadow:inset 3px 0 0 var(--official)!important;background:linear-gradient(90deg,rgba(94,168,255,.10),transparent 70%)!important}
 .today-rail-head button{color:var(--official-soft)!important;border-color:var(--line2)!important}
+.today-rail-cached{display:inline-block;margin-left:8px;font-size:9px;font-weight:900;letter-spacing:.4px;text-transform:uppercase;color:var(--gold);background:rgba(255,214,10,.12);border:1px solid rgba(255,214,10,.32);border-radius:20px;padding:2px 8px;vertical-align:middle}
+.home-card.cached{opacity:.88}
+.groups-history-note{display:flex;align-items:center;gap:10px;justify-content:space-between;background:linear-gradient(150deg,rgba(120,140,170,.12),rgba(12,18,38,.6));border:1px solid var(--line2);border-radius:14px;padding:11px 13px;margin-bottom:12px}
+.groups-history-note .ghn-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.groups-history-note .ghn-tx b{font-size:13px;font-weight:900;color:#fff}
+.groups-history-note .ghn-tx span{font-size:11px;font-weight:700;color:var(--mut)}
+.groups-history-note .ghn-go{flex:none;min-height:38px;font-size:11px;font-weight:900;color:#06132A;background:linear-gradient(135deg,var(--official,#5EA8FF),#3E86E8);border:none;border-radius:11px;padding:0 13px;cursor:pointer}
+.groups-stage.history{opacity:.9}
+.groups-stage.history .gcard{filter:saturate(.85)}
 .home-pick-stat{background:rgba(255,255,255,.04)!important;border-color:var(--line)!important}
 
 /* ---- TOURNAMENT: standings as premium sports data ------------------------ */
@@ -2640,6 +2649,8 @@ nav,.tabbar{background:rgba(7,11,22,.84)!important;backdrop-filter:blur(26px) sa
 .kom-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kom-k{font-size:14px;font-weight:900;letter-spacing:.2px;color:var(--blue2)}
 .kom-phase{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);border:1px solid rgba(255,214,10,.34);border-radius:20px;padding:3px 10px;white-space:nowrap}
+.kom-fullbrk{margin-left:auto;min-height:34px;font-size:11px;font-weight:900;letter-spacing:.2px;color:#06132A;background:linear-gradient(135deg,var(--official,#5EA8FF),#3E86E8);border:1px solid rgba(185,216,255,.34);border-radius:11px;padding:0 12px;white-space:nowrap;cursor:pointer;box-shadow:0 8px 20px -12px rgba(94,168,255,.7)}
+.kom-fullbrk:active{transform:translateY(1px)}
 .kom-sub{font-size:11px;color:var(--mut);margin:5px 0 12px;font-weight:600;line-height:1.4}
 .kom-grid{display:grid;grid-template-columns:1fr;gap:9px}
 .kom-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 13px;min-width:0}
@@ -3383,6 +3394,15 @@ function simModeSheet(){
  var sh=document.getElementById("sheet");if(sh){sh.innerHTML=html;sh.style.transform="";}document.getElementById("scrim").classList.add("on");try{haptic('tap');}catch(e){}}
 function requireSim(){if(activeMode()==='real'){try{simModeSheet();toast("🔒 Real World Cup is read-only — My Sim is one tap away");}catch(e){}return false;}return true;}
 let S=blankState();
+/* Cold-start freshness: persisted official facts are useful to show immediately, but
+   on a cold open they may be a day stale. Until the first controlled refresh of this
+   session resolves, date-sensitive Home rails are treated as CACHED (not current
+   facts) and the Upset Alert is withheld — so the app never visibly opens as a
+   previous day and then silently corrects itself. No derived label is ever persisted;
+   these flags live only in memory. */
+var _hadRestoredOfficial=false,_firstOfficialRefreshDone=false;
+function homeDataCached(){return !_firstOfficialRefreshDone&&_hadRestoredOfficial;}
+function markOfficialRefreshConfirmed(){if(_firstOfficialRefreshDone)return;_firstOfficialRefreshDone=true;if(_hadRestoredOfficial){try{render();}catch(e){}}}
 let SOUND=(function(){try{var v=localStorage.getItem('wc26_sound');return v===null?true:v==='1';}catch(e){return true;}})();
 /* Resetting/clearing the TOURNAMENT must never touch the user's WALLET.
    We snapshot the wallet + progress, rebuild the tournament, then restore them. */
@@ -3440,6 +3460,7 @@ function applyShareBracket(o){try{if(!o||typeof o!=="object")return false;
 function restoreState(){
   // Load THIS device's own saved wallet + state first (per-phone, isolated).
   try{var raw=localStorage.getItem("wc26_v1");if(raw){applyState(JSON.parse(raw));}}catch(e){}
+  try{_hadRestoredOfficial=!!(S&&((S.real&&Object.keys(S.real).length)||(S.realko&&Object.keys(S.realko).length)||(S.officialKOFixtures&&Object.keys(S.officialKOFixtures).length)));}catch(e){}
   // A share link overlays only the shared BRACKET — the opener's wallet is never touched.
   var h=location.hash||"";var m=h.match(/[#&]s=([^&]+)/);
   if(m){var o=decodeShare(m[1]);if(o&&applyShareBracket(o)){setTimeout(function(){toast("🔗 Loaded a shared bracket · your wallet is untouched");},450);}}
@@ -4245,11 +4266,42 @@ function buyPower(key,cost){if(S.bank<cost)return toast("Not enough bankroll —
 function armBoostToken(){if(!(S.powerups&&S.powerups.boost>0))return;S.boostArmed=true;saveState();closeSheet();render();toast("⚡ Odds Boost armed — place your bet");}
 function armInsure(){if(!(S.powerups&&S.powerups.insure>0))return;S.powerups.insure--;S.insureArmed=true;saveState();closeSheet();render();toast("🛡 Insurance armed — your next loss is refunded");}
 /* ===== Hype moments ===== */
-function recentUpset(){var best=null,bg=-1;Object.keys(S.sc).map(Number).forEach(function(n){if(!(S.real&&S.real[n]))return;var m=M[n];if(!m||m.stage!=="group")return;var s=S.sc[n];if(s.h===s.a)return;var w=s.h>s.a?m.home:m.away,l=s.h>s.a?m.away:m.home;var gap=(RAT[l]||70)-(RAT[w]||70);if(gap>bg){bg=gap;best={w:w,l:l,s:s,n:n};}});return bg>=8?best:null;}
+var UPSET_RATING_GAP=8,UPSET_RECENT_LOOKBACK=4;
+/* Every official final (group AND knockout) eligible to be an upset, each carrying its
+   real kickoff time and rating gap. Reads only the canonical official snapshot — never
+   a persisted alert payload, never a simulated/bet score. */
+function officialFinalsForUpset(){
+ var out=[];
+ MATCHES.forEach(function(m){
+  var n=m.num,w,l,wg,lg;
+  if(m.stage==='group'){
+   if(!(S.real&&S.real[n]))return;var s=S.sc[n];if(!s||s.h===s.a||isBetSim(n))return;
+   w=s.h>s.a?m.home:m.away;l=s.h>s.a?m.away:m.home;wg=Math.max(s.h,s.a);lg=Math.min(s.h,s.a);
+  }else{
+   var wk=S.realko&&S.realko[n];if(!wk)return;var fin=truthOfficialFinalScore(n);if(!fin)return;
+   var p=koParts(n);if(!p[0]||!p[1]||(wk!==p[0]&&wk!==p[1]))return;
+   w=wk;l=(p[0]===wk?p[1]:p[0]);wg=(wk===p[0]?fin.h:fin.a);lg=(wk===p[0]?fin.a:fin.h);
+  }
+  var dt=koDateTime(m),ts=dt?dt.getTime():0;
+  out.push({n:n,w:w,l:l,wg:wg,lg:lg,ts:ts,gap:(RAT[l]||70)-(RAT[w]||70)});
+ });
+ return out;
+}
+/* The Upset Alert is derived from the LATEST eligible official final. Among the most
+   recent finals it surfaces the newest genuine upset; once enough newer finals have
+   landed without it being latest, it disappears on its own. Nothing here is persisted. */
+function recentUpset(){
+ var finals=officialFinalsForUpset();if(!finals.length)return null;
+ finals.sort(function(a,b){return (b.ts-a.ts)||(b.n-a.n);});
+ var lookback=Math.min(finals.length,UPSET_RECENT_LOOKBACK);
+ for(var i=0;i<lookback;i++){if(finals[i].gap>=UPSET_RATING_GAP)return finals[i];}
+ return null;
+}
 function hypeHTML(){
  /* the LIVE NOW card is already rendered by _realwire above — here we only add the upset alert, to avoid a duplicate live card */
+ if(homeDataCached())return '';
  var up=recentUpset();
- if(up)return '<div class="hype upset" onclick="openSheet('+up.n+')"><div class="hype-ic">🚨</div><div class="hype-tx"><div class="hype-h">UPSET ALERT</div><div class="hype-s">'+nm(up.w)+' stunned '+nm(up.l)+' '+(up.s.h>up.s.a?up.s.h+'–'+up.s.a:up.s.a+'–'+up.s.h)+' — bracket buster!</div></div></div>';
+ if(up)return '<div class="hype upset" onclick="openSheet('+up.n+')"><div class="hype-ic">🚨</div><div class="hype-tx"><div class="hype-h">'+esc(nm(up.w)+' '+up.wg+'–'+up.lg+' '+nm(up.l))+'</div><div class="hype-s">Upset alert · '+esc(nm(up.w))+' knock out the favoured '+esc(nm(up.l))+'</div></div></div>';
  return "";}
 /* hidden eggs */
 var _bankTaps=0,_bankT0=0;
@@ -4337,16 +4389,20 @@ function homePendingOfficialNum(){
 }
 function homePrimaryContext(){
  var ph;try{ph=fdSafePhase();}catch(e){ph=null;}
+ // Final Matchday hero already carries the live "as it stands" score for its deciders,
+ // so it stays first. Every other phase (including Knockout) must yield to a genuine
+ // live/pending official fixture so real scores always surface on Home — a static
+ // "next fixture" lead must never hide a match that is actually in play.
  if(ph&&ph.phase==='final_matchday'){
   var model=phlPickFinalModel(ph.finalMatchdayGroups||[]);
   if(model&&model.fixtures&&model.fixtures.length)return {html:phaseLeadHTML(),nums:model.fixtures.map(function(fx){return fx.num;}),kind:'final_matchday'};
  }
- if(ph&&ph.prioritizeBracket){
-  var nx=phlNextKOFixture();return {html:phaseLeadHTML(),nums:nx?[nx.num]:[],kind:'knockout'};
- }
  if(S.live)return {html:homeLiveNowHTML(),nums:[S.live.num],kind:'sim_live'};
  var st=homePrimaryLiveState();if(st)return {html:homeLiveNowHTML(),nums:[st.num],kind:'real_live'};
  var pending=homePendingOfficialNum();if(pending!=null)return {html:homeLiveNowHTML(),nums:[pending],kind:'pending_feed'};
+ if(ph&&ph.prioritizeBracket){
+  var nx=phlNextKOFixture();return {html:phaseLeadHTML(),nums:nx?[nx.num]:[],kind:'knockout'};
+ }
  var next=homeNextFixture(null);return {html:homeLiveNowHTML(),nums:next?[next.num]:[],kind:next?'next':'empty'};
 }
 function nextISO(iso){try{var p=(iso||curISO()).split('-');var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+1);return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}catch(e){return iso;}}
@@ -4407,7 +4463,9 @@ function todayRailHTML(seen){
   headLabel='Next fixtures';headSub=(doneToday?(doneToday+' '+(doneToday===1?'match':'matches')+' completed today'):'Soonest upcoming matches');
   body=homeTimelineHTML(nextW);
  }
- return '<div class="home-card"><div class="today-rail-head"><div><b>'+esc(headLabel)+'</b><span>'+esc(headSub)+'</span>'+(headDate?'<span class="today-rail-date">'+esc(headDate)+'</span>':'')+'</div><button onclick="goSchedule()">All matches</button></div>'+body+'</div>';}
+ var cached=homeDataCached();
+ var cachedChip=cached?'<span class="today-rail-cached">Cached · updating…</span>':'';
+ return '<div class="home-card'+(cached?' cached':'')+'"><div class="today-rail-head"><div><b>'+esc(headLabel)+'</b>'+cachedChip+'<span>'+esc(headSub)+'</span>'+(headDate?'<span class="today-rail-date">'+esc(headDate)+'</span>':'')+'</div><button onclick="goSchedule()">All matches</button></div>'+body+'</div>';}
 function goPlay(){TAB='bet';if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt('#betting','Play opened',40);}
 function goCompare(){TAB='compare';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
 function goStandings(){TAB='groups';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
@@ -4542,11 +4600,30 @@ function komR32CardHTML(fx){
 }
 function knockoutModeHTML(){
   var ph=fdSafePhase();if(!ph.prioritizeBracket)return '';
-  var r32=ph.roundOf32||[],confirmed=r32.filter(function(x){return x.state==='confirmed_pairing';}),pending=r32.filter(function(x){return x.state!=='confirmed_pairing';});
+  var r32=ph.roundOf32||[];
   if(!r32.length)return '';
-  var cards=confirmed.concat(pending).map(komR32CardHTML).join('');
+  // One chronological knockout timeline: ties sort by actual official kickoff time
+  // (provider utcDate, then the scheduled window) — never slot number or insertion
+  // order. A confirmed tie still in the future never jumps ahead of an earlier one.
+  var ordered=r32.slice().sort(function(a,b){
+    var ka=koFixtureKickoffMs(a.matchNum),kb=koFixtureKickoffMs(b.matchNum);
+    return (ka-kb)||(a.matchNum-b.matchNum);
+  });
+  var cards=ordered.map(komR32CardHTML).join('');
   var sub=ph.roundOf32PairingsConfirmed?'All 16 Round of 32 ties are set — single elimination, every winner advances.':'The bracket is forming. Confirmed ties lead; pending slots stay honest until the official group finals.';
-  return '<div class="kom"><div class="kom-h"><span class="kom-k">🏆 Knockout Mode</span><span class="kom-phase">'+esc(fdPhaseLabel(ph.phase))+'</span></div><div class="kom-sub">'+esc(sub)+'</div><div class="kom-grid">'+cards+'</div></div>';
+  return '<div class="kom"><div class="kom-h"><span class="kom-k">🏆 Knockout Mode</span><span class="kom-phase">'+esc(fdPhaseLabel(ph.phase))+'</span><button class="kom-fullbrk" aria-label="View full World Cup knockout bracket" onclick="revealFullBracket()">View full bracket</button></div><div class="kom-sub">'+esc(sub)+'</div><div class="kom-grid">'+cards+'</div></div>';
+}
+/* The single Knockout-header shortcut to the complete canonical bracket. It reveals
+   the existing full bracket tree in place — it never builds a second fixture list. */
+function revealFullBracket(){
+  try{
+    if(TAB!=='bracket'){TAB='bracket';if(typeof pushTab==='function')pushTab();switchTab();}
+    render();
+  }catch(e){}
+  setTimeout(function(){
+    try{var d=document.querySelector('#bracket .brk-wide');if(d){d.open=true;d.scrollIntoView({block:'start',behavior:'smooth'});return;}}catch(e){}
+    try{var el=document.getElementById('brkVert')||document.getElementById('bracket');if(el)el.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}
+  },60);
 }
 /* ---- Home phase-lead hero: evolves Group → Final Matchday → Knockout ---- */
 function phlNextKOFixture(){
@@ -6415,7 +6492,13 @@ function groupsOverviewHTML(){
     h+='</div>';});
   return h+'</div><div class="grpov-key"><span><i class="dot" style="background:var(--green)"></i>Win</span><span><i class="dot" style="background:var(--blue)"></i>Runner-up</span><span><i class="dot" style="background:var(--gold)"></i>3rd→pool</span><span style="opacity:.5">4th out</span></div>';}
 function jumpGroup(g){var el=document.getElementById("grp-"+g);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
-function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatchdayCenterHTML();}catch(e){}let h=_fmd+groupsOverviewHTML();
+function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatchdayCenterHTML();}catch(e){}
+  // Once the knockout phase is live the group stage is history: keep every fact (final
+  // tables, qualified marks) but give it a calmer, secondary treatment so Knockout
+  // stays the dominant surface. No facts removed, no redesign.
+  var _knockoutPhase=false;try{_knockoutPhase=!!fdSafePhase().prioritizeBracket;}catch(e){}
+  var _histNote=_knockoutPhase?'<div class="groups-history-note"><div class="ghn-tx"><b>Group stage complete</b><span>Kept as history — final tables and qualified teams below. The Knockout bracket is the live stage.</span></div><button class="ghn-go" onclick="goBracket()">Go to Knockout →</button></div>':'';
+  let h=_histNote+_fmd+groupsOverviewHTML();
   // Route Explorer — one predictable, factual home near Final Matchday / standings.
   // Tap any team to see what each finish means (≤2 taps). Reuses openRouteExplorer.
   try{h+=routeExplorerLauncherHTML();}catch(e){}
@@ -6428,7 +6511,7 @@ function renderGroups(){const GOD=groupOfDeath();var _fmd='';try{_fmd=finalMatch
   h+=`</div><div class="qkey"><span><span class="dot" style="background:var(--green)"></span>1st</span><span><span class="dot" style="background:var(--blue)"></span>2nd</span><span><span class="dot" style="background:var(--gold)"></span>3rd → pool</span><span style="opacity:.5">4th out</span></div>`;
   h+=asItStandsHTML(g)+tccGroupStakesHTML(g);
   h+=`<details class="fixtures gfx"><summary class="fxttl">Group ${g} fixtures (${gpl}/6) — tap to ${activeMode()==='sim'?'set / predict':'view'}</summary><div class="fxhint">${activeMode()==='sim'?'Tap a team to pick the winner · adjust the score with − / +':'Real results stay read-only · <button class="qbtn" style="margin-top:7px;width:100%" onclick="event.stopPropagation();startGroupsFlow()">Open My Sim picks</button>'}</div>`;gMatches(g).forEach(m=>h+=fxCard(m));h+=`</details></div>`;});
-  document.getElementById("groups").innerHTML=h;}
+  document.getElementById("groups").innerHTML='<div class="groups-stage'+(_knockoutPhase?' history':'')+'">'+h+'</div>';}
 function fxCard(m){const s=S.sc[m.num],isr=S.real[m.num];let res=null;if(s){res=s.h>s.a?"h":(s.a>s.h?"a":"d");}
   const ed=activeMode()==='sim';  // Real-life mode = read-only
   const badge=isr?`<span class="badge real">● Result</span>`:(isBetSim(m.num)?`<span class="badge pred">🎲 Bet sim</span>`:(res?`<span class="badge pred">Predicted</span>`:(ed?`<span class="badge none">Tap to pick</span>`:`<span class="badge none">Upcoming</span>`)));
@@ -8824,9 +8907,41 @@ function truthProviderKOFixtureNum(f){
   var tk=truthProviderTimeKey(f);if(tk){for(var i=0;i<stageNums.length;i++){m=M[stageNums[i]];if(truthMatchTimeKey(m)===tk)return m.num;}}
   return null;
 }
+function truthNormTeamKey(home,away){
+  var a=String(home||'').toUpperCase(),b=String(away||'').toUpperCase();
+  return a<b?(a+'~'+b):(b+'~'+a);
+}
+/* Canonical official knockout fixtures — the single merge path consumed by Home,
+   Knockout, Matches and Match Center. Collapses any two slots that represent the
+   SAME official tie (identical normalized pairing) into one, so no official fixture
+   can render twice. A provider-named fixture always beats a verified fallback; among
+   the same source the earlier (lower) slot wins. A verified fallback therefore only
+   survives when no provider fixture already supplies that exact pairing. Identity is
+   normalized name variants only — never a hardcoded team or scoreline. */
+function truthCanonicalKOFixtures(){
+  var src=(S&&S.officialKOFixtures)||{},out={},seen={};
+  Object.keys(src).map(Number).sort(function(x,y){return x-y;}).forEach(function(num){
+    var f=src[num];
+    if(!(f&&T[f.home]&&T[f.away]&&f.home!==f.away))return;
+    var key=truthNormTeamKey(f.home,f.away),prior=seen[key];
+    if(!prior){seen[key]={num:num,f:f};out[num]=f;return;}
+    var priorVerified=prior.f.source==='verified_fixture',curVerified=f.source==='verified_fixture';
+    if(priorVerified&&!curVerified){delete out[prior.num];seen[key]={num:num,f:f};out[num]=f;}
+    // otherwise keep the prior (provider, or earlier slot) and drop this duplicate
+  });
+  return out;
+}
 function truthProviderNamedKOFixture(num){
-  var f=S&&S.officialKOFixtures&&S.officialKOFixtures[num];
+  var f=truthCanonicalKOFixtures()[num];
   return (f&&T[f.home]&&T[f.away]&&f.home!==f.away)?f:null;
+}
+/* Official kickoff time for a knockout slot: prefer the provider fixture's real
+   utcDate, then fall back to the app's scheduled match window. Used to order the
+   knockout timeline by actual time of play, not slot/insertion order. */
+function koFixtureKickoffMs(num){
+  var f=S&&S.officialKOFixtures&&S.officialKOFixtures[num];
+  if(f&&f.utcDate){var d=new Date(f.utcDate);if(!isNaN(d.getTime()))return d.getTime();}
+  var dt=M[num]&&koDateTime(M[num]);return dt?dt.getTime():Infinity;
 }
 function truthResolveProviderKOFixture(f){
   var num=truthProviderKOFixtureNum(f);if(!num||!M[num]||M[num].stage==='group')return null;
@@ -8907,6 +9022,7 @@ function fetchResults(){
   var receipt=truthRefreshStart('/api/results'),before=truthEffectiveFingerprint();
   try{apiGet('/api/results',10*60000).then(function(d){
     _resFetching=false;
+    markOfficialRefreshConfirmed();   // one controlled refresh resolved → stop treating cold-start data as cached
     truthRecordReceipt('/api/results',d,receipt);
     if(!d||!d.configured||d.error)return;
     _lastSync=Date.now();   // data freshness for the "updated …" stamp
@@ -8918,7 +9034,7 @@ function fetchResults(){
     ingestFinished(d.finished,{receipt:receipt});   // non-destructive: only fills matches not already official
     if(fixtureChanged)saveState();
     truthRenderIfChanged(before);
-  }).catch(function(){_resFetching=false;});}catch(e){_resFetching=false;}
+  }).catch(function(){_resFetching=false;markOfficialRefreshConfirmed();});}catch(e){_resFetching=false;markOfficialRefreshConfirmed();}
 }
 var _rwFetching=false;
 function rwFlag(name){var c=rwResolve(name);return c?fl(c)+' ':'';}
@@ -10340,6 +10456,13 @@ function mxSeeInBracket(){
 }
 render();
 try{handleDeepLink();}catch(e){}
+/* Cold start: the existing coordinator already performs one controlled refresh shortly
+   after load (startCoreData → refreshVisibleData(true) → fetchResults), which clears the
+   cached treatment via markOfficialRefreshConfirmed once official facts are reconciled
+   against the current clock. We only add a safety timeout so the cached badge never
+   stays stuck on "Updating…" when offline/unconfigured. No new provider, no extra
+   polling, no live-channel change. */
+try{setTimeout(markOfficialRefreshConfirmed,6000);}catch(e){}
 </script>
 <!-- Vercel Web Analytics + Speed Insights (free; activate in Vercel dashboard) -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
