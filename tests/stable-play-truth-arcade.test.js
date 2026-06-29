@@ -106,13 +106,16 @@ test('scheduled fixtures do not count as completed today', () => withApp((app) =
   assert.doesNotMatch(text, /2 matches completed today/);
 }));
 
-test('Play exposes one What-If arcade entry and no Quick Match route', () => withApp((app) => {
+test('Play exposes one What-If arcade entry and no Quick Match route', () => withApp((app, window) => {
   const s = reset(app);
   makeFutureOpenFixture(app, s);
   const html = app.playLandingHTML();
   const text = app.mountText(html);
   assert.match(text, /What-If arcade|What-If Match/);
   assert.doesNotMatch(text, /Quick Match|My World Cup|Play Now/);
+  app.renderBetting();
+  const rendered = window.document.getElementById('betting').textContent;
+  assert.doesNotMatch(rendered, /Simple Picks|Parlay Lab|Match picks|Favourites parlay|Longshot parlay/);
 }));
 
 test('SIM$ Challenge is pre-kickoff only and launches the Matchboard at 0-0', () => withApp((app, window, ts2) => {
@@ -183,12 +186,18 @@ test('virtual What-If does not mutate official truth or official ledger state', 
   const officialScore = JSON.stringify(app.REAL[1]);
   const officialKO = JSON.stringify(s.realko);
   const officialTicket = JSON.stringify(s.bets[0]);
+  app.MATCHES.forEach((m) => { m.date = '2026-07-30'; });
   makeFutureOpenFixture(app, s, 1);
   const num = firstOpenMatch(app);
+  app.M[num].date = app.curISO();
+  app.M[num].time = '23:30';
   app.whatIfChallengeSheet(num, null);
   app.whatIfSkipChallenge();
   window.ts2Skip();
   assert.equal(JSON.stringify(app.REAL[1]), officialScore);
   assert.equal(JSON.stringify(s.realko), officialKO);
   assert.equal(JSON.stringify(s.bets[0]), officialTicket);
+  const rail = app.mountText(app.todayRailHTML({}));
+  assert.match(rail, /Later today/);
+  assert.match(rail, /1 match left today/);
 }));
