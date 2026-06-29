@@ -50,8 +50,11 @@ function loadApp() {
       MATCHES:MATCHES, GROUPS:GROUPS, REAL:REAL, M:M,
       tournamentTruthSnapshot:tournamentTruthSnapshot,
       truthRefreshStart:truthRefreshStart,
-      ingestProviderKOFixtures:ingestProviderKOFixtures,
-      knockoutSlotStatus:knockoutSlotStatus, koParts:koParts
+      ingestProviderKOFixtures:ingestProviderKOFixtures, ingestFinished:ingestFinished,
+      knockoutSlotStatus:knockoutSlotStatus, koParts:koParts,
+      tournamentPhaseState:tournamentPhaseState, knockoutPathCardHTML:knockoutPathCardHTML,
+      komR32CardHTML:komR32CardHTML, r32FixtureStates:r32FixtureStates,
+      mrow:mrow, homeFixtureCardHTML:homeFixtureCardHTML, matchCenterTruth:matchCenterTruth
     };`);
   return dom;
 }
@@ -75,6 +78,9 @@ function providerBlank(num) {
 }
 function providerNamed(num, home, away) {
   return { num, home, away, gh: null, ga: null, stage: 'ROUND_OF_32', status: 'TIMED', kind: 'scheduled' };
+}
+function providerFinal(num, home, away, gh, ga, winner) {
+  return { num, home, away, gh, ga, winner, stage: 'ROUND_OF_32', status: 'FINISHED', kind: 'final' };
 }
 
 const manifestMod = await loadManifest();
@@ -157,4 +163,71 @@ test('5. standings, qualifiers, Player Leaders and virtual state are untouched',
   }), before);
   assert.equal(JSON.stringify(app.tournamentTruthSnapshot().virtual), virtualBefore);
   assert.equal(JSON.stringify(app.tournamentTruthSnapshot().official.finalResults), finalsBefore);
+}));
+
+test('6. provider knockout finals beat verified fallback everywhere', () => withApp((app) => {
+  resetOfficial(app);
+  const receipt = app.truthRefreshStart('/api/results');
+  app.ingestProviderKOFixtures([providerNamed(74, 'Germany', 'Paraguay')].concat(MANIFEST), { receipt, authoritative: true });
+  app.ingestFinished([
+    providerFinal(73, 'South Africa', 'Canada', 0, 1, 'AWAY_TEAM'),
+    providerFinal(76, 'Brazil', 'Japan', 2, 1, 'HOME_TEAM')
+  ], { receipt });
+
+  const snap = app.tournamentTruthSnapshot();
+  assert.equal(snap.official.finalResults[73].score.h, 0);
+  assert.equal(snap.official.finalResults[73].score.a, 1);
+  assert.equal(snap.official.knockoutWinners[73], 'CAN');
+  assert.equal(snap.official.finalResults[76].score.h, 2);
+  assert.equal(snap.official.finalResults[76].score.a, 1);
+  assert.equal(snap.official.knockoutWinners[76], 'BRA');
+
+  const ko = snap.official.confirmedKnockoutFixtures;
+  assert.equal(ko[73].source, 'official_provider_fixture');
+  assert.equal(ko[76].source, 'official_provider_fixture');
+  assert.equal(new Set(Object.keys(ko)).size, Object.keys(ko).length, 'no duplicate KO fixture keys survive');
+
+  const card73 = app.knockoutPathCardHTML(73, new Set(), false, true);
+  assert.match(card73, /Final 0-1/);
+  assert.match(card73, /Canada/);
+  assert.match(card73, /Advances/);
+  assert.match(card73, /South Africa/);
+  assert.match(card73, /Eliminated/);
+  assert.doesNotMatch(card73, /Up next|Projected|Win or go home/i);
+
+  const card76 = app.knockoutPathCardHTML(76, new Set(), false, true);
+  assert.match(card76, /Final 2-1/);
+  assert.match(card76, /Brazil/);
+  assert.match(card76, /Advances/);
+  assert.match(card76, /Japan/);
+  assert.match(card76, /Eliminated/);
+  assert.doesNotMatch(card76, /Up next|Projected|Win or go home/i);
+
+  const phaseRows = app.tournamentPhaseState().roundOf32;
+  const sa = phaseRows.find((x) => x.matchNum === 73);
+  const kom = app.komR32CardHTML(sa);
+  assert.match(kom, /0–1/);
+  assert.match(kom, /Canada advances/);
+  assert.match(kom, /South Africa eliminated/);
+  assert.doesNotMatch(kom, /Win or go home/i);
+
+  const row = app.mrow(app.M[73], false);
+  assert.match(row, /0/);
+  assert.match(row, /1/);
+  assert.match(row, /FT/);
+  assert.doesNotMatch(row, /SIM|UPCOMING/);
+
+  const home = app.homeFixtureCardHTML(app.M[76]);
+  assert.match(home, /2–1/);
+  assert.match(home, /Final/);
+
+  const mc = app.matchCenterTruth(73);
+  assert.equal(mc.phase, 'final');
+  assert.deepEqual(mc.score, { h: 0, a: 1 });
+
+  const unresolved = app.knockoutPathCardHTML(74, new Set(), false, true);
+  assert.match(unresolved, /Germany/);
+  assert.match(unresolved, /Paraguay/);
+  assert.match(unresolved, /Up next|Awaiting result/);
+  assert.doesNotMatch(unresolved, /Final|Advances|Eliminated/);
 }));

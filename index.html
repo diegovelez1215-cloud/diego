@@ -3849,7 +3849,7 @@ function sfxGoal(){beep(523,.08,"triangle",.06,659);setTimeout(function(){beep(7
 /* challenge */
 function toggleChallenge(){S.challenge=!S.challenge;const b=document.getElementById("chalBtn");if(b)b.classList.toggle("on",S.challenge);TAB="bracket";switchTab();render();if(S.challenge)toast("Challenge Mode — build your bracket, then lock it");}
 function cloneTour(){return{sc:JSON.parse(JSON.stringify(S.sc)),ko:JSON.parse(JSON.stringify(S.ko)),order:JSON.parse(JSON.stringify(S.order)),thirds:S.thirds?S.thirds.slice():null};}
-function withTour(t,fn){const sv={sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds};S.sc=t.sc;S.ko=t.ko;S.order=t.order;S.thirds=t.thirds;try{return fn();}finally{S.sc=sv.sc;S.ko=sv.ko;S.order=sv.order;S.thirds=sv.thirds;}}
+function withTour(t,fn){const sv={sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,officialKOFixtures:S.officialKOFixtures};S.sc=t.sc;S.ko=t.ko;S.order=t.order;S.thirds=t.thirds;if(t.officialKOFixtures)S.officialKOFixtures=t.officialKOFixtures;try{return fn();}finally{S.sc=sv.sc;S.ko=sv.ko;S.order=sv.order;S.thirds=sv.thirds;S.officialKOFixtures=sv.officialKOFixtures;}}
 function lockBracket(){S.snap=cloneTour();S.locked=true;S.reality=null;S.graded=null;render();toast("🔒 Bracket locked — now run reality");}
 function runReality(){if(!S.snap)return;let R={sc:{},ko:{},order:{},thirds:null};
   Object.keys(REAL).forEach(n=>R.sc[n]={h:REAL[n][0],a:REAL[n][1]});"ABCDEFGHIJKL".split("").forEach(g=>R.order[g]=GROUPS[g].slice());
@@ -4320,12 +4320,15 @@ function homeFixtureCardHTML(m){
   // Same data, status, kickoff, group, order and pairing as before — presentation only.
   var p=m.stage==='group'?[m.home,m.away]:koParts(m.num),
       st=matchLiveState(m.num),
+      fin=truthOfficialFinalScore(m.num),
+      offFinal=(m.stage==='group'?(S.real&&S.real[m.num]):(S.realko&&S.realko[m.num])),
       live=!!st&&st.sh!=null&&st.sa!=null,
       group=m.stage==='group'?('Group '+m.group):roundShort(m.num),
       home=p[0]?(fl(p[0])+' '+nm(p[0])):slotLabel(m.home),
       away=p[1]?(nm(p[1])+' '+fl(p[1])):slotLabel(m.away),
       midMain,midSmall='',meta=group,cls='';
-  if(live){midMain=st.sh+'–'+st.sa;meta=safeStatusText(st.label,'Live');cls=' islive';}
+  if(fin&&offFinal){midMain=fin.h+'–'+fin.a;meta='Final';cls=' islive';}
+  else if(live){midMain=st.sh+'–'+st.sa;meta=safeStatusText(st.label,'Live');cls=' islive';}
   else if(st){midMain=safeStatusText(st.label,'Live');cls=' islive';}
   else{var tp=to12p(m.time);midMain=tp.t;midSmall=tp.ap;}
   return '<div class="home-fixture'+(live?' islive':'')+'" onclick="openSheet('+m.num+')">'+
@@ -4481,11 +4484,15 @@ function komSlotHTML(team,raw,side){
 }
 function komR32CardHTML(fx){
   var confirmed=fx.state==='confirmed_pairing',m=M[fx.matchNum],path=NEXTWIN[fx.matchNum];
-  var pathTxt=confirmed?('Winner advances to '+roundName(path||89)):(fx.pendingSlots&&fx.pendingSlots.length>=2?'Both qualifiers pending':'One slot still to confirm');
+  var fin=truthOfficialFinalScore(fx.matchNum),winner=S.realko&&S.realko[fx.matchNum],done=!!(fin&&winner);
+  var loser=done?(winner===fx.home?fx.away:fx.home):null;
+  var pathTxt=done?(nm(winner)+' advances'+(path?' to '+roundName(path):'')):(confirmed?('Winner advances to '+roundName(path||89)):(fx.pendingSlots&&fx.pendingSlots.length>=2?'Both qualifiers pending':'One slot still to confirm'));
+  var mid=done?('<span class="kom-score">'+fin.h+'–'+fin.a+'</span>'):(confirmed?'VS':'·');
+  var foot=done?('<span class="kom-elim">Final</span><span class="kom-path">'+esc(pathTxt)+' · '+esc(nm(loser))+' eliminated</span>'):(confirmed?'<span class="kom-elim">Win or go home</span>':'<span class="kom-pend-tag">Pending official final</span>')+'<span class="kom-path">'+esc(pathTxt)+'</span>';
   return '<div class="kom-card '+(confirmed?'confirmed':'pending')+'"'+(confirmed?' onclick="openSheet('+fx.matchNum+')"':'')+'>'+
     '<div class="kom-c-top"><span class="kom-rnd">'+roundShort(fx.matchNum)+' · #'+fx.matchNum+'</span><span class="kom-dt">'+shortDate(m.date)+' · '+to12(m.time)+'</span></div>'+
-    '<div class="kom-c-row">'+komSlotHTML(fx.home,fx.rawHome,'l')+'<span class="kom-vs">'+(confirmed?'VS':'·')+'</span>'+komSlotHTML(fx.away,fx.rawAway,'r')+'</div>'+
-    '<div class="kom-c-foot">'+(confirmed?'<span class="kom-elim">Win or go home</span>':'<span class="kom-pend-tag">Pending official final</span>')+'<span class="kom-path">'+esc(pathTxt)+'</span></div></div>';
+    '<div class="kom-c-row">'+komSlotHTML(fx.home,fx.rawHome,'l')+'<span class="kom-vs">'+mid+'</span>'+komSlotHTML(fx.away,fx.rawAway,'r')+'</div>'+
+    '<div class="kom-c-foot">'+foot+'</div></div>';
 }
 function knockoutModeHTML(){
   var ph=fdSafePhase();if(!ph.prioritizeBracket)return '';
@@ -7597,14 +7604,14 @@ function pulseHTML(){const gm=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]);
     (topTeam?`<span class="tsnap-i">Most goals <b>${fl(topTeam)} ${nm(topTeam)}</b></span>`:'')
   ].filter(Boolean).join('<span class="tsnap-sep">·</span>');
   return `<div class="tsnap"><span class="tsnap-k">Tournament snapshot</span><div class="tsnap-row">${items}</div></div>`;}
-function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koParts(m.num):[m.home,m.away];const s=ko?null:S.sc[m.num];
-  H=lnHTML(ph||m.home,!ph,s?s.h:null,s&&s.h>s.a,s&&s.a>s.h);A=lnHTML(pa||m.away,!pa,s?s.a:null,s&&s.a>s.h,s&&s.h>s.a);
+function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koParts(m.num):[m.home,m.away];const fin=truthOfficialFinalScore(m.num),kw=ko&&S.realko&&S.realko[m.num],s=ko?(kw&&fin?fin:null):S.sc[m.num];
+  H=lnHTML(ph||m.home,!ph,s?s.h:null,ko?(kw&&ph===kw):(s&&s.h>s.a),ko?(kw&&ph&&ph!==kw):(s&&s.a>s.h));A=lnHTML(pa||m.away,!pa,s?s.a:null,ko?(kw&&pa===kw):(s&&s.a>s.h),ko?(kw&&pa&&pa!==kw):(s&&s.h>s.a));
   gtag=ko?`<span class="gtag ko">${roundName(m.num)}</span>`:`<span class="gtag">Grp ${m.group}</span>`;
   const tp=to12p(m.time);const foc=focusInMatch(m);
   const kIn=(!s&&!(S.real&&S.real[m.num]))?kickoffIn(m):"";
-  const done=ko?!!S.ko[m.num]:!!s;
+  const done=ko?!!kw:!!s;
   const hold=matchHoldState(m.num),liveSt=matchLiveState(m.num);
-  const doneTag=(featured?'<span class="gtag featured">Featured</span>':'')+(done?((S.real&&S.real[m.num])?'<span class="gtag ft">● FT</span>':(isBetSim(m.num)?'<span class="gtag bs">BET SIM</span>':'<span class="gtag sm">SIM</span>')):(hold?'<span class="gtag bs">'+esc(safeStatusText(hold.label,'DELAYED'))+'</span>':(liveSt?'<span class="gtag ft">'+esc(safeStatusText(liveSt.label,'LIVE'))+'</span>':(kIn?'':'<span class="gtag up">UPCOMING</span>'))));
+  const doneTag=(featured?'<span class="gtag featured">Featured</span>':'')+(done?((S.real&&S.real[m.num])||kw?'<span class="gtag ft">● FT</span>':(isBetSim(m.num)?'<span class="gtag bs">BET SIM</span>':'<span class="gtag sm">SIM</span>')):(hold?'<span class="gtag bs">'+esc(safeStatusText(hold.label,'DELAYED'))+'</span>':(liveSt?'<span class="gtag ft">'+esc(safeStatusText(liveSt.label,'LIVE'))+'</span>':(kIn?'':'<span class="gtag up">UPCOMING</span>'))));
   // 🔥 Sweat engine: glow the card if you have a live bet riding on this match
   var sweat="";if(S.live&&S.live.num===m.num){var ab=S.bets.find(function(b){return b.num===m.num&&!b.settled&&(b.pick==='h'||b.pick==='a'||b.pick==='d');});
     if(ab){var sh=S.live.sh,sa=S.live.sa;var winning=(ab.pick==='h'&&sh>sa)||(ab.pick==='a'&&sa>sh)||(ab.pick==='d'&&sh===sa);var tied=(sh===sa&&ab.pick!=='d');sweat=winning?' sweat-winning':(tied?' sweat-tied':' sweat-losing');}}
@@ -7732,7 +7739,7 @@ function liveTour(){var sc={},snap=tournamentTruthSnapshot();Object.keys(snap.of
   var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
   var ko={};Object.keys(snap.official.knockoutWinners||{}).forEach(function(n){ko[n]=snap.official.knockoutWinners[n];}); // real knockout winners → bracket advances live
   try{Object.defineProperty(ko,'__officialDisplayKO',{value:true,enumerable:false});}catch(e){ko.__officialDisplayKO=true;}
-  return {sc:sc,ko:ko,order:order,thirds:null};}
+  return {sc:sc,ko:ko,order:order,thirds:null,officialKOFixtures:Object.assign({},(S&&S.officialKOFixtures)||{})};}
 function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85,87],r16=[89,90,93,94,91,92,95,96],qf=[97,98,99,100],sf=[101,102];
   const pathSet=new Set(S.focus?pathChain(S.focus):[]);
   var rounds=[{k:'r32',t:'Round of 32',sh:'R32',nums:r32},{k:'r16',t:'Round of 16',sh:'R16',nums:r16},{k:'qf',t:'Quarter-finals',sh:'QF',nums:qf},{k:'sf',t:'Semi-finals',sh:'SF',nums:sf},{k:'final',t:'Final',sh:'Final',nums:[104,103]}];
@@ -8724,6 +8731,10 @@ function truthOverallHealth(){
 function truthResolveOfficialFixture(f,allowKnockout){
   if(!officialFinalPayload(f))return null;
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return null;
+  if(allowKnockout){
+    var kn=truthProviderKOFixtureNum(f);
+    if(kn&&M[kn]&&M[kn].stage!=='group')return {num:kn,match:M[kn],home:hc,away:ac,score:{h:+f.gh,a:+f.ga},payload:f,flip:false};
+  }
   var hit=allowKnockout?rwFindFixtureAnyStage(hc,ac):rwFindFixtureAny(hc,ac);if(!hit)return null;
   var sh=hit.flip?f.ga:f.gh,sa=hit.flip?f.gh:f.ga;
   return {num:hit.m.num,match:hit.m,home:hit.m.home,away:hit.m.away,score:{h:+sh,a:+sa},payload:f,flip:!!hit.flip};
@@ -8975,16 +8986,20 @@ function ingestFinished(arr,opts){if(!Array.isArray(arr)||!arr.length)return fal
 function truthOfficialTourWithKO(ko){
   var sc={};Object.keys(REAL||{}).forEach(function(n){var v=truthOfficialFinalScore(+n);if(v)sc[n]={h:v.h,a:v.a};});
   var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
-  return {sc:sc,ko:ko||{},order:order,thirds:null};
+  return {sc:sc,ko:ko||{},order:order,thirds:null,officialKOFixtures:Object.assign({},(S&&S.officialKOFixtures)||{})};
 }
 function truthKOFinalFor(num){return S&&S.officialKOFinals&&S.officialKOFinals[num];}
 function truthStoreKOPayload(f){
   var fx=truthResolveOfficialFixture(f,true);if(!fx||fx.match.stage==='group')return false;
   var hc=rwResolve(f.home),ac=rwResolve(f.away),win=knockoutOfficialWinnerFromPayload(f,hc,ac);if(!win)return false;
+  S.officialKOFixtures=S.officialKOFixtures||{};
+  var prevFx=S.officialKOFixtures[fx.num]||{};
+  S.officialKOFixtures[fx.num]={num:fx.num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',source:'official_provider_fixture',updatedAt:Date.now()};
   var pair=withTour(liveTour(),function(){return koParts(fx.num);});if(!pair[0]||!pair[1])return false;
+  truthApplyOfficialFinal({num:fx.num,match:fx.match,score:{h:+f.gh,a:+f.ga}});
   S.officialKOFinals=S.officialKOFinals||{};
   var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:pair[0],away:pair[1],winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};
-  var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away;
+  var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away||prevFx.home!==hc||prevFx.away!==ac||prevFx.source!=='official_provider_fixture';
   S.officialKOFinals[fx.num]=next;return changed;
 }
 function truthRebuildOfficialKO(){
