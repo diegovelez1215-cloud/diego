@@ -176,7 +176,7 @@ test('end-to-end: launch builds the one-screen stage, skip lands a recap, settle
   assert.ok(window.document.getElementById('ts2recap'), 'recap shown after skip');
   const recapText = window.document.getElementById('ts2recap').textContent;
   assert.ok(/Back to Play/.test(recapText), 'back-to-play primary recap action present');
-  assert.ok(/Return to your simulated picks and markets\./.test(recapText), 'supporting copy present');
+  assert.ok(/Return to What-If Match selection\./.test(recapText), 'supporting copy present');
   assert.ok(/World Cup Home/.test(recapText), 'world-cup-home secondary action present');
   assert.ok(/New slip/.test(recapText), 'new-slip recap action present');
   assert.ok(/Replay/.test(recapText), 'replay recap action present');

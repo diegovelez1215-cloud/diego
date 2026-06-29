@@ -114,7 +114,7 @@ test('live/provisional paths render Projected As It Stands, never Confirmed', ()
   const s = resetOfficial(app);
   app.setState(s);
   const projected = app.withReal(() => app.knockoutPathCardHTML(73, new Set(), false, true));
-  assert.ok(/Projected · As it stands|Pending official final|One side confirmed/.test(projected), 'uses conservative status language');
+  assert.ok(/Projected|Pending official final|One side confirmed|Awaiting result/.test(projected), 'uses conservative status language');
   assert.ok(!/Both teams officially locked/.test(projected), 'live projection is not styled as official confirmation');
 }));
 
@@ -266,7 +266,7 @@ test('timing, speed-up, settlement safety, raw labels, and console stay clean', 
   s.bets = [{ id: 'p10-settle', num: 1, pick: 'h', stake: 20, odds: 120, settled: false, state: 'pending' }];
   app.setState(s);
   window.ts2Launch(0);
-  assert.match(window.document.getElementById('ts2top').textContent, /Simulation/);
+  assert.match(window.document.getElementById('ts2top').textContent, /SIMULATION/);
   assert.match(window.document.getElementById('ts2top').textContent, /Virtual match/);
   assert.match(window.document.getElementById('ts2top').textContent, /SIM \$|SIM \$/);
   assert.match(window.document.getElementById('ts2top').textContent, /No real money/);

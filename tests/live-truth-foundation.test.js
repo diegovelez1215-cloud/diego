@@ -197,7 +197,7 @@ test('exact score ties stay unresolved unless authoritative provider order exist
   assert.equal(app.knockoutSlotStatus(slot.num, true).state, 'one', 'direct slot can lock once its tied group has authority');
 }));
 
-test('named future provider knockout fixture is confirmed in bracket and Route Explorer', () => withApp((app) => {
+test('named provider knockout fixture is team-confirmed without implying advancement', () => withApp((app) => {
   const s = resetOfficial(app);
   app.ingestProviderKOFixtures([scheduledKOPayload(73, 'Germany', 'Paraguay')], { authoritative: true });
   const st = app.knockoutSlotStatus(73, true);
@@ -207,7 +207,7 @@ test('named future provider knockout fixture is confirmed in bracket and Route E
   const card = app.knockoutPathCardHTML(73, new Set(), false, true);
   assert.match(card, /Germany/);
   assert.match(card, /Paraguay/);
-  assert.match(card, /Confirmed/);
+  assert.match(card, /Up next|Awaiting result/);
   const route = app.matchupIntelligence('GER', 'PAR');
   assert.equal(route.verdict, 'confirmed');
   assert.equal(route.knockoutPossibilities[0].matchNum, 73);

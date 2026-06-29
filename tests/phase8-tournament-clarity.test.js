@@ -332,7 +332,7 @@ test('Completed simulation offers source-aware return actions and hides the old 
   assert.ok(recap, 'recap shown after completion');
   const txt = recap.textContent;
   assert.ok(/Back to Play/.test(txt), 'Back to Play primary action present');
-  assert.ok(/Return to your simulated picks and markets\./.test(txt), 'supporting copy present');
+  assert.ok(/Return to What-If Match selection\./.test(txt), 'supporting copy present');
   assert.ok(/New slip/.test(txt) && /World Cup Home/.test(txt) && /Replay/.test(txt), 'New slip, World Cup Home and Replay present');
   assert.ok(!/Run it back/.test(txt), 'Run it back removed');
   assert.ok(!/Edit slip/.test(txt) && !/Edit ticket/.test(txt), 'Edit slip removed');
