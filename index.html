@@ -7787,7 +7787,12 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   document.getElementById("bracket").innerHTML=h;}
 function koSlotOfficialTeam(raw,matchNum){
   var named=(typeof truthProviderNamedKOFixture==="function")?truthProviderNamedKOFixture(matchNum):null;
-  if(named&&!(S.realko&&S.realko[matchNum])){
+  // The provider fixture names the two teams that actually played this tie, and stays
+  // canonical AFTER the final is recorded too — once S.realko[matchNum] exists the record
+  // and the named fixture are written from the same provider final, so they agree. Dropping
+  // the named teams here (the old behavior) made a decided tie fall back to seed slots and
+  // render the wrong opponent. Provider participants remain authoritative for this tie.
+  if(named){
     if(raw===M[matchNum].home)return {team:named.home,locked:true,reason:'official_provider_fixture'};
     if(raw===M[matchNum].away)return {team:named.away,locked:true,reason:'official_provider_fixture'};
   }
@@ -7828,7 +7833,13 @@ function koDecidedLabel(num){
   return '';
 }
 function knockoutPathCardHTML(num,pathSet,tappable,liveMode,nextR){
-  var m=M[num],ks=knockoutSlotStatus(num,liveMode),w=S.ko[num],next=NEXTWIN[num],line=ks.line,fin=(liveMode&&w)?truthOfficialFinalScore(num):null;
+  var m=M[num],ks=knockoutSlotStatus(num,liveMode),w=S.ko[num],next=NEXTWIN[num],line=ks.line;
+  // In the official "as it stands" bracket, the canonical winner is the recorded provider
+  // result (S.realko), not the user's prediction (S.ko). Reading it here keeps the score
+  // chip, advance/eliminate marks and meta line truthful even when this card is rendered
+  // outside a liveTour() wrapper (e.g. Home/Tournament/Matches direct render).
+  if(liveMode&&S.realko&&S.realko[num])w=S.realko[num];
+  var fin=(liveMode&&w)?truthOfficialFinalScore(num):null;
   if(w){
     if(next)line=nm(w)+' advances to '+roundName(next);
     else if(num===104)line=nm(w)+' are World Champions';
@@ -8986,7 +8997,14 @@ function ingestFinished(arr,opts){if(!Array.isArray(arr)||!arr.length)return fal
 function truthOfficialTourWithKO(ko){
   var sc={};Object.keys(REAL||{}).forEach(function(n){var v=truthOfficialFinalScore(+n);if(v)sc[n]={h:v.h,a:v.a};});
   var order={};"ABCDEFGHIJKL".split("").forEach(function(g){order[g]=GROUPS[g].slice();});
-  return {sc:sc,ko:ko||{},order:order,thirds:null,officialKOFixtures:Object.assign({},(S&&S.officialKOFixtures)||{})};
+  ko=ko||{};
+  // The official KO rebuild validates each stored provider final against this tour's
+  // recomputed pairing. Flag the tour as the official display bracket so koParts honors
+  // provider-named knockout participants as canonical truth — otherwise validation falls
+  // back to seed-derived slots, fails to match the provider fixture, and prunes a real
+  // FINISHED result (leaving S.realko[num] unset). Provider truth must survive validation.
+  try{Object.defineProperty(ko,'__officialDisplayKO',{value:true,enumerable:false,configurable:true});}catch(e){ko.__officialDisplayKO=true;}
+  return {sc:sc,ko:ko,order:order,thirds:null,officialKOFixtures:Object.assign({},(S&&S.officialKOFixtures)||{})};
 }
 function truthKOFinalFor(num){return S&&S.officialKOFinals&&S.officialKOFinals[num];}
 function truthStoreKOPayload(f){
@@ -8995,10 +9013,15 @@ function truthStoreKOPayload(f){
   S.officialKOFixtures=S.officialKOFixtures||{};
   var prevFx=S.officialKOFixtures[fx.num]||{};
   S.officialKOFixtures[fx.num]={num:fx.num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',source:'official_provider_fixture',updatedAt:Date.now()};
-  var pair=withTour(liveTour(),function(){return koParts(fx.num);});if(!pair[0]||!pair[1])return false;
+  // The actual participants come straight from the provider final (hc/ac), NOT from
+  // koParts. koParts only honors provider-named participants while the winner is absent
+  // from the display bracket (!S.ko[num]); once S.realko advances this tie it reverts to
+  // seed-derived slots, which would desync the stored record from provider truth and let
+  // the next rebuild prune a real FINISHED result. Anchoring to hc/ac keeps the canonical
+  // pairing stable across every rebuild pass.
   truthApplyOfficialFinal({num:fx.num,match:fx.match,score:{h:+f.gh,a:+f.ga}});
   S.officialKOFinals=S.officialKOFinals||{};
-  var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:pair[0],away:pair[1],winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};
+  var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:hc,away:ac,winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};
   var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away||prevFx.home!==hc||prevFx.away!==ac||prevFx.source!=='official_provider_fixture';
   S.officialKOFinals[fx.num]=next;return changed;
 }

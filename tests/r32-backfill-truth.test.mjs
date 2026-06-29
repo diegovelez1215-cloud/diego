@@ -223,7 +223,10 @@ test('6. provider knockout finals beat verified fallback everywhere', () => with
 
   const mc = app.matchCenterTruth(73);
   assert.equal(mc.phase, 'final');
-  assert.deepEqual(mc.score, { h: 0, a: 1 });
+  // Compare fields (the score object is created in the JSDOM realm, so a cross-realm
+  // deepStrictEqual on the object itself fails on prototype identity, not on value).
+  assert.equal(mc.score.h, 0);
+  assert.equal(mc.score.a, 1);
 
   const unresolved = app.knockoutPathCardHTML(74, new Set(), false, true);
   assert.match(unresolved, /Germany/);
