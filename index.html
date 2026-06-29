@@ -4371,13 +4371,13 @@ function homeTodayFixtures(){var today=curISO();return MATCHES.filter(function(m
 function kickoffWindowKey(m){return (matchDay(m)||'')+' '+(m.time||'');}
 function kickoffWindowModel(opts){
  opts=opts||{};var iso=opts.iso||null,seen=opts.seen||{},includeCompleted=!!opts.includeCompleted,team=opts.team||'',fromToday=opts.fromToday||null,allowPending=!!opts.allowPending;
- var rows=MATCHES.filter(function(m){if(iso&&matchDay(m)!==iso)return false;if(fromToday&&matchDay(m)<fromToday)return false;if(!includeCompleted&&homeFixtureDone(m))return false;if(homeSeenHas(seen,m.num))return false;if(!allowPending&&!homeFixtureReady(m))return false;if(team){var p=homeFixtureParts(m);if(p[0]!==team&&p[1]!==team)return false;}return true;}).sort(homeSortFixtures);
+ var rows=MATCHES.filter(function(m){if(iso&&matchDay(m)!==iso)return false;if(fromToday&&matchDay(m)<fromToday)return false;if(koSlotSuppressed(m.num))return false;if(!includeCompleted&&homeFixtureDone(m))return false;if(homeSeenHas(seen,m.num))return false;if(!allowPending&&!homeFixtureReady(m))return false;if(team){var p=homeFixtureParts(m);if(p[0]!==team&&p[1]!==team)return false;}return true;}).sort(homeSortFixtures);
  var map={},out=[];rows.forEach(function(m){var k=kickoffWindowKey(m);if(!map[k]){map[k]={key:k,date:matchDay(m),time:m.time,sort:(koDateTime(m)||new Date((m.date||'')+'T'+(m.time||'00:00')+':00')).getTime(),fixtures:[]};map[k]&&out.push(map[k]);}map[k].fixtures.push(m);});
  out.sort(function(a,b){return a.sort-b.sort||a.key.localeCompare(b.key);});out.forEach(function(w){w.fixtures.sort(function(a,b){return a.num-b.num;});});return out;
 }
 function kickoffWindowFixtureNums(windows){var out=[];(windows||[]).forEach(function(w){(w.fixtures||[]).forEach(function(m){out.push(m.num);});});return out;}
 function homeNextFixture(seen){
- var today=curISO();return MATCHES.filter(function(m){return homeFixtureReady(m)&&!homeFixtureDone(m)&&matchDay(m)>=today&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures)[0]||null;
+ var today=curISO();return MATCHES.filter(function(m){return !koSlotSuppressed(m.num)&&homeFixtureReady(m)&&!homeFixtureDone(m)&&matchDay(m)>=today&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures)[0]||null;
 }
 function homePrimaryLiveState(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
@@ -4484,12 +4484,12 @@ function goSocial(){TAB='h2h';if(typeof pushTab==="function")pushTab();switchTab
 function homeLiveNowHTML(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
  if(S.live){var L=S.live;return '<div class="home-card hero play"><div class="home-k"><span>Live Now</span><span class="home-status">My Sim</span></div><div class="home-live-row"><div class="home-team">'+fl(L.h)+' '+nm(L.h)+'</div><div class="home-score">'+L.sh+'–'+L.sa+'</div><div class="home-team r">'+nm(L.a)+' '+fl(L.a)+'</div></div><div class="home-sub">Sim minute '+L.min+"' · "+esc(L.comm||'Match running')+'</div><button class="home-action" onclick="openSheet('+L.num+')">Open Match Center</button></div>';}
- if(states.length){var st=states[0],m=M[st.num],hold=st.kind==='hold',h=m&&m.home,a=m&&m.away;var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(safeStatusText(st.label,'Live'))+'</span></div><div class="home-live-row"><div class="home-team">'+fl(h)+' '+nm(h)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+nm(a)+' '+fl(a)+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
+ if(states.length){var st=states[0],hold=st.kind==='hold',dt=liveDisplayTeams(st.num);var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(safeStatusText(st.label,'Live'))+'</span></div><div class="home-live-row"><div class="home-team">'+(dt.hCode?fl(dt.hCode)+' ':'')+esc(dt.hName)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+esc(dt.aName)+(dt.aCode?' '+fl(dt.aCode):'')+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
  var pending=null,pnow=Date.now(),pt=Infinity;MATCHES.forEach(function(mm){if(!livePendingOfficial(mm.num))return;var d=koDateTime(mm);if(!d)return;var t=d.getTime();if(t<=pnow&&t<pt){pt=t;pending=mm.num;}});
- if(pending!=null){var pm=M[pending],pp=pm.stage==='group'?[pm.home,pm.away]:koParts(pm.num);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+fl(pp[0])+' '+nm(pp[0])+'</div><div class="home-score">–</div><div class="home-team r">'+nm(pp[1])+' '+fl(pp[1])+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
+ if(pending!=null){var pdt=officialDisplayTeams(pending);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+(pdt.hCode?fl(pdt.hCode)+' ':'')+esc(pdt.hName)+'</div><div class="home-score">–</div><div class="home-team r">'+esc(pdt.aName)+(pdt.aCode?' '+fl(pdt.aCode):'')+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
- var today=curISO(),up=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num],p=m.stage==='group'?[m.home,m.away]:koParts(m.num);return !done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today&&p[0]&&p[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
- if(up){var p=up.stage==='group'?[up.home,up.away]:koParts(up.num);return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">No live now</span></div><div class="home-live-row"><div class="home-team">'+fl(p[0])+' '+nm(p[0])+'</div><div class="home-score">v</div><div class="home-team r">'+nm(p[1])+' '+fl(p[1])+'</div></div><div class="home-sub"><b>'+shortDate(up.date)+' · '+to12(up.time)+' ET</b><br>'+esc(up.venue)+' · '+(up.stage==='group'?'Group '+up.group:roundShort(up.num))+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+up.num+')">Open Match Center</button></div>';}
+ var today=curISO(),up=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num],p=m.stage==='group'?[m.home,m.away]:koParts(m.num);return !koSlotSuppressed(m.num)&&!done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today&&p[0]&&p[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
+ if(up){var ut=officialDisplayTeams(up.num);return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">No live now</span></div><div class="home-live-row"><div class="home-team">'+(ut.hCode?fl(ut.hCode)+' ':'')+esc(ut.hName)+'</div><div class="home-score">v</div><div class="home-team r">'+esc(ut.aName)+(ut.aCode?' '+fl(ut.aCode):'')+'</div></div><div class="home-sub"><b>'+shortDate(up.date)+' · '+to12(up.time)+' ET</b><br>'+esc(up.venue)+' · '+(up.stage==='group'?'Group '+up.group:roundShort(up.num))+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+up.num+')">Open Match Center</button></div>';}
  return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">Calm</span></div><div class="home-sub"><b>No official World Cup match live right now.</b> Results sync safely in the background; delayed or suspended games stay pending.</div>'+fresh+'<button class="home-action" onclick="goLiveBracket()">See live bracket</button></div>';
 }
 function activePicksHTML(){
@@ -4504,13 +4504,13 @@ function activePicksHTML(){
  return '<div class="home-card play"><div class="home-k"><span>'+label+'</span><span class="home-status '+(delayed?'hold':'')+'">'+(simOpen&&!officialOpen?'SIMULATION':(delayed?'Delayed':'REAL WORLD CUP'))+'</span></div>'+livePick+'<div class="home-picks"><div class="home-pick-stat"><span>Open</span><b>'+open.length+'</b></div><div class="home-pick-stat"><span>'+esc(simOpen&&!officialOpen?'SIM$ return':'Potential return')+'</span><b>$'+ret.toLocaleString()+'</b></div><button class="home-action" style="margin:0" onclick="'+(simOpen&&!officialOpen?'goPlay()':'goSlip()')+'">'+(simOpen&&!officialOpen?'Open What-If':'Open Official Picks')+'</button></div><div class="home-sub" style="margin-top:8px">'+esc(sub)+'</div></div>';
 }
 function tournamentPulseHomeHTML(seen){
- var pulse=knockoutPulseHTML(),next=homeNextFixture(seen);
+ var pulse=knockoutPulseHTML(false,true),next=homeNextFixture(seen);
  var note=next?('Next major match: '+(next.stage==="group"?nm(next.home)+' v '+nm(next.away):roundShort(next.num))+' · '+shortDate(next.date)):'Tournament complete';
  if(!next&&seen&&Object.keys(seen).length)note='Current match is shown above. Open the live knockout look for the route picture.';
  return '<div class="home-card official"><div class="home-k"><span>REAL WORLD CUP</span><span class="home-status">Knockout</span></div><div class="home-sub"><b>'+esc(note)+'</b><br>Official bracket paths update only from provider-confirmed finals.</div><button class="home-action brk-home-go" aria-label="View full World Cup knockout bracket" onclick="goBracket()">View full bracket</button></div>'+pulse;
 }
 function upcomingHomeHTML(){
- var up=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num],pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);return !done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,4);
+ var up=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num],pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);return !koSlotSuppressed(m.num)&&!done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,4);
  var rows=up.map(function(m){var p=m.stage==="group"?[m.home,m.away]:koParts(m.num),o=matchOddsFor(m.num,p[0],p[1],m.stage!=="group");return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+fl(p[0])+' '+nm(p[0])+' v '+nm(p[1])+' '+fl(p[1])+'</b><span>'+shortDate(m.date)+' · '+(m.stage==="group"?to12(m.time):roundShort(m.num))+'</span><span>'+fmtAmer(o.h)+' · draw '+fmtAmer(o.d)+' · '+fmtAmer(o.a)+'</span></div>';}).join("");
  return '<div class="home-card"><div class="home-k"><span>Upcoming Matches</span><span class="home-status">Quick pick</span></div><div class="home-upcoming">'+(rows||'<div class="home-sub">No upcoming fixtures available.</div>')+'</div></div>';
 }
@@ -4605,7 +4605,7 @@ function knockoutModeHTML(){
   // One chronological knockout timeline: ties sort by actual official kickoff time
   // (provider utcDate, then the scheduled window) — never slot number or insertion
   // order. A confirmed tie still in the future never jumps ahead of an earlier one.
-  var ordered=r32.slice().sort(function(a,b){
+  var ordered=r32.slice().filter(function(x){return !koSlotSuppressed(x.matchNum);}).sort(function(a,b){
     var ka=koFixtureKickoffMs(a.matchNum),kb=koFixtureKickoffMs(b.matchNum);
     return (ka-kb)||(a.matchNum-b.matchNum);
   });
@@ -4711,7 +4711,7 @@ function renderHome(){
  // 2 · champion hero (only when crowned)
  var champ=c?'<div class="home-champ lit" onclick="celebrate()" style="cursor:pointer"><div class="hc-l">★ World Champions · tap to celebrate</div><div class="hc-team"><span class="fg">'+fl(c)+'</span>'+nm(c)+'</div></div>':'';
  // 3 · next up (actionable)
- var upMs=MATCHES.filter(function(m){return activeMode()==='real'?!officialFixtureDone(m):(m.stage==="group"?(!S.sc[m.num]&&!(S.real&&S.real[m.num])):(!S.ko[m.num]));}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,3);
+ var upMs=MATCHES.filter(function(m){return !koSlotSuppressed(m.num)&&(activeMode()==='real'?!officialFixtureDone(m):(m.stage==="group"?(!S.sc[m.num]&&!(S.real&&S.real[m.num])):(!S.ko[m.num])));}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,3);
  var upFeed=upMs.map(function(m){var ph=m.stage==="group"?m.home:koParts(m.num)[0],pa=m.stage==="group"?m.away:koParts(m.num)[1];
    var spk=(S.live&&S.live.num===m.num)?sparklineSVG(S.live):'';
    return '<div class="frow up" onclick="openSheet('+m.num+')"><div class="fmatch">'+(ph?fl(ph)+' '+nm(ph):slotLabel(m.home))+' <span class="vsx">v</span> '+(pa?nm(pa)+' '+fl(pa):slotLabel(m.away))+' '+rwLiveTag(m.num)+'</div><div class="fmeta">'+(m.stage==="group"?shortDate(m.date)+' · '+to12(m.time):roundShort(m.num))+spk+'</div></div>';}).join("");
@@ -6398,6 +6398,7 @@ function activeViewRender(){
   if(key==="bet"){renderBetting();_renderedViews.bet=1;_dirtyViews.bet=0;}
 }
 function render(){
+  try{koResetDedupCache();}catch(e){}
   // Settlement + wallet always run against the TRUE sandbox (S), independent of view mode.
   settleAllBets();try{checkPicks();}catch(e){}try{checkAchv();}catch(e){}renderBankroll();
   try{renderModeBar();}catch(e){}
@@ -6456,7 +6457,7 @@ function knockoutContextMeaningful(){
     return done>=60;
   }catch(e){return false;}
 }
-function knockoutPulseHTML(inBracket){
+function knockoutPulseHTML(inBracket,hideBracketCTA){
   // Runs inside the active tournament context (real mode = reality-only).
   var sim=activeMode()==='sim';
   var gpPlayed=MATCHES.filter(function(m){return m.stage==="group"&&S.sc[m.num]&&!isBetSim(m.num);}).length;
@@ -6466,7 +6467,7 @@ function knockoutPulseHTML(inBracket){
   // always renders. A user's own sim projection is always allowed.
   if(!inBracket&&!sim&&!knockoutContextMeaningful())return "";
   var r32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],ties=[];
-  r32.forEach(function(n){var p=koParts(n);if(!p[0]||!p[1])return;
+  r32.forEach(function(n){if(koSlotSuppressed(n))return;var p=koParts(n);if(!p[0]||!p[1])return;
     ties.push({n:n,h:p[0],a:p[1],r:(RAT[p[0]]||60)+(RAT[p[1]]||60)});});
   if(!ties.length)return "";
   ties.sort(function(a,b){return b.r-a.r;});
@@ -6481,7 +6482,7 @@ function knockoutPulseHTML(inBracket){
     '<div class="kp-stats"><div class="kp-stat"><b>'+filled+'/16</b><span>R32 ties</span></div><div class="kp-stat"><b>'+gpPlayed+'/72</b><span>Group games</span></div><div class="kp-stat"><b>'+(cut?cut.Pts:'—')+'</b><span>3rd cutoff</span></div></div>'+
     '<div class="kp-main"><div class="kp-main-k">Marquee projected ties</div>'+rows+'</div>'+
     '<div class="kp-main-k">Best third-place race'+(bubble?' · bubble: '+fl(bubble.code)+' '+nm(bubble.code):'')+'</div><div class="kp-third">'+third+'</div>'+
-    (inBracket?'':'<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button>')+'</div>';
+    (inBracket||hideBracketCTA?'':'<button class="kp-go" onclick="goLiveBracket()">Open the full live bracket →</button>')+'</div>';
 }
 function groupsOverviewHTML(){
   var h='<div class="grpov-h">📊 All groups at a glance · tap a group to jump</div><div class="grpov">';
@@ -6781,7 +6782,7 @@ function tccFeatured(){
     var pure=live.filter(function(n){return S.rwState[n].kind==='live';});
     return {num:(pure.length?pure[0]:live[0]),kind:'live'};}
   var now=Date.now();
-  var up=MATCHES.filter(function(m){if(tccPlayed(m.num))return false;var d=koDateTime(m);return d&&d.getTime()>=now-3*3600000;});
+  var up=MATCHES.filter(function(m){if(koSlotSuppressed(m.num))return false;if(tccPlayed(m.num))return false;var d=koDateTime(m);return d&&d.getTime()>=now-3*3600000;});
   if(up.length){up.sort(function(a,b){var da=koDateTime(a),db=koDateTime(b);return (da?da.getTime():0)-(db?db.getTime():0);});
     var day=up[0].date,sameDay=up.filter(function(m){return m.date===day;});
     sameDay.sort(function(a,b){return (tccIsDecider(b.num)?1:0)-(tccIsDecider(a.num)?1:0)||matchClock(a)-matchClock(b)||a.num-b.num;});
@@ -7754,6 +7755,51 @@ function slotLabel(s){if(!s)return "Opponent to be decided";let m;
   if(m=s.match(/^([12])([A-L])$/))return (m[1]==="1"?"Winner":"Runner-up")+" Group "+m[2];
   if(m=s.match(/^3:/))return "Qualification slot pending";
   if(m=s.match(/^W(\d+)$/))return "Winner #"+m[1];if(m=s.match(/^L(\d+)$/))return "Loser #"+m[1];return s==='TBD'?'Opponent to be decided':s;}
+/* ===== Canonical official-fixture DISPLAY layer ============================
+   One safe source of display text for Home, Knockout, Matches and Match Center.
+   Team labels come only from a normalized team code → nm(code); an unresolved slot
+   falls back to a human slotLabel ("Winner Group E"), never a raw token, object,
+   id, status or score fragment. */
+function officialDisplayName(code,rawSlot){return (code&&T[code])?nm(code):slotLabel(rawSlot);}
+function officialDisplayTeams(num){
+  var m=M[num];if(!m)return {hCode:null,aCode:null,hName:'Opponent to be decided',aName:'Opponent to be decided'};
+  var pr=(m.stage==='group')?[m.home,m.away]:koParts(num);
+  var hC=(pr[0]&&T[pr[0]])?pr[0]:null,aC=(pr[1]&&T[pr[1]])?pr[1]:null;
+  return {hCode:hC,aCode:aC,hName:officialDisplayName(pr[0],m.home),aName:officialDisplayName(pr[1],m.away)};
+}
+/* Live fixtures carry the provider's own resolved team codes (captured in rwState),
+   so a live scorecard always shows real names aligned to the live score — never a
+   bracket slot token. Falls back to the canonical resolver if codes are absent. */
+function liveDisplayTeams(num){
+  var st=S&&S.rwState&&S.rwState[num];
+  if(st&&st.homeCode&&st.awayCode&&T[st.homeCode]&&T[st.awayCode])
+    return {hCode:st.homeCode,aCode:st.awayCode,hName:nm(st.homeCode),aName:nm(st.awayCode)};
+  return officialDisplayTeams(num);
+}
+/* Round-of-32 canonical dedup: in a single-elimination bracket two distinct ties can
+   never share the same team pair, so when two slots resolve to the same normalized
+   pair one is a provider/fallback duplicate. Keep the canonical representative
+   (provider-named first, then earliest official kickoff, then lowest slot) and mark
+   the rest suppressed so no official tie renders twice on any surface. Computed once
+   per render. */
+var _koDedupMemo=null;
+function koResetDedupCache(){_koDedupMemo=null;}
+function koCanonicalDedupMap(){
+  if(_koDedupMemo)return _koDedupMemo;
+  var R32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],byPair={},suppressed={};
+  R32.forEach(function(n){var t=officialDisplayTeams(n);if(!t.hCode||!t.aCode)return;
+    var k=truthNormTeamKey(t.hCode,t.aCode);(byPair[k]=byPair[k]||[]).push(n);});
+  Object.keys(byPair).forEach(function(k){var slots=byPair[k];if(slots.length<2)return;
+    slots.sort(function(a,b){
+      var pa=truthProviderNamedKOFixture(a)?0:1,pb=truthProviderNamedKOFixture(b)?0:1;
+      if(pa!==pb)return pa-pb;
+      var ka=koFixtureKickoffMs(a),kb=koFixtureKickoffMs(b);
+      if(ka!==kb)return ka-kb;
+      return a-b;});
+    slots.slice(1).forEach(function(n){suppressed[n]=slots[0];});});
+  _koDedupMemo=suppressed;return suppressed;
+}
+function koSlotSuppressed(num){return !!koCanonicalDedupMap()[num];}
 
 const CGRAD={West:"linear-gradient(120deg,#0e7490,#155e75)",Central:"linear-gradient(120deg,#9a3412,#7c2d12)",East:"linear-gradient(120deg,#5b21b6,#1e3a8a)"};
 function renderCities(){let h="";["West","Central","East"].forEach(reg=>{h+=`<div class="regttl">${REGION[reg]}</div>`;
@@ -8990,10 +9036,13 @@ function truthApplyProvisional(f,receipt){
   if(!truthChannelAccepts('live',receipt))return false;
   var hc=rwResolve(f.home),ac=rwResolve(f.away),mm=rwMatchFixture(hc,ac),kind=rwKind(f);if(!mm||kind==='final')return false;
   var sh=mm.flip?f.ga:f.gh,sa=mm.flip?f.gh:f.ga;
+  // Capture the provider's own resolved team codes, aligned to sh/sa, so a live card
+  // always shows real names even when the static bracket slot is still a token.
+  var homeCode=mm.flip?ac:hc,awayCode=mm.flip?hc:ac;
   S.rwState=S.rwState||{};
   var at=Date.now();
-  S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq};
-  if(kind==='live'&&sh!=null&&sa!=null){S._rwlive=S._rwlive||{};S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq};}
+  S.rwState[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq,homeCode:homeCode,awayCode:awayCode};
+  if(kind==='live'&&sh!=null&&sa!=null){S._rwlive=S._rwlive||{};S._rwlive[mm.num]={sh:sh,sa:sa,min:f.min,status:f.status,label:rwStatusLabel(f),kind:kind,at:at,receiptSeq:receipt&&receipt.seq,homeCode:homeCode,awayCode:awayCode};}
   return true;
 }
 function truthFreshness(){
