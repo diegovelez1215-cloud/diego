@@ -3227,6 +3227,113 @@ html,body{overflow-x:hidden!important}
 .strow .pts{color:#F5F7FF!important;font-weight:900!important}
 .strow.head{color:var(--mut2)!important}
 .strow .n{color:var(--mut)!important}
+
+/* ============================================================================
+   ELITE UI · LIQUID GLASS + MOTION LAYER   (branch: cowork/elite-ui-motion)
+   Presentation + interaction polish only. No fixture/provider/schedule-truth,
+   date-semantics, API or Play-mechanics changes. Glass is concentrated on the
+   controls (bottom nav, segmented controls, date selector, sheets, primary
+   actions); fixtures, scores and standings stay solid, quiet and readable.
+   ========================================================================== */
+
+/* --- Navigation motion: brief, compositor-only (opacity), never a slow fade.
+   Tab/subview swaps run through document.startViewTransition(); the browser
+   default is a ~250ms cross-fade that visibly delays the destination. Pin it to
+   a crisp ~140ms opacity crossfade — inside the 120–180ms tap budget — using
+   opacity only (no height/width/filter). The active-tab class is also painted
+   synchronously on tap in JS, so the indicator never lags this crossfade. */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.14s;animation-timing-function:cubic-bezier(.22,.61,.36,1)}
+/* Reduced motion: an instant cut, no crossfade (the universal * reduced-motion
+   rule does not match ::view-transition pseudo-elements, so handle them here). */
+@media (prefers-reduced-motion:reduce){
+  ::view-transition-group(*),::view-transition-old(root),::view-transition-new(root){animation:none!important}
+}
+/* The view transition owns the screen swap — drop the second screen-level slide
+   so a tab change reads as instant, not a double move. Home keeps a quick,
+   composed card settle on first paint (already disabled under reduced motion). */
+.screen.enter{animation:none!important}
+.screen.enter #home>*{animation:cardUp .22s both var(--ease)!important}
+.screen.enter #home>*:nth-child(1){animation-delay:0s!important}
+.screen.enter #home>*:nth-child(2){animation-delay:.03s!important}
+.screen.enter #home>*:nth-child(3){animation-delay:.05s!important}
+.screen.enter #home>*:nth-child(4){animation-delay:.07s!important}
+.screen.enter #home>*:nth-child(n+5){animation-delay:.08s!important}
+
+/* --- Bottom navigation: deep, tactile Liquid Glass. Hairline top edge-light,
+   soft internal highlight, crisp pressed-state deformation. */
+.tabbar{
+  background:linear-gradient(180deg,rgba(11,17,33,.72),rgba(6,9,19,.9))!important;
+  backdrop-filter:blur(28px) saturate(165%)!important;-webkit-backdrop-filter:blur(28px) saturate(165%)!important;
+  border-top:1px solid rgba(197,208,227,.12)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 -18px 36px -28px rgba(0,0,0,.95)!important}
+.tabbar button{transition:color .14s var(--ease),transform .12s var(--spring)!important}
+.tabbar button:active{transform:scale(.93)!important}
+
+/* --- Segmented controls: one tactile glass track (tournament switch + others).
+   The tournament switch keeps its 4-up grid; non-scroll segs lose the harsh
+   white right-edge fade in favour of a soft cool wash ("no white glass"). */
+.tour-switch{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 26px -22px rgba(0,0,0,.85)!important}
+.seg:not(.tour-switch){box-shadow:inset -22px 0 26px -22px rgba(150,180,230,.26),0 10px 26px -22px rgba(0,0,0,.85)!important}
+.seg button:active,.tour-switch button:active{transform:scale(.95)!important}
+.tour-switch button{transition:background .14s var(--ease),color .14s var(--ease),transform .12s var(--spring)!important}
+.tour-switch button.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 16px -12px rgba(0,0,0,.9)!important}
+
+/* --- Date selector: ONE compact, tactile control. A quiet context header sits
+   above a full-width Today / Tomorrow / All Dates glass segmented track with an
+   obvious selected pill and instant press. CSS only — handlers, the .primary
+   selected-class logic and all date semantics are untouched. */
+.date-nav{flex-direction:column!important;align-items:stretch!important;gap:9px!important;padding:11px 12px!important;
+  background:linear-gradient(168deg,rgba(18,29,52,.62),rgba(10,16,32,.8))!important;
+  border:1px solid var(--line)!important;border-radius:16px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 32px -26px rgba(0,0,0,.85)!important;
+  backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%)}
+.date-nav .dn-ctx{flex:none}
+.date-nav .dn-ctx b{font-size:13px}
+.date-nav .dn-actions{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4px!important;justify-content:stretch!important;
+  padding:4px;border-radius:13px;background:rgba(4,8,18,.5);border:1px solid rgba(197,208,227,.08);box-shadow:inset 0 1px 3px rgba(0,0,0,.45)}
+.date-nav .dn-actions .dn-btn{min-height:40px;width:100%;padding:9px 8px;border-radius:10px;
+  border:1px solid transparent!important;background:transparent!important;color:var(--mut)!important;
+  font-weight:850;letter-spacing:.2px;box-shadow:none!important;
+  transition:transform .12s var(--spring),color .14s var(--ease),background .14s var(--ease)!important}
+.date-nav .dn-actions .dn-btn.ghost{color:var(--mut)!important}
+.date-nav .dn-actions .dn-btn.primary{
+  background:linear-gradient(180deg,rgba(94,168,255,.28),rgba(94,168,255,.12))!important;
+  border-color:rgba(94,168,255,.4)!important;color:#fff!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 16px -12px rgba(10,132,255,.7)!important}
+.date-nav .dn-actions .dn-btn:active{transform:scale(.95)!important}
+
+/* --- Fixtures stay solid & quiet, but the actual score reads first (score-first
+   knockout/schedule rows). Winner stays green, loser dims, live stays vivid. */
+.mrow .ln .sc{color:var(--txt)!important}
+.mrow .ln.l .sc{color:var(--mut)!important}
+.mrow:active{transform:scale(.985)!important}
+
+/* --- High-priority actions: a touch more tactile depression under the thumb. */
+.home-action:active,.pf-add:active,.home-action.brk-home-go:active{transform:scale(.97)!important}
+
+/* --- Play lobby hierarchy: What-If Match is the arcade anchor (warm gold), My
+   World Cup is a premium private mode (cool blue), bankroll stays quiet.
+   Mechanics, wallet logic and ticket flow are untouched. */
+.play-feature{border:1px solid rgba(239,197,108,.22)!important;
+  background:linear-gradient(168deg,rgba(36,28,12,.5),rgba(12,16,30,.86))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 40px -26px rgba(0,0,0,.85),0 0 0 1px rgba(239,197,108,.06)!important}
+.pf-add{box-shadow:0 12px 26px -14px rgba(239,197,108,.8)!important}
+.mwc-card{position:relative;overflow:hidden;
+  background:linear-gradient(160deg,rgba(94,168,255,.13),rgba(10,16,32,.9))!important;
+  border:1px solid rgba(94,168,255,.2)!important;border-radius:18px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 40px -26px rgba(0,0,0,.85)!important}
+.mwc-card::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 78% at 100% 0,rgba(94,168,255,.14),transparent 56%);mix-blend-mode:screen}
+.mwc-card>*{position:relative;z-index:1}
+.mwc-ic{background:linear-gradient(180deg,rgba(94,168,255,.2),rgba(94,168,255,.06))!important;border:1px solid rgba(94,168,255,.28)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)!important}
+
+/* --- Opaque fallback: where backdrop-filter is unsupported, controls stay fully
+   readable on solid surfaces (text contrast preserved). */
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  .tabbar,.topbar,.glass{background:#0a0f1e!important}
+  .seg,.tour-switch{background:#101a2d!important}
+  .date-nav{background:#101a2d!important}
+  .sheet{background:#0b1220!important}
+}
 </style></head><body>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <header class="topbar">
@@ -8926,9 +9033,19 @@ function pushTab(){_suppressScrollRestore=true;try{var k=viewKeyForTab(TAB);save
 document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=function(){try{haptic('tap');}catch(e){}
   var screen=b.dataset.screen,curScreen=(SCRMAP[TAB]||["home"])[0];
   if(screen===curScreen){closeSheet();try{window.scrollTo({top:0,behavior:"smooth"});}catch(e){}return;} // re-tap the active tab → jump to the top
+  /* Instant tactile feedback: paint the selected bottom-nav state synchronously on
+     tap — BEFORE switchTab() snapshots the old view for its transition — so the
+     active indicator is already on the destination tab and never lags or
+     cross-fades. _switchTabNow re-applies the identical toggle, so this is purely a
+     same-frame visual; it adds no fetch, render, or layout work. */
+  (function(){var nb=document.querySelectorAll(".tabbar button");for(var i=0;i<nb.length;i++){nb[i].classList.toggle("on",nb[i]===b);}})();
   endLive();if(screen==="bet"){_betCat='matches';}
   TAB=({home:"home",matches:defaultTournamentTab(),bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
-document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
+document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}
+  /* Instant selected-segment paint, synchronous on tap (mirrors the bottom-nav note):
+     scoped to the tapped control's own siblings, reconciled by _switchTabNow. */
+  (function(){var sb=b.parentNode?b.parentNode.querySelectorAll("button"):[];for(var j=0;j<sb.length;j++){sb[j].classList.toggle("on",sb[j]===b);}})();
+  TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
 window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();
   // Back is never explicit forward navigation: it must restore the destination
   // view's prior scroll, never land at the top. Clear any leaked suppression flag,
