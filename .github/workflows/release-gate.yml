@@ -5,10 +5,14 @@ on:
   pull_request:
 
 jobs:
-  logic-tests:
-    name: Node truth tests
+  logic-test-shards:
+    name: Node truth tests shard ${{ matrix.shard }}/5
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     env:
       # Install devDependencies from the lockfile WITHOUT downloading browsers.
       # The CI gate runs only the Node truth tests, never Playwright/browser UI.
@@ -27,5 +31,60 @@ jobs:
         run: npm ci
 
       - name: Run release logic gate (all .test.js and .test.mjs truth tests)
-        run: npm run test:logic
+        run: npm run test:logic:shard
+        env:
+          LOGIC_SHARD_INDEX: ${{ matrix.shard }}
+          LOGIC_SHARD_TOTAL: 5
+          LOGIC_EXCLUDE_FILES: tests/matchup-intelligence.test.js
         timeout-minutes: 15
+
+  matchup-intelligence-shards:
+    name: Matchup intelligence truth shard ${{ matrix.shard }}/8
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (from lockfile)
+        run: npm ci
+
+      - name: Run matchup intelligence pair shard
+        run: npm run test:logic:matchup
+        env:
+          MATCHUP_PAIR_SHARD_INDEX: ${{ matrix.shard }}
+          MATCHUP_PAIR_SHARD_TOTAL: 8
+        timeout-minutes: 15
+
+  logic-tests:
+    name: Node truth tests
+    runs-on: ubuntu-latest
+    needs:
+      - logic-test-shards
+      - matchup-intelligence-shards
+    if: ${{ always() }}
+    timeout-minutes: 5
+    steps:
+      - name: Require every logic shard
+        run: |
+          if [ "${{ needs.logic-test-shards.result }}" != "success" ]; then
+            echo "One or more logic file shards failed or timed out."
+            exit 1
+          fi
+          if [ "${{ needs.matchup-intelligence-shards.result }}" != "success" ]; then
+            echo "One or more matchup intelligence shards failed or timed out."
+            exit 1
+          fi
+          echo "All logic shards passed."

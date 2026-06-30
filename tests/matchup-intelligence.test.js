@@ -64,26 +64,46 @@ function unorderedPairs(teams) {
   return out;
 }
 
+function matchupPairShard() {
+  const index = Number(process.env.MATCHUP_PAIR_SHARD_INDEX || 1);
+  const total = Number(process.env.MATCHUP_PAIR_SHARD_TOTAL || 1);
+  assert.ok(Number.isInteger(index) && Number.isInteger(total) && total >= 1 && index >= 1 && index <= total, 'invalid matchup pair shard');
+  return { index, total };
+}
+
+function planMatchupPairs(pairs, shard = matchupPairShard()) {
+  return pairs.filter((_, i) => (i % shard.total) === (shard.index - 1));
+}
+
+function expectedShardSize(totalPairs, shard = matchupPairShard()) {
+  let count = 0;
+  for (let i = 0; i < totalPairs; i++) {
+    if ((i % shard.total) === (shard.index - 1)) count += 1;
+  }
+  return count;
+}
+
 let pairCaseCache = null;
 function allPairCases() {
   if (pairCaseCache) return pairCaseCache;
   const dom = loadApp();
   const app = dom.window.__matchupTest;
-  const pairs = unorderedPairs(allTeams(app));
+  const allPairs = unorderedPairs(allTeams(app));
+  const shard = matchupPairShard();
+  const pairs = planMatchupPairs(allPairs, shard);
   const beforeState = JSON.stringify(app.getState());
   const beforeReal = JSON.stringify(app.REAL);
   const cases = pairs.map(([a, b]) => ({
     a,
     b,
     ab: app.matchupIntelligence(a, b),
-    abRepeat: app.matchupIntelligence(a, b),
-    ba: app.matchupIntelligence(b, a),
   }));
   const afterState = JSON.stringify(app.getState());
   const afterReal = JSON.stringify(app.REAL);
   pairCaseCache = {
     app: {
       M: app.M,
+      REAL: app.REAL,
       GROUPS: app.GROUPS,
       TG: app.TG,
       TP3: app.TP3,
@@ -93,15 +113,29 @@ function allPairCases() {
       getState: app.getState,
       knockoutSlotStatus: app.knockoutSlotStatus,
       freValidThirdCombos: app.freValidThirdCombos,
+      matchupIntelligence: app.matchupIntelligence,
     },
     cases,
     beforeState,
     beforeReal,
     afterState,
     afterReal,
+    shard,
+    allPairCount: allPairs.length,
   };
   dom.window.close();
   return pairCaseCache;
+}
+
+function allRepeatPairCases() {
+  const cached = allPairCases();
+  cached.cases.forEach((c) => {
+    if (!c.abRepeat) c.abRepeat = cached.app.matchupIntelligence(c.a, c.b);
+    if (!c.ba) c.ba = cached.app.matchupIntelligence(c.b, c.a);
+  });
+  cached.afterState = JSON.stringify(cached.app.getState());
+  cached.afterReal = JSON.stringify(cached.app.REAL);
+  return cached;
 }
 
 function fixtureSet(result) {
@@ -169,8 +203,9 @@ function assertPathFeedsTarget(app, route, team) {
 }
 
 test('matchup engine covers every unordered pair without throwing', () => {
-  const { cases } = allPairCases();
-  assert.equal(cases.length, 1128);
+  const { cases, shard, allPairCount } = allPairCases();
+  assert.equal(allPairCount, 1128);
+  assert.equal(cases.length, expectedShardSize(allPairCount, shard));
   cases.forEach(({ a, b, ab: result }) => {
     assert.equal(result.version, 'matchup-intel-v1');
     assert.equal(result.ok, true);
@@ -179,6 +214,17 @@ test('matchup engine covers every unordered pair without throwing', () => {
     assert.ok(Array.isArray(result.knockoutPossibilities));
   });
 });
+
+test('matchup pair shards cover every unordered pair exactly once', () => withApp((app) => {
+  const pairs = unorderedPairs(allTeams(app));
+  assert.equal(pairs.length, 1128);
+  const covered = [];
+  for (let index = 1; index <= 8; index++) {
+    planMatchupPairs(pairs, { index, total: 8 }).forEach(([a, b]) => covered.push(`${a}/${b}`));
+  }
+  assert.equal(new Set(covered).size, pairs.length);
+  assert.deepEqual(covered.sort(), pairs.map(([a, b]) => `${a}/${b}`).sort());
+}));
 
 test('scenario route contract covers every unordered pair with route data or a clear no-route result', () => {
   const { cases } = allPairCases();
@@ -365,7 +411,7 @@ test('scenario routes never mark confirmed unless both exact teams are officiall
 });
 
 test('reversing teams preserves scenario route topology', () => {
-  const { cases } = allPairCases();
+  const { cases } = allRepeatPairCases();
   cases.forEach(({ a, b, ab, ba }) => {
     const abTop = ab.scenarioRoutes.map(routeTopology)
       .sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y)));
@@ -376,7 +422,7 @@ test('reversing teams preserves scenario route topology', () => {
 });
 
 test('scenario output is deterministic and does not mutate tournament state', () => {
-  const { cases, beforeState, beforeReal, afterState, afterReal } = allPairCases();
+  const { cases, beforeState, beforeReal, afterState, afterReal } = allRepeatPairCases();
   cases.forEach(({ a, b, ab, abRepeat }) => {
     assert.deepEqual(ab.scenarioRoutes, abRepeat.scenarioRoutes, `${a}/${b} scenario routes must be deterministic`);
   });
@@ -385,7 +431,7 @@ test('scenario output is deterministic and does not mutate tournament state', ()
 });
 
 test('matchup engine is symmetric and deterministic', () => {
-  const { cases } = allPairCases();
+  const { cases } = allRepeatPairCases();
   cases.forEach(({ a, b, ab, abRepeat, ba }) => {
     assert.deepEqual(ab, abRepeat, `${a}/${b} must be deterministic`);
     assert.deepEqual(fixtureSet(ab), fixtureSet(ba), `${a}/${b} must identify the same fixtures in reverse order`);
@@ -427,14 +473,15 @@ test('live or provisional state never upgrades a matchup to confirmed', () => wi
   state._rwlive = {};
   state._rwlive[liveMatch.num] = { sh: 2, sa: 0, min: 60, label: 'Live', status: '2H' };
   app.setState(state);
-  unorderedPairs(allTeams(app)).forEach(([a, b]) => {
-    app.matchupIntelligence(a, b).knockoutPossibilities.forEach((p) => {
+  planMatchupPairs(unorderedPairs(allTeams(app))).forEach(([a, b]) => {
+    const result = app.matchupIntelligence(a, b);
+    result.knockoutPossibilities.forEach((p) => {
       if (p.certainty === 'confirmed') {
         const ks = app.knockoutSlotStatus(p.matchNum, false);
         assert.equal(ks.state, 'confirmed');
       }
     });
-    app.matchupIntelligence(a, b).scenarioRoutes.forEach((route) => {
+    result.scenarioRoutes.forEach((route) => {
       if (route.target.certainty === 'confirmed') {
         const ks = app.knockoutSlotStatus(route.target.matchNum, false);
         assert.equal(ks.state, 'confirmed');

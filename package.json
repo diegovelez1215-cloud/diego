@@ -3,7 +3,9 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test:logic": "node --test tests/*.test.js tests/*.test.mjs",
+    "test:logic": "node tests/run-logic-shard.mjs",
+    "test:logic:shard": "node tests/run-logic-shard.mjs",
+    "test:logic:matchup": "node --test tests/matchup-intelligence.test.js",
     "test:ui": "playwright test",
     "test:release": "npm run test:logic && npm run test:ui"
   },
