@@ -4396,8 +4396,9 @@ function curISO(){try{var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMon
 function _d2(n){return ("0"+n).slice(-2);}
 function localDateKeyFromDate(d){return d.getFullYear()+"-"+_d2(d.getMonth()+1)+"-"+_d2(d.getDate());}
 function officialFixtureTimeRecord(num){
-  var n=+num,f=S&&S.officialFixtures&&S.officialFixtures[n];
-  if(!(f&&f.utcDate)&&S&&S.officialKOFixtures)f=S.officialKOFixtures[n];
+  var n=+num,ko=S&&S.officialKOFixtures&&truthCanonicalKOFixtures()[n],f=S&&S.officialFixtures&&S.officialFixtures[n];
+  if(ko&&ko.utcDate&&ko.source!=='verified_fixture')return ko;
+  if(!(f&&f.utcDate)&&ko)f=ko;
   return (f&&f.utcDate)?f:null;
 }
 function officialFixtureUtcMs(mOrNum){
@@ -9153,6 +9154,16 @@ function truthProviderPairKOFixtureNum(f){
   for(var i=0;i<stageNums.length;i++){var n=stageNums[i],cur=src[n];if(cur&&truthNormTeamKey(cur.home,cur.away)===key)return n;}
   return null;
 }
+function truthProviderOpenKOFixtureNum(f,reserved){
+  var stageNums=truthKOStageNums(f&& (f.stage||f.round||f.phase));if(!stageNums)return null;
+  var src=(S&&S.officialKOFixtures)||{},i,n,cur;
+  for(i=0;i<stageNums.length;i++){n=stageNums[i];if(reserved&&reserved[n])continue;cur=src[n];if(!cur)return n;}
+  for(i=0;i<stageNums.length;i++){n=stageNums[i];if(reserved&&reserved[n])continue;cur=src[n];if(cur&&cur.source==='verified_fixture')return n;}
+  return null;
+}
+function truthProviderKOFixtureNumForIngest(f,reserved){
+  return truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f)||truthProviderOpenKOFixtureNum(f,reserved);
+}
 /* Official kickoff time for a knockout slot: prefer the provider fixture's real
    utcDate, then fall back to the app's scheduled match window. Used to order the
    knockout timeline by actual time of play, not slot/insertion order. */
@@ -9173,12 +9184,16 @@ function ingestProviderKOFixtures(arr,opts){
   if(!Array.isArray(arr)||!arr.length)return false;
   var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
   S.officialKOFixtures=S.officialKOFixtures||{};
-  var changed=false,rows=arr.slice().sort(function(a,b){
+  S.officialFixtures=S.officialFixtures||{};
+  var changed=false,reserved={},rows=arr.slice().sort(function(a,b){
     var av=(a&&a.source)==='verified_fixture'?0:1,bv=(b&&b.source)==='verified_fixture'?0:1;
-    return av-bv;
+    if(av!==bv)return av-bv;
+    var at=a&&a.utcDate?new Date(a.utcDate).getTime():Infinity,bt=b&&b.utcDate?new Date(b.utcDate).getTime():Infinity;
+    if(at!==bt)return at-bt;
+    return String((a&&a.providerId)||'').localeCompare(String((b&&b.providerId)||''));
   });
   rows.forEach(function(f){
-    var num=truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f);if(!num)return;
+    var num=truthProviderKOFixtureNumForIngest(f,reserved);if(!num)return;
     var next=truthResolveProviderKOFixture(f,num),prev=S.officialKOFixtures[num];
     var prevVerified=!!(prev&&prev.source==='verified_fixture');
     if(!next){
@@ -9192,6 +9207,13 @@ function ingestProviderKOFixtures(arr,opts){
     if(next.source==='verified_fixture'&&prev&&!prevVerified)return;
     if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status||prev.providerId!==next.providerId||prev.source!==next.source){
       S.officialKOFixtures[num]=Object.assign({},next,{updatedAt:Date.now()});changed=true;
+    }
+    if(next.source!=='verified_fixture')reserved[num]=1;
+    if(next.source!=='verified_fixture'&&next.utcDate){
+      var tf=S.officialFixtures[num],tn={num:num,utcDate:next.utcDate,status:next.status||'',stage:next.stage||'',providerId:next.providerId||null,source:next.source};
+      if(!tf||tf.utcDate!==tn.utcDate||tf.status!==tn.status||tf.providerId!==tn.providerId||tf.source!==tn.source){
+        S.officialFixtures[num]=Object.assign({},tn,{updatedAt:Date.now()});changed=true;
+      }
     }
   });
   return changed;
