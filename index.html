@@ -3378,7 +3378,7 @@ function nm(c){return (T[c]&&T[c][0])||c;}
    edge<1 compresses favourite advantage (more upsets); goal scales scoring frequency. */
 var SIMMODE={chaos:{edge:0.32,goal:1,t:"🌀 Chaos"},laser:{edge:1,goal:2.0,t:"⚡ Laser Boots"},bus:{edge:1,goal:0.48,t:"🧱 Park the Bus"}};
 function simM(){return SIMMODE[S&&S.simMode]||{edge:1,goal:1};}
-function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},officialKOFixtures:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
+function blankState(){return{sc:{},ko:{},order:{},thirds:null,real:{},realko:{},officialKOFinals:{},officialKOFixtures:{},officialFixtures:{},providerGroupOrder:{},betsim:{},rwState:{},mode:'real',favNation:null,syndicate:null,missions:null,badBeat:null,boostParlayUsed:null,rebuys:0,rebuyDay:null,rebuyN:0,spinUsed:null,porkFound:false,porkDay:null,xp:0,pickStreak:0,pickBest:0,predResolved:{},powerups:{boost:0,insure:0,streak:0},insureArmed:false,eggs:{},focus:null,activeMatch:null,activeFlow:null,postBetAction:null,actionRail:null,lastMatchScroll:0,lastStory:null,h2hA:"ARG",h2hB:"BRA",bank:10000,bets:[],slip:[],challenge:false,locked:false,snap:null,reality:null,graded:null,live:null,boostUsed:null,boostArmed:false,lastBailout:0,bankHist:[10000],achv:{},preds:{},simMode:null};}
 /* ===== Global view mode: REAL LIFE vs MY SIM =====
    'real' → the whole tracker renders from official results only (a pristine,
             read-only live tracker). 'sim' → the user's editable sandbox + bets.
@@ -3455,13 +3455,14 @@ function seedLive(){var w=walletSnap();S=blankState();walletRestore(w);
   "ABCDEFGHIJKL".split("").forEach(g=>S.order[g]=GROUPS[g].slice());
   Object.keys(REAL).forEach(n=>{S.sc[n]={h:REAL[n][0],a:REAL[n][1]};S.real[n]=1;});}
 /* ---- persistence + shareable links ---- */
-function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,officialKOFixtures:S.officialKOFixtures,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
+function persistKeys(){return {v:1,sc:S.sc,ko:S.ko,order:S.order,thirds:S.thirds,betsim:S.betsim,mode:S.mode,favNation:S.favNation,syndicate:S.syndicate,missions:S.missions,badBeat:S.badBeat,boostParlayUsed:S.boostParlayUsed,rebuys:S.rebuys,rebuyDay:S.rebuyDay,rebuyN:S.rebuyN,spinUsed:S.spinUsed,porkFound:S.porkFound,porkDay:S.porkDay,xp:S.xp,pickStreak:S.pickStreak,pickBest:S.pickBest,predResolved:S.predResolved,powerups:S.powerups,insureArmed:S.insureArmed,eggs:S.eggs,bank:S.bank,bets:S.bets,real:S.real,realko:S.realko,officialKOFinals:S.officialKOFinals,officialKOFixtures:S.officialKOFixtures,officialFixtures:S.officialFixtures,providerGroupOrder:S.providerGroupOrder,focus:S.focus,activeMatch:S.activeMatch,activeFlow:S.activeFlow,postBetAction:S.postBetAction,actionRail:S.actionRail,lastMatchScroll:S.lastMatchScroll,lastStory:S.lastStory,challenge:S.challenge,locked:S.locked,boostUsed:S.boostUsed,lastBailout:S.lastBailout,bankHist:S.bankHist,achv:S.achv,preds:S.preds,simMode:S.simMode};}
 function saveState(){try{if(!Array.isArray(S.bankHist))S.bankHist=[S.bank];if(S.bankHist[S.bankHist.length-1]!==S.bank){S.bankHist.push(S.bank);if(S.bankHist.length>120)S.bankHist=S.bankHist.slice(-120);}localStorage.setItem("wc26_v1",JSON.stringify(persistKeys()));}catch(e){}}
 function applyState(o){try{if(!o||typeof o!=="object")return false;
   if(o.sc&&typeof o.sc==="object"){var _sc={};Object.keys(o.sc).forEach(function(k){var n=+k,v=o.sc[k];if(n>=1&&n<=104&&v&&typeof v==="object"&&typeof v.h==="number"&&typeof v.a==="number"&&v.h>=0&&v.a>=0&&v.h<=99&&v.a<=99)_sc[n]={h:v.h|0,a:v.a|0};});S.sc=_sc;}
   if(o.ko&&typeof o.ko==="object")S.ko=o.ko;if(o.order&&typeof o.order==="object")S.order=o.order;if("thirds" in o)S.thirds=o.thirds;
   if(o.officialKOFinals&&typeof o.officialKOFinals==="object")S.officialKOFinals=o.officialKOFinals;
   if(o.officialKOFixtures&&typeof o.officialKOFixtures==="object")S.officialKOFixtures=o.officialKOFixtures;
+  if(o.officialFixtures&&typeof o.officialFixtures==="object")S.officialFixtures=o.officialFixtures;
   if(o.providerGroupOrder&&typeof o.providerGroupOrder==="object")S.providerGroupOrder=o.providerGroupOrder;
   if(o.betsim&&typeof o.betsim==="object"){var _bs={};Object.keys(o.betsim).forEach(function(k){var n=+k;if(n>=1&&n<=104&&o.betsim[k])_bs[n]=1;});S.betsim=_bs;}
   S.mode=(o.mode==='sim')?'sim':'real';
@@ -4392,6 +4393,31 @@ function stadiumSVG(v,reg){var seed=codeHash(v),r=mulberry(seed);
  crowd+'<ellipse cx="200" cy="152" rx="152" ry="32" fill="url(#pit'+id+')"/>'+stripes+'<ellipse cx="200" cy="150" rx="24" ry="6" fill="none" stroke="rgba(255,255,255,.12)"/>'+
  '<rect width="400" height="150" fill="url(#vig'+id+')"/></svg>';}
 function curISO(){try{var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}catch(e){return "2026-06-20";}}
+function _d2(n){return ("0"+n).slice(-2);}
+function localDateKeyFromDate(d){return d.getFullYear()+"-"+_d2(d.getMonth()+1)+"-"+_d2(d.getDate());}
+function officialFixtureTimeRecord(num){
+  var n=+num,f=S&&S.officialFixtures&&S.officialFixtures[n];
+  if(!(f&&f.utcDate)&&S&&S.officialKOFixtures)f=S.officialKOFixtures[n];
+  return (f&&f.utcDate)?f:null;
+}
+function officialFixtureUtcMs(mOrNum){
+  var num=(typeof mOrNum==='object'&&mOrNum)?mOrNum.num:mOrNum,f=officialFixtureTimeRecord(num);
+  if(f&&f.utcDate){var d=new Date(f.utcDate);if(!isNaN(d.getTime()))return d.getTime();}
+  return null;
+}
+function officialFixtureDateObj(mOrNum){
+  var m=(typeof mOrNum==='object'&&mOrNum)?mOrNum:M[mOrNum],utc=officialFixtureUtcMs(m);
+  if(utc!=null)return new Date(utc);
+  if(!m)return null;
+  var p=String(m.time||"00:00").split(":");
+  var d=new Date(+String(m.date||"").slice(0,4),+String(m.date||"").slice(5,7)-1,+String(m.date||"").slice(8,10),+p[0]||0,+p[1]||0,0);
+  return isNaN(d.getTime())?null:d;
+}
+function officialFixtureLocalDateKey(m){var d=officialFixtureDateObj(m);return d?localDateKeyFromDate(d):(m&&m.date)||'';}
+function officialFixtureLocalTime(m){var d=officialFixtureDateObj(m);return d?_d2(d.getHours())+":"+_d2(d.getMinutes()):(m&&m.time)||"00:00";}
+function officialFixtureDisplayTime(m){return to12(officialFixtureLocalTime(m));}
+function officialFixtureDisplayTimeParts(m){return to12p(officialFixtureLocalTime(m));}
+function officialFixtureDisplayDate(m){return officialFixtureLocalDateKey(m);}
 function todayMatchesHTML(){
  var TODAY=curISO();
  var todMs=MATCHES.filter(function(m){return matchDay(m)===TODAY&&m.stage==="group";}).sort(function(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;});
@@ -4406,7 +4432,7 @@ function todayMatchesHTML(){
    rhs='<div class="today-sc">'+sc.h+'–'+sc.a+'</div>';
    badge='<span class="t-badge sim">'+(isBetSim(m.num)?'BET SIM':'SIM')+'</span>';
   } else {
-   rhs='<div class="today-time">'+to12(m.time)+' ET</div>';
+   rhs='<div class="today-time">'+officialFixtureDisplayTime(m)+'</div>';
    badge='<span class="t-badge up">'+m.venue+'</span>';
   }
   return '<div class="today-gm" onclick="openSheet('+m.num+')"><div class="today-teams">'+fl(m.home)+' <b>'+nm(m.home)+'</b> <span style="color:var(--mut3);margin:0 2px">v</span> <b>'+nm(m.away)+'</b> '+fl(m.away)+'</div><div class="today-right">'+rhs+badge+'</div></div>';
@@ -4433,11 +4459,11 @@ function homeSortFixtures(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1
 function homeSeen(nums){var o={};(nums||[]).forEach(function(n){if(n!=null)o[+n]=1;});return o;}
 function homeSeenHas(seen,n){return !!(seen&&seen[+n]);}
 function homeTodayFixtures(){var today=curISO();return MATCHES.filter(function(m){return matchDay(m)===today;}).sort(homeSortFixtures);}
-function kickoffWindowKey(m){return (matchDay(m)||'')+' '+(m.time||'');}
+function kickoffWindowKey(m){return (matchDay(m)||'')+' '+officialFixtureLocalTime(m);}
 function kickoffWindowModel(opts){
  opts=opts||{};var iso=opts.iso||null,seen=opts.seen||{},includeCompleted=!!opts.includeCompleted,team=opts.team||'',fromToday=opts.fromToday||null,allowPending=!!opts.allowPending;
  var rows=MATCHES.filter(function(m){if(iso&&matchDay(m)!==iso)return false;if(fromToday&&matchDay(m)<fromToday)return false;if(koSlotSuppressed(m.num))return false;if(!includeCompleted&&homeFixtureDone(m))return false;if(homeSeenHas(seen,m.num))return false;if(!allowPending&&!homeFixtureReady(m))return false;if(team){var p=homeFixtureParts(m);if(p[0]!==team&&p[1]!==team)return false;}return true;}).sort(homeSortFixtures);
- var map={},out=[];rows.forEach(function(m){var k=kickoffWindowKey(m);if(!map[k]){map[k]={key:k,date:matchDay(m),time:m.time,sort:(koDateTime(m)||new Date((m.date||'')+'T'+(m.time||'00:00')+':00')).getTime(),fixtures:[]};map[k]&&out.push(map[k]);}map[k].fixtures.push(m);});
+ var map={},out=[];rows.forEach(function(m){var k=kickoffWindowKey(m),dt=koDateTime(m);if(!map[k]){map[k]={key:k,date:matchDay(m),time:officialFixtureLocalTime(m),sort:dt?dt.getTime():Infinity,fixtures:[]};map[k]&&out.push(map[k]);}map[k].fixtures.push(m);});
  out.sort(function(a,b){return a.sort-b.sort||a.key.localeCompare(b.key);});out.forEach(function(w){w.fixtures.sort(function(a,b){return a.num-b.num;});});return out;
 }
 function kickoffWindowFixtureNums(windows){var out=[];(windows||[]).forEach(function(w){(w.fixtures||[]).forEach(function(m){out.push(m.num);});});return out;}
@@ -4471,8 +4497,7 @@ function homePrimaryContext(){
  var next=homeNextFixture(null);return {html:homeLiveNowHTML(),nums:next?[next.num]:[],kind:next?'next':'empty'};
 }
 function nextISO(iso){try{var p=(iso||curISO()).split('-');var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+1);return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}catch(e){return iso;}}
-/* Unfinished, non-live, ready fixtures scheduled on a specific local day (excluding
-   anything already shown in the Home hero). */
+/* Unfinished, non-live, ready fixtures scheduled on a specific local day. */
 function homeUnfinishedOn(iso,seen){return kickoffWindowFixtureNums(kickoffWindowModel({iso:iso,seen:seen})).map(function(n){return M[n];});}
 function homeFixtureCardHTML(m){
   // Clarity layout (mirrors the Final Matchday phl-fixture benchmark): left team /
@@ -4491,31 +4516,31 @@ function homeFixtureCardHTML(m){
   if(fin&&offFinal){midMain=fin.h+'–'+fin.a;meta='Final';cls=' islive';}
   else if(live){midMain=st.sh+'–'+st.sa;meta=safeStatusText(st.label,'Live');cls=' islive';}
   else if(st){midMain=safeStatusText(st.label,'Live');cls=' islive';}
-  else{var tp=to12p(m.time);midMain=tp.t;midSmall=tp.ap;}
+  else{var tp=officialFixtureDisplayTimeParts(m);midMain=tp.t;midSmall=tp.ap;}
   return '<div class="home-fixture'+(live?' islive':'')+'" onclick="openSheet('+m.num+')">'+
     '<span class="hf-tm">'+home+'</span>'+
     '<span class="hf-mid'+cls+'"><b>'+esc(String(midMain))+'</b>'+(midSmall?'<small>'+esc(midSmall)+'</small>':'')+(meta?'<em class="hf-meta">'+esc(meta)+'</em>':'')+'</span>'+
     '<span class="hf-tm r">'+away+'</span></div>';}
 function homeTimelineHTML(rowsOrWindows){
- var windows=(rowsOrWindows&&rowsOrWindows[0]&&rowsOrWindows[0].fixtures)?rowsOrWindows:[];if(!windows.length){var by={};(rowsOrWindows||[]).forEach(function(m){var k=kickoffWindowKey(m);(by[k]=by[k]||[]).push(m);});Object.keys(by).sort().forEach(function(k){var ms=by[k].sort(function(a,b){return a.num-b.num;}),m=ms[0];windows.push({key:k,date:m.date,time:m.time,fixtures:ms});});}
- return '<div class="home-timeline">'+windows.map(function(w){var ms=w.fixtures||[],m=ms[0];return '<div class="home-time-window" data-window="'+esc(w.key||kickoffWindowKey(m))+'"><div class="home-time-label"><span>'+esc(to12(w.time||m.time))+' ET</span><span>'+ms.length+' fixture'+(ms.length===1?'':'s')+'</span></div>'+ms.map(homeFixtureCardHTML).join('')+'</div>';}).join('')+'</div>';
+ var windows=(rowsOrWindows&&rowsOrWindows[0]&&rowsOrWindows[0].fixtures)?rowsOrWindows:[];if(!windows.length){var by={};(rowsOrWindows||[]).forEach(function(m){var k=kickoffWindowKey(m);(by[k]=by[k]||[]).push(m);});Object.keys(by).sort().forEach(function(k){var ms=by[k].sort(function(a,b){return a.num-b.num;}),m=ms[0];windows.push({key:k,date:matchDay(m),time:officialFixtureLocalTime(m),fixtures:ms});});}
+ return '<div class="home-timeline">'+windows.map(function(w){var ms=w.fixtures||[],m=ms[0];return '<div class="home-time-window" data-window="'+esc(w.key||kickoffWindowKey(m))+'"><div class="home-time-label"><span>'+esc(officialFixtureDisplayTime({num:m.num,date:w.date,time:w.time}))+'</span><span>'+ms.length+' fixture'+(ms.length===1?'':'s')+'</span></div>'+ms.map(homeFixtureCardHTML).join('')+'</div>';}).join('')+'</div>';
 }
 /* Today & next, with honest dynamic labels:
    - unfinished fixtures later today  -> "Later today"
    - none left today but tomorrow has fixtures -> "Tomorrow"
    - both -> a "Later today" block and a separate "Tomorrow" block
    - otherwise -> "Next fixtures" (the soonest upcoming day)
-   A fixture already shown in the Home hero (seen) is never repeated here, and a
-   completed match is never shown as next/upcoming. */
+   The schedule rail is lossless: a valid fixture is not suppressed just because
+   another Home section referenced it. Completed matches are never shown as upcoming. */
 function todayRailHTML(seen){
  var today=curISO(),tomorrow=nextISO(today),todayAll=homeTodayFixtures();
- var laterW=kickoffWindowModel({iso:today,seen:seen}),tomoW=kickoffWindowModel({iso:tomorrow,seen:{}});
+ var laterW=kickoffWindowModel({iso:today,seen:{}}),tomoW=kickoffWindowModel({iso:tomorrow,seen:{}});
  var later=kickoffWindowFixtureNums(laterW),tomo=kickoffWindowFixtureNums(tomoW);
  var doneToday=todayAll.filter(function(m){return officialFixtureDone(m);}).length;
  var headLabel,headSub,headDate='',body='';
  if(later.length){
   headLabel='Later today';
-  headSub=later.length+' '+(later.length===1?'match':'matches')+' left today · next '+to12((laterW[0]&&laterW[0].time)||'00:00')+' ET';
+  headSub=later.length+' '+(later.length===1?'match':'matches')+' left today · next '+to12((laterW[0]&&laterW[0].time)||'00:00');
   body=homeTimelineHTML(laterW);
   if(tomo.length)body+='<div class="home-rail-div">Tomorrow</div>'+homeTimelineHTML(tomoW);
  }else if(tomo.length){
@@ -4554,7 +4579,7 @@ function homeLiveNowHTML(){
  if(pending!=null){var pdt=officialDisplayTeams(pending);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+(pdt.hCode?fl(pdt.hCode)+' ':'')+esc(pdt.hName)+'</div><div class="home-score">–</div><div class="home-team r">'+esc(pdt.aName)+(pdt.aCode?' '+fl(pdt.aCode):'')+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
  var today=curISO(),up=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num],p=m.stage==='group'?[m.home,m.away]:koParts(m.num);return !koSlotSuppressed(m.num)&&!done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today&&p[0]&&p[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
- if(up){var ut=officialDisplayTeams(up.num);return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">No live now</span></div><div class="home-live-row"><div class="home-team">'+(ut.hCode?fl(ut.hCode)+' ':'')+esc(ut.hName)+'</div><div class="home-score">v</div><div class="home-team r">'+esc(ut.aName)+(ut.aCode?' '+fl(ut.aCode):'')+'</div></div><div class="home-sub"><b>'+shortDate(up.date)+' · '+to12(up.time)+' ET</b><br>'+esc(up.venue)+' · '+(up.stage==='group'?'Group '+up.group:roundShort(up.num))+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+up.num+')">Open Match Center</button></div>';}
+ if(up){var ut=officialDisplayTeams(up.num);return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">No live now</span></div><div class="home-live-row"><div class="home-team">'+(ut.hCode?fl(ut.hCode)+' ':'')+esc(ut.hName)+'</div><div class="home-score">v</div><div class="home-team r">'+esc(ut.aName)+(ut.aCode?' '+fl(ut.aCode):'')+'</div></div><div class="home-sub"><b>'+shortDate(matchDay(up))+' · '+officialFixtureDisplayTime(up)+'</b><br>'+esc(up.venue)+' · '+(up.stage==='group'?'Group '+up.group:roundShort(up.num))+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+up.num+')">Open Match Center</button></div>';}
  return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">Calm</span></div><div class="home-sub"><b>No official World Cup match live right now.</b> Results sync safely in the background; delayed or suspended games stay pending.</div>'+fresh+'<button class="home-action" onclick="goLiveBracket()">See live bracket</button></div>';
 }
 function activePicksHTML(){
@@ -4576,7 +4601,7 @@ function tournamentPulseHomeHTML(seen){
 }
 function upcomingHomeHTML(){
  var up=MATCHES.filter(function(m){var done=m.stage==="group"?S.sc[m.num]:S.ko[m.num],pr=m.stage==="group"?[m.home,m.away]:koParts(m.num);return !koSlotSuppressed(m.num)&&!done&&!(S.real&&S.real[m.num])&&pr[0]&&pr[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,4);
- var rows=up.map(function(m){var p=m.stage==="group"?[m.home,m.away]:koParts(m.num),o=matchOddsFor(m.num,p[0],p[1],m.stage!=="group");return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+fl(p[0])+' '+nm(p[0])+' v '+nm(p[1])+' '+fl(p[1])+'</b><span>'+shortDate(m.date)+' · '+(m.stage==="group"?to12(m.time):roundShort(m.num))+'</span><span>'+fmtAmer(o.h)+' · draw '+fmtAmer(o.d)+' · '+fmtAmer(o.a)+'</span></div>';}).join("");
+ var rows=up.map(function(m){var p=m.stage==="group"?[m.home,m.away]:koParts(m.num),o=matchOddsFor(m.num,p[0],p[1],m.stage!=="group");return '<div class="home-fixture" onclick="openSheet('+m.num+')"><b>'+fl(p[0])+' '+nm(p[0])+' v '+nm(p[1])+' '+fl(p[1])+'</b><span>'+shortDate(matchDay(m))+' · '+(m.stage==="group"?officialFixtureDisplayTime(m):roundShort(m.num))+'</span><span>'+fmtAmer(o.h)+' · draw '+fmtAmer(o.d)+' · '+fmtAmer(o.a)+'</span></div>';}).join("");
  return '<div class="home-card"><div class="home-k"><span>Upcoming Matches</span><span class="home-status">Quick pick</span></div><div class="home-upcoming">'+(rows||'<div class="home-sub">No upcoming fixtures available.</div>')+'</div></div>';
 }
 function homeCommandHTML(){
@@ -4585,7 +4610,7 @@ function homeCommandHTML(){
  if(S.live){var L=S.live;h='Live match in progress';s=nm(L.h)+' '+L.sh+'-'+L.sa+' '+nm(L.a)+' · '+L.min+"'";primary='Resume live';onclick='openSheet('+L.num+')';}
  else if(act){h=act.canSim?'What-If Match ready':'SIM$ Challenge waiting';s='Run a private simulated match with SIM$. Never changes the real tournament.';primary=act.canSim?'Resume What-If':'View SIM$ Challenge';onclick=act.canSim?'ts2Launch('+act.i+')':'goSlip()';}
  else if(S.slip&&S.slip.length){h='SIM$ Challenge staged';s=S.slip.length+' virtual leg'+(S.slip.length>1?'s':'')+' waiting in your ticket.';primary='Review Challenge';onclick='openSlip()';}
- else if(up){var p=up.stage==="group"?[up.home,up.away]:koParts(up.num);h='Next match';s=nm(p[0])+' v '+nm(p[1])+' · '+shortDate(up.date)+' · '+(up.stage==="group"?to12(up.time):roundShort(up.num));primary='Open match';onclick='openSheet('+up.num+')';}
+ else if(up){var p=up.stage==="group"?[up.home,up.away]:koParts(up.num);h='Next match';s=nm(p[0])+' v '+nm(p[1])+' · '+shortDate(matchDay(up))+' · '+(up.stage==="group"?officialFixtureDisplayTime(up):roundShort(up.num));primary='Open match';onclick='openSheet('+up.num+')';}
  var mode=activeMode()==='real'?'REAL WORLD CUP':'SIMULATED PLAY';
  return '<div class="cmd-card"><div class="cmd-k">'+mode+'</div><div class="cmd-h">'+esc(h)+'</div><div class="cmd-s">'+esc(s)+'</div><div class="cmd-actions"><button class="cmd-btn primary" onclick="'+onclick+'">'+primary+'</button><button class="cmd-btn" onclick="goPlay()">What-If Match</button></div><div class="cmd-mini"><button class="cmd-chip" onclick="goSchedule()">Matches</button><button class="cmd-chip" onclick="goCompare()">Compare</button><button class="cmd-chip" onclick="goVenues()">Venues</button><button class="cmd-chip" onclick="goBracket()">View full bracket</button></div></div>';
 }
@@ -4604,7 +4629,7 @@ function fdFixtureCardHTML(fx){
   else if(kind==='hold'){badge='<span class="fmd-badge hold">'+esc(safeStatusText(fx.label,'Paused'))+'</span>';scoreMid='<span class="fmd-sc hold">'+(fx.score?fx.score.h:'–')+'<i>–</i>'+(fx.score?fx.score.a:'–')+'</span>';sub='Official result pending — nothing is final yet';}
   else if(kind==='awaiting_confirmed_update'){badge='<span class="fmd-badge pend">Awaiting confirmed update</span>';scoreMid='<span class="fmd-sc">–<i>–</i>–</span>';sub='The prior live update expired; standings wait for confirmed data.';}
   else if(kind==='pending_official_feed'){badge='<span class="fmd-badge pend">Awaiting feed</span>';scoreMid='<span class="fmd-sc">–<i>–</i>–</span>';sub='Live update pending official feed';}
-  else {badge='<span class="fmd-badge sched">'+(fx.time?to12(fx.time)+' ET':'Scheduled')+'</span>';scoreMid='<span class="fmd-vs">v</span>';sub=fx.date?shortDate(fx.date):'';}
+  else {var fm=M[fx.num];badge='<span class="fmd-badge sched">'+(fm?officialFixtureDisplayTime(fm):(fx.time?to12(fx.time):'Scheduled'))+'</span>';scoreMid='<span class="fmd-vs">v</span>';sub=fm?shortDate(matchDay(fm)):(fx.date?shortDate(fx.date):'');}
   return '<div class="fmd-fx '+kind+'" onclick="openSheet('+fx.num+')">'+
     '<div class="fmd-fx-top">'+badge+'<span class="fmd-fx-mn">#'+fx.num+'</span></div>'+
     '<div class="fmd-fx-row"><span class="fmd-tm">'+fl(home)+' <b>'+nm(home)+'</b></span>'+scoreMid+'<span class="fmd-tm r"><b>'+nm(away)+'</b> '+fl(away)+'</span></div>'+
@@ -4653,7 +4678,7 @@ function komR32CardHTML(fx){
   var lv=!done?matchLiveState(fx.matchNum):null,live=!!(lv&&lv.kind==='live'&&lv.sh!=null&&lv.sa!=null);
   var awaiting=!done&&!live&&confirmed&&(livePendingOfficial(fx.matchNum)||marketPastKickoff(fx.matchNum));
   var dec=done?koDecidedLabel(fx.matchNum):'',rec=done?truthKOFinalFor(fx.matchNum):null;
-  var statusTag=done?(dec==='Penalties'&&rec&&rec.penalties?('FINAL · '+fin.h+'–'+fin.a+' · '+nm(winner)+' advances '+rec.penalties.h+'–'+rec.penalties.a+' on penalties'):'FINAL'):(live?('LIVE'+(lv.min!=null?" · "+lv.min+"'":'')):(confirmed?(awaiting?'Awaiting result':'UP NEXT'):'Awaiting result'));
+  var statusTag=done?(dec==='Penalties'&&rec&&rec.penalties?('FINAL · '+fin.h+'–'+fin.a+' · '+nm(winner)+' advances '+rec.penalties.h+'–'+rec.penalties.a+' on penalties'):'FINAL'):(live?('LIVE'+(lv.min!=null?" · "+lv.min+"'":'')):(confirmed?(awaiting?'Awaiting result':('UP NEXT · '+officialFixtureDisplayTime(m))):'Awaiting result'));
   var statusCls=done?'fin':(live?'live':(confirmed&&!awaiting?'next':'await'));
   var hm=done?(winner===fx.home?'w':'l'):'',am=done?(winner===fx.away?'w':'l'):'';
   var mid=done?('<span class="kom-score">'+fin.h+'–'+fin.a+'</span>'):(live?('<span class="kom-score live">'+lv.sh+'–'+lv.sa+'</span>'):'<span class="kom-vs">'+(confirmed?'vs':'·')+'</span>');
@@ -4706,7 +4731,8 @@ function phlFixtureStatusText(fx){
   if(fx.kind==='hold')return safeStatusText(fx.label,'Paused');
   if(fx.kind==='awaiting_confirmed_update')return 'Awaiting confirmed update';
   if(fx.kind==='pending_official_feed')return 'Awaiting feed';
-  if(fx.time)return to12(fx.time)+' ET';
+  if(fx.num&&M[fx.num])return officialFixtureDisplayTime(M[fx.num]);
+  if(fx.time)return to12(fx.time);
   return 'Scheduled';
 }
 function phlFixtureMidHTML(fx){
@@ -4739,7 +4765,7 @@ function phaseLeadHTML(){
   }
   if(ph.prioritizeBracket){
     var nx=phlNextKOFixture();
-    var body=nx?('<div class="phl-row"><span class="phl-tm">'+fl(nx.h)+' '+nm(nx.h)+'</span><span class="phl-mid">v</span><span class="phl-tm r">'+nm(nx.a)+' '+fl(nx.a)+'</span></div><div class="phl-sub">'+roundName(nx.num)+' · '+shortDate(M[nx.num].date)+' · Winner advances</div>'):'<div class="phl-sub">The bracket is forming from the official group finals.</div>';
+    var body=nx?('<div class="phl-row"><span class="phl-tm">'+fl(nx.h)+' '+nm(nx.h)+'</span><span class="phl-mid">v</span><span class="phl-tm r">'+nm(nx.a)+' '+fl(nx.a)+'</span></div><div class="phl-sub">'+roundName(nx.num)+' · '+shortDate(matchDay(M[nx.num]))+' · Winner advances</div>'):'<div class="phl-sub">The bracket is forming from the official group finals.</div>';
     return '<div class="phl ko"><div class="phl-k"><span>REAL WORLD CUP</span><span class="phl-tag">'+esc(fdPhaseLabel(ph.phase))+'</span></div>'+body+'<button class="phl-go" aria-label="View full World Cup knockout bracket" onclick="goBracket()">View full bracket</button></div>';
   }
   return '';
@@ -4782,7 +4808,7 @@ function renderHome(){
  var upMs=MATCHES.filter(function(m){return !koSlotSuppressed(m.num)&&(activeMode()==='real'?!officialFixtureDone(m):(m.stage==="group"?(!S.sc[m.num]&&!(S.real&&S.real[m.num])):(!S.ko[m.num])));}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,3);
  var upFeed=upMs.map(function(m){var ph=m.stage==="group"?m.home:koParts(m.num)[0],pa=m.stage==="group"?m.away:koParts(m.num)[1];
    var spk=(S.live&&S.live.num===m.num)?sparklineSVG(S.live):'';
-   return '<div class="frow up" onclick="openSheet('+m.num+')"><div class="fmatch">'+(ph?fl(ph)+' '+nm(ph):slotLabel(m.home))+' <span class="vsx">v</span> '+(pa?nm(pa)+' '+fl(pa):slotLabel(m.away))+' '+rwLiveTag(m.num)+'</div><div class="fmeta">'+(m.stage==="group"?shortDate(m.date)+' · '+to12(m.time):roundShort(m.num))+spk+'</div></div>';}).join("");
+   return '<div class="frow up" onclick="openSheet('+m.num+')"><div class="fmatch">'+(ph?fl(ph)+' '+nm(ph):slotLabel(m.home))+' <span class="vsx">v</span> '+(pa?nm(pa)+' '+fl(pa):slotLabel(m.away))+' '+rwLiveTag(m.num)+'</div><div class="fmeta">'+(m.stage==="group"?shortDate(matchDay(m))+' · '+officialFixtureDisplayTime(m):roundShort(m.num))+spk+'</div></div>';}).join("");
  var nextUp='<div class="sub-h">⚽ Next up</div>'+(upFeed||'<div class="frow"><div class="fmatch" style="color:var(--mut)">Tournament complete — open the Bracket 🏆</div></div>');
  // 4 · curated actions (all features, organized)
  var snd=SOUND?"🔊":"🔇";
@@ -7762,8 +7788,8 @@ function setSchedFilter(c){S._schedFilter=c||null;S._schedDay=null;renderSchedul
 /* Dates are corrected at load (midnight games rolled to their true next-day date),
    so ordering is simply chronological: by calendar date, then kickoff time. */
 function _mins(t){var p=String(t||"0:0").split(":");return (+p[0])*60+(+(p[1]||0));}
-function matchClock(m){return _mins(m.time);}
-function matchDay(m){return m.date;}
+function matchClock(m){return _mins(officialFixtureLocalTime(m));}
+function matchDay(m){return officialFixtureLocalDateKey(m);}
 function wdCode(d){try{return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00Z").getUTCDay()];}catch(e){return "";}}
 function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._schedDay||'');
   const teamCodes=Object.keys(T).sort((a,b)=>nm(a).localeCompare(nm(b)));
@@ -7822,7 +7848,7 @@ function dateNavHTML(){
   var today=curISO(),tom=nextISO(today);
   var nowNum=schedFirstUnfinishedToday();var ctxNum=nowNum!=null?nowNum:schedNextUnfinishedFrom(today);
   var label='Tournament',sub='Group Stage';
-  if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+to12(m.time)+' ET';}
+  if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+officialFixtureDisplayTime(m);}
   var hasTom=MATCHES.some(function(x){return matchDay(x)===tom;});
   var selDay=S._schedDay||'',todayCls=selDay===today?' primary':'',tomCls=selDay===tom?' primary':'';
   return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(selDay?'Showing':(nowNum!=null?'Now':'Up next'))+'</span><b>'+esc(selDay?longDate(selDay):label)+'</b><span class="dn-s">'+esc(selDay?(selDay===today?'Today':(selDay===tom?'Tomorrow':'Selected day')):sub)+'</span></div>'+
@@ -7861,7 +7887,7 @@ function pulseHTML(){const gm=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]);
 function mrow(m,featured){let H,A,gtag,ko=m.stage!=="group";const[ph,pa]=ko?koParts(m.num):[m.home,m.away];const fin=truthOfficialFinalScore(m.num),kw=ko&&S.realko&&S.realko[m.num],s=ko?(kw&&fin?fin:null):S.sc[m.num];
   H=lnHTML(ph||m.home,!ph,s?s.h:null,ko?(kw&&ph===kw):(s&&s.h>s.a),ko?(kw&&ph&&ph!==kw):(s&&s.a>s.h));A=lnHTML(pa||m.away,!pa,s?s.a:null,ko?(kw&&pa===kw):(s&&s.a>s.h),ko?(kw&&pa&&pa!==kw):(s&&s.h>s.a));
   gtag=ko?`<span class="gtag ko">${roundName(m.num)}</span>`:`<span class="gtag">Grp ${m.group}</span>`;
-  const tp=to12p(m.time);const foc=focusInMatch(m);
+  const tp=officialFixtureDisplayTimeParts(m);const foc=focusInMatch(m);
   const kIn=(!s&&!(S.real&&S.real[m.num]))?kickoffIn(m):"";
   const done=ko?!!kw:!!s;
   const hold=matchHoldState(m.num),liveSt=matchLiveState(m.num);
@@ -8206,7 +8232,7 @@ function tieCard(num,kind,ps,tappable,full){var canTap=(tappable!==false);const 
 
 // MATCH SHEET
 /* ===== Live extras: kickoff countdown · in-play win prob · crests · blurbs ===== */
-function koDateTime(m){try{return new Date(m.date+"T"+m.time+":00-04:00");}catch(e){return null;}} // tournament window is all EDT (UTC−4)
+function koDateTime(m){return officialFixtureDateObj(m);}
 function kickoffIn(m){var dt=koDateTime(m);if(!dt||isNaN(dt.getTime()))return"";var diff=dt.getTime()-Date.now();if(diff<=0)return"";
   var mins=Math.floor(diff/60000),h=Math.floor(mins/60),d=Math.floor(h/24);
   if(d>=1)return"in "+d+"d "+(h%24)+"h";if(h>=1)return"in "+h+"h "+(mins%60)+"m";if(mins>=1)return"in "+mins+"m";return"kicking off";}
@@ -8316,7 +8342,7 @@ function matchCenterStripHTML(num,t,factualMode){
     (sub?'<div class="mc-sub" id="mcSub">'+esc(sub)+'</div>':'')+
   '</div>';
 }
-function ko_kickoffLine(num){var m=M[num];if(!m)return'';return fullDay(m.wd)+' · '+to12(m.time)+' ET · '+VEN[m.venue][0];}
+function ko_kickoffLine(num){var m=M[num];if(!m)return'';return fullDay(wdCode(matchDay(m)))+' · '+officialFixtureDisplayTime(m)+' · '+VEN[m.venue][0];}
 /* Factual standings / bracket consequence of an official final (read-only:
    reads existing NEXTWIN bracket mapping and S.realko, changes no math). */
 function matchConsequenceHTML(num,t){
@@ -8361,7 +8387,7 @@ function refreshMatchCenterTruth(){
 }
 function sheet(num){_openSheetNum=num;const mt=M[num];const ko=mt.stage!=="group";const[ph,pa]=ko?koParts(num):[mt.home,mt.away];const s=ko?null:S.sc[num];
   const ven=VEN[mt.venue];const _kIn=(!s&&!(S.real&&S.real[num]))?kickoffIn(mt):"";
-  let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(mt.wd)}, ${longDate(mt.date)} · ${to12(mt.time)} ET${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
+  let inner=`<div class="grab"></div><div class="sh-rnd ${ko?'ko':''}">${roundName(num)} · Match ${num}</div><div class="sh-when">${fullDay(wdCode(matchDay(mt)))}, ${longDate(matchDay(mt))} · ${officialFixtureDisplayTime(mt)}${_kIn?` · <span style="color:var(--gold);font-weight:800">⏱ ${_kIn}</span>`:""}</div>`;
   var realState=matchLiveState(num);if(realState){inner+='<div class="bethint" style="border-color:'+(realState.kind==='hold'?'rgba(255,203,61,.35)':'rgba(100,210,255,.35)')+';color:'+(realState.kind==='hold'?'var(--gold)':'var(--blue2)')+'"><b>'+esc(safeStatusText(realState.label,'Official status'))+'</b> · Official result pending. Bets and bracket paths stay open until a confirmed final arrives.</div>';}
   else if(livePendingOfficial(num)){inner+='<div class="bethint" style="border-color:rgba(100,210,255,.28);color:var(--blue2)"><b>Live update pending official feed</b> · We will show confirmed score and status as soon as the provider supplies them.</div>';}
   var factualMode=(typeof activeMode==='function'&&activeMode()==='real');
@@ -8554,7 +8580,7 @@ function matchNightModel(num){
     }}catch(e){}
   return {num:num,round:roundName(num),teams:parts,teamsKnown:teamsKnown,
     live:!!live,statusKind:live?live.kind:'scheduled',statusLabel:live?(safeStatusText(live.label,'Live')):null,
-    kickoff:(m.date&&m.time)?{date:m.date,time:m.time}:null,score:score,
+    kickoff:(m.date&&m.time)?{date:matchDay(m),time:officialFixtureLocalTime(m)}:null,score:score,
     stakes:stakes,why:why,nextOpponent:nextOpponent,nextOpponentState:nextOpponentState,ticket:ticket};
 }
 /* Lightweight factual card. No ticket-like UI unless the user truly has an active
@@ -9170,6 +9196,37 @@ function ingestProviderKOFixtures(arr,opts){
   });
   return changed;
 }
+function truthProviderAnyFixtureNum(f){
+  if(!f)return null;
+  var explicit=+(f.matchNum||f.fixtureNum||f.num||f.number);
+  if(explicit&&M[explicit])return explicit;
+  var ko=truthProviderKOFixtureNum(f)||truthProviderPairKOFixtureNum(f);
+  if(ko)return ko;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return null;
+  for(var i=0;i<MATCHES.length;i++){
+    var m=MATCHES[i];if(m.stage!=='group')continue;
+    if((m.home===hc&&m.away===ac)||(m.home===ac&&m.away===hc))return m.num;
+  }
+  return null;
+}
+function ingestProviderOfficialFixtures(arr,opts){
+  if(!opts||opts.authoritative!==true)return false;
+  if(!Array.isArray(arr)||!arr.length)return false;
+  var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
+  S.officialFixtures=S.officialFixtures||{};
+  var changed=false;
+  arr.forEach(function(f){
+    if(!f||!f.utcDate)return;
+    var num=truthProviderAnyFixtureNum(f);if(!num||!M[num])return;
+    var d=new Date(f.utcDate);if(isNaN(d.getTime()))return;
+    var next={num:num,utcDate:d.toISOString(),status:f.status||'',stage:f.stage||'',providerId:f.providerId||f.fixtureId||f.id||null,source:f.source||'official_provider_fixture'};
+    var prev=S.officialFixtures[num];
+    if(!prev||prev.utcDate!==next.utcDate||prev.status!==next.status||prev.providerId!==next.providerId||prev.source!==next.source){
+      S.officialFixtures[num]=Object.assign({},next,{updatedAt:Date.now()});changed=true;
+    }
+  });
+  return changed;
+}
 function truthApplyOfficialFinal(fx){
   if(!fx||!fx.score||fx.score.h==null||fx.score.a==null)return false;
   var num=fx.num,sh=+fx.score.h,sa=+fx.score.a,cur=truthOfficialFinalScore(num),same=cur&&cur.h===sh&&cur.a===sa;
@@ -9195,11 +9252,11 @@ function truthApplyProvisional(f,receipt){
   return true;
 }
 function truthFreshness(){
-  var officialResults=truthStablePairs(REAL),officialKo=truthStablePairs(S&&S.realko),officialNamedKo=truthStablePairs(S&&S.officialKOFixtures),liveStates=[];
+  var officialResults=truthStablePairs(REAL),officialKo=truthStablePairs(S&&S.realko),officialNamedKo=truthStablePairs(S&&S.officialKOFixtures),officialTimes=truthStablePairs(S&&S.officialFixtures),liveStates=[];
   if(S&&S.rwState)Object.keys(S.rwState).sort(function(a,b){return(+a)-(+b);}).forEach(function(k){var st=truthLiveStateFor(+k);if(st)liveStates.push(k+':'+[st.kind,st.sh,st.sa,st.min,st.status||'',st.label||''].join(','));});
-  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']|namedKo['+officialNamedKo.join('|')+']',lfp='live['+liveStates.join('|')+']';
+  var fp='group['+officialResults.join('|')+']|ko['+officialKo.join('|')+']|namedKo['+officialNamedKo.join('|')+']|times['+officialTimes.join('|')+']',lfp='live['+liveStates.join('|')+']';
   return {officialStateFingerprint:fp,liveStateFingerprint:lfp,lastSuccessfulLocalRefreshReceipt:TruthBus.lastSuccessful||null,sourceHealthState:truthOverallHealth(),
-    sourceReceipts:Object.assign({},TruthBus.receipts),officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialNamedKnockoutCount:officialNamedKo.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];}),officialNamedKnockoutFixtures:officialNamedKo.map(function(x){return +x.split(':')[0];})},
+    sourceReceipts:Object.assign({},TruthBus.receipts),officialUpdateState:{officialResultCount:officialResults.length,officialKnockoutCount:officialKo.length,officialNamedKnockoutCount:officialNamedKo.length,officialTimeCount:officialTimes.length,officialResultFixtures:officialResults.map(function(x){return +x.split(':')[0];}),officialKnockoutFixtures:officialKo.map(function(x){return +x.split(':')[0];}),officialNamedKnockoutFixtures:officialNamedKo.map(function(x){return +x.split(':')[0];})},
     liveUpdateState:{liveFixtureCount:liveStates.length,liveFixtures:liveStates.map(function(x){return +x.split(':')[0];})}};
 }
 function truthEffectiveFingerprint(){var f=truthFreshness();return f.officialStateFingerprint+'||'+f.liveStateFingerprint;}
@@ -9208,12 +9265,12 @@ function tournamentTruthSnapshot(){
   var finals={},ko={},namedKO={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
   Object.keys(REAL||{}).forEach(function(n){var s=truthOfficialFinalScore(+n);if(s)finals[n]={num:+n,score:s,source:'official_final'};});
   Object.keys(S&&S.realko||{}).forEach(function(n){if(S.realko[n])ko[n]=S.realko[n];});
-  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',providerId:f.providerId||null,source:f.source||'official_provider_fixture'};});
+  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||((S.officialFixtures&&S.officialFixtures[n]&&S.officialFixtures[n].utcDate)||''),providerId:f.providerId||null,source:f.source||'official_provider_fixture'};});
   if(S&&S.rwState)Object.keys(S.rwState).forEach(function(n){var st=truthLiveStateFor(+n);if(!st)return;var row={num:+n,kind:st.kind,score:(st.sh!=null&&st.sa!=null)?{h:st.sh,a:st.sa}:null,min:st.min,status:st.status||'',label:st.label||'',provisional:true};if(st.kind==='hold')hold[n]=row;else live[n]=row;});
   if(S&&S.live)virtual.activeMatch={num:S.live.num,score:{h:S.live.sh||0,a:S.live.sa||0},minute:S.live.min||0,source:'virtual'};
   if(S&&S.bets)virtual.openTickets=S.bets.filter(function(b){return b&&!b.settled;}).length;
   if(S&&S.betsim)virtual.simulatedResults=Object.keys(S.betsim).map(function(n){return +n;}).sort(function(a,b){return a-b;});
-  return {version:'live-truth-v1',official:{finalResults:finals,confirmedFixtures:MATCHES.map(function(m){return {num:m.num,stage:m.stage,home:m.home,away:m.away,date:m.date,time:m.time};}),knockoutWinners:ko,confirmedKnockoutFixtures:namedKO},provisional:{live:live,hold:hold},freshness:truthFreshness(),virtual:virtual};
+  return {version:'live-truth-v1',official:{finalResults:finals,confirmedFixtures:MATCHES.map(function(m){var f=officialFixtureTimeRecord(m.num);return {num:m.num,stage:m.stage,home:m.home,away:m.away,date:matchDay(m),time:officialFixtureLocalTime(m),utcDate:f&&f.utcDate?f.utcDate:''};}),knockoutWinners:ko,confirmedKnockoutFixtures:namedKO},provisional:{live:live,hold:hold},freshness:truthFreshness(),virtual:virtual};
 }
 function fetchResults(){
   if(_resFetching||document.hidden)return;_resFetching=true;
@@ -9227,7 +9284,7 @@ function fetchResults(){
     try{truthIngestProviderRankings(d);}catch(e){}
     try{ingestMatchStates((d.live||[]).concat(d.hold||[]),{receipt:receipt});}catch(e){}
     var fixtureChanged=false;
-    if(truthPayloadHealth('/api/results',d)===TRUTH_HEALTH.healthy)try{fixtureChanged=ingestProviderKOFixtures((d.scheduled||d.fixtures||d.matches||[]),{receipt:receipt,authoritative:true});}catch(e){}
+    if(truthPayloadHealth('/api/results',d)===TRUTH_HEALTH.healthy)try{var _fxRows=(d.scheduled||d.fixtures||d.matches||[]).concat(d.finished||[],d.live||[],d.hold||[]);fixtureChanged=ingestProviderOfficialFixtures(_fxRows,{receipt:receipt,authoritative:true})||fixtureChanged;fixtureChanged=ingestProviderKOFixtures((d.scheduled||d.fixtures||d.matches||[]),{receipt:receipt,authoritative:true})||fixtureChanged;}catch(e){}
     if(!d.finished||!d.finished.length){if(fixtureChanged)saveState();truthRenderIfChanged(before);return;}
     ingestFinished(d.finished,{receipt:receipt});   // non-destructive: only fills matches not already official
     if(fixtureChanged)saveState();
