@@ -4457,19 +4457,34 @@ function homeFixtureDone(m){return officialFixtureDone(m);}
 function homeFixtureParts(m){return m?(m.stage==='group'?[m.home,m.away]:koParts(m.num)):[null,null];}
 function homeFixtureReady(m){var p=homeFixtureParts(m);return !!(m&&p[0]&&p[1]);}
 function homeSortFixtures(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}
+var _scheduleSnapshotCache={key:null,records:null};
+function scheduleTruthKey(){try{return truthEffectiveFingerprint();}catch(e){return JSON.stringify((S&&S.officialFixtures)||{})+'|'+JSON.stringify((S&&S.officialKOFixtures)||{})+'|'+JSON.stringify((S&&S.rwState)||{});}}
+function canonicalScheduleRecords(){
+ var key=scheduleTruthKey();if(_scheduleSnapshotCache.key===key&&_scheduleSnapshotCache.records)return _scheduleSnapshotCache.records;
+ var rows=MATCHES.filter(function(m){return !koSlotSuppressed(m.num);}).sort(homeSortFixtures);
+ _scheduleSnapshotCache={key:key,records:rows};return rows;
+}
+function scheduleLiveState(m){var st=m&&truthLiveStateFor(m.num);return st&&st.kind==='live'?st:null;}
+function scheduleHoldState(m){var st=m&&truthLiveStateFor(m.num);return st&&st.kind==='hold'?st:null;}
+function scheduleFixtureStarted(m,now){var dt=m&&koDateTime(m);return !!(dt&&dt.getTime()<=now);}
+function scheduleFixtureUpcoming(m,now){
+ if(!m||officialFixtureDone(m)||scheduleLiveState(m)||scheduleHoldState(m))return false;
+ if(scheduleFixtureStarted(m,now||Date.now()))return false;
+ return homeFixtureReady(m);
+}
 function homeSeen(nums){var o={};(nums||[]).forEach(function(n){if(n!=null)o[+n]=1;});return o;}
 function homeSeenHas(seen,n){return !!(seen&&seen[+n]);}
-function homeTodayFixtures(){var today=curISO();return MATCHES.filter(function(m){return matchDay(m)===today;}).sort(homeSortFixtures);}
+function homeTodayFixtures(){var today=curISO();return canonicalScheduleRecords().filter(function(m){return matchDay(m)===today;}).sort(homeSortFixtures);}
 function kickoffWindowKey(m){return (matchDay(m)||'')+' '+officialFixtureLocalTime(m);}
 function kickoffWindowModel(opts){
  opts=opts||{};var iso=opts.iso||null,seen=opts.seen||{},includeCompleted=!!opts.includeCompleted,team=opts.team||'',fromToday=opts.fromToday||null,allowPending=!!opts.allowPending;
- var rows=MATCHES.filter(function(m){if(iso&&matchDay(m)!==iso)return false;if(fromToday&&matchDay(m)<fromToday)return false;if(koSlotSuppressed(m.num))return false;if(!includeCompleted&&homeFixtureDone(m))return false;if(homeSeenHas(seen,m.num))return false;if(!allowPending&&!homeFixtureReady(m))return false;if(team){var p=homeFixtureParts(m);if(p[0]!==team&&p[1]!==team)return false;}return true;}).sort(homeSortFixtures);
+ var now=Date.now(),rows=canonicalScheduleRecords().filter(function(m){if(iso&&matchDay(m)!==iso)return false;if(fromToday&&matchDay(m)<fromToday)return false;if(!includeCompleted&&!scheduleFixtureUpcoming(m,now))return false;if(homeSeenHas(seen,m.num))return false;if(!allowPending&&!homeFixtureReady(m))return false;if(team){var p=homeFixtureParts(m);if(p[0]!==team&&p[1]!==team)return false;}return true;}).sort(homeSortFixtures);
  var map={},out=[];rows.forEach(function(m){var k=kickoffWindowKey(m),dt=koDateTime(m);if(!map[k]){map[k]={key:k,date:matchDay(m),time:officialFixtureLocalTime(m),sort:dt?dt.getTime():Infinity,fixtures:[]};map[k]&&out.push(map[k]);}map[k].fixtures.push(m);});
  out.sort(function(a,b){return a.sort-b.sort||a.key.localeCompare(b.key);});out.forEach(function(w){w.fixtures.sort(function(a,b){return a.num-b.num;});});return out;
 }
 function kickoffWindowFixtureNums(windows){var out=[];(windows||[]).forEach(function(w){(w.fixtures||[]).forEach(function(m){out.push(m.num);});});return out;}
 function homeNextFixture(seen){
- var today=curISO();return MATCHES.filter(function(m){return !koSlotSuppressed(m.num)&&homeFixtureReady(m)&&!homeFixtureDone(m)&&matchDay(m)>=today&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures)[0]||null;
+ var today=curISO(),now=Date.now();return canonicalScheduleRecords().filter(function(m){return matchDay(m)>=today&&scheduleFixtureUpcoming(m,now)&&!homeSeenHas(seen,m.num);}).sort(homeSortFixtures)[0]||null;
 }
 function homePrimaryLiveState(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
@@ -4481,16 +4496,12 @@ function homePendingOfficialNum(){
 }
 function homePrimaryContext(){
  var ph;try{ph=fdSafePhase();}catch(e){ph=null;}
- // Final Matchday hero already carries the live "as it stands" score for its deciders,
- // so it stays first. Every other phase (including Knockout) must yield to a genuine
- // live/pending official fixture so real scores always surface on Home — a static
- // "next fixture" lead must never hide a match that is actually in play.
+ if(S.live)return {html:homeLiveNowHTML(),nums:[S.live.num],kind:'sim_live'};
+ var st=homePrimaryLiveState();if(st)return {html:homeLiveNowHTML(),nums:[st.num],kind:'real_live'};
  if(ph&&ph.phase==='final_matchday'){
   var model=phlPickFinalModel(ph.finalMatchdayGroups||[]);
   if(model&&model.fixtures&&model.fixtures.length)return {html:phaseLeadHTML(),nums:model.fixtures.map(function(fx){return fx.num;}),kind:'final_matchday'};
  }
- if(S.live)return {html:homeLiveNowHTML(),nums:[S.live.num],kind:'sim_live'};
- var st=homePrimaryLiveState();if(st)return {html:homeLiveNowHTML(),nums:[st.num],kind:'real_live'};
  var pending=homePendingOfficialNum();if(pending!=null)return {html:homeLiveNowHTML(),nums:[pending],kind:'pending_feed'};
  if(ph&&ph.prioritizeBracket){
   var nx=phlNextKOFixture();return {html:phaseLeadHTML(),nums:nx?[nx.num]:[],kind:'knockout'};
@@ -4579,7 +4590,7 @@ function homeLiveNowHTML(){
  var pending=null,pnow=Date.now(),pt=Infinity;MATCHES.forEach(function(mm){if(!livePendingOfficial(mm.num))return;var d=koDateTime(mm);if(!d)return;var t=d.getTime();if(t<=pnow&&t<pt){pt=t;pending=mm.num;}});
  if(pending!=null){var pdt=officialDisplayTeams(pending);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+(pdt.hCode?fl(pdt.hCode)+' ':'')+esc(pdt.hName)+'</div><div class="home-score">–</div><div class="home-team r">'+esc(pdt.aName)+(pdt.aCode?' '+fl(pdt.aCode):'')+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
- var today=curISO(),up=MATCHES.filter(function(m){var done=m.stage==='group'?S.sc[m.num]:S.ko[m.num],p=m.stage==='group'?[m.home,m.away]:koParts(m.num);return !koSlotSuppressed(m.num)&&!done&&!(S.real&&S.real[m.num])&&matchDay(m)>=today&&p[0]&&p[1];}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
+ var today=curISO(),now=Date.now(),up=canonicalScheduleRecords().filter(function(m){return matchDay(m)>=today&&scheduleFixtureUpcoming(m,now);}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);})[0];
  if(up){var ut=officialDisplayTeams(up.num);return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">No live now</span></div><div class="home-live-row"><div class="home-team">'+(ut.hCode?fl(ut.hCode)+' ':'')+esc(ut.hName)+'</div><div class="home-score">v</div><div class="home-team r">'+esc(ut.aName)+(ut.aCode?' '+fl(ut.aCode):'')+'</div></div><div class="home-sub"><b>'+shortDate(matchDay(up))+' · '+officialFixtureDisplayTime(up)+'</b><br>'+esc(up.venue)+' · '+(up.stage==='group'?'Group '+up.group:roundShort(up.num))+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+up.num+')">Open Match Center</button></div>';}
  return '<div class="home-card hero official"><div class="home-k"><span>Next Match</span><span class="home-status">Calm</span></div><div class="home-sub"><b>No official World Cup match live right now.</b> Results sync safely in the background; delayed or suspended games stay pending.</div>'+fresh+'<button class="home-action" onclick="goLiveBracket()">See live bracket</button></div>';
 }
@@ -4806,7 +4817,7 @@ function renderHome(){
  // 2 · champion hero (only when crowned)
  var champ=c?'<div class="home-champ lit" onclick="celebrate()" style="cursor:pointer"><div class="hc-l">★ World Champions · tap to celebrate</div><div class="hc-team"><span class="fg">'+fl(c)+'</span>'+nm(c)+'</div></div>':'';
  // 3 · next up (actionable)
- var upMs=MATCHES.filter(function(m){return !koSlotSuppressed(m.num)&&(activeMode()==='real'?!officialFixtureDone(m):(m.stage==="group"?(!S.sc[m.num]&&!(S.real&&S.real[m.num])):(!S.ko[m.num])));}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,3);
+ var _now=Date.now(),upMs=canonicalScheduleRecords().filter(function(m){return activeMode()==='real'?scheduleFixtureUpcoming(m,_now):(m.stage==="group"?(!S.sc[m.num]&&!(S.real&&S.real[m.num])):(!S.ko[m.num]));}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:(matchClock(a)-matchClock(b)||a.num-b.num);}).slice(0,3);
  var upFeed=upMs.map(function(m){var ph=m.stage==="group"?m.home:koParts(m.num)[0],pa=m.stage==="group"?m.away:koParts(m.num)[1];
    var spk=(S.live&&S.live.num===m.num)?sparklineSVG(S.live):'';
    return '<div class="frow up" onclick="openSheet('+m.num+')"><div class="fmatch">'+(ph?fl(ph)+' '+nm(ph):slotLabel(m.home))+' <span class="vsx">v</span> '+(pa?nm(pa)+' '+fl(pa):slotLabel(m.away))+' '+rwLiveTag(m.num)+'</div><div class="fmeta">'+(m.stage==="group"?shortDate(matchDay(m))+' · '+officialFixtureDisplayTime(m):roundShort(m.num))+spk+'</div></div>';}).join("");
@@ -7782,7 +7793,7 @@ function tccThirdsSheet(){
     if(i===7)html+='<div class="tcc-cut">Qualification cut-off</div>';
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
-function setSchedFilter(c){S._schedFilter=c||null;S._schedDay=null;renderSchedule();var sc=document.getElementById("scr-matches");if(sc)sc.scrollIntoView?0:0;}
+function setSchedFilter(c){S._schedFilter=c||null;S._schedDay=c?null:(S._schedDay||curISO());renderSchedule();var sc=document.getElementById("scr-matches");if(sc)sc.scrollIntoView?0:0;}
 /* Smart matchday logic: a late-night kickoff (00:00–05:59) is the "nightcap" of
    the PREVIOUS day's slate — it belongs after that evening's games, not at the top
    of the next morning. matchClock pushes those games past midnight for ordering. */
@@ -7792,7 +7803,7 @@ function _mins(t){var p=String(t||"0:0").split(":");return (+p[0])*60+(+(p[1]||0
 function matchClock(m){return _mins(officialFixtureLocalTime(m));}
 function matchDay(m){return officialFixtureLocalDateKey(m);}
 function wdCode(d){try{return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00Z").getUTCDay()];}catch(e){return "";}}
-function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._schedDay||'');
+function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._schedDay===undefined?curISO():S._schedDay);
   const teamCodes=Object.keys(T).sort((a,b)=>nm(a).localeCompare(nm(b)));
   /* native <option> can't host a badge span, so use plain text (code · name) — never a raw flag emoji that could tofu to a white box */
   const opts='<option value="">All teams · 104 matches</option>'+teamCodes.map(c=>`<option value="${c}"${c===sel?' selected':''}>${esc(c)} · ${esc(nm(c))}</option>`).join("");
@@ -7808,7 +7819,8 @@ function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._sch
   // above the fixtures, never floats, and uses stable per-fixture anchors so it
   // can't overlap rows or venue text.
   if(!sel)h+=dateNavHTML();
-  const days=(selectedDay?[selectedDay]:[...new Set(MATCHES.map(m=>matchDay(m)))].sort());
+  const schedRows=canonicalScheduleRecords();
+  const days=(selectedDay?[selectedDay]:[...new Set(schedRows.map(m=>matchDay(m)))].sort());
   days.forEach(d=>{const wins=kickoffWindowModel({iso:d,team:sel,includeCompleted:true,allowPending:true}),dm=kickoffWindowFixtureNums(wins).map(function(n){return M[n];}).filter(inv);if(!dm.length)return;any=true;
     h+=`<div class="daygrp" id="day-${d}"><div class="dayhd"><span class="dw">${fullDay(wdCode(d))}</span><span class="dd">${longDate(d)}</span><span class="md">${roundName(dm[0].num)}</span></div>`;
     dm.forEach(m=>h+=mrow(m,m.num===featNum));h+=`</div>`;});
@@ -7817,13 +7829,13 @@ function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._sch
 /* ===== Matches date navigator (compact, in-flow, stable anchors) ============== */
 function schedSort(a,b){return matchClock(a)-matchClock(b)||a.num-b.num;}
 function schedDone(m){return officialFixtureDone(m);}
-function schedFirstUnfinishedToday(){var today=curISO();
-  var ms=MATCHES.filter(function(m){return matchDay(m)===today;}).sort(schedSort);
-  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+function schedFirstUnfinishedToday(){var today=curISO(),now=Date.now();
+  var ms=canonicalScheduleRecords().filter(function(m){return matchDay(m)===today;}).sort(schedSort);
+  for(var i=0;i<ms.length;i++){if(scheduleFixtureUpcoming(ms[i],now))return ms[i].num;}
   return null;}
 function schedNextUnfinishedFrom(iso){
-  var ms=MATCHES.filter(function(m){return matchDay(m)>iso;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:schedSort(a,b);});
-  for(var i=0;i<ms.length;i++){if(!schedDone(ms[i]))return ms[i].num;}
+  var now=Date.now(),ms=canonicalScheduleRecords().filter(function(m){return matchDay(m)>=iso;}).sort(function(a,b){var da=matchDay(a),db=matchDay(b);return da<db?-1:da>db?1:schedSort(a,b);});
+  for(var i=0;i<ms.length;i++){if(scheduleFixtureUpcoming(ms[i],now))return ms[i].num;}
   return ms.length?ms[0].num:null;}
 function schedScrollToNum(num){var el=document.getElementById('fx-'+num);if(!el)return false;
   var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
@@ -7841,26 +7853,27 @@ function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
   var nx=schedNextUnfinishedFrom(today);
   if(nx!=null)schedScrollToNum(nx);else if(hasToday)schedScrollToDay(today);}
 function schedJumpTomorrow(){var tom=nextISO(curISO());
-  var ms=MATCHES.filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
+  var ms=canonicalScheduleRecords().filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
   if(!ms.length){try{toast('No matches scheduled tomorrow');}catch(e){}return;}
   S._schedDay=tom;renderSchedule();
   schedScrollToNum(ms[0].num);}
+function schedShowAllDates(){S._schedDay=null;renderSchedule();scrollToTodayMatches();}
 function dateNavHTML(){
   var today=curISO(),tom=nextISO(today);
   var nowNum=schedFirstUnfinishedToday();var ctxNum=nowNum!=null?nowNum:schedNextUnfinishedFrom(today);
   var label='Tournament',sub='Group Stage';
   if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+officialFixtureDisplayTime(m);}
-  var hasTom=MATCHES.some(function(x){return matchDay(x)===tom;});
+  var hasTom=canonicalScheduleRecords().some(function(x){return matchDay(x)===tom;});
   var selDay=S._schedDay||'',todayCls=selDay===today?' primary':'',tomCls=selDay===tom?' primary':'';
   return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(selDay?'Showing':(nowNum!=null?'Now':'Up next'))+'</span><b>'+esc(selDay?longDate(selDay):label)+'</b><span class="dn-s">'+esc(selDay?(selDay===today?'Today':(selDay===tom?'Tomorrow':'Selected day')):sub)+'</span></div>'+
    '<div class="dn-actions"><button class="dn-btn'+todayCls+'" onclick="schedJumpToday()">Today</button>'+
-   (hasTom?'<button class="dn-btn'+tomCls+'" onclick="schedJumpTomorrow()">Tomorrow</button>':'')+
-   '<button class="dn-btn ghost" onclick="schedDatesSheet()">All dates</button></div></div>';}
+   '<button class="dn-btn'+tomCls+'" onclick="schedJumpTomorrow()">'+(hasTom?'Tomorrow':'Tomorrow')+'</button>'+
+   '<button class="dn-btn ghost'+(!selDay?' primary':'')+'" onclick="schedShowAllDates()">All Dates</button></div></div>';}
 function schedDatesGo(d){S._schedDay=d;renderSchedule();closeSheet();setTimeout(function(){schedScrollToDay(d);},80);}
 function schedDatesSheet(){
   var today=curISO(),tom=nextISO(today);
-  var days=[...new Set(MATCHES.map(matchDay))].sort();
-  var rows=days.map(function(d){var ms=MATCHES.filter(function(m){return matchDay(m)===d;}).sort(schedSort);var rn=roundName(ms[0].num);var tag=d===today?'Today':(d===tom?'Tomorrow':'');
+  var records=canonicalScheduleRecords(),days=[...new Set(records.map(matchDay))].sort();
+  var rows=days.map(function(d){var ms=records.filter(function(m){return matchDay(m)===d;}).sort(schedSort);var rn=roundName(ms[0].num);var tag=d===today?'Today':(d===tom?'Tomorrow':'');
     var remain=ms.some(function(m){return !schedDone(m);});
     return '<button class="dns-row" onclick="schedDatesGo(\''+d+'\')"><span class="dns-d"><b>'+esc(fullDay(wdCode(d)))+'</b><span>'+esc(longDate(d))+'</span></span><span class="dns-r">'+esc(rn)+'</span>'+(tag?'<span class="dns-t'+(tag==='Today'?' now':'')+'">'+tag+'</span>':(remain?'':'<span class="dns-done">done</span>'))+'</button>';}).join('');
   var sh=document.getElementById('sheet');if(!sh)return;
@@ -8726,7 +8739,7 @@ function defaultTournamentTab(){try{return tournamentPhaseState().prioritizeBrac
 function goBracket(){TAB="bracket";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#bracket","Bracket opened");}
 function goLiveBracket(){S.mode='real';_brkMode='live';TAB="bracket";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#brkVert","📡 Live knockout projection opened");}
 function goGroups(){TAB="groups";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#groups","🥉 Group tables opened");}
-function goSchedule(){TAB="schedule";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#schedule","📅 Fixtures opened");}
+function goSchedule(){S._schedFilter=null;S._schedDay=curISO();TAB="schedule";if(typeof pushTab==="function")pushTab();switchTab();render();arriveAt("#schedule","📅 Fixtures opened");}
 function revalidateKO(){[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(n=>{if(!S.ko[n])return;const[h,a]=koParts(n);if(S.ko[n]!==h&&S.ko[n]!==a)delete S.ko[n];});}
 
 /* controls wired via Home buttons */
@@ -8880,9 +8893,8 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   noteScrollSnapshot();
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
-  try{if(m[0]==="matches"||m[0]==="bet")ensurePlayData();if(m[0]==="teams")ensureSocialData();}catch(e){}
-  try{idleTask(function(){refreshVisibleData(false);},700);scheduleRefresh(refreshLiveInterval());}catch(e){}
-  var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");void cur.offsetWidth;cur.classList.add("enter");}
+  try{if(m[0]==="teams")ensureSocialData();}catch(e){}
+  var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");cur.classList.add("enter");}
   /* Today is no longer a floating control (it overlapped schedule rows). An in-flow
      "Jump to today" button lives in the schedule instead; keep the FAB hidden. */
   var tf=document.getElementById("todayFab");if(tf)tf.style.display="none";}
@@ -8891,7 +8903,7 @@ function scrollToTodayMatches(){
   var m=SCRMAP[TAB]||[];if(m[0]!=="matches"||m[1]!=="schedule")return;
   try{haptic('tap');}catch(e){}
   try{var today=curISO();
-    var days=[...new Set(MATCHES.map(function(m){return matchDay(m);}))].sort();
+    var days=[...new Set(canonicalScheduleRecords().map(function(m){return matchDay(m);}))].sort();
     var target=null;for(var i=0;i<days.length;i++){if(days[i]>=today){target=days[i];break;}}
     if(!target)target=days[days.length-1];
     var el=document.getElementById("day-"+target);
@@ -9075,11 +9087,11 @@ function truthResolveOfficialFixture(f,allowKnockout){
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return null;
   if(allowKnockout){
     var kn=truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f);
-    if(kn&&M[kn]&&M[kn].stage!=='group')return {num:kn,match:M[kn],home:hc,away:ac,score:{h:+f.gh,a:+f.ga},payload:f,flip:false};
+    if(kn&&M[kn]&&M[kn].stage!=='group'){var ks=truthPayloadMainScore(f,false);if(!ks)return null;return {num:kn,match:M[kn],home:hc,away:ac,score:ks,payload:f,flip:false};}
   }
   var hit=allowKnockout?rwFindFixtureAnyStage(hc,ac):rwFindFixtureAny(hc,ac);if(!hit)return null;
-  var sh=hit.flip?f.ga:f.gh,sa=hit.flip?f.gh:f.ga;
-  return {num:hit.m.num,match:hit.m,home:hit.m.home,away:hit.m.away,score:{h:+sh,a:+sa},payload:f,flip:!!hit.flip};
+  var sc=truthPayloadMainScore(f,!!hit.flip);if(!sc)return null;
+  return {num:hit.m.num,match:hit.m,home:hit.m.home,away:hit.m.away,score:sc,payload:f,flip:!!hit.flip};
 }
 function truthKOStageNums(stage){
   var s=String(stage||'').toUpperCase().replace(/[^A-Z0-9]+/g,'_');
@@ -9325,6 +9337,21 @@ function marketPastKickoff(num){var m=M[num];if(!m)return false;var d=koDateTime
 function matchHoldState(num){return (S.rwState&&S.rwState[num]&&S.rwState[num].kind==='hold')?S.rwState[num]:null;}
 function matchLiveState(num){var st=truthLiveStateFor(num);if(st)return st;var stale=truthExpiredProvisionalState(num);return stale?Object.assign({},stale,{kind:'awaiting_confirmation',label:'Awaiting confirmed update',stale:true,sh:null,sa:null,min:null}):null;}
 function officialFinalPayload(f){return f&&f.gh!=null&&f.ga!=null&&rwKind(f)==='final';}
+function truthScorePair(obj){
+  if(!obj)return null;
+  var h=obj.home!=null?obj.home:(obj.h!=null?obj.h:(obj.gh!=null?obj.gh:null));
+  var a=obj.away!=null?obj.away:(obj.a!=null?obj.a:(obj.ga!=null?obj.ga:null));
+  return h!=null&&a!=null?{h:+h,a:+a}:null;
+}
+function truthPayloadMainScore(f,flip){
+  var sc=f&&f.score,pair=null;
+  if(sc){
+    pair=truthScorePair(sc.fullTime)||truthScorePair(sc.extraTime)||truthScorePair(sc.regularTime);
+  }
+  if(!pair)pair=truthScorePair({home:f&&f.gh,away:f&&f.ga});
+  if(!pair)return null;
+  return flip?{h:pair.a,a:pair.h}:pair;
+}
 function knockoutOfficialWinnerFromPayload(f,hc,ac){
   if(!officialFinalPayload(f)||!hc||!ac)return null;
   if(f.winner==='HOME_TEAM')return hc;
@@ -9476,7 +9503,7 @@ function truthStoreKOPayload(f){
   // seed-derived slots, which would desync the stored record from provider truth and let
   // the next rebuild prune a real FINISHED result. Anchoring to hc/ac keeps the canonical
   // pairing stable across every rebuild pass.
-  truthApplyOfficialFinal({num:fx.num,match:fx.match,score:{h:+f.gh,a:+f.ga}});
+  truthApplyOfficialFinal({num:fx.num,match:fx.match,score:fx.score});
   S.officialKOFinals=S.officialKOFinals||{};
   var method=koPayloadFinalMethod(f);
   var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:hc,away:ac,winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};

@@ -4,12 +4,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
+process.env.TZ = 'America/Puerto_Rico';
+
 function loadApp() {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const dom = new JSDOM(html, { url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
+  const RealDate = window.Date;
+  const fixedNow = new RealDate('2026-06-30T12:00:00-04:00').getTime();
+  window.Date = class extends RealDate {
+    constructor(...args) { return args.length ? new RealDate(...args) : new RealDate(fixedNow); }
+    static now() { return fixedNow; }
+    static parse(v) { return RealDate.parse(v); }
+    static UTC(...args) { return RealDate.UTC(...args); }
+  };
   window.HTMLCanvasElement.prototype.getContext = () => ({
     clearRect() {}, fillRect() {}, save() {}, restore() {}, translate() {}, rotate() {}, fillText() {},
     beginPath() {}, arc() {}, fill() {}, moveTo() {}, lineTo() {}, stroke() {}, closePath() {},
