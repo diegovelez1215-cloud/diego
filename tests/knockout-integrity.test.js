@@ -36,7 +36,8 @@ function loadApp() {
       getState:function(){return S;}, setState:function(v){S=v;}, blankState:blankState,
       MATCHES:MATCHES, GROUPS:GROUPS, REAL:REAL, M:M, RAT:RAT, T:T, gMatches:gMatches,
       koParts:koParts, slotLabel:slotLabel, nm:nm, rwResolve:rwResolve, rwKind:rwKind,
-      ingestProviderKOFixtures:ingestProviderKOFixtures,
+      ingestProviderKOFixtures:ingestProviderKOFixtures, ingestFinished:ingestFinished,
+      truthRefreshStart:truthRefreshStart, tournamentTruthSnapshot:tournamentTruthSnapshot,
       truthProviderNamedKOFixture:truthProviderNamedKOFixture,
       truthCanonicalKOFixtures:truthCanonicalKOFixtures,
       koSlotSuppressed:koSlotSuppressed, koCanonicalDedupMap:koCanonicalDedupMap, koResetDedupCache:koResetDedupCache,
@@ -44,8 +45,11 @@ function loadApp() {
       koFixtureKickoffMs:koFixtureKickoffMs,
       homePrimaryContext:homePrimaryContext, homeLiveNowHTML:homeLiveNowHTML,
       knockoutModeHTML:knockoutModeHTML, r32FixtureStates:r32FixtureStates, komR32CardHTML:komR32CardHTML,
-      matchLiveState:matchLiveState, fdSafePhase:fdSafePhase,
-      renderHome:renderHome, homeHTML:function(){return document.getElementById('home').innerHTML;},
+      matchLiveState:matchLiveState, fdSafePhase:fdSafePhase, matchCenterTruth:matchCenterTruth,
+      mrow:mrow, homeFixtureCardHTML:homeFixtureCardHTML, dateNavHTML:dateNavHTML, schedJumpTomorrow:schedJumpTomorrow,
+      renderHome:renderHome, renderSchedule:renderSchedule,
+      homeHTML:function(){return document.getElementById('home').innerHTML;},
+      scheduleHTML:function(){return document.getElementById('schedule').innerHTML;},
       mountText:function(h){var d=document.createElement('div');d.innerHTML=h||'';return d.textContent;}
     };`);
   return dom;
@@ -68,6 +72,9 @@ function finishAllGroups(app, s) {
 }
 function scheduledKO(matchNum, home, away, extra = {}) {
   return Object.assign({ matchNum, home, away, gh: null, ga: null, status: 'TIMED', kind: 'scheduled', stage: 'LAST_32' }, extra);
+}
+function finalKO(matchNum, home, away, gh, ga, winner, extra = {}) {
+  return Object.assign({ matchNum, home, away, gh, ga, status: 'FINISHED', kind: 'final', stage: 'LAST_32', winner }, extra);
 }
 function pairKey(a, b) { return [a, b].sort().join('~'); }
 
@@ -183,4 +190,118 @@ test('final and live knockout cards retain full readable team names', () => with
   assert.match(card, /Côte d'Ivoire/, 'home name is readable');
   assert.match(card, /Norway/, 'away name is readable');
   assert.doesNotMatch(card, /\b2D\b|\b2G\b|3:/, 'no raw slot token in the final card');
+}));
+
+test('all sixteen Round of 32 provider ties coexist, including Argentina v Cape Verde', () => withApp((app) => {
+  resetOfficial(app);
+  const ties = [
+    ['RSA', 'CAN'], ['GER', 'PAR'], ['ENG', 'COD'], ['BRA', 'JPN'],
+    ['CIV', 'NOR'], ['AUS', 'EGY'], ['ESP', 'AUT'], ['MEX', 'SUI'],
+    ['USA', 'BIH'], ['FRA', 'SWE'], ['POR', 'KOR'], ['NED', 'TUR'],
+    ['BEL', 'MAR'], ['ARG', 'CPV'], ['CRO', 'COL'], ['URU', 'ECU'],
+  ];
+  app.ingestProviderKOFixtures(ties.map((p, i) => scheduledKO(73 + i, p[0], p[1], {
+    utcDate: `2026-07-${String(1 + i).padStart(2, '0')}T20:00:00Z`,
+  })), { authoritative: true });
+  app.koResetDedupCache();
+
+  const canon = app.truthCanonicalKOFixtures();
+  assert.equal(Object.keys(canon).length, 16, 'every R32 provider tie survives exactly once');
+  const argCape = Object.values(canon).find((f) => f.home === 'ARG' && f.away === 'CPV');
+  assert.ok(argCape, 'Argentina v Cape Verde remains present');
+}));
+
+test('Tomorrow control targets the complete local-day canonical fixture set', () => withApp((app, window) => {
+  const s = resetOfficial(app);
+  const today = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  app.M[73].date = iso(today); app.M[73].time = '10:00';
+  app.M[74].date = iso(tomorrow); app.M[74].time = '11:00';
+  app.M[75].date = iso(tomorrow); app.M[75].time = '15:00';
+  app.ingestProviderKOFixtures([
+    scheduledKO(73, 'Brazil', 'Japan'),
+    scheduledKO(74, 'Germany', 'Paraguay'),
+    scheduledKO(75, 'Argentina', 'Cape Verde'),
+  ], { authoritative: true });
+  app.REAL[73] = [2, 1]; s.real[73] = 1; s.sc[73] = { h: 2, a: 1 };
+  app.setState(s); app.koResetDedupCache();
+
+  const navText = app.mountText(app.dateNavHTML());
+  assert.match(navText, /Tomorrow/, 'Tomorrow control is visible when tomorrow has fixtures');
+  app.renderSchedule();
+  const html = app.scheduleHTML();
+  assert.match(html, /Germany/);
+  assert.match(html, /Paraguay/);
+  assert.match(html, /Argentina/);
+  assert.match(html, /Cabo Verde/);
+
+  let scrolled = false;
+  window.scrollTo = function () { scrolled = true; };
+  app.schedJumpTomorrow();
+  assert.equal(scrolled, true, 'Tomorrow visibly switches to the first fixture on the local tomorrow slate');
+  assert.equal(window.document.getElementById('fx-74').classList.contains('arrive-pulse'), true);
+}));
+
+test('live, timed, final and penalty knockout states render from the canonical record', () => withApp((app) => {
+  resetOfficial(app);
+  const receipt = app.truthRefreshStart('/api/results');
+  app.ingestProviderKOFixtures([
+    scheduledKO(73, 'Germany', 'Paraguay'),
+    scheduledKO(74, 'Brazil', 'Japan'),
+    scheduledKO(75, 'Argentina', 'Cape Verde'),
+  ], { receipt, authoritative: true });
+  app.ingestFinished([
+    finalKO(74, 'Brazil', 'Japan', 2, 1, 'HOME_TEAM'),
+    finalKO(75, 'Argentina', 'Cape Verde', 1, 1, 'HOME_TEAM', { penalties: { home: 4, away: 3 }, status: 'PEN' }),
+  ], { receipt });
+  const s = app.getState();
+  s.rwState = { 73: { sh: 1, sa: 0, min: 64, status: 'IN_PLAY', label: 'Live', kind: 'live', at: Date.now(), homeCode: 'GER', awayCode: 'PAR' } };
+  app.setState(s); app.koResetDedupCache();
+
+  const liveText = app.mountText(app.homeLiveNowHTML());
+  assert.match(liveText, /Germany/);
+  assert.match(liveText, /Paraguay/);
+  assert.match(liveText, /1–0/);
+  assert.match(liveText, /Live|LIVE/);
+
+  const timed = app.mountText(app.mrow(app.M[73], false));
+  assert.doesNotMatch(timed, /TIMED|UPCOMING.*LIVE|LIVE.*UPCOMING/, 'TIMED scheduled records never render as live');
+
+  const finalText = app.mountText(app.komR32CardHTML(app.r32FixtureStates().find((x) => x.matchNum === 74)));
+  assert.match(finalText, /FINAL/);
+  assert.match(finalText, /2–1/);
+  assert.match(finalText, /Brazil advances/);
+  assert.match(finalText, /Japan eliminated/);
+
+  const penText = app.mountText(app.komR32CardHTML(app.r32FixtureStates().find((x) => x.matchNum === 75)));
+  assert.match(penText, /FINAL · 1–1 · Argentina advances 4–3 on penalties/);
+  assert.equal(app.matchCenterTruth(75).statusText, 'Final · penalties');
+}));
+
+test('Home, Knockout, Matches and Match Center read the same canonical provider final', () => withApp((app) => {
+  const s = resetOfficial(app);
+  finishAllGroups(app, s);
+  const receipt = app.truthRefreshStart('/api/results');
+  app.ingestProviderKOFixtures([scheduledKO(73, 'South Africa', 'Canada')], { receipt, authoritative: true });
+  app.ingestFinished([finalKO(73, 'South Africa', 'Canada', 0, 1, 'AWAY_TEAM')], { receipt });
+  app.koResetDedupCache();
+
+  const snap = app.tournamentTruthSnapshot();
+  assert.equal(snap.official.knockoutWinners[73], 'CAN');
+  assert.equal(snap.official.confirmedKnockoutFixtures[73].home, 'RSA');
+  assert.equal(snap.official.confirmedKnockoutFixtures[73].away, 'CAN');
+
+  const home = app.mountText(app.homeFixtureCardHTML(app.M[73]));
+  const knockout = app.mountText(app.knockoutModeHTML());
+  const matches = app.mountText(app.mrow(app.M[73], false));
+  const mc = app.matchCenterTruth(73);
+  for (const text of [home, knockout, matches]) {
+    assert.match(text, /South Africa/);
+    assert.match(text, /Canada/);
+  }
+  assert.equal(mc.hCode, 'RSA');
+  assert.equal(mc.aCode, 'CAN');
+  assert.equal(mc.score.h, 0);
+  assert.equal(mc.score.a, 1);
 }));

@@ -4652,12 +4652,13 @@ function komR32CardHTML(fx){
   var loser=done?(winner===fx.home?fx.away:fx.home):null;
   var lv=!done?matchLiveState(fx.matchNum):null,live=!!(lv&&lv.kind==='live'&&lv.sh!=null&&lv.sa!=null);
   var awaiting=!done&&!live&&confirmed&&(livePendingOfficial(fx.matchNum)||marketPastKickoff(fx.matchNum));
-  var statusTag=done?'FINAL':(live?('LIVE'+(lv.min!=null?" · "+lv.min+"'":'')):(confirmed?(awaiting?'Awaiting result':'UP NEXT'):'Awaiting result'));
+  var dec=done?koDecidedLabel(fx.matchNum):'',rec=done?truthKOFinalFor(fx.matchNum):null;
+  var statusTag=done?(dec==='Penalties'&&rec&&rec.penalties?('FINAL · '+fin.h+'–'+fin.a+' · '+nm(winner)+' advances '+rec.penalties.h+'–'+rec.penalties.a+' on penalties'):'FINAL'):(live?('LIVE'+(lv.min!=null?" · "+lv.min+"'":'')):(confirmed?(awaiting?'Awaiting result':'UP NEXT'):'Awaiting result'));
   var statusCls=done?'fin':(live?'live':(confirmed&&!awaiting?'next':'await'));
   var hm=done?(winner===fx.home?'w':'l'):'',am=done?(winner===fx.away?'w':'l'):'';
   var mid=done?('<span class="kom-score">'+fin.h+'–'+fin.a+'</span>'):(live?('<span class="kom-score live">'+lv.sh+'–'+lv.sa+'</span>'):'<span class="kom-vs">'+(confirmed?'vs':'·')+'</span>');
   var foot=done
-    ?('<span class="kom-adv">'+esc(nm(winner))+' advances'+(path?' to '+roundName(path):'')+'</span><span class="kom-out-line">'+esc(nm(loser))+' eliminated</span>')
+    ?('<span class="kom-adv">'+esc(nm(winner))+' advances'+(dec==='Penalties'&&rec&&rec.penalties?(' '+rec.penalties.h+'-'+rec.penalties.a+' on penalties'):'')+(path?' to '+roundName(path):'')+'</span><span class="kom-out-line">'+esc(nm(loser))+' eliminated</span>')
     :(live?('<span class="kom-path">'+esc(safeStatusText(lv.label,'Live'))+' · provisional until full time</span>')
       :('<span class="kom-path">'+esc(confirmed?('Winner advances to '+roundName(path||89)):(fx.pendingSlots&&fx.pendingSlots.length>=2?'Both qualifiers pending':'One slot still to confirm'))+'</span>'));
   return '<div class="kom-card '+(done?'done':(live?'live':(confirmed?'confirmed':'pending')))+'"'+((confirmed||live)?' onclick="openSheet('+fx.matchNum+')"':'')+'>'+
@@ -8118,9 +8119,13 @@ function knockoutSlotStatus(num,liveMode){
   return {num:num,home:h,away:a,homeLocked:hp.locked,awayLocked:ap.locked,state:state,label:label,line:line,rawHome:m.home,rawAway:m.away};
 }
 /* Honest decided-method label — only from data the app actually holds.
-   Never fabricates Extra time / Penalties; surfaces them only when the live
-   official status reports them. Returns '' when nothing extra is known. */
+   Never fabricates Extra time / Penalties; surfaces them only when the stored
+   official final or live official status reports them. Returns '' otherwise. */
 function koDecidedLabel(num){
+  try{var rec=(typeof truthKOFinalFor==='function')?truthKOFinalFor(num):null;
+    if(rec&&rec.method==='extra_time')return 'Extra time';
+    if(rec&&rec.method==='penalties')return 'Penalties';
+  }catch(e){}
   try{var live=(typeof matchLiveState==='function')?matchLiveState(num):null;
     if(live&&live.label){var t=safeStatusText(live.label,'');
       if(/extra time/i.test(t))return 'Extra time';
@@ -8151,9 +8156,11 @@ function knockoutPathCardHTML(num,pathSet,tappable,liveMode,nextR){
     var mark=isw?'<span class="kpath-go" title="Advances">Advances</span>':(isl?'<span class="kpath-out">Eliminated</span>':(ph?'':'<span class="kpath-min">·</span>'));
     return '<div class="kpath-row'+(isw?' win':'')+(isl?' lose':'')+'"><div class="'+nmCls+'">'+inner+'</div><div class="kpath-side">'+mark+'</div></div>';}
   var dec=koDecidedLabel(num);
+  var rec=(typeof truthKOFinalFor==='function')?truthKOFinalFor(num):null;
+  if(w&&dec==='Penalties'&&rec&&rec.penalties)line=nm(w)+' advances '+rec.penalties.h+'-'+rec.penalties.a+' on penalties'+(next?' to '+roundName(next):'');
   var chipTxt,chipCls;
-  if(dec==='Extra time'){chipTxt='Extra time';chipCls='et';}
-  else if(dec==='Penalties'){chipTxt='Penalties';chipCls='pen';}
+  if(dec==='Extra time'){chipTxt=fin?('Final '+fin.h+'-'+fin.a+' · extra time'):'Extra time';chipCls='et';}
+  else if(dec==='Penalties'){chipTxt=fin?('Final '+fin.h+'-'+fin.a+' · penalties'):'Penalties';chipCls='pen';}
   else if(w){chipTxt=fin?('Final '+fin.h+'-'+fin.a):'Final';chipCls='fin';}
   else if(ks.state==='confirmed'){chipTxt=(livePendingOfficial(num)||marketPastKickoff(num))?'Awaiting result':'Up next';chipCls='conf';}
   else if(ks.state==='projected'){chipTxt='Projected';chipCls='proj';}
@@ -8249,15 +8256,18 @@ var _openSheetNum=null;
 function matchCenterTruth(num){
   var m=M[num];if(!m)return null;
   var ko=m.stage!=='group';
-  var parts=ko?koParts(num):[m.home,m.away];
+  var display=ko?officialDisplayTeams(num):null;
+  var parts=ko?[display&&display.hCode,display&&display.aCode]:[m.home,m.away];
   var base={num:num,ko:ko,hCode:parts[0]||null,aCode:parts[1]||null};
   var lab=(S.rwState&&S.rwState[num]&&S.rwState[num].label)||'';
   // 1) Official final — factual, from the official result containers.
   var fin=truthOfficialFinalScore(num);
   var officialFinal=!!((S.real&&S.real[num])||(ko&&S.realko&&S.realko[num]));
   if(fin&&officialFinal){
-    var st='Final';
-    if(/penalt/i.test(lab))st='Final · penalties';
+    var st='Final',rec=ko?truthKOFinalFor(num):null;
+    if(rec&&rec.method==='penalties')st='Final · penalties';
+    else if(rec&&rec.method==='extra_time')st='Final · after extra time';
+    else if(/penalt/i.test(lab))st='Final · penalties';
     else if(/extra/i.test(lab))st='Final · after extra time';
     return Object.assign(base,{phase:'final',score:{h:fin.h,a:fin.a},statusText:st,tone:'final',live:false});
   }
@@ -9083,10 +9093,15 @@ function truthNormTeamKey(home,away){
    survives when no provider fixture already supplies that exact pairing. Identity is
    normalized name variants only — never a hardcoded team or scoreline. */
 function truthCanonicalKOFixtures(){
-  var src=(S&&S.officialKOFixtures)||{},out={},seen={};
+  var src=(S&&S.officialKOFixtures)||{},out={},seen={},seenProviderId={};
   Object.keys(src).map(Number).sort(function(x,y){return x-y;}).forEach(function(num){
     var f=src[num];
     if(!(f&&T[f.home]&&T[f.away]&&f.home!==f.away))return;
+    if(f.providerId){
+      var idKey=String(f.providerId),priorId=seenProviderId[idKey];
+      if(priorId)return;
+      seenProviderId[idKey]=num;
+    }
     var key=truthNormTeamKey(f.home,f.away),prior=seen[key];
     if(!prior){seen[key]={num:num,f:f};out[num]=f;return;}
     var priorVerified=prior.f.source==='verified_fixture',curVerified=f.source==='verified_fixture';
@@ -9112,7 +9127,7 @@ function truthResolveProviderKOFixture(f){
   if(rwKind(f)!=='scheduled'||officialFinalPayload(f))return null;
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac||hc===ac)return null;
   var source=(f&&f.source==='verified_fixture')?'verified_fixture':'official_provider_fixture';
-  return {num:num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',source:source};
+  return {num:num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',providerId:f.providerId||f.fixtureId||f.id||null,source:source};
 }
 function ingestProviderKOFixtures(arr,opts){
   if(!opts||opts.authoritative!==true)return false;
@@ -9133,7 +9148,7 @@ function ingestProviderKOFixtures(arr,opts){
     // Provider-named scheduled fixtures always win; the verified manifest only fills
     // a slot the provider left unnamed (display-only fallback).
     if(next.source==='verified_fixture'&&prev&&!prevVerified)return;
-    if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status||prev.source!==next.source){
+    if(!prev||prev.home!==next.home||prev.away!==next.away||prev.stage!==next.stage||prev.status!==next.status||prev.providerId!==next.providerId||prev.source!==next.source){
       S.officialKOFixtures[num]=Object.assign({},next,{updatedAt:Date.now()});changed=true;
     }
   });
@@ -9177,7 +9192,7 @@ function tournamentTruthSnapshot(){
   var finals={},ko={},namedKO={},live={},hold={},virtual={activeMatch:null,openTickets:0,simulatedResults:[]};
   Object.keys(REAL||{}).forEach(function(n){var s=truthOfficialFinalScore(+n);if(s)finals[n]={num:+n,score:s,source:'official_final'};});
   Object.keys(S&&S.realko||{}).forEach(function(n){if(S.realko[n])ko[n]=S.realko[n];});
-  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',source:f.source||'official_provider_fixture'};});
+  Object.keys(S&&S.officialKOFixtures||{}).forEach(function(n){var f=truthProviderNamedKOFixture(+n);if(f)namedKO[n]={num:+n,home:f.home,away:f.away,stage:f.stage||'',status:f.status||'',providerId:f.providerId||null,source:f.source||'official_provider_fixture'};});
   if(S&&S.rwState)Object.keys(S.rwState).forEach(function(n){var st=truthLiveStateFor(+n);if(!st)return;var row={num:+n,kind:st.kind,score:(st.sh!=null&&st.sa!=null)?{h:st.sh,a:st.sa}:null,min:st.min,status:st.status||'',label:st.label||'',provisional:true};if(st.kind==='hold')hold[n]=row;else live[n]=row;});
   if(S&&S.live)virtual.activeMatch={num:S.live.num,score:{h:S.live.sh||0,a:S.live.sa||0},minute:S.live.min||0,source:'virtual'};
   if(S&&S.bets)virtual.openTickets=S.bets.filter(function(b){return b&&!b.settled;}).length;
@@ -9222,6 +9237,21 @@ function knockoutOfficialWinnerFromPayload(f,hc,ac){
   var status=String((f&&f.status)||'').toUpperCase();
   if(status==='PEN'||status==='PENALTY_SHOOTOUT')return null;
   if(f.gh!=null&&f.ga!=null&&f.gh!==f.ga)return f.gh>f.ga?hc:ac;
+  return null;
+}
+function koPayloadPenaltyScore(f){
+  if(!f)return null;
+  var ph=null,pa=null,p=f.penalties||f.penalty||f.penaltyScore||(f.score&&f.score.penalties);
+  if(p){ph=p.home!=null?p.home:(p.h!=null?p.h:(p.gh!=null?p.gh:null));pa=p.away!=null?p.away:(p.a!=null?p.a:(p.ga!=null?p.ga:null));}
+  if(ph==null)ph=f.penaltyHome!=null?f.penaltyHome:(f.penaltiesHome!=null?f.penaltiesHome:(f.pensHome!=null?f.pensHome:null));
+  if(pa==null)pa=f.penaltyAway!=null?f.penaltyAway:(f.penaltiesAway!=null?f.penaltiesAway:(f.pensAway!=null?f.pensAway:null));
+  return ph!=null&&pa!=null?{h:+ph,a:+pa}:null;
+}
+function koPayloadFinalMethod(f){
+  var status=String((f&&f.status)||'').toUpperCase(),label=String((f&&f.statusLong)||'');
+  var pen=koPayloadPenaltyScore(f);
+  if(pen||status==='PEN'||status==='PENALTY_SHOOTOUT'||/penalt/i.test(label))return {type:'penalties',penalties:pen};
+  if(status==='AET'||status==='AFTER_EXTRA_TIME'||/extra/i.test(label))return {type:'extra_time'};
   return null;
 }
 function ingestMatchStates(arr,opts){if(!Array.isArray(arr)||!arr.length)return;if(!S.rwState)S.rwState={};
@@ -9344,7 +9374,7 @@ function truthStoreKOPayload(f){
   var hc=rwResolve(f.home),ac=rwResolve(f.away),win=knockoutOfficialWinnerFromPayload(f,hc,ac);if(!win)return false;
   S.officialKOFixtures=S.officialKOFixtures||{};
   var prevFx=S.officialKOFixtures[fx.num]||{};
-  S.officialKOFixtures[fx.num]={num:fx.num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',source:'official_provider_fixture',updatedAt:Date.now()};
+  S.officialKOFixtures[fx.num]={num:fx.num,home:hc,away:ac,stage:f.stage||'',status:f.status||'',utcDate:f.utcDate||'',providerId:f.providerId||f.fixtureId||f.id||null,source:'official_provider_fixture',updatedAt:Date.now()};
   // The actual participants come straight from the provider final (hc/ac), NOT from
   // koParts. koParts only honors provider-named participants while the winner is absent
   // from the display bracket (!S.ko[num]); once S.realko advances this tie it reverts to
@@ -9353,8 +9383,10 @@ function truthStoreKOPayload(f){
   // pairing stable across every rebuild pass.
   truthApplyOfficialFinal({num:fx.num,match:fx.match,score:{h:+f.gh,a:+f.ga}});
   S.officialKOFinals=S.officialKOFinals||{};
+  var method=koPayloadFinalMethod(f);
   var prev=S.officialKOFinals[fx.num]||{},next={num:fx.num,home:hc,away:ac,winner:win,score:{h:fx.score.h,a:fx.score.a},status:f.status||'',stage:f.stage||'',updatedAt:Date.now()};
-  var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away||prevFx.home!==hc||prevFx.away!==ac||prevFx.source!=='official_provider_fixture';
+  if(method){next.method=method.type;if(method.penalties)next.penalties=method.penalties;}
+  var changed=prev.winner!==next.winner||!prev.score||prev.score.h!==next.score.h||prev.score.a!==next.score.a||prev.home!==next.home||prev.away!==next.away||prev.method!==next.method||JSON.stringify(prev.penalties||null)!==JSON.stringify(next.penalties||null)||prevFx.home!==hc||prevFx.away!==ac||prevFx.providerId!==S.officialKOFixtures[fx.num].providerId||prevFx.source!=='official_provider_fixture';
   S.officialKOFinals[fx.num]=next;return changed;
 }
 function truthRebuildOfficialKO(){
@@ -9362,7 +9394,9 @@ function truthRebuildOfficialKO(){
   rounds.forEach(function(rd){rd.forEach(function(n){var rec=stored[n];if(!rec)return;
     var t=truthOfficialTourWithKO(next),p=withTour(t,function(){return koParts(n);});
     var pairOk=p[0]&&p[1]&&((p[0]===rec.home&&p[1]===rec.away)||(p[0]===rec.away&&p[1]===rec.home));
+    if(!pairOk&&n>=73&&n<=88&&rec.home&&rec.away&&(rec.winner===rec.home||rec.winner===rec.away))pairOk=true;
     if(pairOk&&(rec.winner===p[0]||rec.winner===p[1]))next[n]=rec.winner;
+    else if(pairOk&&n>=73&&n<=88&&(rec.winner===rec.home||rec.winner===rec.away))next[n]=rec.winner;
     else{pruned.push(n);delete stored[n];}
   });});
   S.realko=S.realko||{};
