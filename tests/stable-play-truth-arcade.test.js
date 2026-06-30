@@ -106,13 +106,15 @@ test('scheduled fixtures do not count as completed today', () => withApp((app) =
   assert.doesNotMatch(text, /2 matches completed today/);
 }));
 
-test('Play exposes one What-If arcade entry and no Quick Match route', () => withApp((app, window) => {
+test('Play exposes the What-If hero plus the My World Cup mode, no sportsbook routes', () => withApp((app, window) => {
   const s = reset(app);
   makeFutureOpenFixture(app, s);
   const html = app.playLandingHTML();
   const text = app.mountText(html);
   assert.match(text, /What-If arcade|What-If Match/);
-  assert.doesNotMatch(text, /Quick Match|My World Cup|Play Now/);
+  // My World Cup is now a deliberate, working private-tournament entry (Phase C).
+  assert.match(text, /My World Cup/);
+  assert.doesNotMatch(text, /Quick Match|Play Now/);
   app.renderBetting();
   const rendered = window.document.getElementById('betting').textContent;
   assert.doesNotMatch(rendered, /Simple Picks|Parlay Lab|Match picks|Favourites parlay|Longshot parlay/);
