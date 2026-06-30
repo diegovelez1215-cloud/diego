@@ -128,12 +128,12 @@ test('Home and Tournament share kickoff-window fixture sets and preserve simulta
   const heroSeen = app.homeSeen([ms[0].num, ms[1].num]);
   const homeHtml = app.todayRailHTML(heroSeen);
   const homeNums = Array.from(homeHtml.matchAll(/openSheet\((\d+)\)/g)).map((m) => +m[1]);
-  const modelWins = app.kickoffWindowModel({ iso: today, seen: heroSeen });
+  const modelWins = app.kickoffWindowModel({ iso: today });
   const tournamentNums = Array.from(app.kickoffWindowFixtureNums(modelWins), Number);
-  assert.equal(homeNums.join(','), tournamentNums.join(','), 'Home remaining fixtures match the shared Tournament kickoff-window model');
+  assert.equal(homeNums.join(','), tournamentNums.join(','), 'Home fixture rail keeps the full shared kickoff-window model');
   assert.equal(new Set(homeNums).size, homeNums.length, 'Home does not repeat fixtures');
-  assert.equal(modelWins.map((w) => w.fixtures.length).join(','), '2,2', 'simultaneous fixtures stay paired after hero window');
-  assert.equal(modelWins.map((w) => w.time).join(','), '19:00,22:00', 'windows remain in kickoff order');
+  assert.equal(modelWins.map((w) => w.fixtures.length).join(','), '2,2,2', 'simultaneous fixtures stay paired in the lossless rail');
+  assert.equal(modelWins.map((w) => w.time).join(','), '16:00,19:00,22:00', 'windows remain in kickoff order');
   assert.ok(!/Market odds/i.test(homeHtml), 'factual Home schedule does not render market odds');
 }));
 

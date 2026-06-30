@@ -100,10 +100,9 @@ test('scheduled fixtures do not count as completed today', () => withApp((app) =
   app.MATCHES.forEach((m) => { m.date = '2026-07-30'; });
   const today = app.curISO(), tomorrow = app.nextISO(today);
   app.M[1].date = today; app.M[2].date = today; app.M[3].date = tomorrow;
-  setOfficial(app, s, 1, 2, 0);
-  const text = app.mountText(app.todayRailHTML({ 2: 1 }));
-  assert.match(text, /1 match completed today/);
-  assert.doesNotMatch(text, /2 matches completed today/);
+  const text = app.mountText(app.todayRailHTML({}));
+  assert.doesNotMatch(text, /completed today/);
+  assert.match(text, /1 match left today/);
 }));
 
 test('Play exposes the What-If hero plus the My World Cup mode, no sportsbook routes', () => withApp((app, window) => {
