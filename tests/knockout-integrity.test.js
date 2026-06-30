@@ -39,7 +39,7 @@ function loadApp() {
       ingestProviderKOFixtures:ingestProviderKOFixtures, ingestFinished:ingestFinished,
       truthRefreshStart:truthRefreshStart, tournamentTruthSnapshot:tournamentTruthSnapshot,
       truthProviderNamedKOFixture:truthProviderNamedKOFixture,
-      truthCanonicalKOFixtures:truthCanonicalKOFixtures,
+      truthCanonicalKOFixtures:truthCanonicalKOFixtures, truthCanonicalKORegistry:truthCanonicalKORegistry,
       koSlotSuppressed:koSlotSuppressed, koCanonicalDedupMap:koCanonicalDedupMap, koResetDedupCache:koResetDedupCache,
       officialDisplayTeams:officialDisplayTeams, liveDisplayTeams:liveDisplayTeams,
       koFixtureKickoffMs:koFixtureKickoffMs,
@@ -107,18 +107,23 @@ test('a live card without provider codes falls back to readable labels, never a 
 }));
 
 // ---- 2. provider/fallback duplicate with mismatched kickoff collapses --------
-test('a provider/fallback duplicate with mismatched kickoff times collapses to one canonical fixture', () => withApp((app) => {
-  resetOfficial(app);
+test('a provider/fallback duplicate with mismatched kickoff times collapses to one canonical fixture', () => withApp((app, window) => {
+  const s = resetOfficial(app);
   assert.equal(app.ingestProviderKOFixtures([
-    scheduledKO(77, 'Ivory Coast', 'Norway', { utcDate: '2026-06-30T21:00:00Z' }),
+    { home: 'Ivory Coast', away: 'Norway', gh: null, ga: null, status: 'TIMED', kind: 'scheduled', stage: 'LAST_32', utcDate: '2026-06-30T21:00:00Z', providerId: 'fd-civ-nor' },
     scheduledKO(78, 'Ivory Coast', 'Norway', { utcDate: '2026-06-30T17:00:00Z', source: 'verified_fixture' }),
   ], { authoritative: true }), true);
-  app.koResetDedupCache();
+  finishAllGroups(app, s);
   const canon = app.truthCanonicalKOFixtures();
   const slots = Object.keys(canon).filter((n) => canon[n].home === 'CIV' && canon[n].away === 'NOR');
   assert.equal(slots.length, 1, 'the tie survives in exactly one slot despite different kickoff times');
   assert.equal(canon[slots[0]].source, 'official_provider_fixture', 'provider beats the verified fallback');
-  assert.equal(app.truthProviderNamedKOFixture(78), null, 'the duplicate fallback slot is dropped');
+  assert.equal(canon[slots[0]].providerId, 'fd-civ-nor', 'provider identity is preserved after attaching to the fallback slot');
+  const doc = new window.DOMParser().parseFromString(app.knockoutModeHTML(), 'text/html');
+  const rendered = doc.body.textContent;
+  assert.match(rendered, /#78/);
+  const cards = Array.from(doc.querySelectorAll('.kom-card')).filter((el) => /Côte d'Ivoire/.test(el.textContent) && /Norway/.test(el.textContent));
+  assert.equal(cards.length, 1, 'duplicate fallback does not render as a second fixture');
 }));
 
 // ---- 3. same official tie is unique across the canonical display layer -------
@@ -192,8 +197,8 @@ test('final and live knockout cards retain full readable team names', () => with
   assert.doesNotMatch(card, /\b2D\b|\b2G\b|3:/, 'no raw slot token in the final card');
 }));
 
-test('all sixteen Round of 32 provider ties coexist, including Argentina v Cape Verde', () => withApp((app) => {
-  resetOfficial(app);
+test('all sixteen Round of 32 provider ties coexist, including Argentina v Cape Verde', () => withApp((app, window) => {
+  const s = resetOfficial(app);
   const ties = [
     ['RSA', 'CAN'], ['GER', 'PAR'], ['ENG', 'COD'], ['BRA', 'JPN'],
     ['CIV', 'NOR'], ['AUS', 'EGY'], ['ESP', 'AUT'], ['MEX', 'SUI'],
@@ -209,23 +214,66 @@ test('all sixteen Round of 32 provider ties coexist, including Argentina v Cape 
   assert.equal(Object.keys(canon).length, 16, 'every R32 provider tie survives exactly once');
   const argCape = Object.values(canon).find((f) => f.home === 'ARG' && f.away === 'CPV');
   assert.ok(argCape, 'Argentina v Cape Verde remains present');
+  finishAllGroups(app, s);
+  const doc = new window.DOMParser().parseFromString(app.knockoutModeHTML(), 'text/html');
+  assert.equal(doc.querySelectorAll('.kom-card').length, 16, 'all sixteen resolved R32 ties render in Knockout');
+  assert.match(doc.body.textContent, /Argentina/);
+  assert.match(doc.body.textContent, /Cabo Verde/);
 }));
 
-test('Tomorrow control targets the complete local-day canonical fixture set', () => withApp((app, window) => {
+test('a provider-only Argentina v Cape Verde-style fixture survives conflicting slot data', () => withApp((app) => {
   const s = resetOfficial(app);
+  finishAllGroups(app, s);
+  app.ingestProviderKOFixtures([
+    scheduledKO(86, 'Argentina', 'Cape Verde', { providerId: 'fd-arg-cpv', utcDate: '2026-07-04T20:00:00Z' }),
+  ], { authoritative: true });
+
+  const canon = app.truthCanonicalKOFixtures();
+  assert.equal(canon[86].providerId, 'fd-arg-cpv');
+  assert.equal(canon[86].home, 'ARG');
+  assert.equal(canon[86].away, 'CPV');
+  const knockout = app.mountText(app.knockoutModeHTML());
+  assert.match(knockout, /#86/);
+  assert.match(knockout, /Argentina/);
+  assert.match(knockout, /Cabo Verde/);
+  const mc = app.matchCenterTruth(86);
+  assert.equal(mc.hCode, 'ARG');
+  assert.equal(mc.aCode, 'CPV');
+}));
+
+test('Home and Matches show the complete local-tomorrow canonical fixture set', () => withApp((app, window) => {
+  const s = resetOfficial(app);
+  finishAllGroups(app, s);
   const today = new Date();
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
   app.M[73].date = iso(today); app.M[73].time = '10:00';
   app.M[74].date = iso(tomorrow); app.M[74].time = '11:00';
   app.M[75].date = iso(tomorrow); app.M[75].time = '15:00';
+  app.M[76].date = iso(tomorrow); app.M[76].time = '19:00';
   app.ingestProviderKOFixtures([
     scheduledKO(73, 'Brazil', 'Japan'),
     scheduledKO(74, 'Germany', 'Paraguay'),
     scheduledKO(75, 'Argentina', 'Cape Verde'),
+    scheduledKO(76, 'Spain', 'Austria'),
   ], { authoritative: true });
-  app.REAL[73] = [2, 1]; s.real[73] = 1; s.sc[73] = { h: 2, a: 1 };
-  app.setState(s); app.koResetDedupCache();
+  app.REAL[73] = [2, 1]; s.real[73] = 1; s.sc[73] = { h: 2, a: 1 }; s.realko[73] = 'BRA';
+  app.setState(s);
+
+  app.renderHome();
+  const homeDoc = new window.DOMParser().parseFromString(app.homeHTML(), 'text/html');
+  const homeText = homeDoc.body.textContent;
+  assert.match(homeText, /Germany/);
+  assert.match(homeText, /Paraguay/);
+  assert.match(homeText, /Argentina/);
+  assert.match(homeText, /Cabo Verde/);
+  assert.match(homeText, /Spain/);
+  assert.match(homeText, /Austria/);
+  const homeCards = Array.from(homeDoc.querySelectorAll('.home-fixture'));
+  const visiblePair = (a, b) => homeCards.filter((el) => el.textContent.includes(a) && el.textContent.includes(b)).length;
+  assert.equal(visiblePair('Germany', 'Paraguay'), 1);
+  assert.equal(visiblePair('Argentina', 'Cabo Verde'), 1);
+  assert.equal(visiblePair('Spain', 'Austria'), 1);
 
   const navText = app.mountText(app.dateNavHTML());
   assert.match(navText, /Tomorrow/, 'Tomorrow control is visible when tomorrow has fixtures');
@@ -235,12 +283,20 @@ test('Tomorrow control targets the complete local-day canonical fixture set', ()
   assert.match(html, /Paraguay/);
   assert.match(html, /Argentina/);
   assert.match(html, /Cabo Verde/);
+  assert.match(html, /Spain/);
+  assert.match(html, /Austria/);
 
   let scrolled = false;
   window.scrollTo = function () { scrolled = true; };
   app.schedJumpTomorrow();
   assert.equal(scrolled, true, 'Tomorrow visibly switches to the first fixture on the local tomorrow slate');
   assert.equal(window.document.getElementById('fx-74').classList.contains('arrive-pulse'), true);
+  const selected = app.scheduleHTML();
+  assert.ok(selected.includes(`day-${iso(tomorrow)}`), 'Tomorrow day group is rendered after tapping Tomorrow');
+  assert.ok(!selected.includes(`day-${iso(today)}`), 'Today day group is removed after tapping Tomorrow');
+  assert.match(selected, /Germany/);
+  assert.match(selected, /Argentina/);
+  assert.match(selected, /Spain/);
 }));
 
 test('live, timed, final and penalty knockout states render from the canonical record', () => withApp((app) => {
@@ -283,14 +339,15 @@ test('Home, Knockout, Matches and Match Center read the same canonical provider 
   const s = resetOfficial(app);
   finishAllGroups(app, s);
   const receipt = app.truthRefreshStart('/api/results');
-  app.ingestProviderKOFixtures([scheduledKO(73, 'South Africa', 'Canada')], { receipt, authoritative: true });
-  app.ingestFinished([finalKO(73, 'South Africa', 'Canada', 0, 1, 'AWAY_TEAM')], { receipt });
+  app.ingestProviderKOFixtures([scheduledKO(73, 'South Africa', 'Canada', { providerId: 'fd-r32-73' })], { receipt, authoritative: true });
+  app.ingestFinished([finalKO(73, 'South Africa', 'Canada', 0, 1, 'AWAY_TEAM', { providerId: 'fd-r32-73' })], { receipt });
   app.koResetDedupCache();
 
   const snap = app.tournamentTruthSnapshot();
   assert.equal(snap.official.knockoutWinners[73], 'CAN');
   assert.equal(snap.official.confirmedKnockoutFixtures[73].home, 'RSA');
   assert.equal(snap.official.confirmedKnockoutFixtures[73].away, 'CAN');
+  assert.equal(snap.official.confirmedKnockoutFixtures[73].providerId, 'fd-r32-73');
 
   const home = app.mountText(app.homeFixtureCardHTML(app.M[73]));
   const knockout = app.mountText(app.knockoutModeHTML());
@@ -302,6 +359,7 @@ test('Home, Knockout, Matches and Match Center read the same canonical provider 
   }
   assert.equal(mc.hCode, 'RSA');
   assert.equal(mc.aCode, 'CAN');
+  assert.equal(mc.num, 73);
   assert.equal(mc.score.h, 0);
   assert.equal(mc.score.a, 1);
 }));

@@ -4509,7 +4509,7 @@ function homeTimelineHTML(rowsOrWindows){
    completed match is never shown as next/upcoming. */
 function todayRailHTML(seen){
  var today=curISO(),tomorrow=nextISO(today),todayAll=homeTodayFixtures();
- var laterW=kickoffWindowModel({iso:today,seen:seen}),tomoW=kickoffWindowModel({iso:tomorrow,seen:seen});
+ var laterW=kickoffWindowModel({iso:today,seen:seen}),tomoW=kickoffWindowModel({iso:tomorrow,seen:{}});
  var later=kickoffWindowFixtureNums(laterW),tomo=kickoffWindowFixtureNums(tomoW);
  var doneToday=todayAll.filter(function(m){return officialFixtureDone(m);}).length;
  var headLabel,headSub,headDate='',body='';
@@ -7755,7 +7755,7 @@ function tccThirdsSheet(){
     if(i===7)html+='<div class="tcc-cut">Qualification cut-off</div>';
   });
   document.getElementById('sheet').innerHTML=html;document.getElementById('scrim').classList.add('on');}
-function setSchedFilter(c){S._schedFilter=c||null;renderSchedule();var sc=document.getElementById("scr-matches");if(sc)sc.scrollIntoView?0:0;}
+function setSchedFilter(c){S._schedFilter=c||null;S._schedDay=null;renderSchedule();var sc=document.getElementById("scr-matches");if(sc)sc.scrollIntoView?0:0;}
 /* Smart matchday logic: a late-night kickoff (00:00–05:59) is the "nightcap" of
    the PREVIOUS day's slate — it belongs after that evening's games, not at the top
    of the next morning. matchClock pushes those games past midnight for ordering. */
@@ -7765,7 +7765,7 @@ function _mins(t){var p=String(t||"0:0").split(":");return (+p[0])*60+(+(p[1]||0
 function matchClock(m){return _mins(m.time);}
 function matchDay(m){return m.date;}
 function wdCode(d){try{return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00Z").getUTCDay()];}catch(e){return "";}}
-function renderSchedule(){const sel=S._schedFilter||"";
+function renderSchedule(){const sel=S._schedFilter||"",selectedDay=!sel&&(S._schedDay||'');
   const teamCodes=Object.keys(T).sort((a,b)=>nm(a).localeCompare(nm(b)));
   /* native <option> can't host a badge span, so use plain text (code · name) — never a raw flag emoji that could tofu to a white box */
   const opts='<option value="">All teams · 104 matches</option>'+teamCodes.map(c=>`<option value="${c}"${c===sel?' selected':''}>${esc(c)} · ${esc(nm(c))}</option>`).join("");
@@ -7781,7 +7781,7 @@ function renderSchedule(){const sel=S._schedFilter||"";
   // above the fixtures, never floats, and uses stable per-fixture anchors so it
   // can't overlap rows or venue text.
   if(!sel)h+=dateNavHTML();
-  const days=[...new Set(MATCHES.map(m=>matchDay(m)))].sort();
+  const days=(selectedDay?[selectedDay]:[...new Set(MATCHES.map(m=>matchDay(m)))].sort());
   days.forEach(d=>{const wins=kickoffWindowModel({iso:d,team:sel,includeCompleted:true,allowPending:true}),dm=kickoffWindowFixtureNums(wins).map(function(n){return M[n];}).filter(inv);if(!dm.length)return;any=true;
     h+=`<div class="daygrp" id="day-${d}"><div class="dayhd"><span class="dw">${fullDay(wdCode(d))}</span><span class="dd">${longDate(d)}</span><span class="md">${roundName(dm[0].num)}</span></div>`;
     dm.forEach(m=>h+=mrow(m,m.num===featNum));h+=`</div>`;});
@@ -7806,6 +7806,7 @@ function schedScrollToNum(num){var el=document.getElementById('fx-'+num);if(!el)
 function schedScrollToDay(d){var el=document.getElementById('day-'+d);if(!el)return false;
   var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});return true;}
 function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
+  S._schedDay=today;renderSchedule();
   if(n!=null){schedScrollToNum(n);return;}
   // Nothing remains today — be honest rather than jumping to irrelevant content.
   var hasToday=MATCHES.some(function(m){return matchDay(m)===today;});
@@ -7815,6 +7816,7 @@ function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
 function schedJumpTomorrow(){var tom=nextISO(curISO());
   var ms=MATCHES.filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
   if(!ms.length){try{toast('No matches scheduled tomorrow');}catch(e){}return;}
+  S._schedDay=tom;renderSchedule();
   schedScrollToNum(ms[0].num);}
 function dateNavHTML(){
   var today=curISO(),tom=nextISO(today);
@@ -7822,11 +7824,12 @@ function dateNavHTML(){
   var label='Tournament',sub='Group Stage';
   if(ctxNum!=null){var m=M[ctxNum];var d=matchDay(m);label=roundName(ctxNum);sub=(d===today?'Today':(d===tom?'Tomorrow':shortDate(d)))+' · '+to12(m.time)+' ET';}
   var hasTom=MATCHES.some(function(x){return matchDay(x)===tom;});
-  return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(nowNum!=null?'Now':'Up next')+'</span><b>'+esc(label)+'</b><span class="dn-s">'+esc(sub)+'</span></div>'+
-   '<div class="dn-actions"><button class="dn-btn primary" onclick="schedJumpToday()">Today</button>'+
-   (hasTom?'<button class="dn-btn" onclick="schedJumpTomorrow()">Tomorrow</button>':'')+
+  var selDay=S._schedDay||'',todayCls=selDay===today?' primary':'',tomCls=selDay===tom?' primary':'';
+  return '<div class="date-nav"><div class="dn-ctx"><span class="dn-k">'+(selDay?'Showing':(nowNum!=null?'Now':'Up next'))+'</span><b>'+esc(selDay?longDate(selDay):label)+'</b><span class="dn-s">'+esc(selDay?(selDay===today?'Today':(selDay===tom?'Tomorrow':'Selected day')):sub)+'</span></div>'+
+   '<div class="dn-actions"><button class="dn-btn'+todayCls+'" onclick="schedJumpToday()">Today</button>'+
+   (hasTom?'<button class="dn-btn'+tomCls+'" onclick="schedJumpTomorrow()">Tomorrow</button>':'')+
    '<button class="dn-btn ghost" onclick="schedDatesSheet()">All dates</button></div></div>';}
-function schedDatesGo(d){closeSheet();setTimeout(function(){schedScrollToDay(d);},80);}
+function schedDatesGo(d){S._schedDay=d;renderSchedule();closeSheet();setTimeout(function(){schedScrollToDay(d);},80);}
 function schedDatesSheet(){
   var today=curISO(),tom=nextISO(today);
   var days=[...new Set(MATCHES.map(matchDay))].sort();
@@ -7895,17 +7898,12 @@ function liveDisplayTeams(num){
     return {hCode:st.homeCode,aCode:st.awayCode,hName:nm(st.homeCode),aName:nm(st.awayCode)};
   return officialDisplayTeams(num);
 }
-/* Round-of-32 canonical dedup: in a single-elimination bracket two distinct ties can
-   never share the same team pair, so when two slots resolve to the same normalized
-   pair one is a provider/fallback duplicate. Keep the canonical representative
-   (provider-named first, then earliest official kickoff, then lowest slot) and mark
-   the rest suppressed so no official tie renders twice on any surface. Computed once
-   per render. */
-var _koDedupMemo=null;
-function koResetDedupCache(){_koDedupMemo=null;}
+/* Compatibility wrapper around the canonical fixture registry. This is not a
+   render-layer cache: every call derives directly from the official registry, so
+   Home, Knockout, Matches and Match Center cannot drift after provider refreshes. */
+function koResetDedupCache(){}
 function koCanonicalDedupMap(){
-  if(_koDedupMemo)return _koDedupMemo;
-  var R32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],byPair={},suppressed={};
+  var reg=truthCanonicalKORegistry(),suppressed=Object.assign({},reg.suppressed),R32=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],byPair={};
   R32.forEach(function(n){var t=officialDisplayTeams(n);if(!t.hCode||!t.aCode)return;
     var k=truthNormTeamKey(t.hCode,t.aCode);(byPair[k]=byPair[k]||[]).push(n);});
   Object.keys(byPair).forEach(function(k){var slots=byPair[k];if(slots.length<2)return;
@@ -7916,7 +7914,7 @@ function koCanonicalDedupMap(){
       if(ka!==kb)return ka-kb;
       return a-b;});
     slots.slice(1).forEach(function(n){suppressed[n]=slots[0];});});
-  _koDedupMemo=suppressed;return suppressed;
+  return suppressed;
 }
 function koSlotSuppressed(num){return !!koCanonicalDedupMap()[num];}
 
@@ -9049,7 +9047,7 @@ function truthResolveOfficialFixture(f,allowKnockout){
   if(!officialFinalPayload(f))return null;
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac)return null;
   if(allowKnockout){
-    var kn=truthProviderKOFixtureNum(f);
+    var kn=truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f);
     if(kn&&M[kn]&&M[kn].stage!=='group')return {num:kn,match:M[kn],home:hc,away:ac,score:{h:+f.gh,a:+f.ga},payload:f,flip:false};
   }
   var hit=allowKnockout?rwFindFixtureAnyStage(hc,ac):rwFindFixtureAny(hc,ac);if(!hit)return null;
@@ -9073,10 +9071,15 @@ function truthProviderTimeKey(f){
   return d.getUTCFullYear()+"-"+("0"+(d.getUTCMonth()+1)).slice(-2)+"-"+("0"+d.getUTCDate()).slice(-2)+" "+("0"+d.getUTCHours()).slice(-2)+":"+("0"+d.getUTCMinutes()).slice(-2);
 }
 function truthMatchTimeKey(m){return m?(m.date+" "+m.time):null;}
+function truthProviderExplicitKOFixtureNum(f){
+  var explicit=+(f&& (f.matchNum||f.fixtureNum||f.num||f.number)),stageNums=truthKOStageNums(f&& (f.stage||f.round||f.phase));
+  if(explicit&&M[explicit]&&M[explicit].stage!=='group'&&(!stageNums||stageNums.indexOf(explicit)>=0))return explicit;
+  return null;
+}
 function truthProviderKOFixtureNum(f){
   if(!f)return null;
-  var explicit=+(f.matchNum||f.fixtureNum||f.num||f.number),stageNums=truthKOStageNums(f.stage||f.round||f.phase),m;
-  if(explicit&&M[explicit]&&M[explicit].stage!=='group'&&(!stageNums||stageNums.indexOf(explicit)>=0))return explicit;
+  var explicit=truthProviderExplicitKOFixtureNum(f),stageNums=truthKOStageNums(f.stage||f.round||f.phase),m;
+  if(explicit)return explicit;
   if(!stageNums)return null;
   var tk=truthProviderTimeKey(f);if(tk){for(var i=0;i<stageNums.length;i++){m=M[stageNums[i]];if(truthMatchTimeKey(m)===tk)return m.num;}}
   return null;
@@ -9092,27 +9095,37 @@ function truthNormTeamKey(home,away){
    the same source the earlier (lower) slot wins. A verified fallback therefore only
    survives when no provider fixture already supplies that exact pairing. Identity is
    normalized name variants only — never a hardcoded team or scoreline. */
-function truthCanonicalKOFixtures(){
-  var src=(S&&S.officialKOFixtures)||{},out={},seen={},seenProviderId={};
+function truthCanonicalKORegistry(){
+  var src=(S&&S.officialKOFixtures)||{},out={},seen={},seenProviderId={},suppressed={};
   Object.keys(src).map(Number).sort(function(x,y){return x-y;}).forEach(function(num){
     var f=src[num];
     if(!(f&&T[f.home]&&T[f.away]&&f.home!==f.away))return;
     if(f.providerId){
       var idKey=String(f.providerId),priorId=seenProviderId[idKey];
-      if(priorId)return;
+      if(priorId){suppressed[num]=priorId;return;}
       seenProviderId[idKey]=num;
     }
     var key=truthNormTeamKey(f.home,f.away),prior=seen[key];
     if(!prior){seen[key]={num:num,f:f};out[num]=f;return;}
     var priorVerified=prior.f.source==='verified_fixture',curVerified=f.source==='verified_fixture';
-    if(priorVerified&&!curVerified){delete out[prior.num];seen[key]={num:num,f:f};out[num]=f;}
-    // otherwise keep the prior (provider, or earlier slot) and drop this duplicate
+    if(priorVerified&&!curVerified){delete out[prior.num];suppressed[prior.num]=num;seen[key]={num:num,f:f};out[num]=f;return;}
+    suppressed[num]=prior.num;
   });
-  return out;
+  return {byNum:out,suppressed:suppressed};
+}
+function truthCanonicalKOFixtures(){
+  return truthCanonicalKORegistry().byNum;
 }
 function truthProviderNamedKOFixture(num){
   var f=truthCanonicalKOFixtures()[num];
   return (f&&T[f.home]&&T[f.away]&&f.home!==f.away)?f:null;
+}
+function truthProviderPairKOFixtureNum(f){
+  var stageNums=truthKOStageNums(f&& (f.stage||f.round||f.phase));if(!stageNums)return null;
+  var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac||hc===ac)return null;
+  var key=truthNormTeamKey(hc,ac),src=(S&&S.officialKOFixtures)||{};
+  for(var i=0;i<stageNums.length;i++){var n=stageNums[i],cur=src[n];if(cur&&truthNormTeamKey(cur.home,cur.away)===key)return n;}
+  return null;
 }
 /* Official kickoff time for a knockout slot: prefer the provider fixture's real
    utcDate, then fall back to the app's scheduled match window. Used to order the
@@ -9122,8 +9135,8 @@ function koFixtureKickoffMs(num){
   if(f&&f.utcDate){var d=new Date(f.utcDate);if(!isNaN(d.getTime()))return d.getTime();}
   var dt=M[num]&&koDateTime(M[num]);return dt?dt.getTime():Infinity;
 }
-function truthResolveProviderKOFixture(f){
-  var num=truthProviderKOFixtureNum(f);if(!num||!M[num]||M[num].stage==='group')return null;
+function truthResolveProviderKOFixture(f,numOverride){
+  var num=numOverride||truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f);if(!num||!M[num]||M[num].stage==='group')return null;
   if(rwKind(f)!=='scheduled'||officialFinalPayload(f))return null;
   var hc=rwResolve(f.home),ac=rwResolve(f.away);if(!hc||!ac||hc===ac)return null;
   var source=(f&&f.source==='verified_fixture')?'verified_fixture':'official_provider_fixture';
@@ -9134,10 +9147,13 @@ function ingestProviderKOFixtures(arr,opts){
   if(!Array.isArray(arr)||!arr.length)return false;
   var receipt=opts&&opts.receipt;if(!truthChannelAccepts('official',receipt))return false;
   S.officialKOFixtures=S.officialKOFixtures||{};
-  var changed=false;
-  arr.forEach(function(f){
-    var num=truthProviderKOFixtureNum(f);if(!num)return;
-    var next=truthResolveProviderKOFixture(f),prev=S.officialKOFixtures[num];
+  var changed=false,rows=arr.slice().sort(function(a,b){
+    var av=(a&&a.source)==='verified_fixture'?0:1,bv=(b&&b.source)==='verified_fixture'?0:1;
+    return av-bv;
+  });
+  rows.forEach(function(f){
+    var num=truthProviderExplicitKOFixtureNum(f)||truthProviderPairKOFixtureNum(f)||truthProviderKOFixtureNum(f);if(!num)return;
+    var next=truthResolveProviderKOFixture(f,num),prev=S.officialKOFixtures[num];
     var prevVerified=!!(prev&&prev.source==='verified_fixture');
     if(!next){
       // A blank/withdrawn provider fixture clears a provider-sourced name, but must
