@@ -6,12 +6,29 @@ const { JSDOM } = require('jsdom');
 
 const RAW = /\b(?:IN_PLAY|PENDING|SETTLED|VOID|CASHED|GRP)\b/;
 
-function loadApp() {
+// Truth tests must be deterministic, never wall-clock dependent. Pin the timezone
+// and the device clock to a fixed tournament instant (mirrors
+// schedule-state-navigation.test.js). Without this, the Home/Tournament
+// kickoff-window comparison below depends on the time of day the suite happens to
+// run: once every fixture this test schedules for "today" has already kicked off,
+// the Home rail legitimately rolls forward to the next day's fixtures while the
+// strict {iso:today} model is empty, and the two diverge for clock reasons alone.
+process.env.TZ = 'America/Puerto_Rico';
+
+function loadApp(now = '2026-06-30T18:00:00-04:00') {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const dom = new JSDOM(html, { url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
+  const RealDate = window.Date;
+  const fixedNow = new RealDate(now).getTime();
+  window.Date = class extends RealDate {
+    constructor(...args) { return args.length ? new RealDate(...args) : new RealDate(fixedNow); }
+    static now() { return fixedNow; }
+    static parse(v) { return RealDate.parse(v); }
+    static UTC(...args) { return RealDate.UTC(...args); }
+  };
   window.HTMLCanvasElement.prototype.getContext = () => ({
     clearRect() {}, fillRect() {}, save() {}, restore() {}, translate() {}, rotate() {}, fillText() {},
     getImageData() { return { data: new Uint8ClampedArray(24 * 24 * 4) }; },

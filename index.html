@@ -571,7 +571,7 @@ body::after{ /* fine film grain for cinematic depth */
 /* ---- top bar ------------------------------------------------------- */
 .topbar{
   position:sticky;top:0;z-index:70;display:flex;align-items:center;justify-content:space-between;
-  padding:max(env(safe-area-inset-top),14px) 18px 12px;
+  padding:max(env(safe-area-inset-top),9px) 18px 7px;
   background:linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,.30));
   backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
   border-bottom:1px solid rgba(255,255,255,.06);
@@ -2029,10 +2029,11 @@ nav,.tabbar{background:rgba(18,25,64,.86)!important;backdrop-filter:blur(22px)!i
 [data-mode="sim"]{--color-bg:#0E0B05;--color-accent-mode:#EFC56C}
 
 /* ---- page base: flat night, no page-wide colour gradient ------------------ */
-body{background:#050711!important;background-attachment:fixed!important;color:var(--txt)!important}
+body{background:#04060c!important;background-attachment:fixed!important;color:var(--txt)!important}
+/* Base layer 1 — a flat near-black midnight field. No wallpaper gradient wash,
+   just a faint floor vignette for depth so elevated glass reads above it. */
 body::before{background:
-   radial-gradient(120% 56% at 50% -10%, rgba(94,168,255,.07), transparent 60%),
-   radial-gradient(100% 46% at 50% 112%, rgba(2,4,12,.7), transparent 58%)!important;
+   radial-gradient(130% 70% at 50% 122%, rgba(0,0,0,.6), transparent 62%)!important;
    opacity:1!important}
 
 /* ---- one matte, layered night surface for every panel -------------------- */
@@ -3229,11 +3230,16 @@ html,body{overflow-x:hidden!important}
 .strow .n{color:var(--mut)!important}
 
 /* ============================================================================
-   ELITE UI · LIQUID GLASS + MOTION LAYER   (branch: cowork/elite-ui-motion)
-   Presentation + interaction polish only. No fixture/provider/schedule-truth,
-   date-semantics, API or Play-mechanics changes. Glass is concentrated on the
-   controls (bottom nav, segmented controls, date selector, sheets, primary
-   actions); fixtures, scores and standings stay solid, quiet and readable.
+   LIQUID GLASS ELEVATION   (branch: cowork/liquid-glass-elevation-gate-repair)
+   A deliberate three-surface dark system. Presentation + interaction only — no
+   fixture/provider/schedule-truth, date-semantics, API or Play-mechanics change.
+     · BASE   — flat near-black midnight field (set on body / body::before).
+     · GLASS  — nav, segmented + date controls, sheets, primary actions:
+                restrained blur, cool edge light, internal reflection, pressed
+                deformation.
+     · STAGE  — darker, mostly-solid factual surfaces (Live Now, fixtures) where
+                readability beats translucency.
+   Factual blue for real-world info; warm gold reserved for My Sim / celebration.
    ========================================================================== */
 
 /* --- Navigation motion: brief, compositor-only (opacity), never a slow fade.
@@ -3259,79 +3265,127 @@ html,body{overflow-x:hidden!important}
 .screen.enter #home>*:nth-child(4){animation-delay:.07s!important}
 .screen.enter #home>*:nth-child(n+5){animation-delay:.08s!important}
 
-/* --- Bottom navigation: deep, tactile Liquid Glass. Hairline top edge-light,
-   soft internal highlight, crisp pressed-state deformation. */
-.tabbar{
-  background:linear-gradient(180deg,rgba(11,17,33,.72),rgba(6,9,19,.9))!important;
-  backdrop-filter:blur(28px) saturate(165%)!important;-webkit-backdrop-filter:blur(28px) saturate(165%)!important;
-  border-top:1px solid rgba(197,208,227,.12)!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 -18px 36px -28px rgba(0,0,0,.95)!important}
-.tabbar button{transition:color .14s var(--ease),transform .12s var(--spring)!important}
+/* --- Masthead: compressed + elevated so the first screen starts higher. */
+.topbar{padding-top:max(env(safe-area-inset-top),9px)!important;padding-bottom:7px!important;
+  background:linear-gradient(180deg,rgba(6,9,18,.88),rgba(6,9,18,.32))!important}
+.tb-l .brand{font-size:21px!important;letter-spacing:-.4px!important;line-height:1!important}
+.tb-l .kick{font-size:8.5px!important;letter-spacing:3px!important;margin-bottom:1px}
+.modebar{min-height:46px!important;padding-top:5px!important;padding-bottom:5px!important;
+  background:linear-gradient(180deg,rgba(6,9,18,.72),rgba(6,9,18,.2))!important}
+
+/* --- GLASS · bottom navigation as a compact dock with a clear selected lens.
+   The old top tick is dropped; the lens (a cool edge-lit capsule behind the
+   active tab) is the indicator. Tactile press, immediate state, no animated
+   blur, no bouncy motion. */
+.tabbar{padding:6px 8px calc(7px + env(safe-area-inset-bottom))!important;
+  background:linear-gradient(180deg,rgba(12,18,34,.76),rgba(5,8,16,.93))!important;
+  backdrop-filter:blur(30px) saturate(172%)!important;-webkit-backdrop-filter:blur(30px) saturate(172%)!important;
+  border-top:1px solid rgba(197,208,227,.13)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 -20px 40px -30px rgba(0,0,0,.96)!important}
+.tabbar button{border-radius:15px;margin:0 3px;padding:6px 2px 5px;
+  transition:color .15s var(--ease),transform .12s var(--spring)!important}
+.tabbar button.on::before{display:none!important}
+.tabbar button.on{color:var(--official)!important;
+  background:linear-gradient(180deg,rgba(94,168,255,.18),rgba(94,168,255,.045))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(94,168,255,.22),0 8px 18px -12px rgba(10,132,255,.55)!important}
+.tabbar button[data-screen="bet"].on{color:var(--play-gold)!important;
+  background:linear-gradient(180deg,rgba(239,197,108,.18),rgba(239,197,108,.045))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(239,197,108,.24),0 8px 18px -12px rgba(239,197,108,.45)!important}
 .tabbar button:active{transform:scale(.93)!important}
+.tabbar button.on svg{transform:translateY(-1px) scale(1.04)}
 
-/* --- Segmented controls: one tactile glass track (tournament switch + others).
-   The tournament switch keeps its 4-up grid; non-scroll segs lose the harsh
-   white right-edge fade in favour of a soft cool wash ("no white glass"). */
-.tour-switch{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 26px -22px rgba(0,0,0,.85)!important}
-.seg:not(.tour-switch){box-shadow:inset -22px 0 26px -22px rgba(150,180,230,.26),0 10px 26px -22px rgba(0,0,0,.85)!important}
+/* --- GLASS · segmented controls + tournament switch with a bright lens state. */
+.tour-switch{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.018))!important;
+  border:1px solid rgba(197,208,227,.10)!important;backdrop-filter:blur(18px) saturate(150%)!important;-webkit-backdrop-filter:blur(18px) saturate(150%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 26px -22px rgba(0,0,0,.85)!important}
+.seg:not(.tour-switch){box-shadow:inset -22px 0 26px -22px rgba(150,180,230,.24),0 10px 26px -22px rgba(0,0,0,.85)!important}
 .seg button:active,.tour-switch button:active{transform:scale(.95)!important}
-.tour-switch button{transition:background .14s var(--ease),color .14s var(--ease),transform .12s var(--spring)!important}
-.tour-switch button.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 16px -12px rgba(0,0,0,.9)!important}
+.tour-switch button{transition:background .15s var(--ease),color .15s var(--ease),transform .12s var(--spring)!important}
+.tour-switch button.on{background:linear-gradient(180deg,rgba(94,168,255,.26),rgba(94,168,255,.08))!important;color:#fff!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(94,168,255,.3),0 6px 16px -12px rgba(10,132,255,.6)!important}
 
-/* --- Date selector: ONE compact, tactile control. A quiet context header sits
-   above a full-width Today / Tomorrow / All Dates glass segmented track with an
-   obvious selected pill and instant press. CSS only — handlers, the .primary
-   selected-class logic and all date semantics are untouched. */
+/* --- GLASS · date selector: one tactile control with a bright cool lens pill.
+   Quiet context header above a full-width Today / Tomorrow / All Dates track.
+   CSS only — handlers, .primary selected-class logic and date semantics intact. */
 .date-nav{flex-direction:column!important;align-items:stretch!important;gap:9px!important;padding:11px 12px!important;
-  background:linear-gradient(168deg,rgba(18,29,52,.62),rgba(10,16,32,.8))!important;
-  border:1px solid var(--line)!important;border-radius:16px!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 32px -26px rgba(0,0,0,.85)!important;
-  backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%)}
+  background:linear-gradient(168deg,rgba(20,32,56,.6),rgba(8,13,28,.82))!important;
+  border:1px solid rgba(197,208,227,.1)!important;border-radius:16px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 16px 34px -26px rgba(0,0,0,.88)!important;
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%)}
 .date-nav .dn-ctx{flex:none}
 .date-nav .dn-ctx b{font-size:13px}
 .date-nav .dn-actions{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4px!important;justify-content:stretch!important;
-  padding:4px;border-radius:13px;background:rgba(4,8,18,.5);border:1px solid rgba(197,208,227,.08);box-shadow:inset 0 1px 3px rgba(0,0,0,.45)}
+  padding:4px;border-radius:13px;background:rgba(3,6,14,.55);border:1px solid rgba(197,208,227,.07);box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
 .date-nav .dn-actions .dn-btn{min-height:40px;width:100%;padding:9px 8px;border-radius:10px;
   border:1px solid transparent!important;background:transparent!important;color:var(--mut)!important;
   font-weight:850;letter-spacing:.2px;box-shadow:none!important;
   transition:transform .12s var(--spring),color .14s var(--ease),background .14s var(--ease)!important}
 .date-nav .dn-actions .dn-btn.ghost{color:var(--mut)!important}
 .date-nav .dn-actions .dn-btn.primary{
-  background:linear-gradient(180deg,rgba(94,168,255,.28),rgba(94,168,255,.12))!important;
-  border-color:rgba(94,168,255,.4)!important;color:#fff!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 16px -12px rgba(10,132,255,.7)!important}
+  background:linear-gradient(180deg,rgba(108,180,255,.34),rgba(94,168,255,.12))!important;
+  border-color:rgba(120,190,255,.45)!important;color:#fff!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(10,40,90,.4),0 6px 16px -11px rgba(10,132,255,.78)!important}
 .date-nav .dn-actions .dn-btn:active{transform:scale(.95)!important}
 
-/* --- Fixtures stay solid & quiet, but the actual score reads first (score-first
-   knockout/schedule rows). Winner stays green, loser dims, live stays vivid. */
+/* --- STAGE · Live Now is a score-first live stage: the score and team names
+   dominate; the label, source and freshness lines recede. Darker, mostly-solid. */
+.home-card.hero{padding:15px 15px 13px!important;border-radius:20px!important;
+  background:linear-gradient(168deg,rgba(13,21,40,.94),rgba(6,10,22,.97))!important;
+  border:1px solid rgba(197,208,227,.1)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 22px 48px -26px rgba(0,0,0,.92)!important}
+.home-card.hero.official{border-color:rgba(94,168,255,.24)!important}
+.home-card.hero.play{border-color:rgba(239,197,108,.26)!important}
+.home-card.hero .home-k{font-size:9.5px!important;letter-spacing:1px!important;color:var(--mut2)!important;margin-bottom:10px!important}
+.home-card.hero .home-live-row{gap:10px!important}
+.home-card.hero .home-team{font-size:17px!important;font-weight:900!important;color:#fff!important;letter-spacing:-.3px}
+.home-card.hero .home-score{font-size:40px!important;font-weight:950!important;letter-spacing:-1.4px!important;color:#fff!important;line-height:.95}
+.home-card.hero .home-sub{font-size:10.5px!important;color:var(--mut2)!important;margin-top:9px!important}
+.home-card.hero .home-fresh{font-size:9.5px!important;color:var(--mut3)!important;margin-top:5px!important}
+.home-card.hero .home-action{margin-top:12px!important}
+/* Precise live pulse — opacity only, never blur or layout. */
+.home-card.hero.live .home-status{position:relative;padding-left:18px!important}
+.home-card.hero.live .home-status::before{content:"";position:absolute;left:7px;top:50%;margin-top:-3px;width:6px;height:6px;border-radius:50%;background:#ff5a6a;box-shadow:0 0 8px rgba(255,90,106,.9);animation:pulseLive 1.5s ease-in-out infinite}
+.home-card.hero.play.live .home-status::before{background:var(--play-gold);box-shadow:0 0 8px rgba(239,197,108,.9)}
+@media (prefers-reduced-motion:reduce){.home-card.hero.live .home-status::before{animation:none!important}}
+@media(max-width:430px){.home-card.hero .home-score{font-size:36px!important}.home-card.hero .home-team{font-size:16px!important}}
+
+/* --- STAGE · Later Today reads as one continuous chronological lane with a time
+   spine and date/time nodes, not a stack of floating cards. (Source rules for
+   .home-timeline gap, .home-fixture grid and .hf-tm ellipsis are left intact.) */
+.home-timeline{position:relative}
+.home-time-window{position:relative!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;padding:1px 0 2px 18px!important}
+.home-time-window::before{content:"";position:absolute;left:4px;top:8px;bottom:-15px;width:2px;background:linear-gradient(180deg,rgba(94,168,255,.55),rgba(94,168,255,.14));border-radius:2px}
+.home-time-window:last-child::before{bottom:8px}
+.home-time-label{position:relative;border-bottom:1px solid rgba(197,208,227,.08)!important;color:var(--official-soft)!important}
+.home-time-label::before{content:"";position:absolute;left:-18px;top:50%;margin-top:-4.5px;width:9px;height:9px;border-radius:50%;background:#0b1220;border:2px solid var(--official);box-shadow:0 0 9px rgba(94,168,255,.7)}
+
+/* --- Factual fixtures stay solid & quiet; the actual score reads first. */
 .mrow .ln .sc{color:var(--txt)!important}
 .mrow .ln.l .sc{color:var(--mut)!important}
 .mrow:active{transform:scale(.985)!important}
-
-/* --- High-priority actions: a touch more tactile depression under the thumb. */
 .home-action:active,.pf-add:active,.home-action.brk-home-go:active{transform:scale(.97)!important}
 
-/* --- Play lobby hierarchy: What-If Match is the arcade anchor (warm gold), My
-   World Cup is a premium private mode (cool blue), bankroll stays quiet.
-   Mechanics, wallet logic and ticket flow are untouched. */
-.play-feature{border:1px solid rgba(239,197,108,.22)!important;
-  background:linear-gradient(168deg,rgba(36,28,12,.5),rgba(12,16,30,.86))!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 40px -26px rgba(0,0,0,.85),0 0 0 1px rgba(239,197,108,.06)!important}
-.pf-add{box-shadow:0 12px 26px -14px rgba(239,197,108,.8)!important}
-.mwc-card{position:relative;overflow:hidden;
-  background:linear-gradient(160deg,rgba(94,168,255,.13),rgba(10,16,32,.9))!important;
-  border:1px solid rgba(94,168,255,.2)!important;border-radius:18px!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 18px 40px -26px rgba(0,0,0,.85)!important}
-.mwc-card::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 78% at 100% 0,rgba(94,168,255,.14),transparent 56%);mix-blend-mode:screen}
+/* --- GLASS · Play landing: a decisive arcade entry for What-If Match (warm
+   gold) and a cinematic, private My World Cup (cool blue). Bankroll stays quiet.
+   No simulation / ticket / Cash Out / rankings / saved-state changes. */
+.play-feature{border:1px solid rgba(239,197,108,.26)!important;border-radius:20px!important;
+  background:linear-gradient(165deg,rgba(42,32,12,.55),rgba(9,13,26,.9))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 22px 46px -26px rgba(0,0,0,.88),0 0 0 1px rgba(239,197,108,.08)!important}
+.play-feature .pf-k{color:var(--play-gold)!important}
+.pf-add{box-shadow:0 14px 28px -14px rgba(239,197,108,.85)!important;letter-spacing:.2px}
+.mwc-card{position:relative;overflow:hidden;border-radius:20px!important;
+  background:linear-gradient(160deg,rgba(20,40,72,.6),rgba(6,11,24,.95))!important;
+  border:1px solid rgba(94,168,255,.22)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 22px 46px -26px rgba(0,0,0,.9)!important}
+.mwc-card::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(125% 80% at 100% 0,rgba(94,168,255,.18),transparent 56%);mix-blend-mode:screen}
 .mwc-card>*{position:relative;z-index:1}
-.mwc-ic{background:linear-gradient(180deg,rgba(94,168,255,.2),rgba(94,168,255,.06))!important;border:1px solid rgba(94,168,255,.28)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)!important}
+.mwc-ic{background:linear-gradient(180deg,rgba(94,168,255,.24),rgba(94,168,255,.06))!important;border:1px solid rgba(94,168,255,.3)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)!important}
 
-/* --- Opaque fallback: where backdrop-filter is unsupported, controls stay fully
+/* --- Opaque fallback: where backdrop-filter is unsupported, chrome stays fully
    readable on solid surfaces (text contrast preserved). */
 @supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
-  .tabbar,.topbar,.glass{background:#0a0f1e!important}
-  .seg,.tour-switch{background:#101a2d!important}
-  .date-nav{background:#101a2d!important}
+  .tabbar,.topbar,.glass,.modebar{background:#080c18!important}
+  .seg,.tour-switch,.date-nav{background:#101a2d!important}
   .sheet{background:#0b1220!important}
 }
 </style></head><body>
@@ -4692,8 +4746,8 @@ function goSlip(){_betCat='history';TAB='bet';if(typeof pushTab==="function")pus
 function goSocial(){TAB='h2h';if(typeof pushTab==="function")pushTab();switchTab();render();window.scrollTo({top:0});}
 function homeLiveNowHTML(){
  var states=Object.keys(S.rwState||{}).map(function(n){var st=S.rwState[n];st.num=+n;return st;}).filter(function(st){return !S.real[st.num];});
- if(S.live){var L=S.live;return '<div class="home-card hero play"><div class="home-k"><span>Live Now</span><span class="home-status">My Sim</span></div><div class="home-live-row"><div class="home-team">'+fl(L.h)+' '+nm(L.h)+'</div><div class="home-score">'+L.sh+'–'+L.sa+'</div><div class="home-team r">'+nm(L.a)+' '+fl(L.a)+'</div></div><div class="home-sub">Sim minute '+L.min+"' · "+esc(L.comm||'Match running')+'</div><button class="home-action" onclick="openSheet('+L.num+')">Open Match Center</button></div>';}
- if(states.length){var st=states[0],hold=st.kind==='hold',dt=liveDisplayTeams(st.num);var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(safeStatusText(st.label,'Live'))+'</span></div><div class="home-live-row"><div class="home-team">'+(dt.hCode?fl(dt.hCode)+' ':'')+esc(dt.hName)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+esc(dt.aName)+(dt.aCode?' '+fl(dt.aCode):'')+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
+ if(S.live){var L=S.live;return '<div class="home-card hero play live"><div class="home-k"><span>Live Now</span><span class="home-status">My Sim</span></div><div class="home-live-row"><div class="home-team">'+fl(L.h)+' '+nm(L.h)+'</div><div class="home-score">'+L.sh+'–'+L.sa+'</div><div class="home-team r">'+nm(L.a)+' '+fl(L.a)+'</div></div><div class="home-sub">Sim minute '+L.min+"' · "+esc(L.comm||'Match running')+'</div><button class="home-action" onclick="openSheet('+L.num+')">Open Match Center</button></div>';}
+ if(states.length){var st=states[0],hold=st.kind==='hold',dt=liveDisplayTeams(st.num);var ago=fmtFeedAgo(liveFeedTs());var fresh='<div class="home-fresh">'+(ago?'Official feed · updated '+ago:'Live update pending official feed')+'</div>';return '<div class="home-card hero official live"><div class="home-k"><span>Live Now</span><span class="home-status '+(hold?'hold':'')+'">'+esc(safeStatusText(st.label,'Live'))+'</span></div><div class="home-live-row"><div class="home-team">'+(dt.hCode?fl(dt.hCode)+' ':'')+esc(dt.hName)+'</div><div class="home-score">'+(st.sh==null?'–':st.sh)+'–'+(st.sa==null?'–':st.sa)+'</div><div class="home-team r">'+esc(dt.aName)+(dt.aCode?' '+fl(dt.aCode):'')+'</div></div><div class="home-sub">'+(hold?'Official result pending. Bets stay open until the final feed confirms full time.':'Official live tracker · standings update only from confirmed final results.')+'</div>'+fresh+'<button class="home-action" onclick="openSheet('+st.num+')">Open Match Center</button></div>';}
  var pending=null,pnow=Date.now(),pt=Infinity;MATCHES.forEach(function(mm){if(!livePendingOfficial(mm.num))return;var d=koDateTime(mm);if(!d)return;var t=d.getTime();if(t<=pnow&&t<pt){pt=t;pending=mm.num;}});
  if(pending!=null){var pdt=officialDisplayTeams(pending);return '<div class="home-card hero official"><div class="home-k"><span>Live update pending</span><span class="home-status">Official feed</span></div><div class="home-live-row"><div class="home-team">'+(pdt.hCode?fl(pdt.hCode)+' ':'')+esc(pdt.hName)+'</div><div class="home-score">–</div><div class="home-team r">'+esc(pdt.aName)+(pdt.aCode?' '+fl(pdt.aCode):'')+'</div></div><div class="home-sub"><b>Live update pending official feed</b>. No score or clock is shown until the provider confirms it.</div><button class="home-action" onclick="openSheet('+pending+')">Open Match Center</button></div>';}
  var fresh=_lastSync?'<div class="home-fresh">Synced · updated '+fmtAgo(_lastSync)+'</div>':'';
