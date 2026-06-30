@@ -153,8 +153,8 @@ test('Home/Tournament remaining fixture IDs match by kickoff window and labels s
   const seen = app.homeSeen([ms[0].num, ms[1].num]);
   const html = app.todayRailHTML(seen);
   const homeIds = Array.from(html.matchAll(/openSheet\((\d+)\)/g)).map((m) => +m[1]);
-  const modelIds = Array.from(app.kickoffWindowFixtureNums(app.kickoffWindowModel({ iso: today, seen })), Number);
-  assert.equal(homeIds.join(','), modelIds.join(','), 'Home fixture IDs match shared kickoff-window model after hero exclusion');
+  const modelIds = Array.from(app.kickoffWindowFixtureNums(app.kickoffWindowModel({ iso: today })), Number);
+  assert.equal(homeIds.join(','), modelIds.join(','), 'Home fixture IDs match the full shared kickoff-window model');
   assert.equal(new Set(homeIds).size, homeIds.length, 'Home has no duplicated fixtures');
   assert.ok(!/Market odds/i.test(html), 'Home factual schedule has no odds');
   const css = app.styleText();
