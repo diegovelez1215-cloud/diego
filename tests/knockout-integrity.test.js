@@ -54,7 +54,18 @@ function loadApp() {
     };`);
   return dom;
 }
-function withApp(fn) { const dom = loadApp(); try { return fn(dom.window.__app, dom.window); } finally { dom.window.close(); } }
+function withApp(fn) {
+  const dom = loadApp();
+  try {
+    const result = fn(dom.window.__app, dom.window);
+    if (result && typeof result.then === 'function') return result.finally(() => dom.window.close());
+    dom.window.close();
+    return result;
+  } catch (e) {
+    dom.window.close();
+    throw e;
+  }
+}
 
 function resetOfficial(app) {
   Object.keys(app.REAL).forEach((k) => delete app.REAL[k]);
@@ -241,7 +252,7 @@ test('a provider-only Argentina v Cape Verde-style fixture survives conflicting 
   assert.equal(mc.aCode, 'CPV');
 }));
 
-test('Home and Matches show the complete local-tomorrow canonical fixture set', () => withApp((app, window) => {
+test('Home and Matches show the complete local-tomorrow canonical fixture set', async () => withApp(async (app, window) => {
   const s = resetOfficial(app);
   finishAllGroups(app, s);
   const today = new Date();
@@ -289,6 +300,7 @@ test('Home and Matches show the complete local-tomorrow canonical fixture set', 
   let scrolled = false;
   window.scrollTo = function () { scrolled = true; };
   app.schedJumpTomorrow();
+  await new Promise((resolve) => window.setTimeout(resolve, 25));
   assert.equal(scrolled, true, 'Tomorrow visibly switches to the first fixture on the local tomorrow slate');
   assert.equal(window.document.getElementById('fx-74').classList.contains('arrive-pulse'), true);
   const selected = app.scheduleHTML();

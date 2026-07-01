@@ -6303,7 +6303,7 @@ function renderCompare(){var el=document.getElementById("compare");if(!el)return
  var note=(a===b)?'<div class="bethint">Pick two different teams to compare.</div>':'';
  var routes='';try{routes=routeExplorerLiteHTML(a)+(a!==b?routeExplorerLiteHTML(b):'');}catch(e){routes='';}
  el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>'+routes;}
-function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
+function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
  MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
  "ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=standings(g).map(function(x){return x.code;});});
@@ -6737,6 +6737,7 @@ var _dirtyViews={home:1,groups:1,schedule:1,stats:1,cities:1,road:1,compare:1,h2
 var _viewRenderKeys={};
 function markViewsDirty(keys){(keys||Object.keys(_dirtyViews)).forEach(function(k){_dirtyViews[k]=1;delete _viewRenderKeys[k];});}
 function currentViewKey(){var m=SCRMAP[TAB]||["home",null];return m[0]==="home"?"home":(m[0]==="bet"?"bet":(m[0]==="teams"?"h2h":(m[1]||"schedule")));}
+function viewKeyFromTab(tab){var m=SCRMAP[tab]||["home",null];return m[0]==="home"?"home":(m[0]==="bet"?"bet":(m[0]==="teams"?"h2h":(m[1]||"schedule")));}
 function activeViewFingerprint(key){
   var truth;try{truth=scheduleTruthKey();}catch(e){truth='truth?';}
   var minute=Math.floor(Date.now()/60000);
@@ -6745,8 +6746,7 @@ function activeViewFingerprint(key){
   return key+'|always';
 }
 function activeViewCacheable(key){return key==="schedule"||key==="home";}
-function activeViewRender(){
-  var key=currentViewKey();
+function renderViewByKey(key){
   var fp=activeViewFingerprint(key);
   if(activeViewCacheable(key)&&_renderedViews[key]&&!_dirtyViews[key]&&_viewRenderKeys[key]===fp)return false;
   inActiveTour(function(){
@@ -6763,6 +6763,10 @@ function activeViewRender(){
   if(key==="bet"){renderBetting();_renderedViews.bet=1;_dirtyViews.bet=0;}
   _viewRenderKeys[key]=fp;return true;
 }
+function activeViewRender(){return renderViewByKey(currentViewKey());}
+function viewHasContentForTab(tab){return !!_renderedViews[viewKeyFromTab(tab)];}
+function viewCacheValidForTab(tab){var key=viewKeyFromTab(tab);return !!(_renderedViews[key]&&!_dirtyViews[key]&&_viewRenderKeys[key]===activeViewFingerprint(key));}
+function renderNavigationChrome(){renderBankroll();try{renderModeBar();}catch(e){}renderFloatingControls();updateTabBadges();}
 function postTruthMutationMaintenance(){
   markViewsDirty();
   try{settleAllBets();}catch(e){}
@@ -6778,7 +6782,7 @@ function render(){
   activeViewRender();renderFloatingControls();updateTabBadges();}
 /* ⚡ DOM batching: coalesce rapid render() calls into one 60fps frame */
 var _origRender=render,_renderPending=false;
-render=function(){if(_renderPending)return;_renderPending=true;(window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){_renderPending=false;try{_origRender();}catch(e){}});};
+render=function(){if(_renderPending)return;var epoch=(typeof navEpoch==="number")?navEpoch:0;_renderPending=true;(window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){_renderPending=false;if((typeof navEpoch==="number")&&epoch!==navEpoch)return;try{_origRender();}catch(e){}});};
 function renderHero(){const played=MATCHES.filter(m=>m.stage==="group"&&S.sc[m.num]).length;
   const goals=MATCHES.reduce((t,m)=>{const s=S.sc[m.num];return t+(s?s.h+s.a:0);},0);
   const realN=Object.keys(S.real).length;
@@ -7082,8 +7086,14 @@ function r32SlotTeam(raw,matchNum){
   }
   return null;
 }
+function canonicalR32FixtureNums(){
+  var nums={},base=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88],canon=(typeof truthCanonicalKOFixtures==="function")?truthCanonicalKOFixtures():{};
+  base.forEach(function(n){nums[n]=1;});
+  Object.keys(canon).map(Number).forEach(function(n){if(M[n]&&M[n].stage!=="group"&&n>=73&&n<=88)nums[n]=1;});
+  return Object.keys(nums).map(Number).filter(function(n){return !koSlotSuppressed(n);}).sort(function(a,b){var ka=koFixtureKickoffMs(a),kb=koFixtureKickoffMs(b);return (ka-kb)||(a-b);});
+}
 function r32FixtureStates(){
-  return [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88].map(function(n){
+  return canonicalR32FixtureNums().map(function(n){
     var named=(typeof truthProviderNamedKOFixture==='function')?truthProviderNamedKOFixture(n):null;
     if(named)return {matchNum:n,home:named.home,away:named.away,rawHome:M[n].home,rawAway:M[n].away,state:'confirmed_pairing',pendingSlots:[],source:named.source||'official_provider_fixture'};
     var raw=[M[n].home,M[n].away];
@@ -8056,19 +8066,16 @@ function schedScrollToNum(num){var el=document.getElementById('fx-'+num);if(!el)
 function schedScrollToDay(d){var el=document.getElementById('day-'+d);if(!el)return false;
   var y=el.getBoundingClientRect().top+window.pageYOffset-104;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});return true;}
 function schedJumpToday(){var today=curISO();var n=schedFirstUnfinishedToday();
-  S._schedDay=today;renderSchedule();
-  if(n!=null){schedScrollToNum(n);return;}
+  navigateScheduleDay(today,{after:function(){if(n!=null)schedScrollToNum(n);else schedScrollToDay(today);}});
+  if(n!=null)return;
   // Nothing remains today — be honest rather than jumping to irrelevant content.
-  var hasToday=MATCHES.some(function(m){return matchDay(m)===today;});
-  try{toast(hasToday?'Today’s matches are complete — here’s what’s next':'No matches scheduled today');}catch(e){}
-  var nx=schedNextUnfinishedFrom(today);
-  if(nx!=null)schedScrollToNum(nx);else if(hasToday)schedScrollToDay(today);}
+  var hasToday=canonicalScheduleRecords().some(function(m){return matchDay(m)===today;});
+  try{toast(hasToday?'Today’s matches are complete':'No matches scheduled today');}catch(e){}}
 function schedJumpTomorrow(){var tom=nextISO(curISO());
   var ms=canonicalScheduleRecords().filter(function(m){return matchDay(m)===tom;}).sort(schedSort);
   if(!ms.length){try{toast('No matches scheduled tomorrow');}catch(e){}return;}
-  S._schedDay=tom;renderSchedule();
-  schedScrollToNum(ms[0].num);}
-function schedShowAllDates(){S._schedDay=null;renderSchedule();scrollToTodayMatches();}
+  navigateScheduleDay(tom,{after:function(){schedScrollToNum(ms[0].num);}});}
+function schedShowAllDates(){navigateScheduleDay(null,{after:scrollToTodayMatches});}
 function dateNavHTML(){
   var today=curISO(),tom=nextISO(today);
   var selected=S._schedDay===undefined?today:S._schedDay,copy=selected?daySummaryCopy(selected):null;
@@ -9005,6 +9012,41 @@ const SCRMAP={home:["home",null],schedule:["matches","schedule"],groups:["matche
 var _vtActive=false;
 var _viewScroll={},_lastViewKey=null,_viewScrollSeen={},_pendingRestoreScroll=null,_lastHomeScroll=0;
 function viewKeyForTab(tab){var m=SCRMAP[tab]||["home",null];return m[0]+"/"+(m[1]||"");}
+var navEpoch=0;
+function navNextEpoch(){return ++navEpoch;}
+function navRAF(fn){return (window.requestAnimationFrame||function(f){setTimeout(f,16);})(fn);}
+function paintBottomNav(screen){var nb=document.querySelectorAll(".tabbar button");for(var i=0;i<nb.length;i++)nb[i].classList.toggle("on",nb[i].dataset.screen===screen);}
+function paintTournamentSegment(tab){var m=SCRMAP[tab]||["home",null],scr=document.getElementById("scr-matches");if(!scr||m[0]!=="matches")return;scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}
+function paintDateNav(day){var today=curISO(),tom=nextISO(today),selected=day===undefined?S._schedDay:day;document.querySelectorAll(".date-nav .dn-btn").forEach(function(b){var t=(b.textContent||"").trim();b.classList.toggle("primary",(t==="Today"&&selected===today)||(t==="Tomorrow"&&selected===tom)||(t==="All Dates"&&!selected));});}
+function activateNavTarget(epoch,tab){
+  if(epoch!==navEpoch||TAB!==tab)return false;
+  switchTab();renderNavigationChrome();
+  return true;
+}
+function scheduleNavTarget(epoch,tab,after){
+  navRAF(function(){
+    if(epoch!==navEpoch||TAB!==tab)return;
+    renderViewByKey(viewKeyFromTab(tab));
+    if(epoch!==navEpoch||TAB!==tab)return;
+    activateNavTarget(epoch,tab);
+    if(typeof after==="function")try{after();}catch(e){}
+  });
+}
+function navigateTab(tab,opts){
+  opts=opts||{};var epoch=navNextEpoch(),m=SCRMAP[tab]||["home",null],screen=m[0];
+  TAB=tab;paintBottomNav(screen);paintTournamentSegment(tab);
+  if(opts.push&&typeof pushTab==="function")pushTab();
+  if(viewHasContentForTab(tab))activateNavTarget(epoch,tab);
+  scheduleNavTarget(epoch,tab,opts.after);
+  return epoch;
+}
+function navigateScheduleDay(day,opts){
+  opts=opts||{};var epoch=navNextEpoch();
+  S._schedDay=day||null;TAB="schedule";paintBottomNav("matches");paintTournamentSegment("schedule");paintDateNav(S._schedDay);
+  if(opts.push&&typeof pushTab==="function")pushTab();
+  scheduleNavTarget(epoch,"schedule",opts.after);
+  return epoch;
+}
 function readScrollY(){return Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));}
 function scrollMemoryViewKey(){return _lastViewKey||viewKeyForTab(TAB);}
 function writeScrollToHistory(k,y){
@@ -9062,21 +9104,6 @@ function switchTab(skipAnim){
   // the saved value is the real prior scroll (not 0). TAB is already the destination
   // here, so only save when actually leaving a different view.
   try{saveLeavingScroll(viewKeyForTab(TAB),false);}catch(e){}
-  // Animate the tab change, but never start a NEW view transition while one is
-  // mid-flight (fast double-taps): that aborts the running one and logs a benign
-  // InvalidStateError. Instead, just swap instantly — clean console, no jank.
-  // skipAnim forces a synchronous swap (used by browser Back) so scroll
-  // restoration is deterministic and a same-document view transition can't reset it.
-  if(!skipAnim&&!_suppressScrollRestore&&document.startViewTransition&&!_vtActive){
-    try{_vtActive=true;var _vt=document.startViewTransition(function(){_switchTabNow();});
-      var _done=function(){_vtActive=false;};
-      if(_vt){if(_vt.finished&&_vt.finished.then)_vt.finished.then(_done,_done);else _done();
-        if(_vt.ready&&_vt.ready.catch)_vt.ready.catch(function(){});
-        if(_vt.updateCallbackDone&&_vt.updateCallbackDone.catch)_vt.updateCallbackDone.catch(function(){});}
-      else _done();
-      return;
-    }catch(e){_vtActive=false;}
-  }
   _switchTabNow();}
 function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   /* Safety: if a full-screen overlay (celebration / supercomputer) ever leaked a scroll-lock, clear it on any navigation so the page is never stuck. */
@@ -9103,7 +9130,6 @@ function _switchTabNow(){var m=SCRMAP[TAB]||["home",null];
   noteScrollSnapshot();
   document.querySelectorAll(".tabbar button").forEach(function(b){b.classList.toggle("on",b.dataset.screen===m[0]);});
   if(m[1]){var scr=document.getElementById("scr-"+m[0]);if(scr){scr.querySelectorAll(".subview").forEach(function(v){v.classList.toggle("on",v.id===m[1]);});scr.querySelectorAll(".seg button").forEach(function(b){b.classList.toggle("on",b.dataset.sub===m[1]);});}}
-  try{if(m[0]==="teams")ensureSocialData();}catch(e){}
   var cur=document.getElementById("scr-"+m[0]);if(cur){cur.classList.remove("enter");cur.classList.add("enter");}
   /* Today is no longer a floating control (it overlapped schedule rows). An in-flow
      "Jump to today" button lives in the schedule instead; keep the FAB hidden. */
@@ -9141,14 +9167,12 @@ document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=functi
      active indicator is already on the destination tab and never lags or
      cross-fades. _switchTabNow re-applies the identical toggle, so this is purely a
      same-frame visual; it adds no fetch, render, or layout work. */
-  (function(){var nb=document.querySelectorAll(".tabbar button");for(var i=0;i<nb.length;i++){nb[i].classList.toggle("on",nb[i]===b);}})();
   endLive();if(screen==="bet"){_betCat='matches';}
-  TAB=({home:"home",matches:defaultTournamentTab(),bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
+  navigateTab(({home:"home",matches:defaultTournamentTab(),bet:"bet",teams:"h2h"})[screen],{push:true,after:function(){try{window.scrollTo(0,0);}catch(e){}}});};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}
   /* Instant selected-segment paint, synchronous on tap (mirrors the bottom-nav note):
      scoped to the tapped control's own siblings, reconciled by _switchTabNow. */
-  (function(){var sb=b.parentNode?b.parentNode.querySelectorAll("button"):[];for(var j=0;j<sb.length;j++){sb[j].classList.toggle("on",sb[j]===b);}})();
-  TAB=b.dataset.sub;pushTab();switchTab();render();window.scrollTo({top:0,behavior:'smooth'});};});
+  navigateTab(b.dataset.sub,{push:true,after:function(){try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}}});};});
 window.addEventListener("popstate",function(e){var sc=document.getElementById("scrim");if(sc&&sc.classList.contains("on")){closeSheet();return;}endLive();
   // Back is never explicit forward navigation: it must restore the destination
   // view's prior scroll, never land at the top. Clear any leaked suppression flag,
