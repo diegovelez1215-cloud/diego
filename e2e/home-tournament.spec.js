@@ -1,107 +1,62 @@
-const { test, expect } = require('@playwright/test');
-const {
-  gotoApp,
-  expectNoHorizontalOverflow,
-  expectRectsInsideViewport,
-  screenshot
-} = require('./helpers');
+// Home + Tournament truth surfaces at 390/430: live hero, today rail,
+// groups, complete knockout — no blank states, no clipping, no overflow.
+import { test, expect } from '@playwright/test';
+import { gotoApp, tapTab, expectNoHorizontalOverflow, screenshot } from './helpers.js';
 
-test.describe('Home mobile schedule', () => {
-  test.beforeEach(async ({ page }) => {
-    await gotoApp(page, 'final-matchday');
+test.describe('Home', () => {
+  test('live match owns the score stage with an honest live score', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    const stage = page.locator('.score-stage');
+    await expect(stage).toHaveClass(/live/);
+    await expect(stage.locator('.ss-status')).toContainText('LIVE');
+    await expect(stage.locator('.ss-score')).toContainText('1');
+    await expect(stage.locator('.ss-round')).toContainText('Round of 32');
+    await expectNoHorizontalOverflow(page, expect, 'home');
+    await screenshot(page, testInfo, 'home-live');
   });
 
-  test('final matchday hero does not duplicate lower fixtures and paired windows stay paired', async ({ page }, testInfo) => {
-    await expect(page.locator('.phl.final')).toBeVisible();
-    await expect(page.locator('.phl-fixture')).toHaveCount(2);
-
-    const heroNums = await page.locator('.phl-fixture').evaluateAll((els) =>
-      els.map((el) => Number(el.getAttribute('data-num'))).filter(Boolean)
-    );
-    const rail = page.locator('.home-card').filter({ has: page.locator('.today-rail-head') });
-    const lowerNums = await rail.locator('.home-fixture').evaluateAll((els) =>
-      els.map((el) => {
-        const click = el.getAttribute('onclick') || '';
-        const match = click.match(/openSheet\((\d+)\)/);
-        return match ? Number(match[1]) : null;
-      }).filter(Boolean)
-    );
-
-    expect(new Set(heroNums).size).toBe(heroNums.length);
-    expect(lowerNums.filter((n) => heroNums.includes(n))).toEqual([]);
-    expect(lowerNums.slice(0, 4)).toEqual([57, 58, 59, 60]);
-
-    const windowCounts = await rail.locator('.home-time-window').evaluateAll((els) =>
-      els.map((el) => el.querySelectorAll('.home-fixture').length)
-    );
-    expect(windowCounts.slice(0, 2)).toEqual([2, 2]);
-
-    await expectNoHorizontalOverflow(page, 'Home Final Matchday');
-    await expectRectsInsideViewport(page, '.home-fixture span', 'Home group labels');
-    await screenshot(page, testInfo, 'home-final-matchday');
-  });
-
-  test('later today includes every remaining fixture and keeps labels in viewport', async ({ page }, testInfo) => {
-    const rail = page.locator('.home-card').filter({ has: page.locator('.today-rail-head') });
-    await expect(rail).toBeVisible();
-    const railText = await rail.textContent();
-    expect(railText).toContain('Later today');
-    expect(railText).toContain('4 matches left today');
-
-    const lowerNums = await rail.locator('.home-fixture').evaluateAll((els) =>
-      els.map((el) => Number((el.getAttribute('onclick') || '').match(/openSheet\((\d+)\)/)?.[1])).filter(Boolean)
-    );
-    expect(lowerNums.slice(0, 4)).toEqual([57, 58, 59, 60]);
-
-    await expectNoHorizontalOverflow(page, 'Home Later Today');
-    await expectRectsInsideViewport(page, '.home-fixture span', 'Home fixture labels');
-    await screenshot(page, testInfo, 'home-later-today');
+  test('provider outage keeps the correct fixture with a pending state — never a substitute', async ({ page }, testInfo) => {
+    await gotoApp(page, {
+      results: { configured: false, finished: [], live: [], hold: [], scheduled: [] },
+      live: { configured: false, response: [], finished: [] },
+    });
+    const stage = page.locator('.score-stage');
+    await expect(stage.locator('.ss-round')).toContainText('Round of 32');
+    await expect(page.locator('.data-note')).toContainText('temporarily unavailable');
+    await expectNoHorizontalOverflow(page, expect, 'home-outage');
+    await screenshot(page, testInfo, 'home-outage');
   });
 });
 
-test.describe('Tournament mobile surface', () => {
-  test.beforeEach(async ({ page }) => {
-    await gotoApp(page, 'final-matchday');
-    await page.getByRole('button', { name: 'Tournament' }).click();
-    await page.locator('.tour-switch button[data-sub="bracket"]').click();
-    await page.waitForTimeout(200);
+test.describe('Tournament', () => {
+  test('Matches shows all of today exactly once; Groups and Knockout are complete', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    await tapTab(page, 'tournament');
+    await expect(page.locator('.outlet.active .matches-list .match-row')).toHaveCount(3);
+    await screenshot(page, testInfo, 'tournament-matches');
+
+    await page.locator('[data-segmented="tournament-view"] [data-value="groups"]').click();
+    await expect(page.locator('.group-card')).toHaveCount(12);
+    await expectNoHorizontalOverflow(page, expect, 'groups');
+    await screenshot(page, testInfo, 'tournament-groups');
+
+    await page.locator('[data-segmented="tournament-view"] [data-value="knockout"]').click();
+    await expect(page.locator('.ko-round')).toHaveCount(6);
+    await expect(page.locator('.knockout-pane .match-row')).toHaveCount(32);
+    await expectNoHorizontalOverflow(page, expect, 'knockout');
+    await screenshot(page, testInfo, 'tournament-knockout');
   });
 
-  test('best-third qualification module is single, below bracket, and unresolved slots are not confirmed', async ({ page }, testInfo) => {
-    await expect(page.locator('#knockoutPath')).toBeVisible();
-    await expect(page.locator('#bestThirdQualification')).toHaveCount(1);
-
-    const order = await page.evaluate(() => {
-      const path = document.querySelector('#knockoutPath');
-      const third = document.querySelector('#bestThirdQualification');
-      return !!(path && third && path.compareDocumentPosition(third) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    expect(order).toBe(true);
-
-    const states = await page.locator('#knockoutPath .kpath-card').evaluateAll((cards) =>
-      cards.map((card) => ({
-        cls: card.className,
-        text: card.textContent || ''
-      }))
-    );
-    const unresolvedConfirmed = states.filter((s) =>
-      !s.cls.includes('confirmed') && /Confirmed pairing|Both teams officially locked|tie confirmed/i.test(s.text)
-    );
-    expect(unresolvedConfirmed).toEqual([]);
-
-    await expectNoHorizontalOverflow(page, 'Tournament bracket');
-    await expectRectsInsideViewport(page, '#knockoutPath .kpath-card, #bestThirdQualification .third-qual-row', 'Tournament content');
-    await screenshot(page, testInfo, 'knockout-path-qualification-table');
-  });
-
-  test('fixed controls do not cover the bracket content', async ({ page }) => {
-    const overlap = await page.evaluate(() => {
-      const nav = document.querySelector('.tabbar')?.getBoundingClientRect();
-      const last = document.querySelector('#bestThirdQualification .third-qual-row:last-child')?.getBoundingClientRect();
-      if (!nav || !last) return false;
-      return last.bottom > nav.top && last.top < nav.bottom;
-    });
-    expect(overlap).toBe(false);
-    await expectNoHorizontalOverflow(page, 'Tournament fixed controls');
+  test('Match Center opens from a live row with factual content', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    await page.locator('.score-stage .ss-open').click();
+    const sheet = page.locator('.mc-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('.mc-round')).toContainText('Round of 32');
+    await expect(sheet.locator('.mc-status')).toContainText('LIVE');
+    await expect(sheet.locator('.mc-facts')).toContainText('Atlanta');
+    await screenshot(page, testInfo, 'match-center');
+    await sheet.locator('.mc-close').click();
+    await expect(page.locator('.mc-sheet')).toHaveCount(0);
   });
 });

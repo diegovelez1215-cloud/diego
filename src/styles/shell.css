@@ -1,0 +1,137 @@
+/* United 2026 — shell: persistent outlets + liquid-glass dock.
+   The dock is the only permanent glass. Tab changes are class flips —
+   no view transitions, no animation cost on the tap path. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  font-weight: var(--w-reg);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+.app-shell { min-height: 100dvh; }
+
+.outlets {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: max(var(--sp-4), env(safe-area-inset-top))
+           max(var(--sp-4), env(safe-area-inset-right))
+           calc(var(--dock-h) + var(--sp-6) + env(safe-area-inset-bottom))
+           max(var(--sp-4), env(safe-area-inset-left));
+}
+
+/* persistent outlets: content is kept, visibility flips */
+.outlet { display: none; }
+.outlet.active { display: block; }
+
+.view-head { padding: var(--sp-5) 0 var(--sp-4); }
+.view-head h1 {
+  font-size: var(--fs-title);
+  font-weight: var(--w-bold);
+  letter-spacing: -0.015em;
+}
+.view-sub { color: var(--ink-3); font-size: var(--fs-micro); margin-top: var(--sp-1); }
+.view-shell-note { color: var(--ink-3); padding: var(--sp-5) 0; }
+
+/* ---- dock (liquid glass, interaction-only) ---- */
+.dock {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + var(--sp-3));
+  width: min(430px, calc(100% - var(--sp-6)));
+  height: var(--dock-h);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border-radius: 28px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--shadow-stage), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  z-index: 40;
+}
+
+.dock-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 20px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: var(--fs-micro);
+  font-weight: var(--w-reg);
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+.dock-tab:active { transform: scale(0.96); }
+.dock-tab[aria-selected="true"] {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--official) 16%, transparent);
+}
+.dock-tab[data-tab="play"][aria-selected="true"],
+.dock-tab[data-tab="you"][aria-selected="true"] {
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+}
+.dock-icon { font-size: 1.05rem; line-height: 1; }
+.dock-label { letter-spacing: 0.01em; }
+
+/* ---- segmented controls (glass) ---- */
+.segmented {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  border-radius: 14px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-line);
+  margin-bottom: var(--sp-4);
+}
+.seg-btn {
+  appearance: none;
+  border: 0;
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: var(--fs-micro);
+  font-weight: var(--w-bold);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.seg-btn.active { color: var(--ink); background: color-mix(in srgb, var(--official) 20%, transparent); }
+.segmented.small .seg-btn { min-height: 40px; }
+
+:focus-visible { outline: 2px solid var(--official); outline-offset: 2px; }
+
+.data-note {
+  color: var(--ink-3);
+  font-size: var(--fs-micro);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  margin: var(--sp-4) 0;
+}
+.empty-line { color: var(--ink-3); padding: var(--sp-4) 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

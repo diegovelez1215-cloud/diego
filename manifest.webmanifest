@@ -1,20 +1,16 @@
 {
-  "name": "United 2026 — World Cup Simulator",
+  "name": "United 2026 — World Cup",
   "short_name": "United 2026",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#10153c",
-  "theme_color": "#10153c",
-  "description": "Simulate the FIFA World Cup 2026 — groups, knockouts, betting and a 1,000-sim supercomputer.",
+  "background_color": "#0a0f1c",
+  "theme_color": "#0a0f1c",
+  "description": "A score-first live World Cup 2026 companion: official schedule, groups, knockout bracket, and private simulations.",
   "icons": [
     { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
     { "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
     { "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
-  ],
-  "shortcuts": [
-    { "name": "Resume simulation", "short_name": "Resume sim", "url": "./#sim", "description": "Jump back into your live match or bracket" },
-    { "name": "My betting slip", "short_name": "My slip", "url": "./#slip", "description": "Open your bets and bankroll" }
   ]
 }

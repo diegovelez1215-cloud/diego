@@ -1,104 +1,61 @@
-const { expect } = require('@playwright/test');
-const path = require('node:path');
+// United 2026 — e2e helpers. Deterministic clock, mocked provider routes,
+// zero real network. AST during the tournament equals EDT, so the frozen
+// instant below is 13:05 Puerto Rico time on Round-of-32 day three.
+export const FROZEN_ISO = '2026-07-01T17:05:00Z';
 
-const E2E_PATH = '/?__wc26_e2e=1';
-const SCREENSHOT_DIR = path.join(__dirname, 'screenshots');
-
-async function freezeClock(page, iso = '2026-06-25T17:05:00-04:00') {
-  await page.addInitScript((fixedIso) => {
+export async function freezeClock(page, iso = FROZEN_ISO) {
+  const fixed = new Date(iso).getTime();
+  await page.addInitScript((fixedNow) => {
     const RealDate = Date;
-    const fixed = new RealDate(fixedIso).getTime();
-    class FixedDate extends RealDate {
-      constructor(...args) {
-        if (args.length === 0) super(fixed);
-        else super(...args);
-      }
-      static now() {
-        return fixed;
-      }
+    class FrozenDate extends RealDate {
+      constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+      static now() { return fixedNow; }
     }
-    FixedDate.UTC = RealDate.UTC;
-    FixedDate.parse = RealDate.parse;
-    FixedDate.prototype = RealDate.prototype;
-    window.Date = FixedDate;
-  }, iso);
+    // eslint-disable-next-line no-global-assign
+    Date = FrozenDate;
+  }, fixed);
 }
 
-async function gotoApp(page, mode = 'final-matchday') {
-  await freezeClock(page);
-  await page.route('**/_vercel/**', (route) => route.fulfill({ status: 204, body: '' }));
-  await page.route('**/api/**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ configured: false, response: [], finished: [], live: [], hold: [], goals: [], assists: [] })
-  }));
-  await page.goto(E2E_PATH);
-  await page.waitForFunction(() => window.__wc26E2E && window.__wc26E2E.enabled);
-  await page.evaluate((nextMode) => window.__wc26E2E.reset(nextMode), mode);
-  await page.waitForTimeout(150);
-}
-
-async function tapBottomTab(page, screen) {
-  const labels = { home: 'Home', matches: 'Tournament', bet: 'Play', teams: 'You' };
-  const tabbar = page.locator('nav.tabbar[role="tablist"]');
-  await expect(tabbar).toBeVisible();
-  await tabbar.getByRole('button', { name: labels[screen] }).tap();
-  await expect(page.locator(`#scr-${screen}.screen.on`)).toBeVisible();
-}
-
-async function openTournament(page, sub = 'schedule') {
-  await tapBottomTab(page, 'matches');
-  const tournament = page.locator('main.wrap > section#scr-matches.screen.on');
-  await expect(tournament.locator('#schedule.subview.on')).toBeVisible();
-  if (sub && sub !== 'schedule') {
-    const sectionButton = tournament.locator(`.tour-switch button[data-sub="${sub}"]`);
-    await expect(sectionButton).toBeVisible();
-    await sectionButton.tap();
-    await expect(tournament.locator(`.tour-switch button[data-sub="${sub}"].on`)).toBeVisible();
-  }
-  await expect(tournament.locator(`#${sub || 'schedule'}.subview.on`)).toBeVisible();
-}
-
-async function expectNoHorizontalOverflow(page, label = 'page') {
-  const overflow = await page.evaluate(() => {
-    const doc = document.documentElement;
-    const body = document.body;
-    return Math.max(doc.scrollWidth, body.scrollWidth) - Math.max(doc.clientWidth, body.clientWidth);
-  });
-  expect(overflow, `${label} has horizontal overflow`).toBeLessThanOrEqual(1);
-}
-
-async function expectRectsInsideViewport(page, selector, label) {
-  const bad = await page.locator(selector).evaluateAll((els) => {
-    const vw = document.documentElement.clientWidth;
-    return els.map((el) => {
-      const r = el.getBoundingClientRect();
-      return { left: r.left, right: r.right, text: (el.textContent || '').trim() };
-    }).filter((r) => r.left < -1 || r.right > vw + 1);
-  });
-  expect(bad, `${label} outside viewport`).toEqual([]);
-}
-
-async function screenshot(page, testInfo, name) {
-  await page.screenshot({
-    path: path.join(SCREENSHOT_DIR, `${testInfo.project.name}-${name}.jpg`),
-    fullPage: true,
-    type: 'jpeg',
-    quality: 76
-  });
-}
-
-async function waitForScrollY(page, expected) {
-  await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(expected);
-}
-
-module.exports = {
-  E2E_PATH,
-  gotoApp,
-  tapBottomTab,
-  openTournament,
-  expectNoHorizontalOverflow,
-  expectRectsInsideViewport,
-  screenshot,
-  waitForScrollY
+export const LIVE_MATCH_80 = {
+  configured: true, sourceStatus: 'fresh', isStale: false,
+  response: [{ id: 9080, home: 'England', away: 'DR Congo', gh: 1, ga: 0, min: 63, status: '2H', statusLong: 'Second Half', kind: 'live', date: '2026-07-01T16:00:00Z' }],
+  finished: [],
 };
+
+export const RESULTS_EMPTY = {
+  configured: true, sourceStatus: 'fresh', isStale: false,
+  finished: [], live: [], hold: [], scheduled: [],
+};
+
+export async function mockProviders(page, { results = RESULTS_EMPTY, live = LIVE_MATCH_80 } = {}) {
+  await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
+  await page.route('**/api/results*', (r) => r.fulfill({ json: results }));
+  await page.route('**/api/live*', (r) => r.fulfill({ json: live }));
+}
+
+export async function gotoApp(page, opts = {}) {
+  await freezeClock(page, opts.iso);
+  await mockProviders(page, opts);
+  await page.goto('/');
+  await page.waitForSelector('.dock');
+  await page.waitForSelector('.score-stage');
+}
+
+export async function tapTab(page, tab) {
+  await page.locator(`.dock-tab[data-tab="${tab}"]`).click();
+}
+
+export async function expectNoHorizontalOverflow(page, expect, label) {
+  const overflow = await page.evaluate(() => {
+    const d = document.documentElement;
+    return d.scrollWidth - d.clientWidth;
+  });
+  expect(overflow, label + ': no horizontal overflow').toBeLessThanOrEqual(1);
+}
+
+export async function screenshot(page, testInfo, name) {
+  await page.screenshot({
+    path: `test-results/playwright/${testInfo.project.name}-${name}.png`,
+    fullPage: true,
+  });
+}

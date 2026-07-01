@@ -1,11 +1,9 @@
 {
-  "name": "united-2026-mobile-release-gate",
+  "name": "united-2026",
   "private": true,
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
-    "test:logic": "node tests/run-logic-shard.mjs",
-    "test:logic:shard": "node tests/run-logic-shard.mjs",
-    "test:logic:matchup": "node --test tests/matchup-intelligence.test.js",
+    "test:logic": "node --test \"tests/*.test.mjs\"",
     "test:ui": "playwright test",
     "test:release": "npm run test:logic && npm run test:ui"
   },

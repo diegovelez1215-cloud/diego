@@ -1,4 +1,4 @@
-const { defineConfig } = require('@playwright/test');
+import { defineConfig } from '@playwright/test';
 
 const PORT = process.env.PW_PORT || 4173;
 const HOST = '127.0.0.1';
@@ -7,7 +7,7 @@ const baseURL = `http://${HOST}:${PORT}`;
 const iphoneUserAgent =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: './e2e',
   timeout: 45_000,
   expect: { timeout: 7_500 },
@@ -19,17 +19,20 @@ module.exports = defineConfig({
   workers: 1,
   use: {
     baseURL,
-    browserName: 'webkit',
+    // WebKit is the iPhone-fidelity default. PW_BROWSER=chromium exists only
+    // for sandboxes where WebKit host libraries are unavailable.
+    browserName: process.env.PW_BROWSER || 'webkit',
+    launchOptions: process.env.PW_NO_SANDBOX ? { args: ['--no-sandbox'] } : {},
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'off'
+    video: 'off',
   },
   webServer: {
     command: `python3 -m http.server ${PORT} --bind ${HOST}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 15_000
+    timeout: 15_000,
   },
   projects: [
     {
@@ -39,8 +42,8 @@ module.exports = defineConfig({
         deviceScaleFactor: 3,
         isMobile: true,
         hasTouch: true,
-        userAgent: iphoneUserAgent
-      }
+        userAgent: iphoneUserAgent,
+      },
     },
     {
       name: 'iphone-430',
@@ -49,8 +52,8 @@ module.exports = defineConfig({
         deviceScaleFactor: 3,
         isMobile: true,
         hasTouch: true,
-        userAgent: iphoneUserAgent
-      }
-    }
-  ]
+        userAgent: iphoneUserAgent,
+      },
+    },
+  ],
 });
