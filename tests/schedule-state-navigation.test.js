@@ -95,10 +95,12 @@ test('live fixtures are excluded from left-today count and next kickoff', () => 
   seedProviderSchedule(app);
   const rail = app.todayRailHTML({});
   const text = app.mountText(rail);
-  assert.match(text, /1 match left today/);
-  assert.match(text, /next 9:00 PM/);
+  assert.match(text, /2 fixtures today/);
+  assert.match(text, /1 still to play/);
+  assert.match(text, /Final match today · 9:00 PM/);
   assert.doesNotMatch(text, /2 matches left today/);
   assert.doesNotMatch(text, /next 1:00 PM/);
+  assert.doesNotMatch(text, /First match today/);
   assert.doesNotMatch(rail, /openSheet\(74\)/, 'live fixture is not an upcoming rail item');
   assert.match(rail, /openSheet\(75\)/, 'future fixture remains upcoming');
 }));
@@ -112,7 +114,9 @@ test('one live plus one future fixture renders Live Now and the honest later rai
   assert.match(text, /0–0/);
   assert.match(text, /Sweden/);
   assert.match(text, /Later today/);
-  assert.match(text, /1 match left today · next 9:00 PM/);
+  assert.match(text, /2 fixtures today · 1 still to play/);
+  assert.match(text, /Final match today · 9:00 PM/);
+  assert.doesNotMatch(text, /First match today/);
 }));
 
 test('Today, Tomorrow, and All Dates render complete canonical schedule sets', () => withApp((app) => {

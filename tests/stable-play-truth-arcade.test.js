@@ -112,7 +112,8 @@ test('scheduled fixtures do not count as completed today', () => withApp((app) =
   app.M[1].date = today; app.M[2].date = today; app.M[3].date = tomorrow;
   const text = app.mountText(app.todayRailHTML({}));
   assert.doesNotMatch(text, /completed today/);
-  assert.match(text, /\b\d+ match(?:es)? left today\b/);
+  assert.match(text, /\b\d+ fixture(?:s)? today\b/);
+  assert.match(text, /\b\d+ still to play\b/);
 }));
 
 test('Play exposes the What-If hero plus the My World Cup mode, no sportsbook routes', () => withApp((app, window) => {
@@ -210,5 +211,6 @@ test('virtual What-If does not mutate official truth or official ledger state', 
   assert.equal(JSON.stringify(s.bets[0]), officialTicket);
   const rail = app.mountText(app.todayRailHTML({}));
   assert.match(rail, /Later today/);
-  assert.match(rail, /1 match left today/);
+  assert.match(rail, /1 fixture today/);
+  assert.match(rail, /1 still to play/);
 }));

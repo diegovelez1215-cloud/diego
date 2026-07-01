@@ -127,10 +127,11 @@ test('Today rail counts all current-day fixtures and never calls a completed mat
   setOfficial(app, state, fixtures[0].num, 2, 0);
   app.setState(state);
   const html = app.todayRailHTML({});
-  // New schedule hierarchy: while fixtures still remain today the supporting copy
-  // references ONLY the remaining fixtures (3 of the 4 — one is already final).
+  // Daily copy names the full local-day slate, then separately names the remaining
+  // fixtures still to play.
   assert.ok(/Later today/.test(html), 'uses the Later today heading while fixtures remain');
-  assert.ok(html.includes('3 matches left today'), 'supporting copy references only the remaining fixtures');
+  assert.ok(html.includes('4 fixtures today'), 'supporting copy references the full day slate');
+  assert.ok(html.includes('3 still to play'), 'supporting copy references only the remaining fixtures');
   assert.ok(!/next fixtures/i.test(html), 'never uses the "next fixtures" phrasing');
   assert.ok(!html.includes(`openSheet(${fixtures[0].num})`), 'completed match excluded from next/upcoming rail');
   assert.ok(html.includes(`openSheet(${fixtures[1].num})`), 'earliest unfinished match remains reachable');
