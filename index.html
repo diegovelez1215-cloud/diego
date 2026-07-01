@@ -6267,7 +6267,7 @@ function renderCompare(){var el=document.getElementById("compare");if(!el)return
  var note=(a===b)?'<div class="bethint">Pick two different teams to compare.</div>':'';
  var routes='';try{routes=routeExplorerLiteHTML(a)+(a!==b?routeExplorerLiteHTML(b):'');}catch(e){routes='';}
  el.innerHTML='<div class="cmd-card"><div class="cmd-k">Team comparison</div><div class="cmd-h">Compare official tournament data.</div><div class="cmd-s">Group position, record, points, goals and route/status only. No squad data is claimed here.</div></div><div class="panel">'+sel+hero+'</div>'+note+'<div class="panel" style="padding-top:6px">'+stats+'</div>'+routes;}
-function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{lbAutoPost(false);}catch(e){}try{lbFetch();}catch(e){}}
+function renderH2H(){var el=document.getElementById("h2h");if(!el)return;el.innerHTML=socialHubHTML();try{ensureSocialData();}catch(e){}}
 function revealBracket(){if(!requireSim())return;if(S._reveal)return;
  MATCHES.forEach(function(m){if(m.stage==="group"&&!S.sc[m.num])S.sc[m.num]=simScore(m.home,m.away);});
  "ABCDEFGHIJKL".split("").forEach(function(g){S.order[g]=standings(g).map(function(x){return x.code;});});
@@ -6700,8 +6700,43 @@ var _renderedViews={home:0,groups:0,schedule:0,stats:0,cities:0,road:0,compare:0
 var _dirtyViews={home:1,groups:1,schedule:1,stats:1,cities:1,road:1,compare:1,h2h:1,bracket:1,bet:1};
 function markViewsDirty(keys){(keys||Object.keys(_dirtyViews)).forEach(function(k){_dirtyViews[k]=1;});}
 function currentViewKey(){var m=SCRMAP[TAB]||["home",null];return m[0]==="home"?"home":(m[0]==="bet"?"bet":(m[0]==="teams"?"h2h":(m[1]||"schedule")));}
-function activeViewRender(){
-  var key=currentViewKey();
+var _navViewCache={home:{key:null,html:""},bracket:{key:null,html:""}};
+var _navQueuedRender={},_navRenderEpoch=0,_navRenderCounts={home:0,bracket:0};
+function navTruthKey(){try{return truthEffectiveFingerprint();}catch(e){return scheduleTruthKey();}}
+function navStableJSON(o){try{return JSON.stringify(o||{});}catch(e){return "";}}
+function navViewKey(key){
+  var truth=navTruthKey(),mode=activeMode();
+  if(key==="home")return ["home",mode,truth,!!S.live,navStableJSON(S.rwState),navStableJSON(S.bets),navStableJSON(S.slip),navStableJSON(S.preds),String(S.bank),String(S.simMode||""),String(_lbHomeWire||"")].join("|");
+  if(key==="bracket"){var koState=mode==="real"?S.realko:S.ko;return ["bracket",mode,truth,String(S.focus||""),String(_brkRound||""),String(_brkMode||""),navStableJSON(koState),navStableJSON(S.realko),navStableJSON(S.officialKOFixtures),navStableJSON(S.officialKOFinals)].join("|");}
+  return [key,mode,truth].join("|");
+}
+function navNodeForKey(key){
+  var id=key==="home"?"home":key==="bet"?"betting":key==="h2h"?"h2h":key;
+  return document.getElementById(id);
+}
+function navHasContent(el){return !!(el&&String(el.innerHTML||"").replace(/<[^>]*>/g,"").replace(/\s+/g,"").length);}
+function navShellHTML(key){
+  var title={home:"Home",schedule:"Matches",groups:"Group Stage",bracket:"Knockout",bet:"Play",h2h:"You",stats:"Stats",cities:"Venues",road:"Scenarios",compare:"Teams"}[key]||"United 2026";
+  return '<div class="cmd-card nav-shell" aria-busy="true"><div class="cmd-k">'+esc(title)+'</div><div class="skel" style="height:24px;width:68%"></div><div class="skel" style="height:14px;width:92%"></div></div>';
+}
+function navStoreRenderedView(key){
+  var c=_navViewCache[key],el=navNodeForKey(key);if(!c||!el)return;
+  c.key=navViewKey(key);c.html=el.innerHTML||"";_navRenderCounts[key]=(_navRenderCounts[key]||0)+1;
+}
+function navCachedViewValid(key){
+  var c=_navViewCache[key];return !!(c&&c.html&&c.key===navViewKey(key));
+}
+function navPrepareTargetView(key){
+  var el=navNodeForKey(key),needsRender=!!(_dirtyViews[key]||!_renderedViews[key]);
+  if(!el)return needsRender;
+  if(_navViewCache[key]){
+    if(navCachedViewValid(key)){if(!navHasContent(el))el.innerHTML=_navViewCache[key].html;return false;}
+    el.innerHTML=navShellHTML(key);return true;
+  }
+  if(!navHasContent(el)){el.innerHTML=navShellHTML(key);needsRender=true;}
+  return needsRender;
+}
+function navRenderViewNow(key){
   inActiveTour(function(){
     if(key==="home"){renderHome();_renderedViews.home=1;_dirtyViews.home=0;}
     else if(key==="groups"){renderGroups();_renderedViews.groups=1;_dirtyViews.groups=0;}
@@ -6714,6 +6749,25 @@ function activeViewRender(){
   });
   if(key==="h2h"){renderH2H();_renderedViews.h2h=1;_dirtyViews.h2h=0;}
   if(key==="bet"){renderBetting();_renderedViews.bet=1;_dirtyViews.bet=0;}
+}
+function navQueueViewRender(key,epoch){
+  _navQueuedRender[key]=epoch;
+  (window.requestAnimationFrame||function(f){setTimeout(f,16);})(function(){
+    if(_navQueuedRender[key]!==epoch||epoch!==_navRenderEpoch)return;
+    delete _navQueuedRender[key];
+    navRenderViewNow(key);
+    if(currentViewKey()===key){renderFloatingControls();updateTabBadges();try{refreshMatchCenterTruth();}catch(e){}}
+  });
+}
+function navActivateCurrentTab(){
+  var epoch=++_navRenderEpoch,key=currentViewKey(),needsRender=navPrepareTargetView(key);
+  switchTab(true);
+  renderFloatingControls();updateTabBadges();
+  if(needsRender)navQueueViewRender(key,epoch);
+}
+function activeViewRender(){
+  var key=currentViewKey();
+  navRenderViewNow(key);
 }
 function render(){
   try{koResetDedupCache();}catch(e){}
@@ -8280,6 +8334,10 @@ function renderBracket(){const r32=[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85
   h+=(m==='live')?withTour(liveTour(),buildBody):buildBody();
   if(m!=='live')h+=bracketBetHTML();
   document.getElementById("bracket").innerHTML=h;}
+var _renderHomeUncached=renderHome;
+renderHome=function(){_renderHomeUncached();navStoreRenderedView("home");};
+var _renderBracketUncached=renderBracket;
+renderBracket=function(){_renderBracketUncached();navStoreRenderedView("bracket");};
 function koSlotOfficialTeam(raw,matchNum){
   var named=(typeof truthProviderNamedKOFixture==="function")?truthProviderNamedKOFixture(matchNum):null;
   // The provider fixture names the two teams of an R32 entry tie (group/third slots) and
@@ -9094,7 +9152,7 @@ document.querySelectorAll(".tabbar button").forEach(function(b){b.onclick=functi
      same-frame visual; it adds no fetch, render, or layout work. */
   (function(){var nb=document.querySelectorAll(".tabbar button");for(var i=0;i<nb.length;i++){nb[i].classList.toggle("on",nb[i]===b);}})();
   endLive();if(screen==="bet"){_betCat='matches';}
-  TAB=({home:"home",matches:defaultTournamentTab(),bet:"bet",teams:"h2h"})[screen];pushTab();switchTab();render();try{window.scrollTo(0,0);}catch(e){}};});
+  TAB=({home:"home",matches:defaultTournamentTab(),bet:"bet",teams:"h2h"})[screen];pushTab();navActivateCurrentTab();try{window.scrollTo(0,0);}catch(e){}};});
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){endLive();if(b.dataset.sub==='more'){tournamentMoreSheet();return;}
   /* Instant selected-segment paint, synchronous on tap (mirrors the bottom-nav note):
      scoped to the tapped control's own siblings, reconciled by _switchTabNow. */
