@@ -1,7 +1,12 @@
-// United 2026 — e2e helpers. Deterministic clock, mocked provider routes,
-// zero real network. AST during the tournament equals EDT, so the frozen
-// instant below is 13:05 Puerto Rico time on Round-of-32 day three.
+// United 2026 — e2e helpers. Deterministic clock and a complete mock world:
+// all 72 group finals (built by the same derivation the app uses) so knockout
+// identities resolve, plus a live Round-of-32 tie. Zero real network. AST
+// equals EDT during the tournament; the frozen instant is 13:05 in Puerto
+// Rico on Round-of-32 day three.
+import { fullResultsPayload, livePayloadFor, OK } from '../tests/mock-provider.mjs';
+
 export const FROZEN_ISO = '2026-07-01T17:05:00Z';
+export const LIVE_FIXTURE = 80;
 
 export async function freezeClock(page, iso = FROZEN_ISO) {
   const fixed = new Date(iso).getTime();
@@ -16,18 +21,12 @@ export async function freezeClock(page, iso = FROZEN_ISO) {
   }, fixed);
 }
 
-export const LIVE_MATCH_80 = {
-  configured: true, sourceStatus: 'fresh', isStale: false,
-  response: [{ id: 9080, home: 'England', away: 'DR Congo', gh: 1, ga: 0, min: 63, status: '2H', statusLong: 'Second Half', kind: 'live', date: '2026-07-01T16:00:00Z' }],
-  finished: [],
-};
+export const RESULTS_FULL = fullResultsPayload();
+export const LIVE_80 = livePayloadFor(LIVE_FIXTURE, { gh: 1, ga: 0, min: 63 });
+export const RESULTS_EMPTY = { ...OK, finished: [], live: [], hold: [], scheduled: [] };
+export const OUTAGE = { configured: false, finished: [], live: [], hold: [], scheduled: [], response: [] };
 
-export const RESULTS_EMPTY = {
-  configured: true, sourceStatus: 'fresh', isStale: false,
-  finished: [], live: [], hold: [], scheduled: [],
-};
-
-export async function mockProviders(page, { results = RESULTS_EMPTY, live = LIVE_MATCH_80 } = {}) {
+export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_80 } = {}) {
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
   await page.route('**/api/results*', (r) => r.fulfill({ json: results }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: live }));
@@ -45,6 +44,16 @@ export async function tapTab(page, tab) {
   await page.locator(`.dock-tab[data-tab="${tab}"]`).click();
 }
 
+export async function openTournamentSection(page, section) {
+  await tapTab(page, 'tournament');
+  await page.locator(`[data-segmented="tournament-view"] [data-value="${section}"]`).click();
+}
+
+export async function openPlayMode(page, mode) {
+  await tapTab(page, 'play');
+  await page.locator(`[data-segmented="play-mode"] [data-value="${mode}"]`).click();
+}
+
 export async function expectNoHorizontalOverflow(page, expect, label) {
   const overflow = await page.evaluate(() => {
     const d = document.documentElement;
@@ -54,6 +63,7 @@ export async function expectNoHorizontalOverflow(page, expect, label) {
 }
 
 export async function screenshot(page, testInfo, name) {
+  await page.waitForTimeout(250); // let 140ms control transitions settle
   await page.screenshot({
     path: `test-results/playwright/${testInfo.project.name}-${name}.png`,
     fullPage: true,

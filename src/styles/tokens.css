@@ -1,89 +1,77 @@
 /* United 2026 — design tokens.
-   Apple Sports body, Moonlitt soul, Caradise luxury. Dark is deep midnight —
-   never flat black. Light is warm off-white and silver restraint. Real
-   tournament surfaces speak disciplined official blue; Play speaks restrained
-   gold. No purple gradients, no neon, no mesh, no card soup. */
+   The default experience is deep midnight under controlled official-blue
+   stadium light: Moonlitt soul, Apple Sports body, Caradise luxury. Warm
+   silver appears only as a contrast surface. Light mode exists as an explicit
+   preference, never the default. Play answers in restrained gold. No purple
+   gradients, no neon, no mesh, no card soup. */
 
 html { font: -apple-system-body; }
 
 :root {
-  color-scheme: dark light;
+  color-scheme: dark;
 
   /* type scale — 4 sizes, 2 weights */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  --fs-hero: clamp(2.6rem, 13vw, 3.6rem);
+  --fs-hero: clamp(2.8rem, 14vw, 4rem);
   --fs-title: 1.35rem;
   --fs-body: 1rem;
   --fs-micro: 0.8125rem;
   --w-reg: 460;
-  --w-bold: 720;
+  --w-bold: 730;
 
   /* spacing — 4/8 grid */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
   --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
 
-  --radius: 18px;
-  --radius-sm: 12px;
-  --dock-h: 78px;
+  --radius: 20px;
+  --radius-sm: 13px;
+  --dock-h: 76px;
 
-  /* dark — deep midnight */
-  --bg: #0a0f1c;
-  --bg-raise: #101828;
-  --bg-stage: radial-gradient(120% 90% at 50% -10%, #16233d 0%, #0d1424 55%, #0a0f1c 100%);
-  --ink: rgba(244, 247, 252, 1);
-  --ink-2: rgba(244, 247, 252, 0.78);
-  --ink-3: rgba(244, 247, 252, 0.55);
-  --hairline: rgba(244, 247, 252, 0.09);
-  --official: #4f7ff0;          /* disciplined blue — real tournament state */
-  --official-ink: #a9c2fb;
-  --live: #e8574a;              /* reserved: live only */
-  --gold: #c9a24b;              /* restrained gold — Play / My World Cup */
-  --gold-ink: #e6cf95;
-  --shadow-stage: 0 22px 44px -24px rgba(3, 8, 20, 0.9);
-  --shadow-row: 0 1px 0 rgba(244, 247, 252, 0.05);
+  /* deep midnight — never flat black */
+  --bg: #070b16;
+  --bg-atmo: radial-gradient(140% 60% at 50% -8%, rgba(47, 91, 199, 0.20) 0%, rgba(17, 30, 62, 0.10) 45%, transparent 70%);
+  --bg-raise: #0d1424;
+  --bg-raise-2: #111a30;
+  --bg-stage: radial-gradient(130% 100% at 50% -18%, #1b2c52 0%, #101a33 48%, #0a1122 100%);
+  --ink: rgba(240, 245, 255, 1);
+  --ink-2: rgba(240, 245, 255, 0.76);
+  --ink-3: rgba(240, 245, 255, 0.52);
+  --hairline: rgba(240, 245, 255, 0.085);
+  --official: #4d7df2;          /* disciplined blue — real tournament state */
+  --official-ink: #9db9f7;
+  --live: #ff5a4e;              /* reserved: live only */
+  --gold: #d4ab55;              /* restrained gold — Play / My World Cup */
+  --gold-ink: #e9d29a;
+  --shadow-stage: 0 30px 60px -30px rgba(0, 4, 14, 0.95);
+  --shadow-row: 0 1px 0 rgba(240, 245, 255, 0.04);
 
   /* liquid glass — interaction surfaces only */
-  --glass-bg: rgba(16, 24, 40, 0.66);
-  --glass-line: rgba(255, 255, 255, 0.10);
-  --glass-blur: saturate(1.5) blur(18px);
+  --glass-bg: rgba(15, 23, 42, 0.62);
+  --glass-line: rgba(255, 255, 255, 0.11);
+  --glass-hi: rgba(255, 255, 255, 0.07);
+  --glass-blur: saturate(1.6) blur(20px);
 }
 
+/* Warm silver — an explicit preference, a contrast surface, not the product */
 :root[data-theme="light"] {
-  --bg: #f6f3ec;
-  --bg-raise: #fdfbf6;
-  --bg-stage: radial-gradient(120% 90% at 50% -10%, #ffffff 0%, #f4f0e7 60%, #efeadf 100%);
-  --ink: rgba(24, 28, 38, 1);
-  --ink-2: rgba(24, 28, 38, 0.78);
-  --ink-3: rgba(24, 28, 38, 0.55);
-  --hairline: rgba(24, 28, 38, 0.10);
+  color-scheme: light;
+  --bg: #f3f1ea;
+  --bg-atmo: radial-gradient(140% 60% at 50% -8%, rgba(44, 86, 200, 0.10) 0%, transparent 65%);
+  --bg-raise: #fbf9f4;
+  --bg-raise-2: #ffffff;
+  --bg-stage: radial-gradient(130% 100% at 50% -18%, #ffffff 0%, #eef0f4 55%, #e4e8ef 100%);
+  --ink: rgba(21, 26, 38, 1);
+  --ink-2: rgba(21, 26, 38, 0.78);
+  --ink-3: rgba(21, 26, 38, 0.54);
+  --hairline: rgba(21, 26, 38, 0.10);
   --official: #2c56c8;
   --official-ink: #2c56c8;
   --live: #c93d31;
   --gold: #a07f2e;
   --gold-ink: #8a6b20;
-  --shadow-stage: 0 22px 40px -26px rgba(90, 80, 60, 0.55);
-  --shadow-row: 0 1px 0 rgba(24, 28, 38, 0.06);
-  --glass-bg: rgba(253, 251, 246, 0.72);
-  --glass-line: rgba(24, 28, 38, 0.08);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="light"]) {
-    --bg: #f6f3ec;
-    --bg-raise: #fdfbf6;
-    --bg-stage: radial-gradient(120% 90% at 50% -10%, #ffffff 0%, #f4f0e7 60%, #efeadf 100%);
-    --ink: rgba(24, 28, 38, 1);
-    --ink-2: rgba(24, 28, 38, 0.78);
-    --ink-3: rgba(24, 28, 38, 0.55);
-    --hairline: rgba(24, 28, 38, 0.10);
-    --official: #2c56c8;
-    --official-ink: #2c56c8;
-    --live: #c93d31;
-    --gold: #a07f2e;
-    --gold-ink: #8a6b20;
-    --shadow-stage: 0 22px 40px -26px rgba(90, 80, 60, 0.55);
-    --shadow-row: 0 1px 0 rgba(24, 28, 38, 0.06);
-    --glass-bg: rgba(253, 251, 246, 0.72);
-    --glass-line: rgba(24, 28, 38, 0.08);
-  }
+  --shadow-stage: 0 24px 44px -28px rgba(70, 76, 95, 0.6);
+  --shadow-row: 0 1px 0 rgba(21, 26, 38, 0.05);
+  --glass-bg: rgba(251, 249, 244, 0.74);
+  --glass-line: rgba(21, 26, 38, 0.09);
+  --glass-hi: rgba(255, 255, 255, 0.7);
 }

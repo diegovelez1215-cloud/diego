@@ -55,8 +55,8 @@ function matchToCanonical(entry, fixtures, slots) {
   for (const f of fixtures) {
     const s = slots.get(f.id) || { home: null, away: null };
     if (hc && ac && s.home && s.away) {
-      if (s.home === hc && s.away === ac) return { fixture: f, flipped: false };
-      if (s.home === ac && s.away === hc) return { fixture: f, flipped: true };
+      if (s.home === hc && s.away === ac) return { fixture: f, flipped: false, byIdentity: true };
+      if (s.home === ac && s.away === hc) return { fixture: f, flipped: true, byIdentity: true };
       continue; // fully-identified fixtures must match by identity, not by time
     }
     // Time-window matching exists ONLY for knockout fixtures with at least one
@@ -69,7 +69,7 @@ function matchToCanonical(entry, fixtures, slots) {
       if (s.home && hc && s.home !== hc && s.home !== ac) continue;
       if (s.away && ac && s.away !== ac && s.away !== hc) continue;
       const flipped = !!(s.home && ac && s.home === ac) || !!(s.away && hc && s.away === hc);
-      if (!timeCandidate) timeCandidate = { fixture: f, flipped };
+      if (!timeCandidate) timeCandidate = { fixture: f, flipped, byIdentity: false };
     }
   }
   return timeCandidate;
@@ -119,7 +119,11 @@ export function buildOverlay({ results, live } = {}) {
       const still = [];
       for (const entry of pending) {
         const hit = matchToCanonical(entry, fixtures, slots);
-        if (!hit) { still.push(entry); continue; }
+        // TRUTH RULE: a FINAL score requires two resolved canonical identities.
+        // A final that only matches by kickoff window is retried on the next
+        // resolution pass (slots may resolve) and rejected if identity never
+        // materializes — a score can never sit beside an unresolved slot.
+        if (!hit || !hit.byIdentity) { still.push(entry); continue; }
         const o = orient(entry, hit.flipped);
         if (o.gh == null || o.ga == null) { rejected++; continue; }
         if (!o.winner) o.winner = o.gh > o.ga ? 'home' : o.gh < o.ga ? 'away' : 'draw';
@@ -143,8 +147,14 @@ export function buildOverlay({ results, live } = {}) {
     const o = orient(entry, hit.flipped);
     const status = statusOverride || classify(entry.kind || entry.status);
     if (status === 'scheduled' && !existing) return; // nothing to add: canonical already owns schedule
+    // TRUTH RULE: an unresolved slot stays scoreless. Live status and clock may
+    // attach by kickoff window, but goals require resolved identity.
+    const scoreAllowed = hit.byIdentity === true;
     byFixture.set(hit.fixture.id, {
-      status, gh: o.gh, ga: o.ga, winner: null,
+      status,
+      gh: scoreAllowed ? o.gh : null,
+      ga: scoreAllowed ? o.ga : null,
+      winner: null,
       min: entry.min == null ? null : Number(entry.min),
     });
   };
@@ -155,9 +165,10 @@ export function buildOverlay({ results, live } = {}) {
   if (liveOk) {
     for (const e of live.response || []) overlayNonFinal(e, 'live');
     for (const e of live.finished || []) {
-      // late finals from the live provider: same validation path
+      // late finals from the live provider: same validation path — finality
+      // requires resolved identity, exactly like /api/results finals
       const hit = matchToCanonical(e, fixtures, slots);
-      if (!hit) { rejected++; continue; }
+      if (!hit || !hit.byIdentity) { rejected++; continue; }
       const o = orient(e, hit.flipped);
       if (o.gh == null || o.ga == null) { rejected++; continue; }
       if (!byFixture.has(hit.fixture.id) || byFixture.get(hit.fixture.id).status !== 'final') {

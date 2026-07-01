@@ -119,8 +119,9 @@ Grug-voice microcopy appears only in Play reveals and empty states.
 - Group tie-breaks use points/GD/goals-for (FIFA head-to-head criteria beyond
   that are not modeled); with full provider finals this matters only in rare
   exact ties.
-- Knockout is a chronological list, not a graphical bracket (listed as
-  REPLACE LATER).
+- ~~Knockout is a chronological list~~ — superseded: the experience-completion
+  pass shipped the full graphical bracket (see
+  `docs/EXPERIENCE_COMPLETION.md`).
 - If both providers are unconfigured, the app shows the full official schedule
   with honest "scores unavailable" states — by design, no fallback scores.
 - Emoji flags depend on the platform emoji font (fine on iOS).

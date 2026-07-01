@@ -38,23 +38,27 @@ test('Groups renders validated standings and honest empties', () => {
   assert.ok(html2.includes('temporarily unavailable'), 'outage is stated honestly');
 });
 
-test('Knockout is complete and chronological: all 32 KO matches, R32 → Final order', () => {
+test('Knockout renders the complete graphical bracket: every KO match, all rounds, honest chips', () => {
   const overlay = buildOverlay({ results: { ...OK, finished: [] } });
   const html = at('2026-07-01T10:00:00-04:00', () => renderKnockout(overlay));
-  for (let id = 73; id <= 104; id++) assert.ok(html.includes(`data-match="${id}"`), 'match ' + id);
-  const order = ['Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Third-place Match', 'Final']
-    .map((name) => html.indexOf(name));
-  for (let i = 1; i < order.length; i++) assert.ok(order[i] > order[i - 1], 'chronological rounds');
-  assert.ok(html.includes('Group L winners'), 'pending slots are honest, never invented');
+  for (let id = 73; id <= 104; id++) assert.ok(html.includes(`data-bkid="${id}"`), 'bracket card for match ' + id);
+  for (const name of ['Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Final', 'Third-place Match']) {
+    assert.ok(html.includes(name), name + ' column present');
+  }
+  assert.ok(html.includes('bk-links'), 'connector layer present');
+  assert.ok(html.includes('Group L winners'), 'pending slots are honest chips, never blank');
+  assert.ok(html.includes('Best thirds'), 'third-place race panel present');
+  assert.ok(!/bk-goals/.test(html), 'no scores anywhere while every slot is unresolved');
 });
 
-test('Match Center model carries score, venue, stage, and consequence for a live tie', () => {
+test('Match Center honors truth on a live unresolved tie: status yes, score no', () => {
   const overlay = buildOverlay({
     live: { ...OK, response: [{ home: 'England', away: 'DR Congo', gh: 1, ga: 0, min: 70, status: '2H', kind: 'live', date: '2026-07-01T16:00:00Z' }] },
   });
   const m = at('2026-07-01T13:00:00-04:00', () => matchCenterModel(80, overlay));
   assert.equal(m.live, true);
-  assert.equal(m.gh, 1);
+  assert.equal(m.gh, null, 'unresolved identity → scoreless');
+  assert.equal(m.scoreKnown, false);
   assert.equal(m.stageName, 'Round of 32');
   assert.equal(m.venueCity, 'Atlanta');
   assert.ok(m.feeds, 'consequence edge exists');

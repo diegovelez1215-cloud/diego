@@ -36,7 +36,7 @@ test.describe('bottom-tab navigation', () => {
     await expect(active).toHaveCount(1);
     await expect(active).toHaveAttribute('data-tab', 'you');
     await expect(active.locator('h1')).toHaveText('You');
-    await expect(active.getByText('Saved simulations')).toBeVisible();
+    await expect(active.getByText('Saved timelines')).toBeVisible();
   });
 
   test('warm tab return keeps content instantly visible', async ({ page }) => {

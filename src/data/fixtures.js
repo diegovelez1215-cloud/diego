@@ -1289,3 +1289,22 @@ export const TP3_SLOTS = [79,85,81,74,82,77,87,80];
 
 /** Team strength ratings — used ONLY by Play simulations, never by real views. */
 export const RATINGS = {"FRA":95,"ESP":93,"ENG":92,"POR":92,"ARG":91,"BRA":90,"GER":89,"NED":88,"NOR":85,"MAR":84,"BEL":84,"USA":84,"COL":82,"MEX":82,"JPN":82,"SUI":80,"URU":79,"CRO":79,"SWE":79,"ECU":79,"SEN":79,"AUT":78,"TUR":78,"CIV":77,"KOR":75,"AUS":75,"SCO":75,"CAN":74,"EGY":73,"GHA":73,"BIH":73,"ALG":72,"PAR":72,"CZE":70,"TUN":70,"IRN":69,"COD":67,"KSA":67,"PAN":67,"QAT":67,"CPV":67,"NZL":65,"UZB":65,"RSA":65,"IRQ":65,"JOR":62,"CUW":62,"HAI":62};
+
+/**
+ * Primary team accent colors (home-kit hues). Used ONLY at meaningful moments:
+ * score stage identity, bracket path glow, knockout drama. Never decoration.
+ */
+export const TEAM_COLORS = {
+  MEX: "#0a6644", RSA: "#e8b923", KOR: "#c81438", CZE: "#d7141a",
+  CAN: "#d52b1e", BIH: "#1f4e9c", QAT: "#8a1538", SUI: "#d52b1e",
+  BRA: "#f6c445", MAR: "#c1272d", HAI: "#00209f", SCO: "#003078",
+  USA: "#1f3a93", PAR: "#d52b1e", AUS: "#f2c400", CIV: "#f77f00",
+  ARG: "#75aadb", ALG: "#0a6640", AUT: "#ed2939", JOR: "#007a3d",
+  POR: "#046a38", URU: "#55b5e5", COL: "#fcd116", KSA: "#0a6640",
+  FRA: "#0f2a5a", SEN: "#0a6640", IRQ: "#ce1126", NOR: "#ba0c2f",
+  GER: "#ffffff", CUW: "#002b7f", CRO: "#e03a3e", ECU: "#ffd100",
+  NED: "#f36c21", JPN: "#1b2a6b", TUN: "#e70013", CPV: "#003893",
+  BEL: "#ed2939", EGY: "#ce1126", IRN: "#239f40", NZL: "#1a1a1a",
+  ESP: "#c60b1e", UZB: "#0099b5", PAN: "#da121a", GHA: "#fcd116",
+  ENG: "#ffffff", SWE: "#ffcd00", TUR: "#e30a17", COD: "#007fff",
+};

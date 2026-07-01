@@ -44,8 +44,10 @@ test('flipped provider orientation is corrected to canonical home/away', () => {
   assert.equal(ov.gh, 2); assert.equal(ov.ga, 0); assert.equal(ov.winner, 'home');
 });
 
-test('live knockout fixture with unresolved slots attaches by exact kickoff — identity stays canonical', () => {
-  // Match 80: 2026-07-01 12:00 AST (16:00Z). Provider says England–DR Congo live.
+test('live knockout fixture with unresolved slots: status attaches, score is SUPPRESSED', () => {
+  // Match 80: 2026-07-01 12:00 AST (16:00Z). Provider says England–DR Congo live,
+  // but group results are unavailable so the slots are unresolved. TRUTH RULE:
+  // an unresolved placeholder stays scoreless — live status and clock only.
   const live = {
     response: [{ home: 'England', away: 'DR Congo', gh: 1, ga: 0, min: 63, status: '2H', kind: 'live', date: '2026-07-01T16:00:00Z' }],
   };
@@ -53,14 +55,33 @@ test('live knockout fixture with unresolved slots attaches by exact kickoff — 
   const ov = o.byFixture.get(80);
   assert.ok(ov, 'live overlay attached to canonical match 80');
   assert.equal(ov.status, 'live');
-  assert.equal(ov.gh, 1);
-  assert.equal(ov.min, 63);
+  assert.equal(ov.gh, null, 'no score beside an unresolved slot');
+  assert.equal(ov.ga, null);
+  assert.equal(ov.min, 63, 'clock may attach');
   clearModelCache();
   const m = fixtureModel(fixture(80), o);
-  // Canonical identity owns the fixture: slots are honestly pending, score is live.
   assert.equal(m.live, true);
   assert.equal(m.home.pending, true);
+  assert.equal(m.scoreKnown, false);
   assert.match(m.home.name, /Group L winners/);
+});
+
+test('a provider FINAL that cannot match by identity is rejected — never shown beside a placeholder', () => {
+  // Kickoff window matches fixture 80, but with no group results the slots are
+  // unresolved, so a FINAL result has no identity to attach to. It must be
+  // rejected wholesale, not displayed.
+  const results = {
+    ...OK,
+    finished: [{ home: 'England', away: 'DR Congo', gh: 2, ga: 1, winner: 'HOME_TEAM', status: 'FINISHED', utcDate: '2026-07-01T16:00:00Z' }],
+  };
+  const o = buildOverlay({ results });
+  assert.equal(o.byFixture.has(80), false, 'no final overlay on an unresolved tie');
+  assert.ok(o.rejected >= 1);
+  clearModelCache();
+  const m = fixtureModel(fixture(80), o);
+  assert.equal(m.final, false);
+  assert.equal(m.scoreKnown, false);
+  assert.equal(m.gh, null);
 });
 
 test('a provider fixture with a conflicting kickoff matches nothing and is rejected', () => {

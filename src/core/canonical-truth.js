@@ -175,6 +175,41 @@ export function resolveSlots(standings, koFinals) {
   return out;
 }
 
+/**
+ * Third-place race table: every group's third-placed team ranked by the FIFA
+ * criteria used in resolveSlots. `qualified` marks the best 8 (only meaningful
+ * once every group is complete); `slot` carries the R32 match id once the
+ * combination is decided. Incomplete groups are listed as provisional.
+ */
+export function thirdPlaceTable(standings) {
+  const letters = Object.keys(standings.groups).sort();
+  const rows = letters
+    .filter((g) => standings.groups[g][2])
+    .map((g) => ({ group: g, complete: !!standings.complete[g], t: standings.groups[g][2] }));
+  rows.sort((a, b) => b.t.pts - a.t.pts || b.t.gd - a.t.gd || b.t.gf - a.t.gf || a.group.localeCompare(b.group));
+  const allComplete = letters.length === 12 && letters.every((g) => standings.complete[g]);
+  let assignment = null;
+  if (allComplete) {
+    const qual = rows.slice(0, 8).map((x) => x.group);
+    const order = TP3[qual.slice().sort().join('')];
+    if (order) {
+      assignment = {};
+      for (let i = 0; i < 8; i++) assignment[order.charAt(i)] = TP3_SLOTS[i];
+    }
+  }
+  return {
+    decided: allComplete,
+    rows: rows.map((r, i) => ({
+      group: r.group,
+      code: r.t.code,
+      pts: r.t.pts, gd: r.t.gd, gf: r.t.gf, p: r.t.p,
+      complete: r.complete,
+      qualified: allComplete && i < 8,
+      slot: assignment ? (assignment[r.group] || null) : null,
+    })),
+  };
+}
+
 /** Honest placeholder label for an unresolved knockout slot spec. */
 export function slotLabel(spec) {
   let m;

@@ -57,7 +57,12 @@ below were measured with grep/wc against both trees in this session.
 
 - Match Center could regain factual stats (possession/shots) if a validated,
   quota-safe provider route is reintroduced — never hard-coded.
-- Knockout could gain a graphical bracket layout; the chronological list is the
-  truth-correct foundation.
-- What-If could grow group-scenario exploration (Polymarket-style implications)
-  using the same sealed sim world.
+
+### Delivered since the first pass (no longer "later")
+
+- **Graphical knockout bracket** — full R32→Final tree with connectors,
+  Follow-a-Team mode, third-place race panel (`src/components/bracket.js`,
+  `src/views/knockout.js`).
+- **Play arcade** — Match Lab (interactive 90-minute simulation with
+  decisions), My World Cup (tappable bracket journey), Prediction Run
+  (non-monetary confidence picks with streaks) (`src/views/play.js`).

@@ -43,6 +43,9 @@ export function fixtureModel(fx, overlay) {
   const away = sideModel(fx, overlay.slots, 'away');
   const status = ov ? ov.status : 'scheduled';
   const venue = VENUES[fx.venue] || null;
+  // TRUTH GUARD (belt and braces over the overlay rules): a score can only be
+  // shown between two resolved canonical identities. Placeholders stay scoreless.
+  const identityResolved = !home.pending && !away.pending;
   return {
     id: fx.id,
     stage: fx.stage,
@@ -58,11 +61,11 @@ export function fixtureModel(fx, overlay) {
     status, // scheduled | live | hold | final
     live: status === 'live',
     final: status === 'final',
-    gh: ov ? ov.gh : null,
-    ga: ov ? ov.ga : null,
+    gh: identityResolved && ov ? ov.gh : null,
+    ga: identityResolved && ov ? ov.ga : null,
     min: ov ? ov.min : null,
-    winner: ov ? ov.winner : null,
-    scoreKnown: !!ov && ov.gh != null && ov.ga != null,
+    winner: identityResolved && ov ? ov.winner : null,
+    scoreKnown: identityResolved && !!ov && ov.gh != null && ov.ga != null,
     feeds: winnerFeeds(fx.id),
   };
 }

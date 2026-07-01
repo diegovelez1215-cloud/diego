@@ -1,11 +1,12 @@
-// United 2026 — Tournament. Exactly: Matches (Today/Tomorrow/All Dates),
-// Groups, the official chronological Knockout bracket, and Match Center.
+// United 2026 — Tournament. Exactly: Matches (editorial matchday board),
+// Groups, the official graphical Knockout bracket, and Match Center.
 
 import { getState, setTournamentView, setMatchesDate, openMatchCenter } from '../core/app-state.js';
 import { segmentedControl } from '../components/segmented-control.js';
+import { wireBracketScroller } from '../components/bracket.js';
 import { renderMatches } from './matches.js';
 import { renderGroups } from './groups.js';
-import { renderKnockout } from './knockout.js';
+import { renderKnockout, wireKnockout } from './knockout.js';
 
 export const seedHTML = `<div class="view tournament-view">
   <header class="view-head"><h1>Tournament</h1><p class="view-sub">Official schedule, groups, bracket</p></header>
@@ -40,6 +41,10 @@ export function render(outlet) {
       const btn = e.target.closest('[data-value]');
       if (btn) setMatchesDate(btn.dataset.value);
     });
+  }
+  if (sub === 'knockout') {
+    wireKnockout(outlet);
+    wireBracketScroller(outlet);
   }
   outlet.querySelectorAll('[data-match]').forEach((el) => {
     el.addEventListener('click', () => openMatchCenter(Number(el.dataset.match)));

@@ -12,6 +12,9 @@ const state = {
     tournamentView: 'matches', // matches | groups | knockout
     matchesDate: 'today',   // today | tomorrow | all
     matchCenterId: null,    // open match-center fixture id or null
+    bracketMode: 'full',    // full | follow
+    followTeam: null,       // team code illuminated in follow mode
+    playMode: 'lab',        // lab | myworldcup | prediction
   },
   real: {
     overlay: EMPTY_OVERLAY,
@@ -51,6 +54,18 @@ export function setMatchesDate(mode) {
   if (state.nav.matchesDate === mode) return;
   state.nav.matchesDate = mode;
   emit(['nav', 'tournament']);
+}
+
+export function setBracketMode(mode, team) {
+  state.nav.bracketMode = mode;
+  if (team !== undefined) state.nav.followTeam = team;
+  emit(['nav', 'tournament']);
+}
+
+export function setPlayMode(mode) {
+  if (state.nav.playMode === mode) return;
+  state.nav.playMode = mode;
+  emit(['nav', 'play']);
 }
 
 export function openMatchCenter(id) { state.nav.matchCenterId = id; emit(['match-center']); }

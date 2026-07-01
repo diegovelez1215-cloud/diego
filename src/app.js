@@ -70,8 +70,10 @@ export function boot() {
     const s = getState();
     const v = s.real.overlay.version;
     if (id === 'home') return v + ':' + todayKey();
-    if (id === 'tournament') return v + ':' + s.nav.tournamentView + ':' + s.nav.matchesDate + ':' + todayKey();
-    if (id === 'play') return 'play'; // repainted via play/real tags
+    if (id === 'tournament') {
+      return [v, s.nav.tournamentView, s.nav.matchesDate, s.nav.bracketMode, s.nav.followTeam, todayKey()].join(':');
+    }
+    if (id === 'play') return 'play:' + s.nav.playMode; // repainted via play/real tags
     return 'you';
   });
   router.init(document.getElementById('app'));
