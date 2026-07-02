@@ -1,11 +1,14 @@
-// United 2026 — Play. The arcade: three connected modes, all sealed off from
-// real tournament truth. Match Lab runs an interactive 90-minute simulation
-// with momentum and decisions. My World Cup is a private, tappable bracket
-// journey. Prediction Run is non-monetary tournament intelligence — picks,
-// confidence, streaks. Gold light, tactile controls, rare weirdness. It can
-// never modify real fixtures, standings, Home, the official bracket, or
-// Match Center — everything here operates on deep copies in the Play
-// namespace only.
+// United 2026 — Play. The arcade: an arcade lobby plus four connected modes,
+// all sealed off from real tournament truth. Match Lab runs an interactive
+// 90-minute simulation with momentum and decisions. My World Cup is a private,
+// tappable bracket journey. Prediction Run is non-monetary tournament
+// intelligence — picks, confidence, streaks. Club League is a private,
+// on-device club room: local profiles, Club Points, truthful achievements.
+// Gold light, tactile controls, rare weirdness. It can never modify real
+// fixtures, standings, Home, the official bracket, or Match Center —
+// everything here operates on deep copies in the Play namespace only.
+// Club Points are a private game score: no cash value, non-purchasable,
+// non-transferable, non-withdrawable.
 
 import { getState, setPlay, setSims, setPlayMode } from '../core/app-state.js';
 import { savePlay, saveSims } from '../core/persistence.js';
@@ -137,14 +140,13 @@ function labTick() {
   for (const [side, rate] of [['h', rates.h], ['a', rates.aRate]]) {
     if (rng() < rate) {
       const team = side === 'h' ? run.home : run.away;
+      if (side === 'h') run.sh++; else run.sa++; // every chance is an attempt
       if (rng() < rates.convert) {
         if (side === 'h') run.gh++; else run.ga++;
-        if (side === 'h') run.sh++; else run.sa++;
         run.events.push({ min: run.minute, type: 'goal', side, text: `GOAL — ${teamName(team)} (${run.gh}–${run.ga})` });
         run.goalAt = run.minute;
         run.mo += side === 'h' ? 0.6 : -0.6;
       } else if (rng() < 0.3) {
-        if (side === 'h') run.sh++; else run.sa++;
         run.events.push({ min: run.minute, type: 'chance', side, text: CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)) });
       }
     }
@@ -203,17 +205,64 @@ function decideLab(optionId) {
   startLabTimer();
 }
 
+/* The payoff: every finished simulation resolves into points, a story, and a
+   turning point — computed from the events that actually happened in the run. */
+function labResultFacts(run) {
+  const win = run.pens ? run.pens.ph > run.pens.pa : run.gh > run.ga;
+  const gap = (RATINGS[run.away] || 70) - (RATINGS[run.home] || 70);
+  const upset = win && gap >= 6;
+  return { win, gap, upset, margin: Math.abs(run.gh - run.ga) };
+}
+
+function labClubPoints(run, facts) {
+  let cp = 20; // finishing a full 90 always counts
+  if (facts.win) cp += 20 + Math.min(18, facts.margin * 6);
+  if (facts.upset) cp += Math.min(30, facts.gap * 2);
+  if (facts.win && run.ga === 0) cp += 8;   // clean sheet
+  if (facts.win && run.pens) cp += 10;      // survived the shootout
+  return cp;
+}
+
+function labStory(run, facts) {
+  const goals = run.events.filter((e) => e.type === 'goal');
+  const yourGoals = goals.filter((g) => g.side === 'h');
+  const decisionMins = Object.keys(run.decided || {}).map(Number).sort((a, b) => a - b);
+  // decision verdict: did your goals arrive in the 15' after a call?
+  let coached = null;
+  for (const d of decisionMins) {
+    if (yourGoals.some((g) => g.min > d && g.min <= d + 15)) { coached = d; break; }
+  }
+  const decider = goals.length ? goals[goals.length - 1] : null;
+  const bits = [];
+  if (run.pens) bits.push(`Level after 90 — settled ${run.pens.ph}–${run.pens.pa} on penalties.`);
+  else if (decider) bits.push(`The decisive goal came at ${decider.min}'.`);
+  else bits.push('A goalless siege from first whistle to last.');
+  if (coached != null) bits.push(`Your ${coached}' call produced a goal inside fifteen minutes.`);
+  else if (decisionMins.length && !facts.win) bits.push('The bench calls never quite landed tonight.');
+  if (facts.upset) bits.push(`${teamName(run.home)} were rated ${facts.gap} points below — an upset on the record.`);
+  return bits.join(' ');
+}
+
 function finishLab() {
   const run = labRun;
   const { play } = getState();
+  const facts = labResultFacts(run);
+  const cp = labClubPoints(run, facts);
+  run.cp = cp; run.win = facts.win; run.story = labStory(run, facts);
   const entry = {
     at: new Date().toISOString(),
     home: run.home, away: run.away, gh: run.gh, ga: run.ga,
     pens: run.pens, approach: run.approach, line: run.line,
+    cp, win: facts.win, upset: facts.upset, story: run.story,
   };
+  const club = ensureClub(play);
   const nextPlay = { ...play, labHistory: [entry, ...(play.labHistory || [])].slice(0, 30) };
   setPlay(nextPlay);
   savePlay(nextPlay);
+  creditClubEvent({
+    pid: club.activeId, at: entry.at, cp, kind: 'lab', win: facts.win,
+    note: `${teamName(run.home)} ${run.gh}–${run.ga}${run.pens ? ` (${run.pens.ph}–${run.pens.pa}p)` : ''} ${teamName(run.away)}`,
+  });
 }
 
 function resetLab() { stopLabTimer(); labRun = null; repaintPlay(); }
@@ -395,6 +444,147 @@ function setPick(fixtureId, side, conf) {
   savePlay(nextPlay);
 }
 
+/* ================= Club League (private, on this device) ================= */
+// Truthful by construction: every number below is derived from things that
+// actually happened in this Play space. Local profiles are people who play on
+// this phone; no invented friends, no fabricated activity, no global ranks.
+
+const PROFILE_EMOJI = ['⚽', '🦁', '🐆', '🦅', '🐐', '🌵', '🌋', '🛡️'];
+
+export function ensureClub(play) {
+  const raw = play.club && typeof play.club === 'object' ? play.club : {};
+  const players = (Array.isArray(raw.players) ? raw.players : [])
+    .filter((p) => p && p.id && p.name).slice(0, 8);
+  if (!players.some((p) => p.id === 'you')) players.unshift({ id: 'you', name: 'You', emoji: '⭐' });
+  return {
+    players,
+    events: (Array.isArray(raw.events) ? raw.events : []).slice(0, 200),
+    activeId: players.some((p) => p.id === raw.activeId) ? raw.activeId : 'you',
+    rivalId: players.some((p) => p.id === raw.rivalId) ? raw.rivalId : null,
+  };
+}
+
+function saveClub(club) {
+  const { play } = getState();
+  const nextPlay = { ...play, club };
+  setPlay(nextPlay);
+  savePlay(nextPlay);
+}
+
+/** Prediction Club Points — derived live from graded calls, never stored. */
+export function predictionClubPoints(play, overlay) {
+  const picks = play.predictions?.picks || {};
+  const s = gradePredictions(picks, overlay);
+  return s.insight + s.best * 20 + Object.keys(picks).length * 5;
+}
+
+/** Per-player totals from the real event log (+ live prediction CP for You). */
+export function clubTable(play, overlay, sims) {
+  const club = ensureClub(play);
+  const t = now();
+  const weekAgo = t - 7 * 24 * 3600 * 1000;
+  const rows = club.players.map((p) => {
+    const evs = club.events.filter((e) => e.pid === p.id);
+    const labCp = evs.reduce((n, e) => n + (e.cp || 0), 0);
+    const predCp = p.id === 'you' ? predictionClubPoints(play, overlay) : 0;
+    const runCp = p.id === 'you' ? ((sims && sims.saved) || []).length * 40 : 0;
+    const weekCp = evs.filter((e) => Date.parse(e.at) >= weekAgo).reduce((n, e) => n + (e.cp || 0), 0);
+    const priorCp = labCp - weekCp; // total before this week's lab play
+    const labs = evs.filter((e) => e.kind === 'lab');
+    let streak = 0;
+    for (const e of labs) { if (e.win) streak++; else break; }
+    return {
+      ...p,
+      cp: labCp + predCp + runCp,
+      priorCp: priorCp + predCp + runCp,
+      weekCp,
+      streak,
+      form: labs.slice(0, 5).map((e) => (e.win ? 'W' : 'L')),
+      played: labs.length,
+      lastAt: evs[0] ? evs[0].at : null,
+    };
+  });
+  const byNow = [...rows].sort((a, b) => b.cp - a.cp || a.name.localeCompare(b.name));
+  const byPrior = [...rows].sort((a, b) => b.priorCp - a.priorCp || a.name.localeCompare(b.name));
+  byNow.forEach((r, i) => {
+    r.rank = i + 1;
+    const prev = byPrior.findIndex((x) => x.id === r.id) + 1;
+    r.move = prev - r.rank; // + = climbed this week
+  });
+  return { club, rows: byNow };
+}
+
+function creditClubEvent(event) {
+  const { play } = getState();
+  const club = ensureClub(play);
+  club.events = [event, ...club.events].slice(0, 200);
+  saveClub(club);
+}
+
+/* Football-specific achievements — every check is a derived fact. */
+export const ACHIEVEMENTS = [
+  {
+    id: 'giant-killer', icon: '🗡️', name: 'Giant Killer',
+    desc: 'Correctly called an official upset',
+    earned: ({ play, overlay }) => {
+      const picks = play.predictions?.picks || {};
+      for (const [idStr, pick] of Object.entries(picks)) {
+        const id = Number(idStr);
+        const ov = overlay.byFixture.get(id);
+        const s = overlay.slots.get(id) || {};
+        if (!ov || ov.status !== 'final' || !ov.winner || ov.winner !== pick.side) continue;
+        if (!s.home || !s.away) continue;
+        const pickedCode = pick.side === 'home' ? s.home : s.away;
+        const otherCode = pick.side === 'home' ? s.away : s.home;
+        if ((RATINGS[pickedCode] || 70) <= (RATINGS[otherCode] || 70) - 4) return true;
+      }
+      return false;
+    },
+  },
+  {
+    id: 'ice-cold', icon: '🧊', name: 'Ice Cold',
+    desc: 'Five correct calls in a row',
+    earned: ({ predStats }) => predStats.best >= 5,
+  },
+  {
+    id: 'extra-time-merchant', icon: '⏱️', name: 'Extra Time Merchant',
+    desc: 'Won three Match Lab games after the 90',
+    earned: ({ play }) => (play.labHistory || [])
+      .filter((e) => e.pens && e.pens.ph > e.pens.pa).length >= 3,
+  },
+  {
+    id: 'road-builder', icon: '🛣️', name: 'Road Builder',
+    desc: 'Completed a My World Cup run',
+    earned: ({ play, sims }) => !!(play.myWorldCup && play.myWorldCup.champion) || ((sims && sims.saved) || []).length > 0,
+  },
+  {
+    id: 'clutch-caller', icon: '🎯', name: 'Clutch Caller',
+    desc: 'Three correct Lock-confidence calls',
+    earned: ({ play, overlay }) => {
+      const picks = play.predictions?.picks || {};
+      let n = 0;
+      for (const [idStr, pick] of Object.entries(picks)) {
+        if (pick.conf !== 3) continue;
+        const ov = overlay.byFixture.get(Number(idStr));
+        if (ov && ov.status === 'final' && ov.winner === pick.side) n++;
+      }
+      return n >= 3;
+    },
+  },
+  {
+    id: 'lab-upsetter', icon: '⚡', name: 'Lab Upsetter',
+    desc: 'Won a Match Lab game as a heavy underdog',
+    earned: ({ play }) => (play.labHistory || []).some((e) => e.win && e.upset),
+  },
+];
+
+export function achievementState() {
+  const { play, real, sims } = getState();
+  const predStats = gradePredictions(play.predictions?.picks || {}, real.overlay);
+  const ctx = { play, overlay: real.overlay, sims, predStats };
+  return ACHIEVEMENTS.map((a) => ({ ...a, on: a.earned(ctx) }));
+}
+
 /* ================= rendering ================= */
 
 function teamOptions(selected) {
@@ -502,13 +692,31 @@ function labRunHTML(run) {
     <ol class="lab-feed" id="lab-feed" aria-label="Match events">
       ${run.events.slice(-7).map((e) => `<li class="lab-ev ${e.type}"><span class="lab-ev-min">${e.min}&prime;</span><span class="lab-ev-ic">${labEventIcon(e.type)}</span>${esc(e.text)}</li>`).join('')}
     </ol>
-    ${run.done ? `<p class="grug-line">${esc(run.line || '')}</p>
+    ${run.done ? labPayoffHTML(run) : ''}
+  </section>`;
+}
+
+/* Full-time payoff: story, points, streak, and a one-tap rematch. */
+function labPayoffHTML(run) {
+  const { play, real, sims } = getState();
+  const { rows, club } = clubTable(play, real.overlay, sims);
+  const active = rows.find((r) => r.id === club.activeId) || rows[0];
+  const streakLine = active && active.streak >= 2
+    ? `${active.streak} lab wins in a row`
+    : run.win ? 'Win streak: 1 — keep it alive' : 'Streak reset — one tap to respond';
+  return `<div class="lab-payoff${run.win ? ' won' : ''}">
+    <div class="lab-payoff-head">
+      <span class="lab-payoff-cp">+${run.cp || 0} <em>Club Points</em></span>
+      <span class="lab-payoff-streak">${esc(streakLine)}</span>
+    </div>
+    ${run.story ? `<p class="lab-story">${esc(run.story)}</p>` : ''}
+    <p class="grug-line">${esc(run.line || '')}</p>
     <div class="play-actions">
-      <button class="play-btn gold" id="lab-again">Run it again</button>
+      <button class="play-btn gold" id="lab-again">Run it back</button>
       <button class="play-btn quiet" id="lab-new">New matchup</button>
     </div>
-    <p class="lab-saved-note">Saved to You.</p>` : ''}
-  </section>`;
+    <p class="lab-saved-note">Saved to You${active && active.id !== 'you' ? ` · credited to ${esc(active.name)}` : ''} · Club Points have no cash value.</p>
+  </div>`;
 }
 
 // Targeted mid-run repaint: swap only the lab card, keep selects/timers alive.
@@ -571,13 +779,8 @@ function predictionHTML(overlay, play) {
   const stats = gradePredictions(picks, overlay);
   const upcoming = predictableFixtures(overlay);
   const recent = stats.graded.slice(-3).reverse();
-  const clubPoints = stats.insight + stats.best * 20 + Object.keys(picks).length * 5;
-  const league = [
-    { name: 'You', pts: clubPoints },
-    { name: 'Marta', pts: Math.max(0, clubPoints - 35) },
-    { name: 'Tio Luis', pts: Math.max(0, clubPoints - 70) },
-    { name: 'Sam', pts: Math.max(0, clubPoints - 95) },
-  ].sort((a, b) => b.pts - a.pts);
+  const clubPoints = predictionClubPoints(play, overlay);
+  const iq = stats.total >= 3 ? Math.round((stats.right / stats.total) * 100) : null;
   return `<section class="play-card prediction" aria-label="Prediction Run">
     <div class="prediction-hero">
       <div><h2 class="display">Prediction Run</h2>
@@ -588,7 +791,7 @@ function predictionHTML(overlay, play) {
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>
       <div class="pr-stat"><strong>${stats.insight}</strong><span>insight</span></div>
       <div class="pr-stat${stats.streak >= 3 ? ' hot' : ''}"><strong>${stats.streak >= 3 ? '🔥' + stats.streak : stats.streak}</strong><span>streak</span></div>
-      <div class="pr-stat"><strong>${stats.best}</strong><span>best run</span></div>
+      <div class="pr-stat"><strong>${iq != null ? iq : '—'}</strong><span>Tournament IQ</span></div>
     </div>
     ${recent.length ? `<div class="pr-recent" aria-label="Recent graded calls">
       ${recent.map((g) => {
@@ -596,12 +799,10 @@ function predictionHTML(overlay, play) {
     return `<span class="pr-call ${g.correct ? 'hit' : 'miss'}">${g.correct ? '✓' : '✗'} ${s.home ? teamFlag(s.home) : ''}v${s.away ? teamFlag(s.away) : ''} ${CONF[g.conf] || ''}</span>`;
   }).join('')}
     </div>` : ''}
-    <div class="private-league" aria-label="Private league Club Points">
-      <div class="private-head"><span>Private League</span><strong>${clubPoints} Club Points</strong></div>
-      <div class="private-copy">Non-purchasable, non-transferable, non-withdrawable. No cash value.</div>
-      ${league.map((row, i) => `<div class="private-row${row.name === 'You' ? ' you' : ''}">
-        <span>${i + 1}</span><strong>${esc(row.name)}</strong><em>${row.pts} CP</em>
-      </div>`).join('')}
+    <div class="private-league" aria-label="Club Points from predictions">
+      <div class="private-head"><span>Your prediction haul</span><strong>${clubPoints} Club Points</strong></div>
+      <div class="private-copy">A private game score. Non-purchasable, non-transferable, non-withdrawable. No cash value.</div>
+      <button class="private-cta" data-goto="club">See the Club League table →</button>
     </div>
     ${upcoming.length ? upcoming.map((f) => {
     const s = overlay.slots.get(f.id);
@@ -621,6 +822,206 @@ function predictionHTML(overlay, play) {
   </section>`;
 }
 
+/* ================= Arcade Lobby ================= */
+
+function formDots(form) {
+  if (!form || !form.length) return '<span class="form-empty">no games yet</span>';
+  return form.map((f) => `<i class="form-dot ${f === 'W' ? 'w' : 'l'}" aria-label="${f === 'W' ? 'Win' : 'Loss'}"></i>`).join('');
+}
+
+function lobbyHTML(overlay, play, sims) {
+  const { rows } = clubTable(play, overlay, sims);
+  const you = rows.find((r) => r.id === 'you');
+  const predStats = gradePredictions(play.predictions?.picks || {}, overlay);
+  const lab = play.labHistory || [];
+  const last = lab[0];
+  const home = last ? last.home : 'USA';
+  const away = last ? last.away : 'ARG';
+  // Tonight's Challenge: the next real fixture you haven't called yet.
+  const picks = play.predictions?.picks || {};
+  const challenge = predictableFixtures(overlay).find((f) => !picks[f.id]) || null;
+  const chSlots = challenge ? overlay.slots.get(challenge.id) : null;
+  // Current run: an unfinished My World Cup or a champion waiting to be saved.
+  const world = simWorld(overlay, play);
+  const simNext = play.myWorldCup ? nextSimStage(world) : null;
+  const champion = play.myWorldCup && play.myWorldCup.champion;
+  const bestWin = lab.filter((e) => e.win).sort((a, b) => (b.gh - b.ga) - (a.gh - a.ga))[0];
+  const earned = achievementState().filter((a) => a.on);
+  return `<section class="play-card lobby" aria-label="Arcade lobby">
+    <div class="lobby-marquee" role="group" aria-label="Your club standing">
+      <div class="lm-stat cp"><strong class="display">${you ? you.cp : 0}</strong><span>Club Points</span></div>
+      <div class="lm-stat"><span class="lm-form">${formDots(you && you.form)}</span><span>Lab form</span></div>
+      <div class="lm-stat"><strong>#${you ? you.rank : 1}</strong><span>${you && you.move > 0 ? '▲ climbing' : you && you.move < 0 ? '▼ slipping' : 'Club rank'}</span></div>
+    </div>
+
+    <button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
+      <span class="lk-label">${last ? 'Tonight’s Showdown — run it back' : 'Tonight’s Showdown'}</span>
+      <span class="lk-tie">${teamFlag(home)} ${esc(teamName(home))} <em>v</em> ${esc(teamName(away))} ${teamFlag(away)}</span>
+      <span class="lk-go">▶ Kick off now</span>
+    </button>
+
+    <div class="lobby-grid">
+      ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
+        <span class="lt-kicker">Tonight's challenge</span>
+        <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
+        <small>Call it before ${esc(formatKickoffTime(challenge.epoch))} · earn insight</small>
+      </button>` : `<button class="lobby-tile" data-goto="prediction">
+        <span class="lt-kicker">Prediction Run</span>
+        <strong>${predStats.right}/${predStats.total} correct</strong>
+        <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
+      </button>`}
+      <button class="lobby-tile" data-goto="myworldcup">
+        <span class="lt-kicker">My World Cup</span>
+        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Start a run'}</strong>
+        <small>${champion ? 'Champion crowned — save or run it again' : simNext ? 'Your parallel tournament is mid-flight' : 'Pick winners, break brackets'}</small>
+      </button>
+    </div>
+
+    <button class="lobby-club" data-goto="club" aria-label="Open Club League">
+      <span class="lt-kicker">Club League · on this device</span>
+      ${rows.slice(0, 3).map((r, i) => `<span class="lc-row${r.id === 'you' ? ' you' : ''}">
+        <em>${i + 1}</em> ${esc(r.emoji || '⚽')} ${esc(r.name)} <b>${r.cp} CP</b>${r.move > 0 ? ' <i class="up">▲</i>' : r.move < 0 ? ' <i class="down">▼</i>' : ''}
+      </span>`).join('')}
+      <span class="lc-more">Open the club room →</span>
+    </button>
+
+    <div class="lobby-record">
+      <span>${bestWin ? `Record to beat: ${teamFlag(bestWin.home)} ${bestWin.gh}–${bestWin.ga} ${teamFlag(bestWin.away)}` : 'No record yet — set one tonight'}</span>
+      <span>${earned.length ? earned.slice(0, 3).map((a) => a.icon).join(' ') + ` ${earned.length} unlocked` : 'Achievements await'}</span>
+    </div>
+  </section>`;
+}
+
+/* ================= Club League view ================= */
+
+function clubHTML(overlay, play, sims) {
+  const { rows, club } = clubTable(play, overlay, sims);
+  const you = rows.find((r) => r.id === 'you');
+  const rival = club.rivalId ? rows.find((r) => r.id === club.rivalId) : null;
+  const ach = achievementState();
+  const recent = club.events.slice(0, 6);
+  const podium = rows.slice(0, 3);
+  const canAdd = rows.length < 8;
+  return `<section class="play-card club" aria-label="Club League">
+    <header class="club-head">
+      <div><h2 class="display">Club League</h2>
+      <p class="play-sub">Your private club room. Everyone here plays on this phone — pass it around, settle it in the Lab.</p></div>
+      <span class="club-chip">On this device</span>
+    </header>
+
+    ${rows.length > 1 ? `<div class="club-podium" aria-label="Top three">
+      ${podium.map((r, i) => `<div class="podium-slot p${i + 1}${r.id === 'you' ? ' you' : ''}">
+        <span class="podium-emoji">${esc(r.emoji || '⚽')}</span>
+        <strong>${esc(r.name)}</strong>
+        <b>${r.cp} CP</b>
+        <span class="podium-move">${r.move > 0 ? '▲ up this week' : r.move < 0 ? '▼ down' : '—'}</span>
+      </div>`).join('')}
+    </div>` : `<p class="club-solo">It's just you so far. Add the household below — every profile is a real person on this phone, nothing is simulated for them.</p>`}
+
+    <div class="club-table" role="table" aria-label="Club standings">
+      ${rows.map((r) => `<div class="club-row${r.id === club.activeId ? ' active' : ''}${r.id === 'you' ? ' you' : ''}" role="row">
+        <span class="cr-rank">${r.rank}</span>
+        <span class="cr-who">${esc(r.emoji || '⚽')} ${esc(r.name)}${r.id === club.activeId ? ' <em class="cr-playing">playing</em>' : ''}</span>
+        <span class="cr-form">${formDots(r.form)}</span>
+        <span class="cr-cp">${r.cp} CP${r.move > 0 ? ' <i class="up">▲</i>' : r.move < 0 ? ' <i class="down">▼</i>' : ''}</span>
+        <span class="cr-actions">
+          ${r.id !== club.activeId ? `<button class="cr-btn" data-club-active="${esc(r.id)}">Play as</button>` : ''}
+          ${r.id !== 'you' ? `<button class="cr-btn" data-club-rival="${esc(r.id)}">${club.rivalId === r.id ? 'Rival ✓' : 'Set rival'}</button>` : ''}
+        </span>
+      </div>`).join('')}
+    </div>
+
+    ${rival && you ? `<div class="club-rivalry" aria-label="Rivalry">
+      <span class="rival-title">Rivalry</span>
+      <div class="rival-bars">
+        <div class="rival-line"><span>${esc(you.name)}</span><i style="width:${Math.round((you.cp / Math.max(1, Math.max(you.cp, rival.cp))) * 100)}%"></i><b>${you.cp}</b></div>
+        <div class="rival-line"><span>${esc(rival.name)}</span><i style="width:${Math.round((rival.cp / Math.max(1, Math.max(you.cp, rival.cp))) * 100)}%"></i><b>${rival.cp}</b></div>
+      </div>
+      <span class="rival-gap">${you.cp === rival.cp ? 'Dead level.' : you.cp > rival.cp ? `You lead by ${you.cp - rival.cp}.` : `${esc(rival.name)} leads by ${rival.cp - you.cp}.`}</span>
+    </div>` : ''}
+
+    <div class="club-week" aria-label="This week">
+      <span class="cw-title">This week in the Lab</span>
+      ${rows.some((r) => r.weekCp) ? rows.filter((r) => r.weekCp).map((r) => `<span class="cw-row">${esc(r.emoji || '⚽')} ${esc(r.name)} <b>+${r.weekCp}</b></span>`).join('') : '<span class="cw-none">No lab points yet this week — the pitch is free.</span>'}
+    </div>
+
+    <div class="club-achievements" aria-label="Achievements">
+      <span class="cw-title">Achievements</span>
+      <div class="ach-grid">
+        ${ach.map((a) => `<div class="ach${a.on ? ' on' : ''}" title="${esc(a.desc)}">
+          <span class="ach-icon">${a.icon}</span><strong>${esc(a.name)}</strong><small>${esc(a.desc)}</small>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    ${recent.length ? `<div class="club-activity" aria-label="Recent activity">
+      <span class="cw-title">Recent activity</span>
+      ${recent.map((e) => {
+    const p = rows.find((r) => r.id === e.pid);
+    return `<span class="ca-row">${p ? esc(p.emoji || '⚽') + ' ' + esc(p.name) : 'Player'} · ${esc(e.note || 'played')} · <b>+${e.cp} CP</b></span>`;
+  }).join('')}
+    </div>` : ''}
+
+    <div class="club-manage">
+      ${canAdd ? `<div class="club-add">
+        <input id="club-name" maxlength="12" placeholder="Add a player (this phone)" aria-label="New player name">
+        <button class="play-btn quiet" id="club-add-btn">Add</button>
+      </div>` : ''}
+      <button class="play-btn quiet" id="club-share">Copy a challenge card</button>
+      <p class="private-copy">Club Points are a private game score. No cash value, non-purchasable, non-transferable, non-withdrawable. Nothing here is a global leaderboard.</p>
+    </div>
+  </section>`;
+}
+
+function wireClub(outlet) {
+  outlet.querySelectorAll('[data-club-active]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const club = ensureClub(getState().play);
+      club.activeId = b.dataset.clubActive;
+      saveClub(club);
+    });
+  });
+  outlet.querySelectorAll('[data-club-rival]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const club = ensureClub(getState().play);
+      club.rivalId = club.rivalId === b.dataset.clubRival ? null : b.dataset.clubRival;
+      saveClub(club);
+    });
+  });
+  const add = outlet.querySelector('#club-add-btn');
+  if (add) {
+    add.addEventListener('click', () => {
+      const input = outlet.querySelector('#club-name');
+      const name = (input && input.value || '').trim().slice(0, 12);
+      if (!name) return;
+      const club = ensureClub(getState().play);
+      if (club.players.length >= 8 || club.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
+      club.players = [...club.players, {
+        id: 'p' + Date.now().toString(36),
+        name,
+        emoji: PROFILE_EMOJI[club.players.length % PROFILE_EMOJI.length],
+      }];
+      saveClub(club);
+    });
+  }
+  const share = outlet.querySelector('#club-share');
+  if (share) {
+    share.addEventListener('click', async () => {
+      const { play, real, sims } = getState();
+      const { rows } = clubTable(play, real.overlay, sims);
+      const you = rows.find((r) => r.id === 'you');
+      const best = (play.labHistory || []).find((e) => e.win);
+      const text = `United 2026 Club League — I'm on ${you ? you.cp : 0} Club Points`
+        + (best ? ` and just ran ${teamName(best.home)} ${best.gh}–${best.ga} ${teamName(best.away)} in Match Lab.` : '.')
+        + ' Beat that. (Private game score, no cash value.)';
+      try {
+        if (navigator.share) await navigator.share({ text });
+        else { await navigator.clipboard.writeText(text); share.textContent = 'Copied — go brag'; }
+      } catch { /* user dismissed */ }
+    });
+  }
+}
+
 /* ---------------- view plumbing ---------------- */
 
 let pendingPick = null;
@@ -628,6 +1029,18 @@ let pendingPick = null;
 function repaintPlay() {
   const outlet = document.querySelector('#outlet-play');
   if (outlet) render(outlet);
+}
+
+function wireLobby(outlet) {
+  const kick = outlet.querySelector('#lobby-kick');
+  if (kick) {
+    kick.addEventListener('click', () => {
+      const { play } = getState();
+      const last = (play.labHistory || [])[0];
+      setPlayMode('lab');
+      beginLab(last ? last.home : 'USA', last ? last.away : 'ARG', last ? last.approach : 'balanced');
+    });
+  }
 }
 
 function wireLab(outlet) {
@@ -708,30 +1121,48 @@ function wirePrediction(outlet) {
 }
 
 export function render(outlet) {
-  const { real, play, nav } = getState();
+  const { real, play, nav, sims } = getState();
   const mode = nav.playMode;
   let body;
   if (mode === 'lab') body = labRun ? labRunHTML(labRun) : labSetupHTML(play);
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
-  else body = predictionHTML(real.overlay, play);
+  else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
+  else if (mode === 'club') body = clubHTML(real.overlay, play, sims);
+  else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
       <p class="view-sub">Private simulations · nothing here touches the real tournament</p></header>
+    <div class="mode-rail">
     ${segmentedControl({
     id: 'play-mode', label: 'Play modes', value: mode,
     options: [
+      { value: 'lobby', label: 'Lobby' },
       { value: 'lab', label: 'Match Lab' },
       { value: 'myworldcup', label: 'My World Cup' },
       { value: 'prediction', label: 'Prediction Run' },
+      { value: 'club', label: 'Club League' },
     ],
   })}
+    </div>
     ${body}
   </div>`;
   outlet.querySelector('[data-segmented="play-mode"]').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-value]');
     if (btn) { stopLabTimer(); if (labRun && !labRun.done) labRun = null; setPlayMode(btn.dataset.value); }
   });
+  // Any surface can hand off to another mode (lobby tiles, club CTA, etc.).
+  outlet.querySelectorAll('[data-goto]').forEach((b) => {
+    b.addEventListener('click', () => setPlayMode(b.dataset.goto));
+  });
+  // keep the active mode chip in view on the rail
+  const railEl = outlet.querySelector('.mode-rail .segmented');
+  const activeChip = railEl && railEl.querySelector('.seg-btn.active');
+  if (railEl && activeChip) {
+    railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+  }
   if (mode === 'lab') wireLab(outlet);
   else if (mode === 'myworldcup') wireMwc(outlet);
-  else wirePrediction(outlet);
+  else if (mode === 'prediction') wirePrediction(outlet);
+  else if (mode === 'club') wireClub(outlet);
+  else wireLobby(outlet);
 }

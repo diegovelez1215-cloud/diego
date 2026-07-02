@@ -6,7 +6,7 @@
 
 import {
   allFixtures, allDayKeys, fixture, teamName, teamFlag, slotLabel,
-  winnerFeeds, STAGE_NAMES, STAGE_ORDER,
+  winnerFeeds, loserFeeds, STAGE_NAMES, STAGE_ORDER,
 } from '../core/canonical-truth.js';
 import { todayKey, tomorrowKey, formatKickoffTime, formatDayKey, now } from '../core/time.js';
 import { VENUES } from './fixtures.js';
@@ -203,6 +203,37 @@ function groupRaces(overlay) {
 }
 
 /**
+ * What settled today: validated finals with both identities resolved become
+ * advancement facts — who moved on, who went home. Group finals list the
+ * result only (group consequence lives in the tables). Derived, never stored.
+ */
+function settledToday(models) {
+  return models
+    .filter((m) => m.day === todayKey() && m.final && m.scoreKnown)
+    .sort((a, b) => b.epoch - a.epoch)
+    .map((m) => {
+      const decided = m.winner && m.winner !== 'draw' && m.stage !== 'group';
+      const winner = decided ? m[m.winner] : null;
+      const loser = decided ? (m.winner === 'home' ? m.away : m.home) : null;
+      // Semifinal losers drop to the third-place match, not out of the tournament.
+      const loserSurvives = m.stage === 'sf' || !!loserFeeds(m.id);
+      return { ...m, decidedKO: decided, winnerSide: winner, loserSide: loser, loserSurvives };
+    });
+}
+
+/** Human copy for a fixture's consequence, stage-aware — never "Match 92". */
+export function consequenceCopy(m) {
+  if (m.stage === 'final') return 'Winner lifts the World Cup';
+  if (m.stage === 'bronze') return 'Third place decided';
+  if (m.stage === 'group') return `Group ${m.group} points on the line`;
+  if (m.feeds) {
+    const next = fixture(m.feeds.id);
+    if (next) return `Winner books a ${STAGE_NAMES[next.stage]} place`;
+  }
+  return m.stageName;
+}
+
+/**
  * Home model. Priority is a hard rule: LIVE official matches outrank upcoming,
  * and upcoming outrank completed. Never substitutes a different fixture when a
  * score is missing — the correct fixture renders with an honest pending state.
@@ -232,6 +263,7 @@ export function homeModel(overlay) {
       dayNumber,
       nextAction,
       comingUp,
+      settledToday: settledToday(models),
       road: roadToFinal(models, t),
       races: groupRaces(overlay),
       providerState: overlay.providerState,

@@ -96,7 +96,7 @@ function roundLabel(stage) {
 
 function roadState(m) {
   if (m.live) return 'LIVE' + (m.min != null ? ' ' + m.min + '\'' : '');
-  if (m.final) return m.scoreKnown ? `${m.gh}-${m.ga} FT` : 'FT';
+  if (m.final) return m.scoreKnown ? 'Full time' : 'FT · score pending';
   return m.dateLabel + ' · ' + m.time;
 }
 
@@ -115,7 +115,7 @@ function roadMatchCard(m, { featured = false, muted = false } = {}) {
   const ac = !m.away.pending ? TEAM_COLORS[m.away.code] || '' : '';
   return `<button class="road-match${featured ? ' featured' : ''}${muted ? ' muted' : ''}${m.live ? ' live' : ''}${m.final ? ' finaled' : ''}"
     data-match="${m.id}" data-bkid="${m.id}" style="${hc ? `--hc:${hc};` : ''}${ac ? `--ac:${ac};` : ''}">
-    <span class="road-match-meta">${esc(m.stageName)} · Match ${m.id}</span>
+    <span class="road-match-meta">${esc(m.venueCity)}</span>
     ${teamLine(m.home, showScores ? m.gh : null, homeWin, m.final && m.winner && !homeWin)}
     ${teamLine(m.away, showScores ? m.ga : null, awayWin, m.final && m.winner && !awayWin)}
     <span class="road-match-state">${esc(roadState(m))}</span>

@@ -5,7 +5,7 @@
 import { getState, setPrefs, setSims } from '../core/app-state.js';
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName } from '../core/canonical-truth.js';
-import { gradePredictions } from './play.js';
+import { gradePredictions, clubTable, achievementState } from './play.js';
 import { esc } from '../components/match-row.js';
 
 export const seedHTML = `<div class="view you-view">
@@ -24,6 +24,11 @@ export function render(outlet) {
   const lab = play.labHistory || [];
   const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
   const pickCount = Object.keys(play.predictions?.picks || {}).length;
+  const { rows } = clubTable(play, real.overlay, sims);
+  const you = rows.find((r) => r.id === 'you');
+  const ach = achievementState();
+  const earned = ach.filter((a) => a.on);
+  const labWins = lab.filter((e) => e.win).length;
   outlet.innerHTML = `<div class="view you-view">
     <header class="view-head"><p class="view-kicker gold">Your Museum</p><h1>You</h1></header>
 
@@ -39,6 +44,17 @@ export function render(outlet) {
     : '<p class="empty-line">No calls yet. Prediction Run is waiting on the Play tab.</p>'}
     </section>
 
+    <section class="you-card you-standing" aria-label="Club standing">
+      <h2>Club standing</h2>
+      <div class="you-cp-row">
+        <strong class="display">${you ? you.cp : 0}</strong>
+        <span>Club Points · rank #${you ? you.rank : 1} in your club<br><small>Private game score. No cash value.</small></span>
+      </div>
+      ${earned.length ? `<div class="you-ach-row" aria-label="Earned achievements">
+        ${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}
+      </div>` : '<p class="empty-line">No achievements yet — the Lab and the Run are how you earn them.</p>'}
+    </section>
+
     <section class="you-card" aria-label="Saved simulations">
       <h2>Saved timelines</h2>
       ${saved.length ? saved.map((s) => `
@@ -52,11 +68,11 @@ export function render(outlet) {
     </section>
 
     <section class="you-card" aria-label="Match Lab history">
-      <h2>Match Lab</h2>
+      <h2>Match Lab${lab.length ? ` <span class="you-lab-record">${labWins}W–${lab.length - labWins}L</span>` : ''}</h2>
       ${lab.length ? lab.slice(0, 6).map((m) => `
         <div class="you-lab">
           <span class="you-lab-score">${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}</span>
-          <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}</span>
+          <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}${m.cp ? ' · +' + m.cp + ' CP' : ''}</span>
         </div>`).join('')
     : '<p class="empty-line">No lab matches yet.</p>'}
     </section>

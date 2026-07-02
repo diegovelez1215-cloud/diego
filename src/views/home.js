@@ -5,7 +5,7 @@
 // correct fixture is never replaced.
 
 import { getState, openMatchCenter } from '../core/app-state.js';
-import { homeModel } from '../data/tournament-model.js';
+import { homeModel, consequenceCopy } from '../data/tournament-model.js';
 import { scoreStage } from '../components/score-stage.js';
 import { matchRow, esc } from '../components/match-row.js';
 
@@ -48,17 +48,18 @@ function commandCenterHTML(m) {
   const hero = m.hero;
   const current = m.road.stages.find((s) => s.stage === m.road.currentStage) || m.road.stages[0];
   const nextMoment = m.nextAction || m.comingUp[0] || m.today.find((x) => !x.final && (!hero || x.id !== hero.id));
+  const settledCount = m.settledToday.filter((s) => s.decidedKO).length;
   const liveCopy = m.liveNow.length
     ? `${m.liveNow.length} live match${m.liveNow.length === 1 ? '' : 'es'} shaping ${current ? current.name : 'the Road'}`
-    : hero ? `${hero.stageName} is the next tournament window` : 'Official schedule is standing by';
-  const consequence = hero && hero.feeds
-    ? `Winner moves toward Match ${hero.feeds.id}`
-    : hero && hero.stage === 'group'
-      ? `Group ${hero.group} qualification pressure`
-      : current ? `${current.done}/${current.total} ${current.name} complete` : 'Road forming';
+    : settledCount
+      ? `${settledCount} ${settledCount === 1 ? 'place' : 'places'} in the ${current ? current.name : 'next round'} decided today`
+      : hero ? `${hero.stageName} is the next tournament window` : 'Official schedule is standing by';
+  const consequence = hero
+    ? consequenceCopy(hero)
+    : current ? `${current.done}/${current.total} ${current.name} complete` : 'Road forming';
   return `<section class="command-center" aria-label="Tournament command center">
     <div class="cc-primary">
-      <span class="cc-label">What matters now</span>
+      <span class="cc-label">As it stands</span>
       <strong>${esc(liveCopy)}</strong>
       <span>${esc(consequence)}</span>
     </div>
@@ -74,6 +75,28 @@ function commandCenterHTML(m) {
         <small>${current ? `${current.live ? 'Live now' : current.done + '/' + current.total + ' complete'} · ${esc(current.dateLabel || 'Final path')}` : 'Knockout path pending'}</small>
       </div>
     </div>
+  </section>`;
+}
+
+/* What happened today — validated finals become advancement facts. */
+function settledTodayHTML(m) {
+  if (!m.settledToday.length) return '';
+  return `<section class="settled-today" aria-label="What happened today">
+    <h2 class="rail-title">What happened today</h2>
+    ${m.settledToday.map((s) => {
+    if (!s.decidedKO) {
+      return `<button class="settled-row" data-match="${s.id}">
+        <span class="st-score">${s.home.flag} ${s.gh}–${s.ga} ${s.away.flag}</span>
+        <span class="st-fact">${esc(s.home.name)} v ${esc(s.away.name)}</span>
+        <span class="st-meta">${esc(s.stageName)} · FT</span>
+      </button>`;
+    }
+    return `<button class="settled-row ko" data-match="${s.id}">
+      <span class="st-score">${s.winnerSide.flag} ${s.winner === 'home' ? s.gh + '–' + s.ga : s.ga + '–' + s.gh}</span>
+      <span class="st-fact"><strong>${esc(s.winnerSide.name)}</strong> advanced${s.loserSurvives ? ` · ${esc(s.loserSide.name)} drop to the third-place match` : ` · ${esc(s.loserSide.name)} eliminated`}</span>
+      <span class="st-meta">${esc(s.stageName)} · ${esc(s.venueCity)}</span>
+    </button>`;
+  }).join('')}
   </section>`;
 }
 
@@ -129,6 +152,7 @@ export function render(outlet) {
     ${scoreStage(m.hero, { countdown: m.heroCountdown })}
     ${m.providerState !== 'ok' ? '<p class="data-note" role="status">Live scores are temporarily unavailable. Schedule shown is official.</p>' : ''}
     ${commandCenterHTML(m)}
+    ${settledTodayHTML(m)}
     ${todayBoard(m)}
     ${comingUp(m)}
     ${roadHTML(m.road)}

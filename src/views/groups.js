@@ -27,14 +27,15 @@ function qualMark(g, r, thirds) {
   return '<span class="q-mark out" title="Eliminated">–</span>';
 }
 
-/** The third-place race, integrated with the tables that decide it. */
+/** The third-place race, integrated with the tables that decide it. Once
+    decided it reads as quiet history — how the slots resolved — not a race. */
 export function thirdPlacePanel(t, { active = true } = {}) {
   if (!t.rows.length) return '';
   if (!active) return '';
-  return `<section class="ko-thirds integrated" aria-label="Third-place race">
+  return `<section class="ko-thirds integrated${t.decided ? ' historical' : ''}" aria-label="${t.decided ? 'How the best thirds resolved' : 'Third-place race'}">
     <header class="ko-thirds-head">
       <h3>Best thirds</h3>
-      <span class="ko-thirds-sub">${t.decided ? 'Top 8 advance — slots locked' : 'Top 8 advance · race in progress'}</span>
+      <span class="ko-thirds-sub">${t.decided ? 'How the eight third-place slots resolved' : 'Top 8 advance · race in progress'}</span>
     </header>
     <div class="ko-thirds-grid">
     ${t.rows.slice(0, t.decided ? 12 : 8).map((r, i) => `
@@ -52,9 +53,12 @@ export function renderGroups(overlay, { thirds } = {}) {
   const groups = groupsModel(overlay);
   const t = thirds || thirdPlaceTable(overlay.standings);
   const anyPlayed = groups.some((g) => g.rows.some((r) => r.p > 0));
+  // Active race sits above the tables; a decided race is history and reads
+  // below them — archival context, never an active qualification surface.
+  const thirdsPanel = thirdPlacePanel(t, { active: anyPlayed });
   return `<div class="groups-pane">
     ${anyPlayed ? '' : '<p class="data-note" role="status">Official results are temporarily unavailable — tables will fill in automatically.</p>'}
-    ${thirdPlacePanel(t, { active: anyPlayed })}
+    ${t.decided ? '' : thirdsPanel}
     <div class="groups-grid">
     ${groups.map((g) => {
     const st = groupState(g);
@@ -74,5 +78,6 @@ export function renderGroups(overlay, { thirds } = {}) {
       </section>`;
   }).join('')}
     </div>
+    ${t.decided ? thirdsPanel : ''}
   </div>`;
 }

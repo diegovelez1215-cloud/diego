@@ -25,10 +25,17 @@ function teamTotals(overlay) {
   return [...rows.values()].sort((a, b) => b.goals - a.goals || b.clean - a.clean || teamName(a.code).localeCompare(teamName(b.code)));
 }
 
-function leaderRows(rows, empty) {
+function leaderRows(rows, empty, { hero = false } = {}) {
   if (!rows.length) return `<p class="stats-empty">${esc(empty)}</p>`;
   return rows.slice(0, 8).map((r, i) => {
     const code = resolveTeamCode(r.team);
+    if (hero && i === 0) {
+      return `<div class="stats-hero">
+        <span class="stats-hero-n display">${r.n}</span>
+        <span class="stats-hero-who"><strong>${esc(r.player)}</strong>
+        <span>${code ? teamFlag(code) + ' ' + esc(teamName(code)) : esc(r.team)} · leads the race</span></span>
+      </div>`;
+    }
     return `<div class="stats-row">
       <span class="stats-rank">${i + 1}</span>
       <span class="stats-name">${esc(r.player)}</span>
@@ -59,7 +66,7 @@ export function renderStats(overlay, stats) {
     </div>
     <article class="stats-card">
       <h3>Top scorers</h3>
-      ${leaderRows(goals, 'Official scorer feed is unavailable. No player goals invented.')}
+      ${leaderRows(goals, 'Official scorer feed is unavailable. No player goals invented.', { hero: true })}
     </article>
     <article class="stats-card">
       <h3>Assists</h3>

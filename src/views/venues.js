@@ -30,13 +30,23 @@ export function renderVenues(overlay) {
     .map((city) => venueRecord(city, overlay))
     .sort((a, b) => a.matches[0].epoch - b.matches[0].epoch || a.city.localeCompare(b.city));
 
+  const liveCity = venues.find((v) => v.matches.some((m) => m.live));
   return `<section class="venues-pane" aria-label="Venues">
     <div class="venue-lede">
       <p class="venue-kicker">Venue map</p>
       <h2>Stadiums, in match order</h2>
+      ${liveCity ? `<p class="venue-live-note"><span class="live-dot" aria-hidden="true"></span>Football is live in ${esc(liveCity.locality)}</p>` : ''}
     </div>
     <div class="venue-list">
-      ${venues.map((v) => `<article class="venue-card">
+      ${venues.map((v) => {
+    const live = v.matches.find((m) => m.live);
+    const next = v.matches.find((m) => !m.final && !m.live);
+    const status = live
+      ? `<span class="venue-status live"><span class="live-dot" aria-hidden="true"></span>LIVE now</span>`
+      : next
+        ? `<span class="venue-status next">Next · ${esc(next.dateLabel)} ${esc(next.time)}</span>`
+        : '<span class="venue-status done">Hosting complete</span>';
+    return `<article class="venue-card${live ? ' hosting-live' : ''}">
         <header class="venue-head">
           <div>
             <p>${v.flag} ${esc(v.locality)}${v.region ? ' · ' + esc(v.region) : ''}</p>
@@ -46,12 +56,13 @@ export function renderVenues(overlay) {
         </header>
         <div class="venue-mini">
           <span>${v.capacity ? Number(v.capacity).toLocaleString() + ' capacity' : 'World Cup venue'}</span>
-          <span>${v.upcoming ? v.upcoming + ' upcoming' : 'complete'}</span>
+          ${status}
         </div>
         <div class="venue-matches">
           ${v.matches.map((m) => matchRow(m, { context: `${STAGE_NAMES[m.stage] || m.stage} · Match ${m.id}` })).join('')}
         </div>
-      </article>`).join('')}
+      </article>`;
+  }).join('')}
     </div>
   </section>`;
 }

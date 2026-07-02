@@ -1035,3 +1035,73 @@
 .bk-state.picked { color: var(--gold-ink); }
 .bk-card.final .bk-name { max-width: 15ch; font-size: var(--fs-body); }
 .bk-card.final .bk-goals { font-size: 1.15rem; }
+
+/* ---- What happened today (World Cup tab) ---- */
+.settled-today { margin-bottom: var(--sp-6); }
+.settled-row {
+  appearance: none; width: 100%; cursor: pointer; text-align: left; font-family: inherit;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "score fact" "score meta";
+  column-gap: var(--sp-3);
+  align-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raise);
+  color: var(--ink);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-2);
+  min-height: 62px;
+  transition: transform 120ms ease;
+}
+.settled-row:active { transform: scale(0.985); }
+.settled-row.ko { border-color: color-mix(in srgb, var(--official) 30%, var(--hairline)); }
+.st-score {
+  grid-area: score;
+  font-family: var(--font-display); font-weight: 800; font-stretch: var(--stretch-wide);
+  font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.st-fact { grid-area: fact; font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
+.st-fact strong { color: var(--ink); }
+.st-meta { grid-area: meta; font-size: 0.68rem; color: var(--ink-3); letter-spacing: 0.05em; text-transform: uppercase; }
+
+/* ---- decided thirds read as history, not a race ---- */
+.ko-thirds.historical { margin-top: var(--sp-6); opacity: 0.82; }
+.ko-thirds.historical h3 { color: var(--ink-3); }
+.ko-thirds.historical .ko-third { min-height: 40px; }
+
+/* ---- venue status ---- */
+.venue-live-note {
+  display: flex; align-items: center; gap: var(--sp-2);
+  color: var(--live); font-size: var(--fs-micro); font-weight: var(--w-bold);
+  margin-top: var(--sp-2);
+}
+.venue-status { font-size: 0.72rem; font-weight: var(--w-bold); }
+.venue-status.live { color: var(--live); display: inline-flex; align-items: center; gap: 6px; }
+.venue-status.next { color: var(--official-ink); }
+.venue-status.done { color: var(--ink-3); font-weight: var(--w-reg); }
+.venue-card.hosting-live { border-color: color-mix(in srgb, var(--live) 35%, var(--hairline)); }
+
+/* ---- stats hero (verified leader) ---- */
+.stats-hero {
+  display: flex; align-items: center; gap: var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+  padding: var(--sp-2) 0 var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.stats-hero-n {
+  font-family: var(--font-display); font-weight: 800; font-stretch: var(--stretch-wide);
+  font-size: 2.4rem; line-height: 1; color: var(--official-ink);
+  font-variant-numeric: tabular-nums;
+}
+.stats-hero-who { display: flex; flex-direction: column; gap: 2px; }
+.stats-hero-who strong { font-size: var(--fs-body); font-weight: var(--w-bold); }
+.stats-hero-who span { color: var(--ink-3); font-size: 0.72rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .settled-row { transition: none; }
+}
+
+/* venue histories stay scannable: settled rows compress, live/next breathe */
+.venue-matches .match-row { padding-top: var(--sp-2); padding-bottom: var(--sp-2); min-height: 52px; }
+.venue-matches .match-row .mr-meta { font-size: 0.64rem; }
