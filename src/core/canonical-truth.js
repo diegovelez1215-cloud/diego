@@ -68,6 +68,7 @@ const ALIASES = {
   KOR: ['korea republic', 'south korea', 'korea'],
   IRN: ['iran', 'ir iran', 'islamic republic of iran'],
   KSA: ['saudi arabia'],
+  TUR: ['turkey', 'turkiye'],
   UZB: ['uzbekistan'],
   CUW: ['curacao'],
   NZL: ['new zealand'],

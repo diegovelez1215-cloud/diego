@@ -43,6 +43,21 @@ test('completed group stage resolves every Round-of-32 participant, including be
   }
 });
 
+test('provider Turkey name resolves canonical Türkiye group outcomes and R32 slots', () => {
+  const finished = fullGroupFinished().map((entry) => ({
+    ...entry,
+    home: entry.home === 'Türkiye' ? 'Turkey' : entry.home,
+    away: entry.away === 'Türkiye' ? 'Turkey' : entry.away,
+  }));
+  const o = buildOverlay({ results: { ...OK, finished, live: [], hold: [], scheduled: [] } });
+  const r32 = allFixtures().filter((f) => f.stage === 'r32');
+  for (const fx of r32) {
+    const s = o.slots.get(fx.id);
+    assert.ok(s.home, 'home resolved for match ' + fx.id);
+    assert.ok(s.away, 'away resolved for match ' + fx.id);
+  }
+});
+
 test('resolved live Round-of-32 fixture shows real teams and live score', () => {
   const results = { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] };
   const live = livePayloadFor(80, { gh: 2, ga: 1, min: 71 });
