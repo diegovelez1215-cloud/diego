@@ -4,8 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildOverlay, payloadAccepted, EMPTY_OVERLAY } from '../src/core/provider-overlay.js';
-import { fixture } from '../src/core/canonical-truth.js';
+import { allFixtures, fixture, teamName, winnerFeeds } from '../src/core/canonical-truth.js';
 import { fixtureModel, clearModelCache } from '../src/data/tournament-model.js';
+import { fullGroupFinished, mockSlots, livePayloadFor } from './mock-provider.mjs';
 
 const OK = { configured: true, sourceStatus: 'fresh', isStale: false };
 
@@ -16,6 +17,7 @@ test('stale-fallback and unconfigured payloads are rejected wholesale', () => {
   assert.equal(payloadAccepted({ ...OK, sourceStatus: 'throttled' }), false);
   assert.equal(payloadAccepted({ ...OK }), true);
   assert.equal(payloadAccepted({ ...OK, sourceStatus: 'cache' }), true);
+  assert.equal(payloadAccepted({ ...OK, sourceStatus: 'coalesced' }), true);
 
   const o = buildOverlay({
     results: {
@@ -25,6 +27,84 @@ test('stale-fallback and unconfigured payloads are rejected wholesale', () => {
   });
   assert.equal(o.providerState, 'unavailable');
   assert.equal(o.byFixture.size, 0, 'stale truth never reaches the UI');
+});
+
+test('completed group stage resolves every Round-of-32 participant, including best thirds', () => {
+  const o = buildOverlay({ results: { ...OK, sourceStatus: 'coalesced', finished: fullGroupFinished(), live: [], hold: [], scheduled: [] } });
+  const r32 = allFixtures().filter((f) => f.stage === 'r32');
+  assert.equal(r32.length, 16);
+  for (const fx of r32) {
+    const s = o.slots.get(fx.id);
+    assert.ok(s.home, 'home resolved for match ' + fx.id);
+    assert.ok(s.away, 'away resolved for match ' + fx.id);
+    const m = fixtureModel(fx, o);
+    assert.equal(m.home.pending, false, 'no placeholder home for match ' + fx.id);
+    assert.equal(m.away.pending, false, 'no placeholder away for match ' + fx.id);
+  }
+});
+
+test('resolved live Round-of-32 fixture shows real teams and live score', () => {
+  const results = { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] };
+  const live = livePayloadFor(80, { gh: 2, ga: 1, min: 71 });
+  const o = buildOverlay({ results, live });
+  const m = fixtureModel(fixture(80), o);
+  assert.equal(m.live, true);
+  assert.equal(m.scoreKnown, true);
+  assert.equal(m.gh, 2);
+  assert.equal(m.ga, 1);
+  assert.equal(m.home.pending, false);
+  assert.equal(m.away.pending, false);
+});
+
+test('verified Round-of-32 finals propagate winners into the Round of 16', () => {
+  const r32 = allFixtures().find((f) => f.stage === 'r32' && winnerFeeds(f.id));
+  const slots = mockSlots();
+  const s = slots.get(r32.id);
+  const koFinal = {
+    home: teamName(s.home),
+    away: teamName(s.away),
+    gh: 2,
+    ga: 1,
+    winner: 'HOME_TEAM',
+    status: 'FINISHED',
+    stage: 'LAST_32',
+    utcDate: r32.kickoff,
+  };
+  const o = buildOverlay({ results: { ...OK, finished: [...fullGroupFinished(), koFinal], live: [], hold: [], scheduled: [] } });
+  const feed = winnerFeeds(r32.id);
+  const next = o.slots.get(feed.id);
+  assert.equal(next[feed.side], s.home);
+  const m = fixtureModel(r32, o);
+  assert.equal(m.final, true);
+  assert.equal(m.winner, 'home');
+  assert.equal(m.scoreKnown, true);
+});
+
+test('live provider fallback with finished R32 results resolves the same live tie as /api/results', () => {
+  const r32 = allFixtures().find((f) => f.stage === 'r32' && f.id === 80);
+  const slots = mockSlots();
+  const s = slots.get(r32.id);
+  const live = {
+    ...OK,
+    response: [{
+      id: 537426,
+      home: teamName(s.home),
+      away: teamName(s.away),
+      gh: 2,
+      ga: 1,
+      min: null,
+      status: 'IN_PLAY',
+      kind: 'live',
+      date: r32.kickoff,
+    }],
+    finished: [],
+  };
+  const o = buildOverlay({ results: { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] }, live });
+  const m = fixtureModel(r32, o);
+  assert.equal(m.live, true);
+  assert.equal(m.scoreKnown, true);
+  assert.equal(m.home.name, teamName(s.home));
+  assert.equal(m.away.name, teamName(s.away));
 });
 
 test('a provider final must match a canonical fixture before it can affect anything', () => {

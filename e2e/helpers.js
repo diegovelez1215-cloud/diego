@@ -30,6 +30,16 @@ export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
   await page.route('**/api/results*', (r) => r.fulfill({ json: results }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: live }));
+  await page.route('**/api/scorers*', (r) => r.fulfill({
+    json: {
+      configured: true,
+      sourceStatus: 'fresh',
+      isStale: false,
+      fetchedAt: '2026-07-01T17:05:00Z',
+      goals: [{ player: 'A Player', team: 'Mexico', n: 4 }, { player: 'B Player', team: 'France', n: 3 }],
+      assists: [],
+    },
+  }));
 }
 
 export async function gotoApp(page, opts = {}) {

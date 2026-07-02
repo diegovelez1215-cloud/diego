@@ -5,7 +5,7 @@
 // refresh loop. Tab taps never reach the network or storage.
 
 import { purgeLegacy, loadPrefs, loadPlay, loadSims } from './core/persistence.js';
-import { getState, setOverlay, setPrefs, setPlay, setSims, subscribe } from './core/app-state.js';
+import { getState, setOverlay, setPrefs, setPlay, setSims, setStats, subscribe } from './core/app-state.js';
 import { buildOverlay } from './core/provider-overlay.js';
 import * as router from './navigation/router.js';
 import { schedule } from './navigation/render-scheduler.js';
@@ -40,6 +40,17 @@ async function refreshProviderData() {
       fetchJson('/api/live'),
     ]);
     setOverlay(buildOverlay({ results, live }));
+    const scorerStats = await fetchJson('/api/scorers');
+    if (scorerStats && scorerStats.configured !== false && scorerStats.isStale !== true) {
+      setStats({
+        providerState: scorerStats.sourceStatus || 'ok',
+        fetchedAt: scorerStats.fetchedAt || null,
+        goals: Array.isArray(scorerStats.goals) ? scorerStats.goals : [],
+        assists: Array.isArray(scorerStats.assists) ? scorerStats.assists : [],
+      });
+    } else {
+      setStats({ providerState: 'unavailable', fetchedAt: scorerStats && scorerStats.fetchedAt || null, goals: [], assists: [] });
+    }
   } finally {
     refreshing = false;
     armPoll();
@@ -71,7 +82,7 @@ export function boot() {
     const v = s.real.overlay.version;
     if (id === 'home') return v + ':' + todayKey();
     if (id === 'tournament') {
-      return [v, s.nav.tournamentView, s.nav.matchesDate, s.nav.bracketMode, s.nav.followTeam, todayKey()].join(':');
+      return [v, s.real.stats.fetchedAt || '', s.nav.tournamentView, s.nav.matchesDate, s.nav.bracketMode, s.nav.followTeam, todayKey()].join(':');
     }
     if (id === 'play') return 'play:' + s.nav.playMode; // repainted via play/real tags
     return 'you';

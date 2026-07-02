@@ -28,7 +28,20 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   const key = process.env.FOOTBALL_DATA_KEY;
-  if (!key) { res.status(200).json({ configured: false, finished: [], live: [], hold: [], fetchedAt: new Date().toISOString(), sourceStatus: 'missing-config' }); return; }
+  if (!key) {
+    res.status(200).json({
+      configured: false,
+      count: 0,
+      finished: [],
+      live: [],
+      hold: [],
+      scheduled: [],
+      fetchedAt: new Date().toISOString(),
+      sourceStatus: 'missing-config',
+      isStale: false
+    });
+    return;
+  }
 
   await cachedRoute(req, res, {
     route: '/api/results',
@@ -77,6 +90,14 @@ export default async function handler(req, res) {
     // Canonical fixture identity is owned by the client registry. This route
     // returns provider truth only: finished results, live states, holds, and
     // scheduled confirmations. No curated-name fallbacks are injected here.
-    return { configured: true, count: finished.length, finished: finished, live: live, hold: hold, scheduled: scheduled, fetchedAt: new Date().toISOString() };
+    return {
+      configured: true,
+      count: finished.length + live.length + hold.length + scheduled.length,
+      finished: finished,
+      live: live,
+      hold: hold,
+      scheduled: scheduled,
+      fetchedAt: new Date().toISOString()
+    };
   }});
 }

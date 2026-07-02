@@ -124,6 +124,7 @@ export function render(outlet) {
       <p class="view-kicker">United 2026${m.dayNumber ? ' · Day ' + m.dayNumber : ''}</p>
       <h1>World Cup</h1>
       <p class="view-sub">${esc(m.todayLabel)} · ${m.today.length ? m.today.length + (m.today.length === 1 ? ' match today' : ' matches today') : 'No matches today'}${m.liveNow.length ? ' · ' + m.liveNow.length + ' live' : ''}</p>
+      ${m.updatedLabel ? `<p class="source-health">${esc(m.updatedLabel)} · official feed</p>` : ''}
     </header>
     ${scoreStage(m.hero, { countdown: m.heroCountdown })}
     ${m.providerState !== 'ok' ? '<p class="data-note" role="status">Live scores are temporarily unavailable. Schedule shown is official.</p>' : ''}

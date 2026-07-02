@@ -133,6 +133,14 @@
   transition: transform 140ms ease, background-color 140ms ease;
 }
 .ss-open:active { transform: scale(0.97); }
+.source-health {
+  margin-top: var(--sp-2);
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 /* ---------------- rails + match rows ---------------- */
 .rail-title {
@@ -516,6 +524,22 @@
   font-size: var(--fs-micro);
 }
 .road-team.winner .road-team-name { color: var(--ink); }
+.road-team.eliminated { opacity: 0.62; }
+.road-team-tail {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex: none;
+}
+.road-team-tail em {
+  color: var(--ink-3);
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.road-team.winner .road-team-tail em { color: var(--official-ink); }
 .road-team-score {
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
@@ -712,6 +736,120 @@
 .ko-third-meta { color: var(--ink-3); }
 .ko-third-slot { color: var(--official-ink); font-weight: var(--w-bold); }
 .ko-third:not(.in) .ko-third-slot { color: var(--ink-3); font-weight: var(--w-reg); }
+
+/* ---------------- venues + stats ---------------- */
+.venue-lede,
+.stats-lede {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+}
+.venue-kicker {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--official-ink);
+}
+.venue-lede h2,
+.stats-lede h2 {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: var(--fs-title);
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.stats-lede > span {
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: var(--w-bold);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.venue-list,
+.stats-pane {
+  display: grid;
+  gap: var(--sp-4);
+}
+.venue-card,
+.stats-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(255,255,255,0.016), transparent 36%), var(--bg-raise);
+  padding: var(--sp-4);
+  overflow: hidden;
+}
+.venue-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  align-items: start;
+}
+.venue-head p {
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: var(--w-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.venue-head h3,
+.stats-card h3 {
+  margin-top: var(--sp-1);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 1.15rem;
+  line-height: 1.08;
+  text-transform: uppercase;
+}
+.venue-head > span {
+  color: var(--official-ink);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.venue-mini {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+.venue-matches .match-row { margin-bottom: var(--sp-1); }
+.stats-card {
+  display: grid;
+  gap: var(--sp-2);
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto 36px;
+  gap: var(--sp-2);
+  align-items: center;
+  min-height: 38px;
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-micro);
+}
+.stats-row:first-of-type { border-top: 0; }
+.stats-rank { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.stats-name { font-weight: var(--w-bold); overflow-wrap: anywhere; }
+.stats-team { color: var(--ink-3); text-align: right; }
+.stats-row strong {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 1rem;
+  text-align: right;
+}
+.stats-empty {
+  color: var(--ink-3);
+  font-size: var(--fs-micro);
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--sp-3);
+}
 
 /* ---------------- graphical knockout bracket ---------------- */
 .ko-controls { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-3); }

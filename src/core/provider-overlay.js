@@ -8,7 +8,7 @@ import {
   allFixtures, resolveTeamCode, computeStandings, resolveSlots,
 } from './canonical-truth.js';
 
-const ACCEPTED_SOURCE = new Set(['fresh', 'cache', 'ok']);
+const ACCEPTED_SOURCE = new Set(['fresh', 'cache', 'coalesced', 'ok']);
 const MATCH_WINDOW_MS = 15 * 60 * 1000; // provider kickoff must sit within ±15 min
 
 export const EMPTY_OVERLAY = Object.freeze({
@@ -111,8 +111,26 @@ export function buildOverlay({ results, live } = {}) {
   const koFinals = new Map();
   let slots = resolveSlots(computeStandings(new Map()), new Map());
   if (resultsOk && Array.isArray(results.finished)) {
-    // KO finals can depend on earlier KO finals; iterate until stable.
-    let pending = [...results.finished];
+    const koPending = [];
+    slots = resolveSlots(computeStandings(groupFinals), koFinals);
+    for (const entry of results.finished) {
+      const hit = matchToCanonical(entry, fixtures, slots);
+      if (!hit || !hit.byIdentity) { koPending.push(entry); continue; }
+      const o = orient(entry, hit.flipped);
+      if (o.gh == null || o.ga == null) { rejected++; continue; }
+      if (!o.winner) o.winner = o.gh > o.ga ? 'home' : o.gh < o.ga ? 'away' : 'draw';
+      if (hit.fixture.stage === 'group') {
+        groupFinals.set(hit.fixture.id, o);
+        byFixture.set(hit.fixture.id, { status: 'final', ...o, min: null });
+      } else {
+        koPending.push(entry);
+      }
+    }
+
+    // KO finals can depend on group third-place assignment or earlier KO finals;
+    // recompute slots each pass and keep unresolved finals pending until their
+    // canonical participants genuinely resolve.
+    let pending = koPending;
     for (let round = 0; round < 8 && pending.length; round++) {
       const standings = computeStandings(groupFinals);
       slots = resolveSlots(standings, koFinals);

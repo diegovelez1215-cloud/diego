@@ -78,9 +78,10 @@ test.describe('Prediction Run', () => {
     await screenshot(page, testInfo, 'play-prediction');
     await expectNoHorizontalOverflow(page, expect, 'prediction');
     const text = await page.locator('.play-view').innerText();
-    for (const banned of ['odds', 'bet', 'wallet', 'cash', 'payout', 'stake ']) {
+    for (const banned of ['odds', 'bet', 'wallet', 'cashout', 'payout', 'deposit', 'stake ']) {
       expect(text.toLowerCase()).not.toContain(banned);
     }
+    expect(text).toContain('No cash value');
     await tapTab(page, 'you');
     await expect(page.locator('.you-card').first()).toContainText('1 call');
   });

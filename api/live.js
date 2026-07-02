@@ -61,7 +61,19 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   const key = process.env.API_SPORTS_KEY;
-  if (!key) { res.status(200).json({ configured: false, response: [], finished: [], fetchedAt: new Date().toISOString(), sourceStatus: 'missing-config' }); return; }
+  if (!key) {
+    res.status(200).json({
+      configured: false,
+      response: [],
+      finished: [],
+      hold: [],
+      scheduled: [],
+      fetchedAt: new Date().toISOString(),
+      sourceStatus: 'missing-config',
+      isStale: false
+    });
+    return;
+  }
 
   function slim(f) {
     return {
@@ -101,7 +113,7 @@ export default async function handler(req, res) {
     resource: 'live',
     cacheKey: 'live:wc:all',
     freshMs: 10 * 60 * 1000,
-    buildEmpty: function () { return { configured: true, response: [], finished: [] }; },
+    buildEmpty: function () { return { configured: true, response: [], finished: [], hold: [], scheduled: [] }; },
     validate: function (body) { return !!(body && Array.isArray(body.response) && Array.isArray(body.finished)); },
     fetcher: async function () {
     const got = await fetchJson('https://v3.football.api-sports.io/fixtures?live=all', {
@@ -161,7 +173,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return { configured: true, response: live, finished: finished, sources: sources, fetchedAt: new Date().toISOString() };
+    return { configured: true, response: live, finished: finished, hold: [], scheduled: [], sources: sources, fetchedAt: new Date().toISOString() };
   }});
 
   // Emit safe metadata only (used/cap, cache age, freshness, next refresh). The

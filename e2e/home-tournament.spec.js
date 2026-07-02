@@ -68,32 +68,30 @@ test.describe('Tournament', () => {
     await expect(page.locator('.group-state.idle')).toHaveCount(12);
   });
 
-  test('Full Bracket: complete graphical tree, connectors, the Final crest, round jump', async ({ page }, testInfo) => {
+  test('Full Road: readable staged bracket with real teams, live score, and round movement', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
-    // Follow a Team is the default — switch to the full field
-    await page.locator('[data-segmented="bracket-mode"] [data-value="full"]').click();
-    const scroll = page.locator('.knockout-pane .bk-scroll');
-    await expect(scroll).toBeVisible();
-    await expect(page.locator('.knockout-pane .bk-card')).toHaveCount(32); // 16+8+4+2 + final + third place
-    await expect(page.locator('.knockout-pane .bk-links path')).toHaveCount(32); // 30 winner + 2 loser
-    await expect(page.locator('.knockout-pane .bk-card.live')).toHaveCount(1);
-    await expect(page.locator('.knockout-pane .bk-final-crest')).toHaveCount(1);
-    await expectNoHorizontalOverflow(page, expect, 'bracket');
-    // capture at the Round-of-32 position where the tree is densest
-    await screenshot(page, testInfo, 'bracket-full');
-    // round jump drives horizontal scroll
-    const before = await scroll.evaluate((el) => el.scrollLeft);
+    await expect(page.locator('[data-segmented="bracket-mode"] [data-value="full"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.full-road .road-stage')).toHaveCount(6);
+    await expect(page.locator('.full-road .road-match')).toHaveCount(32);
+    await expect(page.locator('.full-road .road-match.live')).toHaveCount(1);
+    await expect(page.locator('.full-road .road-stage.destination')).toContainText('Final');
+    await expect(page.locator('.full-road')).not.toContainText('Best third');
+    await expect(page.locator('.full-road')).not.toContainText('Group D winners');
+    await expectNoHorizontalOverflow(page, expect, 'full road');
+    await screenshot(page, testInfo, 'full-road');
+    const strip = page.locator('.full-road .road-stage-strip');
+    const before = await strip.evaluate((el) => el.scrollLeft);
     await page.locator('.ko-jump-chip[data-jump="final"]').click();
     await page.waitForTimeout(600);
-    const after = await scroll.evaluate((el) => el.scrollLeft);
+    const after = await strip.evaluate((el) => el.scrollLeft);
     expect(after).toBeGreaterThan(before);
   });
 
-  test('Follow a Team is the default: pick a nation, its route lights, the field dims', async ({ page }, testInfo) => {
+  test('Follow a Team: pick a nation, its route lights, the field dims', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
-    // default mode is follow, with the tactile nation-chip rail
+    await page.locator('[data-segmented="bracket-mode"] [data-value="follow"]').click();
     await expect(page.locator('#ko-follow-team')).toBeVisible();
     await page.locator('.ko-team-chip[data-follow="FRA"]').click();
     await expect(page.locator('.ko-team-chip[data-follow="FRA"]')).toHaveClass(/on/);
@@ -102,7 +100,26 @@ test.describe('Tournament', () => {
     expect(dimmed).toBeGreaterThan(20);
     // the route summary spells out the road
     await expect(page.locator('.ko-route')).toBeVisible();
-    await screenshot(page, testInfo, 'bracket-follow');
+    await screenshot(page, testInfo, 'follow-team');
+  });
+
+  test('Venues: stadium explorer lists chronological match history', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    await openTournamentSection(page, 'venues');
+    await expect(page.locator('.venue-card').first()).toBeVisible();
+    await expect(page.locator('.venue-card').first().locator('.match-row').first()).toBeVisible();
+    await expectNoHorizontalOverflow(page, expect, 'venues');
+    await screenshot(page, testInfo, 'venues');
+  });
+
+  test('Stats: verified player leaders and honest unavailable assists', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    await openTournamentSection(page, 'stats');
+    await expect(page.locator('.stats-card').first()).toContainText('A Player');
+    await expect(page.locator('.stats-card').nth(1)).toContainText('Official assist data is unavailable');
+    await expect(page.locator('.stats-card')).toHaveCount(4);
+    await expectNoHorizontalOverflow(page, expect, 'stats');
+    await screenshot(page, testInfo, 'stats');
   });
 
   test('Match Center opens from the live stage with factual content and a real score', async ({ page }) => {

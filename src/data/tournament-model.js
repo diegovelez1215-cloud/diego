@@ -70,6 +70,16 @@ export function fixtureModel(fx, overlay) {
   };
 }
 
+export function updatedLabel(iso) {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return null;
+  const mins = Math.max(0, Math.round((now() - t) / 60000));
+  if (mins < 1) return 'Updated just now';
+  if (mins < 60) return `Updated ${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  return `Updated ${hrs}h ago`;
+}
+
 /* ---------------- per-view models ---------------- */
 
 export function matchesModel(overlay) {
@@ -225,6 +235,7 @@ export function homeModel(overlay) {
       road: roadToFinal(models, t),
       races: groupRaces(overlay),
       providerState: overlay.providerState,
+      updatedLabel: updatedLabel(overlay.fetchedAt),
     };
   });
 }

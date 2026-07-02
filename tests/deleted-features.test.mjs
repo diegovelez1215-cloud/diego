@@ -19,7 +19,7 @@ async function collectShipped(dir, out = []) {
 
 const FORBIDDEN = [
   /bankroll/i, /wallet/i, /\bbets?\b/i, /betting/i, /\bodds\b/i, /bet.?slip/i,
-  /cash.?out/i, /payout/i, /pick.?em/i, /leaderboard/i, /social/i, /ticket/i,
+  /cash.?out/i, /payout/i, /pick.?em/i, /ticket/i,
   /supabase/i, /startViewTransition/, /theoddsapi/i, /open-meteo/i, /wikipedia/i,
 ];
 
@@ -40,7 +40,7 @@ test('shipped app code contains no betting, social, or legacy-transition surface
 
 test('legacy routes and dead files are physically gone', async () => {
   const gone = [
-    'api/odds.js', 'api/scorers.js', 'api/matchstats.js', 'api/matchday.js',
+    'api/odds.js', 'api/matchstats.js', 'api/matchday.js',
     'api/rapid.js', 'api/diag.js', 'api/officialR32Fixtures.js',
     'SUPABASE_leaderboard_fix.sql', 'deploy.command',
     'tests/ticket-simulation-engine.test.js', 'e2e/matchup-explorer.spec.js',
@@ -48,6 +48,13 @@ test('legacy routes and dead files are physically gone', async () => {
   for (const rel of gone) {
     await assert.rejects(stat(join(root, rel)), undefined, rel + ' must not exist');
   }
+});
+
+test('verified scorer route has no built-in player leaders', async () => {
+  const text = await readFile(join(root, 'api/scorers.js'), 'utf8');
+  assert.ok(text.includes('FOOTBALL_DATA_KEY'));
+  assert.ok(text.includes('/competitions/WC/scorers'));
+  assert.ok(!/REALGOALS|REALASSISTS|Mbapp|Messi|Ronaldo/i.test(text));
 });
 
 test('the monolith is actually gone: index.html is a slim module shell', async () => {

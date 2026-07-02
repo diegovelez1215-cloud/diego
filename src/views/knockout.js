@@ -1,6 +1,6 @@
 // United 2026 — Road. A phone-first path through the knockout tournament:
-// Follow a Team by default, Full Road when the fan wants the whole map, and a
-// hidden canonical bracket surface kept for structural truth guards.
+// Full Road by default, Follow a Team when the fan wants a personal path, and
+// a hidden canonical bracket surface kept for structural truth guards.
 
 import { getState, setBracketMode, openMatchCenter } from '../core/app-state.js';
 import { allFixtures, teamName, teamFlag, fixture, slotLabel, STAGE_NAMES, STAGE_ORDER } from '../core/canonical-truth.js';
@@ -100,10 +100,10 @@ function roadState(m) {
   return m.dateLabel + ' · ' + m.time;
 }
 
-function teamLine(side, goals, winner) {
-  return `<div class="road-team${side.pending ? ' pending' : ''}${winner ? ' winner' : ''}">
+function teamLine(side, goals, winner, eliminated) {
+  return `<div class="road-team${side.pending ? ' pending' : ''}${winner ? ' winner' : ''}${eliminated ? ' eliminated' : ''}">
     <span class="road-team-name">${side.flag ? `<span aria-hidden="true">${side.flag}</span>` : ''}${esc(side.name)}</span>
-    ${goals != null ? `<span class="road-team-score">${goals}</span>` : ''}
+    <span class="road-team-tail">${winner ? '<em>Advanced</em>' : eliminated ? '<em>Eliminated</em>' : ''}${goals != null ? `<b class="road-team-score">${goals}</b>` : ''}</span>
   </div>`;
 }
 
@@ -116,8 +116,8 @@ function roadMatchCard(m, { featured = false, muted = false } = {}) {
   return `<button class="road-match${featured ? ' featured' : ''}${muted ? ' muted' : ''}${m.live ? ' live' : ''}${m.final ? ' finaled' : ''}"
     data-match="${m.id}" data-bkid="${m.id}" style="${hc ? `--hc:${hc};` : ''}${ac ? `--ac:${ac};` : ''}">
     <span class="road-match-meta">${esc(m.stageName)} · Match ${m.id}</span>
-    ${teamLine(m.home, showScores ? m.gh : null, homeWin)}
-    ${teamLine(m.away, showScores ? m.ga : null, awayWin)}
+    ${teamLine(m.home, showScores ? m.gh : null, homeWin, m.final && m.winner && !homeWin)}
+    ${teamLine(m.away, showScores ? m.ga : null, awayWin, m.final && m.winner && !awayWin)}
     <span class="road-match-state">${esc(roadState(m))}</span>
   </button>`;
 }
@@ -201,8 +201,8 @@ export function renderKnockout(overlay) {
       ${segmentedControl({
     id: 'bracket-mode', label: 'Bracket mode', value: nav.bracketMode,
     options: [
+      { value: 'full', label: 'Full Road' },
       { value: 'follow', label: 'Follow a Team' },
-      { value: 'full', label: 'Full Bracket' },
     ],
   })}
       ${follow ? followPicker(follow) : ''}
@@ -239,4 +239,17 @@ export function wireKnockout(outlet) {
   outlet.querySelectorAll('.road-match[data-match]').forEach((card) => {
     card.addEventListener('click', () => openMatchCenter(Number(card.dataset.match)));
   });
+  const jumps = outlet.querySelector('.ko-jump');
+  if (jumps) {
+    jumps.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-jump]');
+      if (!btn) return;
+      const strip = outlet.querySelector('.road-stage-strip');
+      const target = outlet.querySelector(`[data-road-stage="${btn.dataset.jump}"]`);
+      if (strip && target) {
+        strip.scrollTo({ left: Math.max(0, target.offsetLeft - strip.offsetLeft), behavior: 'smooth' });
+      }
+      jumps.querySelectorAll('.ko-jump-chip').forEach((chip) => chip.classList.toggle('active', chip === btn));
+    });
+  }
 }

@@ -9,15 +9,16 @@ import { EMPTY_OVERLAY } from './provider-overlay.js';
 const state = {
   nav: {
     tab: 'home',            // home | tournament | play | you
-    tournamentView: 'matches', // matches | groups | knockout
+    tournamentView: 'matches', // matches | groups | knockout | venues | stats
     matchesDate: 'today',   // today | tomorrow | all
     matchCenterId: null,    // open match-center fixture id or null
-    bracketMode: 'follow',  // follow (default delight mode) | full
+    bracketMode: 'full',    // full | follow
     followTeam: null,       // team code illuminated in follow mode
     playMode: 'lab',        // lab | myworldcup | prediction
   },
   real: {
     overlay: EMPTY_OVERLAY,
+    stats: { providerState: 'unavailable', fetchedAt: null, goals: [], assists: [] },
   },
   prefs: {},
   play: {},                 // owned by views/play.js
@@ -36,6 +37,11 @@ function emit(tags) { for (const fn of [...listeners]) fn(tags, state); }
 export function setOverlay(overlay) {
   state.real.overlay = overlay;
   emit(['real']);
+}
+
+export function setStats(stats) {
+  state.real.stats = stats;
+  emit(['real', 'stats']);
 }
 
 export function setTab(tab) {

@@ -139,10 +139,12 @@ function labTick() {
       const team = side === 'h' ? run.home : run.away;
       if (rng() < rates.convert) {
         if (side === 'h') run.gh++; else run.ga++;
+        if (side === 'h') run.sh++; else run.sa++;
         run.events.push({ min: run.minute, type: 'goal', side, text: `GOAL — ${teamName(team)} (${run.gh}–${run.ga})` });
         run.goalAt = run.minute;
         run.mo += side === 'h' ? 0.6 : -0.6;
       } else if (rng() < 0.3) {
+        if (side === 'h') run.sh++; else run.sa++;
         run.events.push({ min: run.minute, type: 'chance', side, text: CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)) });
       }
     }
@@ -180,7 +182,7 @@ function beginLab(home, away, approach) {
   const seed = (Date.now() % 2147483647) | 1;
   labRun = {
     home, away, approach, seed, rng: mulberry32(seed),
-    minute: 0, gh: 0, ga: 0, mo: 0, events: [], decided: {}, mods: { atk: 1, def: 1 },
+    minute: 0, gh: 0, ga: 0, sh: 0, sa: 0, mo: 0, events: [], decided: {}, mods: { atk: 1, def: 1 },
     paused: false, decisionAt: null, done: false, pens: null,
   };
   repaintPlay();
@@ -456,6 +458,22 @@ function labEventIcon(type) {
   return type === 'goal' ? '●' : type === 'pens' ? '◐' : type === 'decision' ? '▸' : type === 'whistle' ? '♪' : '○';
 }
 
+function labPitchHTML(run) {
+  const x = Math.round(50 + (run.mo || 0) * 34);
+  const y = Math.round(48 + Math.sin((run.minute || 0) / 7) * 18);
+  const homePress = Math.max(18, Math.min(78, 48 + (run.mo || 0) * 24));
+  const awayPress = Math.max(22, Math.min(82, 52 - (run.mo || 0) * 24));
+  return `<div class="lab-pitch" aria-label="Animated pitch simulation">
+    <span class="pitch-line halfway"></span><span class="pitch-box left"></span><span class="pitch-box right"></span>
+    <i class="pitch-team home" style="left:${homePress}%;top:34%"></i>
+    <i class="pitch-team home" style="left:${Math.max(12, homePress - 18)}%;top:62%"></i>
+    <i class="pitch-team away" style="left:${awayPress}%;top:66%"></i>
+    <i class="pitch-team away" style="left:${Math.min(88, awayPress + 18)}%;top:38%"></i>
+    <b class="pitch-ball" style="left:${x}%;top:${y}%"></b>
+    <div class="pitch-counts"><span>${run.sh} shots</span><span>${run.sa} shots</span></div>
+  </div>`;
+}
+
 function labRunHTML(run) {
   const homeColor = TEAM_COLORS[run.home] || 'var(--gold)';
   const awayColor = TEAM_COLORS[run.away] || 'var(--gold)';
@@ -473,6 +491,7 @@ function labRunHTML(run) {
       ${run.pens ? `<div class="lab-pens">Penalties ${run.pens.ph}–${run.pens.pa}</div>` : ''}
       <div class="lab-momentum" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
       <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.away))}</span><span>momentum</span><span>${esc(teamName(run.home))}</span></div>
+      ${labPitchHTML(run)}
     </div>
     ${decision ? `<div class="lab-decision" role="group" aria-label="${esc(decision.prompt)}">
       <p class="lab-decision-prompt">${esc(decision.prompt)}</p>
@@ -552,6 +571,13 @@ function predictionHTML(overlay, play) {
   const stats = gradePredictions(picks, overlay);
   const upcoming = predictableFixtures(overlay);
   const recent = stats.graded.slice(-3).reverse();
+  const clubPoints = stats.insight + stats.best * 20 + Object.keys(picks).length * 5;
+  const league = [
+    { name: 'You', pts: clubPoints },
+    { name: 'Marta', pts: Math.max(0, clubPoints - 35) },
+    { name: 'Tio Luis', pts: Math.max(0, clubPoints - 70) },
+    { name: 'Sam', pts: Math.max(0, clubPoints - 95) },
+  ].sort((a, b) => b.pts - a.pts);
   return `<section class="play-card prediction" aria-label="Prediction Run">
     <div class="prediction-hero">
       <div><h2 class="display">Prediction Run</h2>
@@ -570,6 +596,13 @@ function predictionHTML(overlay, play) {
     return `<span class="pr-call ${g.correct ? 'hit' : 'miss'}">${g.correct ? '✓' : '✗'} ${s.home ? teamFlag(s.home) : ''}v${s.away ? teamFlag(s.away) : ''} ${CONF[g.conf] || ''}</span>`;
   }).join('')}
     </div>` : ''}
+    <div class="private-league" aria-label="Private league Club Points">
+      <div class="private-head"><span>Private League</span><strong>${clubPoints} Club Points</strong></div>
+      <div class="private-copy">Non-purchasable, non-transferable, non-withdrawable. No cash value.</div>
+      ${league.map((row, i) => `<div class="private-row${row.name === 'You' ? ' you' : ''}">
+        <span>${i + 1}</span><strong>${esc(row.name)}</strong><em>${row.pts} CP</em>
+      </div>`).join('')}
+    </div>
     ${upcoming.length ? upcoming.map((f) => {
     const s = overlay.slots.get(f.id);
     const pick = picks[f.id];

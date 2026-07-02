@@ -8,6 +8,8 @@ import { wireBracketScroller } from '../components/bracket.js';
 import { renderMatches } from './matches.js';
 import { renderGroups } from './groups.js';
 import { renderKnockout, wireKnockout } from './knockout.js';
+import { renderVenues } from './venues.js';
+import { renderStats } from './stats.js';
 
 export const seedHTML = `<div class="view tournament-view">
   <header class="view-head"><h1>Tournament</h1><p class="view-sub">Official schedule, groups, bracket</p></header>
@@ -19,7 +21,9 @@ export function render(outlet) {
   const sub = nav.tournamentView;
   const pane = sub === 'groups' ? renderGroups(real.overlay)
     : sub === 'knockout' ? renderKnockout(real.overlay)
-      : renderMatches(real.overlay);
+      : sub === 'venues' ? renderVenues(real.overlay)
+        : sub === 'stats' ? renderStats(real.overlay, real.stats)
+          : renderMatches(real.overlay);
   outlet.innerHTML = `<div class="view tournament-view">
     <header class="view-head"><p class="view-kicker">United 2026</p><h1>Tournament</h1></header>
     ${segmentedControl({
@@ -28,6 +32,8 @@ export function render(outlet) {
       { value: 'matches', label: 'Matches' },
       { value: 'groups', label: 'Groups' },
       { value: 'knockout', label: 'Road' },
+      { value: 'venues', label: 'Venues' },
+      { value: 'stats', label: 'Stats' },
     ],
   })}
     ${pane}
