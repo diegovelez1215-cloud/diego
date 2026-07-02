@@ -12,7 +12,7 @@ const state = {
     tournamentView: 'matches', // matches | groups | knockout
     matchesDate: 'today',   // today | tomorrow | all
     matchCenterId: null,    // open match-center fixture id or null
-    bracketMode: 'full',    // full | follow
+    bracketMode: 'follow',  // follow (default delight mode) | full
     followTeam: null,       // team code illuminated in follow mode
     playMode: 'lab',        // lab | myworldcup | prediction
   },

@@ -5,7 +5,7 @@
 // writes anything here except through explicit deep copies.
 
 import {
-  allFixtures, fixturesOnDay, fixture, teamName, teamFlag, slotLabel,
+  allFixtures, allDayKeys, fixture, teamName, teamFlag, slotLabel,
   winnerFeeds, STAGE_NAMES, STAGE_ORDER,
 } from '../core/canonical-truth.js';
 import { todayKey, tomorrowKey, formatKickoffTime, formatDayKey, now } from '../core/time.js';
@@ -120,6 +120,78 @@ export function matchCenterModel(id, overlay) {
   return fx ? fixtureModel(fx, overlay) : null;
 }
 
+/* ---------------- World Cup hub extras ---------------- */
+
+/** "in 2h 14m" / "in 12m" / "kickoff imminent" for an upcoming epoch. */
+function kickoffIn(epoch, t) {
+  const ms = epoch - t;
+  if (ms <= 60000) return 'kickoff imminent';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.round((ms % 3600000) / 60000);
+  if (h >= 48) return 'in ' + Math.round(h / 24) + ' days';
+  if (h >= 1) return `in ${h}h ${m}m`;
+  return `in ${m}m`;
+}
+
+const ROAD_STAGES = ['r32', 'r16', 'qf', 'sf', 'final'];
+const ROAD_LABELS = { r32: 'R32', r16: 'R16', qf: 'QF', sf: 'SF', final: 'Final' };
+
+/**
+ * Road to the Final snapshot: per knockout round, how much of it is settled,
+ * whether it is live, and when it plays. Derived from validated finals only.
+ */
+function roadToFinal(models, t) {
+  const groupModels = models.filter((m) => m.stage === 'group');
+  const groupDone = groupModels.filter((m) => m.final).length;
+  const stages = ROAD_STAGES.map((stage) => {
+    const list = models.filter((m) => m.stage === stage);
+    const done = list.filter((m) => m.final).length;
+    const live = list.some((m) => m.live);
+    const first = list[0]; const last = list[list.length - 1];
+    return {
+      stage,
+      label: ROAD_LABELS[stage],
+      name: STAGE_NAMES[stage],
+      total: list.length,
+      done,
+      live,
+      state: live ? 'live' : done === list.length ? 'done' : first && t >= first.epoch - 6 * 3600000 ? 'now' : 'ahead',
+      dateLabel: first ? formatDayKey(first.day) + (last && last.day !== first.day ? '–' + formatDayKey(last.day).split(', ')[1] : '') : '',
+    };
+  });
+  const current = stages.find((s) => s.state === 'live' || s.state === 'now')
+    || stages.find((s) => s.state === 'ahead') || stages[stages.length - 1];
+  return { groupDone, groupTotal: groupModels.length, stages, currentStage: current ? current.stage : 'final' };
+}
+
+/**
+ * Group-race context: only groups whose qualification is genuinely still in
+ * play (incomplete, some football played, top three within reach). Empty
+ * once the group stage ends — the section disappears rather than decorating.
+ */
+function groupRaces(overlay) {
+  const { groups, complete } = overlay.standings;
+  const races = [];
+  for (const g of Object.keys(groups).sort()) {
+    if (complete[g]) continue;
+    const rows = groups[g];
+    const played = rows.reduce((n, r) => n + r.p, 0) / 2;
+    if (!played || rows.length < 3) continue;
+    const gap = rows[1].pts - rows[2].pts;
+    races.push({
+      group: g,
+      played,
+      tight: gap <= 3,
+      gap,
+      rows: rows.slice(0, 3).map((r, i) => ({
+        rank: i + 1, code: r.code, name: teamName(r.code), flag: teamFlag(r.code), pts: r.pts, gd: r.gd,
+      })),
+    });
+  }
+  races.sort((a, b) => a.gap - b.gap || b.played - a.played);
+  return races.slice(0, 3);
+}
+
 /**
  * Home model. Priority is a hard rule: LIVE official matches outrank upcoming,
  * and upcoming outrank completed. Never substitutes a different fixture when a
@@ -137,13 +209,21 @@ export function homeModel(overlay) {
     const hero = live[0] || upcomingToday[0] || upcomingAll[0] || recentFinal[0] || null;
     // "Up next" looks beyond today — it never duplicates the Today rail.
     const nextAction = upcomingAll.find((m) => m.day !== todayKey() && (!hero || m.id !== hero.id)) || null;
+    // Coming Up: the next fixtures beyond today, grouped under day labels.
+    const comingUp = upcomingAll.filter((m) => m.day !== todayKey()).slice(0, 4);
+    const dayNumber = allDayKeys().indexOf(todayKey()) + 1; // 0 when outside the tournament
     return {
       hero,
       heroKind: hero ? (hero.live ? 'live' : hero.final ? 'final' : 'upcoming') : 'none',
+      heroCountdown: hero && !hero.live && !hero.final ? kickoffIn(hero.epoch, t) : null,
       liveNow: live,
       today,
       todayLabel: formatDayKey(todayKey()),
+      dayNumber,
       nextAction,
+      comingUp,
+      road: roadToFinal(models, t),
+      races: groupRaces(overlay),
       providerState: overlay.providerState,
     };
   });

@@ -33,6 +33,7 @@ test('Groups renders validated standings and honest empties', () => {
   const html = at('2026-06-12T10:00:00-04:00', () => renderGroups(overlay));
   assert.ok(html.includes('Group A'));
   assert.ok(html.includes('Mexico'));
+  assert.ok(html.includes('Best thirds'), 'third-place race lives with Groups');
   const noData = buildOverlay({});
   const html2 = at('2026-06-12T10:00:00-04:00', () => renderGroups(noData));
   assert.ok(html2.includes('temporarily unavailable'), 'outage is stated honestly');
@@ -47,7 +48,7 @@ test('Knockout renders the complete graphical bracket: every KO match, all round
   }
   assert.ok(html.includes('bk-links'), 'connector layer present');
   assert.ok(html.includes('Group L winners'), 'pending slots are honest chips, never blank');
-  assert.ok(html.includes('Best thirds'), 'third-place race panel present');
+  assert.ok(html.includes('ko-follow-rail'), 'Follow a Team is the default delight mode');
   assert.ok(!/bk-goals/.test(html), 'no scores anywhere while every slot is unresolved');
 });
 

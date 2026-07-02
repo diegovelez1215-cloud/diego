@@ -10,7 +10,7 @@ import { getState, setTab, subscribe } from '../core/app-state.js';
 import { schedule } from './render-scheduler.js';
 
 export const TABS = [
-  { id: 'home', label: 'Home', icon: '✦' },
+  { id: 'home', label: 'World Cup', icon: '✦' },
   { id: 'tournament', label: 'Tournament', icon: '◈' },
   { id: 'play', label: 'Play', icon: '▸' },
   { id: 'you', label: 'You', icon: '●' },

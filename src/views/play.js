@@ -117,9 +117,18 @@ function labChanceRates(run) {
   };
 }
 
+const CHANCE_LINES = [
+  (t) => `${t} rattle the post`,
+  (t) => `${t} go close`,
+  (t) => `the keeper says no to ${t}`,
+  (t) => `${t} slice one over from twelve yards`,
+  (t) => `a scramble — ${t} can't force it in`,
+];
+
 function labTick() {
   const run = labRun;
   if (!run || run.paused || run.done) return;
+  if (run.minute === 0) run.events.push({ min: 0, type: 'whistle', side: 'h', text: 'Kick off.' });
   run.minute++;
   const rng = run.rng;
   const rates = labChanceRates(run);
@@ -131,9 +140,10 @@ function labTick() {
       if (rng() < rates.convert) {
         if (side === 'h') run.gh++; else run.ga++;
         run.events.push({ min: run.minute, type: 'goal', side, text: `GOAL — ${teamName(team)} (${run.gh}–${run.ga})` });
+        run.goalAt = run.minute;
         run.mo += side === 'h' ? 0.6 : -0.6;
       } else if (rng() < 0.3) {
-        run.events.push({ min: run.minute, type: 'chance', side, text: `${teamName(team)} go close` });
+        run.events.push({ min: run.minute, type: 'chance', side, text: CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)) });
       }
     }
   }
@@ -390,16 +400,38 @@ function teamOptions(selected) {
     .map((c) => `<option value="${c}"${c === selected ? ' selected' : ''}>${esc(teamName(c))}</option>`).join('');
 }
 
+/* Tale of the tape — two rating bars facing off. Arcade, not a form. */
+function tapeHTML(home, away) {
+  const rh = RATINGS[home] || 70; const ra = RATINGS[away] || 70;
+  const lo = 60; const hi = 95;
+  const pct = (r) => Math.round(((r - lo) / (hi - lo)) * 100);
+  return `<div class="lab-tape" id="lab-tape" aria-hidden="true">
+    <div class="lab-tape-row">
+      <span class="lab-tape-flag">${teamFlag(home)}</span>
+      <div class="lab-tape-bar"><i style="width:${pct(rh)}%;background:${TEAM_COLORS[home] || 'var(--gold)'}"></i></div>
+      <span class="lab-tape-num">${rh}</span>
+    </div>
+    <div class="lab-tape-row">
+      <span class="lab-tape-flag">${teamFlag(away)}</span>
+      <div class="lab-tape-bar"><i style="width:${pct(ra)}%;background:${TEAM_COLORS[away] || 'var(--gold)'}"></i></div>
+      <span class="lab-tape-num">${ra}</span>
+    </div>
+  </div>`;
+}
+
 function labSetupHTML(play) {
   const last = (play.labHistory || [])[0];
+  const home = last ? last.home : 'USA';
+  const away = last ? last.away : 'ARG';
   return `<section class="play-card lab" aria-label="Match Lab">
-    <h2>Match Lab</h2>
+    <h2 class="display">Match Lab</h2>
     <p class="play-sub">Two nations, one approach, ninety simulated minutes. You call the turning points.</p>
     <div class="wi-pickers">
-      <select id="lab-home" aria-label="Home team">${teamOptions(last ? last.home : 'USA')}</select>
+      <select id="lab-home" aria-label="Home team">${teamOptions(home)}</select>
       <span class="wi-v">v</span>
-      <select id="lab-away" aria-label="Away team">${teamOptions(last ? last.away : 'ARG')}</select>
+      <select id="lab-away" aria-label="Away team">${teamOptions(away)}</select>
     </div>
+    ${tapeHTML(home, away)}
     <div class="lab-approaches" role="group" aria-label="Match approach">
       ${Object.entries(APPROACHES).map(([id, a], i) => `
         <button class="lab-approach${i === 0 ? ' active' : ''}" data-approach="${id}">
@@ -412,7 +444,7 @@ function labSetupHTML(play) {
 }
 
 function labEventIcon(type) {
-  return type === 'goal' ? '●' : type === 'pens' ? '◐' : type === 'decision' ? '▸' : '○';
+  return type === 'goal' ? '●' : type === 'pens' ? '◐' : type === 'decision' ? '▸' : type === 'whistle' ? '♪' : '○';
 }
 
 function labRunHTML(run) {
@@ -420,12 +452,13 @@ function labRunHTML(run) {
   const awayColor = TEAM_COLORS[run.away] || 'var(--gold)';
   const decision = run.decisionAt != null ? DECISIONS[run.decisionAt] : null;
   const moPct = ((run.mo + 1) / 2) * 100;
+  const scoreFlash = !run.done && run.goalAt != null && run.minute - run.goalAt < 3;
   return `<section class="play-card lab running${run.done ? ' done' : ''}" aria-label="Match Lab simulation">
     <div class="lab-stage" style="--hc:${homeColor};--ac:${awayColor}">
-      <div class="lab-clock" aria-live="polite">${run.done ? 'FULL TIME' : run.minute + '&prime;'}</div>
+      <div class="lab-clock" aria-live="polite">${run.done ? '<span class="lab-ft-stamp">FULL TIME</span>' : run.minute + '&prime;'}</div>
       <div class="lab-score-row">
         <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span></div>
-        <div class="lab-score" id="lab-score">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
+        <div class="lab-score${scoreFlash ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
         <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
       </div>
       ${run.pens ? `<div class="lab-pens">Penalties ${run.pens.ph}–${run.pens.pa}</div>` : ''}
@@ -472,13 +505,14 @@ function myWorldCupHTML(overlay, play, pendingPick) {
   const pickFx = pendingPick != null ? world.slots.get(pendingPick) : null;
   return `<section class="play-card my-wc bracket-card" aria-label="My World Cup">
     <header class="mwc-head">
-      <div><h2>My World Cup</h2>
+      <div><h2 class="display">My World Cup</h2>
       <p class="play-sub">Your private timeline. Tap an open tie to send someone through — the real bracket never notices.</p></div>
       <span class="sim-badge">SIMULATION</span>
     </header>
-    ${champion ? `<div class="mwc-champion" role="status">
+    ${champion ? `<div class="mwc-champion" role="status" style="--cc:${TEAM_COLORS[champion] || 'var(--gold)'}">
+      <div class="mwc-rays" aria-hidden="true"></div>
       <div class="mwc-crown" aria-hidden="true">★</div>
-      <div class="mwc-champ-name">${teamFlag(champion)} ${esc(teamName(champion))}</div>
+      <div class="mwc-champ-name display">${teamFlag(champion)} ${esc(teamName(champion))}</div>
       <div class="mwc-champ-sub">champions of your universe</div>
     </div>` : ''}
     ${pickFx && pickFx.home && pickFx.away ? `<div class="mwc-pickbar" role="group" aria-label="Who advances?">
@@ -502,15 +536,22 @@ function predictionHTML(overlay, play) {
   const picks = play.predictions?.picks || {};
   const stats = gradePredictions(picks, overlay);
   const upcoming = predictableFixtures(overlay);
+  const recent = stats.graded.slice(-3).reverse();
   return `<section class="play-card prediction" aria-label="Prediction Run">
-    <h2>Prediction Run</h2>
+    <h2 class="display">Prediction Run</h2>
     <p class="play-sub">Call official fixtures before they happen. Confidence earns insight; misses reset the streak. No stakes — only reputation with yourself.</p>
     <div class="pr-stats" role="group" aria-label="Prediction record">
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>
       <div class="pr-stat"><strong>${stats.insight}</strong><span>insight</span></div>
-      <div class="pr-stat${stats.streak >= 3 ? ' hot' : ''}"><strong>${stats.streak}</strong><span>streak</span></div>
+      <div class="pr-stat${stats.streak >= 3 ? ' hot' : ''}"><strong>${stats.streak >= 3 ? '🔥' + stats.streak : stats.streak}</strong><span>streak</span></div>
       <div class="pr-stat"><strong>${stats.best}</strong><span>best run</span></div>
     </div>
+    ${recent.length ? `<div class="pr-recent" aria-label="Recent graded calls">
+      ${recent.map((g) => {
+    const s = overlay.slots.get(g.id) || {};
+    return `<span class="pr-call ${g.correct ? 'hit' : 'miss'}">${g.correct ? '✓' : '✗'} ${s.home ? teamFlag(s.home) : ''}v${s.away ? teamFlag(s.away) : ''} ${CONF[g.conf] || ''}</span>`;
+  }).join('')}
+    </div>` : ''}
     ${upcoming.length ? upcoming.map((f) => {
     const s = overlay.slots.get(f.id);
     const pick = picks[f.id];
@@ -544,6 +585,19 @@ function wireLab(outlet) {
       outlet.querySelectorAll('[data-approach]').forEach((x) => x.classList.toggle('active', x === b));
     });
   });
+  // tale of the tape follows the pickers
+  for (const sel of ['#lab-home', '#lab-away']) {
+    const el = outlet.querySelector(sel);
+    if (el) {
+      el.addEventListener('change', () => {
+        const tape = outlet.querySelector('#lab-tape');
+        if (!tape) return;
+        const wrap = document.createElement('div');
+        wrap.innerHTML = tapeHTML(outlet.querySelector('#lab-home').value, outlet.querySelector('#lab-away').value);
+        tape.replaceWith(wrap.firstElementChild);
+      });
+    }
+  }
   const kickoff = outlet.querySelector('#lab-kickoff');
   if (kickoff) {
     kickoff.addEventListener('click', () => {
@@ -610,7 +664,7 @@ export function render(outlet) {
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
   else body = predictionHTML(real.overlay, play);
   outlet.innerHTML = `<div class="view play-view">
-    <header class="view-head"><h1>Play</h1>
+    <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
       <p class="view-sub">Private simulations · nothing here touches the real tournament</p></header>
     ${segmentedControl({
     id: 'play-mode', label: 'Play modes', value: mode,

@@ -1,10 +1,11 @@
 // United 2026 — Groups. Dense tournament tables with honest state: a group is
 // labeled Final ONLY when all six results are validated; anything less says
 // exactly how much has been played. Qualification markers appear only when
-// they are mathematically settled.
+// they are mathematically settled, and the third-place race lives here —
+// beside the tables that feed it, not in a detached annex.
 
 import { groupsModel } from '../data/tournament-model.js';
-import { thirdPlaceTable } from '../core/canonical-truth.js';
+import { thirdPlaceTable, teamName, teamFlag } from '../core/canonical-truth.js';
 import { esc } from '../components/match-row.js';
 
 function groupState(g) {
@@ -26,6 +27,26 @@ function qualMark(g, r, thirds) {
   return '<span class="q-mark out" title="Eliminated">–</span>';
 }
 
+/** The third-place race, integrated with the tables that decide it. */
+export function thirdPlacePanel(t) {
+  if (!t.rows.length) return '';
+  return `<section class="ko-thirds" aria-label="Third-place race">
+    <header class="ko-thirds-head">
+      <h3>Best thirds</h3>
+      <span class="ko-thirds-sub">${t.decided ? 'Top 8 advance — slots locked' : 'Top 8 advance · race in progress'}</span>
+    </header>
+    <div class="ko-thirds-grid">
+    ${t.rows.map((r, i) => `
+      <div class="ko-third${r.qualified ? ' in' : ''}${!r.complete ? ' provisional' : ''}">
+        <span class="ko-third-rank">${i + 1}</span>
+        <span class="ko-third-team">${teamFlag(r.code)} ${esc(teamName(r.code))}</span>
+        <span class="ko-third-meta">Grp ${r.group} · ${r.pts} pts</span>
+        <span class="ko-third-slot">${r.qualified ? (r.slot ? '→ Match ' + r.slot : 'Qualified') : (r.complete ? 'Out' : r.p + ' of 3 played')}</span>
+      </div>`).join('')}
+    </div>
+  </section>`;
+}
+
 export function renderGroups(overlay, { thirds } = {}) {
   const groups = groupsModel(overlay);
   const t = thirds || thirdPlaceTable(overlay.standings);
@@ -36,7 +57,7 @@ export function renderGroups(overlay, { thirds } = {}) {
     ${groups.map((g) => {
     const st = groupState(g);
     return `
-      <section class="group-card" aria-label="Group ${g.group}">
+      <section class="group-card${g.complete ? ' settled' : ''}" aria-label="Group ${g.group}">
         <header class="group-head"><h3>Group ${esc(g.group)}</h3><span class="group-state ${st.cls}">${st.label}</span></header>
         <table class="group-table">
           <thead><tr><th class="t-team" scope="col">Team</th><th scope="col" title="Played">P</th><th scope="col" title="Won">W</th><th scope="col" title="Goal difference">GD</th><th scope="col" title="Points">Pts</th><th class="t-q" scope="col"><span class="sr-only">Qualification</span></th></tr></thead>
@@ -51,5 +72,6 @@ export function renderGroups(overlay, { thirds } = {}) {
       </section>`;
   }).join('')}
     </div>
+    ${thirdPlacePanel(t)}
   </div>`;
 }

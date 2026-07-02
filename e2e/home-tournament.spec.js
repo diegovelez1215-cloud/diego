@@ -47,13 +47,16 @@ test.describe('Tournament', () => {
     await screenshot(page, testInfo, 'matches');
   });
 
-  test('Groups: 12 final tables with Q marks and third-place truth', async ({ page }, testInfo) => {
+  test('Groups: 12 final tables with Q marks and the third-place race integrated', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'groups');
     await expect(page.locator('.group-card')).toHaveCount(12);
     await expect(page.locator('.group-state.final')).toHaveCount(12);
     await expect(page.locator('.q-mark.in')).toHaveCount(24);
     await expect(page.locator('.q-mark.third')).toHaveCount(8);
+    // the third-place race lives with the tables that decide it
+    await expect(page.locator('.groups-pane .ko-thirds .ko-third')).toHaveCount(12);
+    await expect(page.locator('.groups-pane .ko-third.in')).toHaveCount(8);
     await expectNoHorizontalOverflow(page, expect, 'groups');
     await screenshot(page, testInfo, 'groups');
   });
@@ -65,16 +68,17 @@ test.describe('Tournament', () => {
     await expect(page.locator('.group-state.idle')).toHaveCount(12);
   });
 
-  test('Full Bracket: complete graphical tree, connectors, third-place race, round jump', async ({ page }, testInfo) => {
+  test('Full Bracket: complete graphical tree, connectors, the Final crest, round jump', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
+    // Follow a Team is the default — switch to the full field
+    await page.locator('[data-segmented="bracket-mode"] [data-value="full"]').click();
     const scroll = page.locator('.knockout-pane .bk-scroll');
     await expect(scroll).toBeVisible();
     await expect(page.locator('.knockout-pane .bk-card')).toHaveCount(32); // 16+8+4+2 + final + third place
     await expect(page.locator('.knockout-pane .bk-links path')).toHaveCount(32); // 30 winner + 2 loser
     await expect(page.locator('.knockout-pane .bk-card.live')).toHaveCount(1);
-    await expect(page.locator('.ko-thirds .ko-third')).toHaveCount(12);
-    await expect(page.locator('.ko-third.in')).toHaveCount(8);
+    await expect(page.locator('.knockout-pane .bk-final-crest')).toHaveCount(1);
     await expectNoHorizontalOverflow(page, expect, 'bracket');
     // capture at the Round-of-32 position where the tree is densest
     await screenshot(page, testInfo, 'bracket-full');
@@ -86,15 +90,18 @@ test.describe('Tournament', () => {
     expect(after).toBeGreaterThan(before);
   });
 
-  test('Follow a Team illuminates one route and dims the field', async ({ page }, testInfo) => {
+  test('Follow a Team is the default: pick a nation, its route lights, the field dims', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
-    await page.locator('[data-segmented="bracket-mode"] [data-value="follow"]').click();
+    // default mode is follow, with the tactile nation-chip rail
     await expect(page.locator('#ko-follow-team')).toBeVisible();
-    await page.selectOption('#ko-follow-team', 'FRA');
+    await page.locator('.ko-team-chip[data-follow="FRA"]').click();
+    await expect(page.locator('.ko-team-chip[data-follow="FRA"]')).toHaveClass(/on/);
     await expect(page.locator('.bk-card.lit').first()).toBeVisible();
     const dimmed = await page.locator('.bk-card.dim').count();
     expect(dimmed).toBeGreaterThan(20);
+    // the route summary spells out the road
+    await expect(page.locator('.ko-route')).toBeVisible();
     await screenshot(page, testInfo, 'bracket-follow');
   });
 

@@ -178,30 +178,41 @@ function cardHTML(world, id, litSet) {
   </${pickable ? 'button' : 'div'}>`;
 }
 
+/** Elbow with rounded corners — a light trail, not technical wiring. */
+function trailD(x1, y1, x2, y2) {
+  if (Math.abs(y2 - y1) < 2) return `M${x1} ${y1} H${x2}`;
+  const mx = x1 + (x2 - x1) / 2;
+  const r = Math.min(10, Math.abs(y2 - y1) / 2);
+  const dy = y2 > y1 ? 1 : -1;
+  return `M${x1} ${y1} H${mx - r} Q${mx} ${y1} ${mx} ${y1 + r * dy} V${y2 - r * dy} Q${mx} ${y2} ${mx + r} ${y2} H${x2}`;
+}
+
 function connectorSVG(world, litSet) {
+  const halos = [];
   const paths = [];
   const ko = COLUMNS.flatMap((st) => TREE[st]);
   for (const id of ko) {
     const feed = winnerFeeds(id);
     if (!feed) continue;
     const a = posOf.get(id); const b = posOf.get(feed.id);
-    const x1 = a.x + BR.cardW; const y1 = a.cy;
-    const x2 = b.x; const y2 = b.cy;
-    const mx = x1 + (x2 - x1) / 2;
+    const d = trailD(a.x + BR.cardW, a.cy, b.x, b.cy);
     const r = resultOf(world, id);
     const decided = !!(r && r.winner && r.winner !== 'draw');
     const s = world.slots.get(id) || {};
     const winCode = decided ? (r.winner === 'home' ? s.home : s.away) : null;
     const lit = litSet ? (litSet.has(id) && litSet.has(feed.id)) : decided;
     const color = winCode && lit ? (TEAM_COLORS[winCode] || '') : '';
-    paths.push(`<path d="M${x1} ${y1} H${mx} V${y2} H${x2}" class="bk-link${lit ? ' on' : ''}"${color ? ` style="stroke:${color}"` : ''}/>`);
+    // decided + lit trails get a wide, faint under-glow in the winner's color —
+    // stadium light, no SVG filters
+    if (color) halos.push(`<path d="${d}" class="bk-halo" style="stroke:${color}"/>`);
+    paths.push(`<path d="${d}" class="bk-link${lit ? ' on' : ''}"${color ? ` style="stroke:${color}"` : ''}/>`);
   }
   // semifinal losers feed the third-place match (dotted, informational)
   for (const sfId of TREE.sf) {
     const a = posOf.get(sfId); const b = posOf.get(BRONZE_ID);
-    paths.push(`<path d="M${a.x + BR.cardW} ${a.cy + 14} H${a.x + BR.cardW + 18} V${b.cy} H${b.x}" class="bk-link loser"/>`);
+    paths.push(`<path d="${trailD(a.x + BR.cardW, a.cy + 14, b.x, b.cy)}" class="bk-link loser"/>`);
   }
-  return `<svg class="bk-links" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}" aria-hidden="true">${paths.join('')}</svg>`;
+  return `<svg class="bk-links" width="${CANVAS.width}" height="${CANVAS.height}" viewBox="0 0 ${CANVAS.width} ${CANVAS.height}" aria-hidden="true"><g class="bk-halos">${halos.join('')}</g>${paths.join('')}</svg>`;
 }
 
 /**
@@ -217,10 +228,21 @@ export function bracketHTML(world, opts = {}) {
   const cards = COLUMNS.flatMap((st) => TREE[st]).concat([BRONZE_ID])
     .map((id) => cardHTML(world, id, litSet)).join('');
   const bronzeLabel = `<div class="bk-bronze-label" style="left:${colX('final')}px;top:${posOf.get(BRONZE_ID).y - 26}px;width:${BR.cardW}px">${STAGE_NAMES.bronze}</div>`;
+  // The Final is the destination — crown it with its own crest.
+  const finalId = TREE.final[0];
+  const finalFx = fixture(finalId);
+  const finalPos = posOf.get(finalId);
+  const d = new Date(finalFx.epoch - 4 * 3600 * 1000);
+  const crest = `<div class="bk-final-crest" style="left:${colX('final')}px;top:${finalPos.y - 54}px;width:${BR.cardW}px" aria-hidden="true">
+    <span class="bk-crest-star">★</span>
+    <span class="bk-crest-title">The Final</span>
+    <span class="bk-crest-date">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]} · ${finalFx.venue}</span>
+  </div>`;
   return `<div class="bk-canvas${opts.follow ? ' following' : ''}" style="width:${CANVAS.width}px;height:${CANVAS.height}px">
     <div class="bk-headers" style="width:${CANVAS.width}px;height:${BR.headerH}px">${headers}</div>
     ${connectorSVG(world, litSet)}
     ${bronzeLabel}
+    ${crest}
     ${cards}
   </div>`;
 }
@@ -232,7 +254,13 @@ export function wireBracketScroller(rootEl) {
   if (!scroller || !chips.length) return;
   chips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      scroller.scrollTo({ left: columnOffset(chip.dataset.jump) - BR.pad, behavior: 'smooth' });
+      // Horizontal: land on the round. Vertical: center its content — the
+      // Final must arrive on screen like a destination, not an empty column.
+      const stage = chip.dataset.jump;
+      const top = stage === 'r32'
+        ? scroller.scrollTop
+        : Math.max(0, CANVAS.height / 2 - scroller.clientHeight / 2 + BR.headerH);
+      scroller.scrollTo({ left: columnOffset(stage) - BR.pad, top, behavior: 'smooth' });
     });
   });
   // Desktop drag-to-pan (touch devices pan natively).

@@ -20,7 +20,7 @@ export function render(outlet) {
     : sub === 'knockout' ? renderKnockout(real.overlay)
       : renderMatches(real.overlay);
   outlet.innerHTML = `<div class="view tournament-view">
-    <header class="view-head"><h1>Tournament</h1></header>
+    <header class="view-head"><p class="view-kicker">United 2026</p><h1>Tournament</h1></header>
     ${segmentedControl({
     id: 'tournament-view', label: 'Tournament sections', value: sub,
     options: [

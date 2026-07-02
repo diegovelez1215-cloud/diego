@@ -1,69 +1,97 @@
 /* United 2026 — design tokens.
-   The default experience is deep midnight under controlled official-blue
-   stadium light: Moonlitt soul, Apple Sports body, Caradise luxury. Warm
-   silver appears only as a contrast surface. Light mode exists as an explicit
-   preference, never the default. Play answers in restrained gold. No purple
-   gradients, no neon, no mesh, no card soup. */
+   Deep midnight under one controlled shaft of official-blue stadium light.
+   Apple Sports body, broadcast display type, Caradise luxury, Moonlitt soul.
+   Real world: factual, score-first, calm. Play: restrained gold, warmer.
+   No purple mesh, no neon, no casino, no card soup. */
 
 html { font: -apple-system-body; }
 
 :root {
   color-scheme: dark;
 
-  /* type scale — 4 sizes, 2 weights */
+  /* type — native body for iPhone fidelity, Archivo display for broadcast
+     moments (scores, rounds, reveals). 4 body sizes, 2 body weights. */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  --fs-hero: clamp(2.8rem, 14vw, 4rem);
+  --font-display: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fs-hero: clamp(3.4rem, 17vw, 4.8rem);
+  --fs-display: clamp(1.6rem, 6vw, 2rem);
   --fs-title: 1.35rem;
   --fs-body: 1rem;
   --fs-micro: 0.8125rem;
   --w-reg: 460;
   --w-bold: 730;
+  --stretch-wide: 118%;
+  --stretch-narrow: 84%;
 
   /* spacing — 4/8 grid */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
   --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
 
-  --radius: 20px;
-  --radius-sm: 13px;
+  --radius: 22px;
+  --radius-sm: 14px;
   --dock-h: 76px;
 
-  /* deep midnight — never flat black */
-  --bg: #070b16;
-  --bg-atmo: radial-gradient(140% 60% at 50% -8%, rgba(47, 91, 199, 0.20) 0%, rgba(17, 30, 62, 0.10) 45%, transparent 70%);
-  --bg-raise: #0d1424;
-  --bg-raise-2: #111a30;
-  --bg-stage: radial-gradient(130% 100% at 50% -18%, #1b2c52 0%, #101a33 48%, #0a1122 100%);
-  --ink: rgba(240, 245, 255, 1);
-  --ink-2: rgba(240, 245, 255, 0.76);
-  --ink-3: rgba(240, 245, 255, 0.52);
-  --hairline: rgba(240, 245, 255, 0.085);
-  --official: #4d7df2;          /* disciplined blue — real tournament state */
-  --official-ink: #9db9f7;
-  --live: #ff5a4e;              /* reserved: live only */
-  --gold: #d4ab55;              /* restrained gold — Play / My World Cup */
-  --gold-ink: #e9d29a;
-  --shadow-stage: 0 30px 60px -30px rgba(0, 4, 14, 0.95);
-  --shadow-row: 0 1px 0 rgba(240, 245, 255, 0.04);
+  /* deep midnight — never flat black, never grey soup */
+  --bg: #05080f;
+  --bg-atmo:
+    radial-gradient(150% 55% at 50% -12%, rgba(56, 103, 214, 0.26) 0%, rgba(23, 42, 92, 0.12) 46%, transparent 72%),
+    radial-gradient(90% 30% at 50% 108%, rgba(23, 42, 92, 0.18) 0%, transparent 70%);
+  --bg-raise: #0b1120;
+  --bg-raise-2: #101830;
+  --bg-stage:
+    radial-gradient(130% 110% at 50% -20%, #20325e 0%, #131f3e 46%, #0a1226 100%);
+  --ink: rgba(242, 246, 255, 1);
+  --ink-2: rgba(242, 246, 255, 0.76);
+  --ink-3: rgba(242, 246, 255, 0.5);
+  --hairline: rgba(242, 246, 255, 0.09);
+  --official: #4d7df2;           /* disciplined blue — real tournament state */
+  --official-ink: #a3bdf8;
+  --live: #ff5a4e;               /* reserved: live only */
+  --gold: #d4ab55;               /* restrained gold — Play only */
+  --gold-ink: #ecd7a2;
+  --shadow-stage: 0 34px 70px -32px rgba(0, 3, 12, 0.95);
+  --shadow-row: 0 1px 0 rgba(242, 246, 255, 0.04);
 
   /* liquid glass — interaction surfaces only */
-  --glass-bg: rgba(15, 23, 42, 0.62);
+  --glass-bg: rgba(13, 20, 38, 0.6);
   --glass-line: rgba(255, 255, 255, 0.11);
   --glass-hi: rgba(255, 255, 255, 0.07);
-  --glass-blur: saturate(1.6) blur(20px);
+  --glass-blur: saturate(1.7) blur(22px);
+
+  /* film grain — one static texture, no blend, no filter */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* Display type helpers — the broadcast voice. Used for scores, round
+   marks, reveals, and nowhere else. */
+.display {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.kicker {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
 
 /* Warm silver — an explicit preference, a contrast surface, not the product */
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #f3f1ea;
-  --bg-atmo: radial-gradient(140% 60% at 50% -8%, rgba(44, 86, 200, 0.10) 0%, transparent 65%);
+  --bg-atmo:
+    radial-gradient(150% 55% at 50% -12%, rgba(44, 86, 200, 0.12) 0%, transparent 66%);
   --bg-raise: #fbf9f4;
   --bg-raise-2: #ffffff;
-  --bg-stage: radial-gradient(130% 100% at 50% -18%, #ffffff 0%, #eef0f4 55%, #e4e8ef 100%);
+  --bg-stage: radial-gradient(130% 110% at 50% -20%, #ffffff 0%, #eef0f4 55%, #e2e6ee 100%);
   --ink: rgba(21, 26, 38, 1);
   --ink-2: rgba(21, 26, 38, 0.78);
   --ink-3: rgba(21, 26, 38, 0.54);
-  --hairline: rgba(21, 26, 38, 0.10);
+  --hairline: rgba(21, 26, 38, 0.1);
   --official: #2c56c8;
   --official-ink: #2c56c8;
   --live: #c93d31;

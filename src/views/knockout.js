@@ -1,28 +1,32 @@
 // United 2026 — Knockout. The complete official bracket as a monumental,
 // horizontally navigable canvas: Round of 32 → Final plus the third-place
-// match, real advancing connectors, honest unresolved chips, and a
-// Follow-a-Team mode that illuminates one nation's route while the rest of
-// the field falls into shadow. Factual and calm — drama comes from truth.
+// match, real advancing light-trails, honest unresolved chips. Follow a Team
+// is the default delight mode: pick a nation and its road to the trophy is
+// instantly legible while the rest of the field falls into shadow.
 
 import { getState, setBracketMode } from '../core/app-state.js';
-import { teamName, teamFlag, thirdPlaceTable, STAGE_NAMES } from '../core/canonical-truth.js';
-import { TEAMS } from '../data/fixtures.js';
-import { bracketHTML } from '../components/bracket.js';
+import { teamName, teamFlag, fixture, slotLabel, STAGE_NAMES } from '../core/canonical-truth.js';
+import { TEAMS, TEAM_COLORS, FIXTURES } from '../data/fixtures.js';
+import { bracketHTML, teamRoute } from '../components/bracket.js';
 import { segmentedControl } from '../components/segmented-control.js';
+import { formatDayKey } from '../core/time.js';
 import { esc } from '../components/match-row.js';
 
 function realWorld(overlay) {
   return { slots: overlay.slots, results: overlay.byFixture, mode: 'real' };
 }
 
+/* Tactile follow picker: a scrollable rail of nation chips, not a form. */
 function followPicker(followTeam) {
-  const opts = Object.keys(TEAMS)
-    .sort((a, b) => teamName(a).localeCompare(teamName(b)))
-    .map((c) => `<option value="${c}"${c === followTeam ? ' selected' : ''}>${teamFlag(c)} ${esc(teamName(c))}</option>`)
-    .join('');
-  return `<div class="ko-follow-bar">
-    <label class="ko-follow-label" for="ko-follow-team">Following</label>
-    <select id="ko-follow-team" aria-label="Team to follow">${opts}</select>
+  const codes = Object.keys(TEAMS).sort((a, b) => teamName(a).localeCompare(teamName(b)));
+  return `<div class="ko-follow-rail" id="ko-follow-team" role="listbox" aria-label="Team to follow">
+    ${codes.map((c) => `
+      <button class="ko-team-chip${c === followTeam ? ' on' : ''}" role="option"
+        aria-selected="${c === followTeam}" data-follow="${c}"
+        style="--tc:${TEAM_COLORS[c] || 'var(--official)'}">
+        <span class="ko-chip-flag" aria-hidden="true">${teamFlag(c)}</span>
+        <span class="ko-chip-name">${esc(teamName(c))}</span>
+      </button>`).join('')}
   </div>`;
 }
 
@@ -33,29 +37,53 @@ function roundJump() {
   </div>`;
 }
 
-function thirdPlacePanel(overlay) {
-  const table = thirdPlaceTable(overlay.standings);
-  if (!table.rows.length) {
-    return `<section class="ko-thirds" aria-label="Third-place race">
-      <h3>Best thirds</h3>
-      <p class="empty-line">The third-place race begins once group results arrive.</p>
-    </section>`;
+function teamGroup(code) {
+  const gf = FIXTURES.find((f) => f.stage === 'group' && (f.home === code || f.away === code));
+  return gf ? gf.group : null;
+}
+
+/* The followed team's road, spelled out: opponent by opponent, honestly. */
+function routeSummary(overlay, code) {
+  const world = realWorld(overlay);
+  const lit = teamRoute(world, code) || new Set();
+  const steps = [];
+  for (const id of [...lit].sort((a, b) => fixture(a).epoch - fixture(b).epoch)) {
+    const fx = fixture(id);
+    const s = overlay.slots.get(id) || {};
+    const inHome = s.home === code;
+    const inAway = s.away === code;
+    if (!inHome && !inAway) continue; // potential future tie — chips stay on the canvas
+    const oppCode = inHome ? s.away : s.home;
+    const oppSpec = inHome ? fx.away : fx.home;
+    const opp = oppCode ? teamFlag(oppCode) + ' ' + esc(teamName(oppCode)) : esc(slotLabel(oppSpec));
+    const r = overlay.byFixture.get(id);
+    if (r && r.status === 'final' && r.winner && oppCode) {
+      const won = (r.winner === 'home') === inHome;
+      const score = r.gh != null ? (inHome ? `${r.gh}–${r.ga}` : `${r.ga}–${r.gh}`) : '';
+      steps.push({
+        label: STAGE_NAMES[fx.stage], opp,
+        state: (won ? 'W ' : 'L ') + score, won, lost: !won && fx.stage !== 'bronze',
+      });
+    } else if (r && r.status === 'live') {
+      steps.push({ label: STAGE_NAMES[fx.stage], opp, state: 'LIVE', live: true });
+    } else {
+      steps.push({ label: STAGE_NAMES[fx.stage], opp, state: formatDayKey(fx.day) });
+    }
   }
-  return `<section class="ko-thirds" aria-label="Third-place race">
-    <header class="ko-thirds-head">
-      <h3>Best thirds</h3>
-      <span class="ko-thirds-sub">${table.decided ? 'Top 8 advance — slots locked' : 'Top 8 advance · race in progress'}</span>
-    </header>
-    <div class="ko-thirds-grid">
-    ${table.rows.map((r, i) => `
-      <div class="ko-third${r.qualified ? ' in' : ''}${!r.complete ? ' provisional' : ''}">
-        <span class="ko-third-rank">${i + 1}</span>
-        <span class="ko-third-team">${teamFlag(r.code)} ${esc(teamName(r.code))}</span>
-        <span class="ko-third-meta">3rd · Grp ${r.group} · ${r.pts} pts</span>
-        <span class="ko-third-slot">${r.qualified ? (r.slot ? '→ Match ' + r.slot : 'Qualified') : (r.complete ? 'Out' : String(r.p) + ' of 3 played')}</span>
+  if (!steps.length) {
+    const g = teamGroup(code);
+    return `<div class="ko-route" role="status">
+      <span class="ko-route-wait">${teamFlag(code)} ${esc(teamName(code))} — knockout place undecided${g ? ' · watching Group ' + esc(g) : ''}.</span>
+    </div>`;
+  }
+  return `<div class="ko-route" aria-label="${esc(teamName(code))} route">
+    ${steps.slice(0, 4).map((st) => `
+      <div class="ko-route-step${st.won ? ' won' : ''}${st.lost ? ' lost' : ''}${st.live ? ' live' : ''}">
+        <span class="ko-route-stage">${esc(st.label)}</span>
+        <span class="ko-route-opp">${st.opp}</span>
+        ${st.state ? `<span class="ko-route-state">${esc(st.state)}</span>` : ''}
       </div>`).join('')}
-    </div>
-  </section>`;
+  </div>`;
 }
 
 export function renderKnockout(overlay) {
@@ -66,17 +94,17 @@ export function renderKnockout(overlay) {
       ${segmentedControl({
     id: 'bracket-mode', label: 'Bracket mode', value: nav.bracketMode,
     options: [
-      { value: 'full', label: 'Full Bracket' },
       { value: 'follow', label: 'Follow a Team' },
+      { value: 'full', label: 'Full Bracket' },
     ],
   })}
-      ${nav.bracketMode === 'follow' ? followPicker(follow) : ''}
+      ${follow ? followPicker(follow) : ''}
+      ${follow ? routeSummary(overlay, follow) : ''}
       ${roundJump()}
     </div>
     <div class="bk-scroll" tabindex="0" aria-label="Knockout bracket, ${STAGE_NAMES.r32} to ${STAGE_NAMES.final}. Scroll horizontally.">
       ${bracketHTML(realWorld(overlay), { follow })}
     </div>
-    ${thirdPlacePanel(overlay)}
   </div>`;
 }
 
@@ -88,6 +116,14 @@ export function wireKnockout(outlet) {
       if (btn) setBracketMode(btn.dataset.value);
     });
   }
-  const picker = outlet.querySelector('#ko-follow-team');
-  if (picker) picker.addEventListener('change', () => setBracketMode('follow', picker.value));
+  const rail = outlet.querySelector('#ko-follow-team');
+  if (rail) {
+    rail.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-follow]');
+      if (chip) setBracketMode('follow', chip.dataset.follow);
+    });
+    // keep the chosen nation in view — scroll ONLY the rail, never ancestors
+    const on = rail.querySelector('.ko-team-chip.on');
+    if (on) rail.scrollLeft = Math.max(0, on.offsetLeft - rail.clientWidth / 2 + on.offsetWidth / 2);
+  }
 }

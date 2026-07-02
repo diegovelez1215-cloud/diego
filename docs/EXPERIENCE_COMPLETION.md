@@ -31,9 +31,10 @@ persistent navigation are preserved.
   plus the third-place match, SVG elbow connectors that light in the winning
   team's color, compact→cinematic card sizing by round, informative unresolved
   chips ("Group A winners", "Best third (C/E/F/H/I)", "Winner, Match 89"),
-  round-jump chips with scroll-position tracking, Full Bracket and
-  Follow-a-Team modes (route lit, field dimmed), and a Best Thirds panel
-  linking qualified thirds to their R32 slots.
+  round-jump chips with scroll-position tracking, and Full Bracket and
+  Follow-a-Team modes (route lit, field dimmed). Since the premium pass,
+  Follow a Team is the default mode and the Best Thirds panel lives with
+  Groups (`src/views/groups.js`), beside the tables that decide it.
 - **Matches** is an editorial matchday board: Live Now / Up Today / Earlier
   Today lanes plus a Tomorrow preview.
 - **Groups** keep density with stronger row rhythm, W column, qualification

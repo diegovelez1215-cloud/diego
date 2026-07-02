@@ -15,7 +15,7 @@ body {
   overflow-x: hidden;
 }
 
-/* controlled stadium light above the fold — one cheap gradient, no blur */
+/* controlled stadium light above the fold — two cheap gradients, no blur */
 body::before {
   content: "";
   position: fixed;
@@ -24,9 +24,20 @@ body::before {
   pointer-events: none;
   z-index: 0;
 }
-.app-shell { position: relative; z-index: 1; }
+/* film grain — one static repeating texture; keeps the midnight from going flat */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--grain) repeat;
+  background-size: 160px 160px;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
+:root[data-theme="light"] body::after { opacity: 0.03; }
 
-.app-shell { min-height: 100dvh; }
+.app-shell { position: relative; z-index: 1; min-height: 100dvh; }
 
 .outlets {
   max-width: 640px;
@@ -43,11 +54,26 @@ body::before {
 
 .view-head { padding: var(--sp-5) 0 var(--sp-4); }
 .view-head h1 {
-  font-size: var(--fs-title);
-  font-weight: var(--w-bold);
-  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  letter-spacing: 0.005em;
+  line-height: 1.02;
+  text-transform: uppercase;
 }
-.view-sub { color: var(--ink-3); font-size: var(--fs-micro); margin-top: var(--sp-1); }
+.view-kicker {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--official-ink);
+  margin-bottom: var(--sp-2);
+}
+.view-kicker.gold { color: var(--gold-ink); }
+.view-sub { color: var(--ink-3); font-size: var(--fs-micro); margin-top: var(--sp-2); }
 .view-shell-note { color: var(--ink-3); padding: var(--sp-5) 0; }
 
 /* ---- dock (liquid glass, interaction-only) ---- */
@@ -84,7 +110,7 @@ body::before {
   gap: 2px;
   color: var(--ink-3);
   font-family: inherit;
-  font-size: var(--fs-micro);
+  font-size: 0.72rem;
   font-weight: var(--w-reg);
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
@@ -92,21 +118,22 @@ body::before {
 .dock-tab:active { transform: scale(0.96); }
 .dock-tab[aria-selected="true"] {
   color: var(--ink);
-  background: color-mix(in srgb, var(--official) 16%, transparent);
+  background: color-mix(in srgb, var(--official) 17%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .dock-tab[data-tab="play"][aria-selected="true"],
 .dock-tab[data-tab="you"][aria-selected="true"] {
   background: color-mix(in srgb, var(--gold) 15%, transparent);
 }
 .dock-icon { font-size: 1.05rem; line-height: 1; }
-.dock-label { letter-spacing: 0.01em; }
+.dock-label { letter-spacing: 0.02em; white-space: nowrap; }
 
 /* ---- segmented controls (glass) ---- */
 .segmented {
   display: flex;
   gap: var(--sp-1);
   padding: var(--sp-1);
-  border-radius: 14px;
+  border-radius: 15px;
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -118,7 +145,7 @@ body::before {
   border: 0;
   flex: 1;
   min-height: 44px;
-  border-radius: 10px;
+  border-radius: 11px;
   background: transparent;
   color: var(--ink-3);
   font-family: inherit;
@@ -128,8 +155,13 @@ body::before {
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease;
 }
-.seg-btn.active { color: var(--ink); background: color-mix(in srgb, var(--official) 20%, transparent); }
+.seg-btn.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--official) 22%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
 .segmented.small .seg-btn { min-height: 40px; }
+.play-view .seg-btn.active { background: color-mix(in srgb, var(--gold) 18%, transparent); }
 
 :focus-visible { outline: 2px solid var(--official); outline-offset: 2px; }
 

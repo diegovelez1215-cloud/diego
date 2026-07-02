@@ -25,7 +25,7 @@ export function render(outlet) {
   const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
   const pickCount = Object.keys(play.predictions?.picks || {}).length;
   outlet.innerHTML = `<div class="view you-view">
-    <header class="view-head"><h1>You</h1></header>
+    <header class="view-head"><p class="view-kicker gold">Your Museum</p><h1>You</h1></header>
 
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
