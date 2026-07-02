@@ -224,6 +224,61 @@
 .day-head.today { color: var(--official-ink); }
 
 /* ---------------- World Cup hub: road to the final ---------------- */
+.command-center {
+  margin-top: var(--sp-4);
+  display: grid;
+  gap: var(--sp-2);
+}
+.cc-primary {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--official) 30%, var(--hairline));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--official) 16%, transparent), transparent 62%),
+    var(--bg-raise);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.cc-primary::after {
+  content: "";
+  position: absolute;
+  left: var(--sp-4); right: var(--sp-4); bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--official), transparent);
+}
+.cc-label,
+.cc-tile span {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--official-ink);
+}
+.cc-primary strong {
+  font-size: var(--fs-title);
+  line-height: 1.08;
+}
+.cc-primary > span:last-child { color: var(--ink-2); font-size: var(--fs-micro); }
+.cc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.cc-tile {
+  min-height: 96px;
+  padding: var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raise);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.cc-tile.action { border-color: color-mix(in srgb, var(--live) 28%, var(--hairline)); }
+.cc-tile strong { font-size: var(--fs-body); line-height: 1.12; }
+.cc-tile small { color: var(--ink-3); font-size: 0.72rem; line-height: 1.25; }
+
 .road-strip {
   display: flex;
   align-items: stretch;
@@ -264,6 +319,219 @@
   width: 12px; height: 1px; flex: none;
   background: var(--hairline);
 }
+
+/* ---------------- mobile-first Road ---------------- */
+.ko-truth-shadow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.road-mobile { margin-top: var(--sp-2); }
+.road-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 112px;
+  padding: var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--tc, var(--official)) 42%, var(--hairline));
+  border-radius: var(--radius);
+  background:
+    radial-gradient(95% 110% at 0% 0%, color-mix(in srgb, var(--tc, var(--official)) 18%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 55%),
+    var(--bg-stage);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  box-shadow: var(--shadow-stage);
+}
+.road-hero.full {
+  justify-content: space-between;
+  --tc: var(--official);
+}
+.road-hero-flag {
+  font-size: 3rem;
+  filter: drop-shadow(0 10px 20px rgba(0, 3, 12, 0.45));
+}
+.road-hero p {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--official-ink);
+}
+.road-hero h2 {
+  margin-top: var(--sp-1);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: var(--fs-title);
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.road-hero-count {
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+.road-stage-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(310px, 88%);
+  gap: var(--sp-3);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  align-items: start;
+  padding: var(--sp-4) 0 var(--sp-2);
+  scrollbar-width: none;
+}
+.road-stage-strip::-webkit-scrollbar { display: none; }
+.road-stage {
+  scroll-snap-align: start;
+  min-height: 430px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 42%),
+    var(--bg-raise);
+  padding: var(--sp-4);
+  position: relative;
+  overflow: hidden;
+}
+.follow-road .road-stage {
+  min-height: 310px;
+  height: auto;
+}
+.follow-road .road-stage.destination {
+  min-height: 380px;
+}
+.follow-road .road-match.featured {
+  min-height: 124px;
+}
+.road-stage::after {
+  content: "";
+  position: absolute;
+  inset: auto var(--sp-4) 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--official), transparent);
+  opacity: 0.4;
+}
+.road-stage.destination {
+  min-height: 520px;
+  border-color: color-mix(in srgb, var(--official) 48%, var(--hairline));
+  background:
+    radial-gradient(110% 70% at 50% -10%, color-mix(in srgb, var(--official) 22%, transparent), transparent 62%),
+    var(--bg-stage);
+}
+.road-stage.dramatic { min-height: 470px; }
+.road-stage.unresolved {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.road-step {
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 800;
+  font-size: 0.68rem;
+}
+.road-stage-kicker {
+  margin-top: var(--sp-3);
+  color: var(--official-ink);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.road-stage h3 {
+  margin: var(--sp-1) 0 var(--sp-4);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-size: 1.42rem;
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.road-stage-note { color: var(--ink-3); font-size: var(--fs-micro); }
+.road-match-grid { display: grid; gap: var(--sp-2); }
+.road-match {
+  appearance: none;
+  width: 100%;
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--hc, transparent) 12%, transparent), transparent 55%),
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ac, transparent) 12%, transparent), transparent 55%),
+    var(--bg-raise-2);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  min-height: 104px;
+  display: grid;
+  gap: var(--sp-1);
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.road-match:active { transform: scale(0.985); }
+.road-match.live { border-color: color-mix(in srgb, var(--live) 45%, var(--hairline)); }
+.road-match.featured {
+  min-height: 150px;
+  padding: var(--sp-4);
+  border-color: color-mix(in srgb, var(--official) 40%, var(--hairline));
+}
+.road-match-meta {
+  color: var(--ink-3);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.road-team {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.road-team-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-weight: var(--w-bold);
+  font-size: var(--fs-body);
+}
+.road-match.featured .road-team-name { font-size: var(--fs-title); }
+.road-team.pending .road-team-name {
+  color: var(--ink-3);
+  font-weight: var(--w-reg);
+  font-size: var(--fs-micro);
+}
+.road-team.winner .road-team-name { color: var(--ink); }
+.road-team-score {
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-wide);
+  font-weight: 830;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.road-match-state {
+  margin-top: var(--sp-1);
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.road-match.live .road-match-state { color: var(--live); }
 
 /* qualification races (group stage only) */
 .races-grid { display: grid; gap: var(--sp-2); }

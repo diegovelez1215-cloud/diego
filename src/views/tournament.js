@@ -1,5 +1,6 @@
-// United 2026 — Tournament. Exactly: Matches (editorial matchday board),
-// Groups, the official graphical Knockout bracket, and Match Center.
+// United 2026 — Tournament. Matches, Groups, a mobile-first Road, and Match
+// Center. The historical "knockout" route id remains stable for tests/state;
+// the fan-facing product calls it Road.
 
 import { getState, setTournamentView, setMatchesDate, openMatchCenter } from '../core/app-state.js';
 import { segmentedControl } from '../components/segmented-control.js';
@@ -26,7 +27,7 @@ export function render(outlet) {
     options: [
       { value: 'matches', label: 'Matches' },
       { value: 'groups', label: 'Groups' },
-      { value: 'knockout', label: 'Knockout' },
+      { value: 'knockout', label: 'Road' },
     ],
   })}
     ${pane}

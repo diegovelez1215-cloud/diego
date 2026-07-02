@@ -423,9 +423,18 @@ function labSetupHTML(play) {
   const last = (play.labHistory || [])[0];
   const home = last ? last.home : 'USA';
   const away = last ? last.away : 'ARG';
-  return `<section class="play-card lab" aria-label="Match Lab">
+  return `<section class="play-card lab lab-lobby" aria-label="Match Lab">
+    <div class="lab-attract" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
+      <div class="lab-attract-top"><span>Match Lab</span><strong>90'</strong></div>
+      <div class="lab-attract-score">
+        <span>${teamFlag(home)} ${esc(teamName(home))}</span>
+        <b>0<span>–</span>0</b>
+        <span>${esc(teamName(away))} ${teamFlag(away)}</span>
+      </div>
+      <div class="lab-beats" aria-hidden="true"><span>Kickoff</span><i></i><span>45' choice</span><i></i><span>68' choice</span><i></i><span>Reveal</span></div>
+    </div>
     <h2 class="display">Match Lab</h2>
-    <p class="play-sub">Two nations, one approach, ninety simulated minutes. You call the turning points.</p>
+    <p class="play-sub">Pick the matchup, choose the posture, then react when the match turns. Every finished run saves to You.</p>
     <div class="wi-pickers">
       <select id="lab-home" aria-label="Home team">${teamOptions(home)}</select>
       <span class="wi-v">v</span>
@@ -438,7 +447,7 @@ function labSetupHTML(play) {
           <span class="la-name">${a.label}</span><span class="la-blurb">${a.blurb}</span>
         </button>`).join('')}
     </div>
-    <button class="play-btn gold" id="lab-kickoff">Kick off</button>
+    <button class="play-btn gold lab-kick" id="lab-kickoff">Start the match</button>
     ${last ? `<p class="lab-last">Last time: ${teamFlag(last.home)} ${last.gh}–${last.ga}${last.pens ? ' (' + last.pens.ph + '–' + last.pens.pa + 'p)' : ''} ${teamFlag(last.away)} · <span class="grug-line">${esc(last.line || '')}</span></p>` : ''}
   </section>`;
 }
@@ -503,12 +512,18 @@ function myWorldCupHTML(overlay, play, pendingPick) {
   const next = nextSimStage(world);
   const champion = sim && sim.champion;
   const pickFx = pendingPick != null ? world.slots.get(pendingPick) : null;
+  const filled = world.finals.size;
   return `<section class="play-card my-wc bracket-card" aria-label="My World Cup">
     <header class="mwc-head">
       <div><h2 class="display">My World Cup</h2>
-      <p class="play-sub">Your private timeline. Tap an open tie to send someone through — the real bracket never notices.</p></div>
+      <p class="play-sub">A gold-tinted alternate Road. Hand-pick key ties or let the simulator sprint to the next dramatic stop.</p></div>
       <span class="sim-badge">SIMULATION</span>
     </header>
+    <div class="mwc-runway" aria-label="Simulation progress">
+      <span><strong>${filled}</strong> results</span>
+      <i style="width:${Math.min(100, Math.round((filled / 104) * 100))}%"></i>
+      <span>${next ? esc(STAGE_NAMES[next.stage]) + ' next' : 'Champion ready'}</span>
+    </div>
     ${champion ? `<div class="mwc-champion" role="status" style="--cc:${TEAM_COLORS[champion] || 'var(--gold)'}">
       <div class="mwc-rays" aria-hidden="true"></div>
       <div class="mwc-crown" aria-hidden="true">★</div>
@@ -521,12 +536,12 @@ function myWorldCupHTML(overlay, play, pendingPick) {
       <button class="mwc-pick" data-pickside="away" style="--glow:${TEAM_COLORS[pickFx.away] || ''}">${teamFlag(pickFx.away)} ${esc(teamName(pickFx.away))}</button>
       <button class="mwc-pick cancel" data-pickside="cancel">Cancel</button>
     </div>` : ''}
-    <div class="bk-scroll sim" tabindex="0" aria-label="My World Cup bracket. Scroll horizontally.">
-      ${bracketHTML({ slots: world.slots, results, mode: 'sim' }, {})}
-    </div>
     <div class="play-actions row">
       ${next ? `<button class="play-btn gold" id="mwc-simulate">Simulate remaining</button>` : `<button class="play-btn gold" id="mwc-save">Save this timeline</button>`}
       <button class="play-btn quiet" id="mwc-reset">Reset</button>
+    </div>
+    <div class="bk-scroll sim" tabindex="0" aria-label="My World Cup bracket. Scroll horizontally.">
+      ${bracketHTML({ slots: world.slots, results, mode: 'sim' }, {})}
     </div>
     ${next && next.stage === 'group' ? '<p class="mwc-note">Group results still forming — Simulate Remaining fills them, then hand-pick the knockouts.</p>' : ''}
   </section>`;
@@ -538,8 +553,11 @@ function predictionHTML(overlay, play) {
   const upcoming = predictableFixtures(overlay);
   const recent = stats.graded.slice(-3).reverse();
   return `<section class="play-card prediction" aria-label="Prediction Run">
-    <h2 class="display">Prediction Run</h2>
-    <p class="play-sub">Call official fixtures before they happen. Confidence earns insight; misses reset the streak. No stakes — only reputation with yourself.</p>
+    <div class="prediction-hero">
+      <div><h2 class="display">Prediction Run</h2>
+      <p class="play-sub">Call official fixtures before they happen. Confidence earns insight; misses reset the streak.</p></div>
+      <span class="prediction-chip">No stakes</span>
+    </div>
     <div class="pr-stats" role="group" aria-label="Prediction record">
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>
       <div class="pr-stat"><strong>${stats.insight}</strong><span>insight</span></div>

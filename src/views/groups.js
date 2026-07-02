@@ -28,15 +28,16 @@ function qualMark(g, r, thirds) {
 }
 
 /** The third-place race, integrated with the tables that decide it. */
-export function thirdPlacePanel(t) {
+export function thirdPlacePanel(t, { active = true } = {}) {
   if (!t.rows.length) return '';
-  return `<section class="ko-thirds" aria-label="Third-place race">
+  if (!active) return '';
+  return `<section class="ko-thirds integrated" aria-label="Third-place race">
     <header class="ko-thirds-head">
       <h3>Best thirds</h3>
       <span class="ko-thirds-sub">${t.decided ? 'Top 8 advance — slots locked' : 'Top 8 advance · race in progress'}</span>
     </header>
     <div class="ko-thirds-grid">
-    ${t.rows.map((r, i) => `
+    ${t.rows.slice(0, t.decided ? 12 : 8).map((r, i) => `
       <div class="ko-third${r.qualified ? ' in' : ''}${!r.complete ? ' provisional' : ''}">
         <span class="ko-third-rank">${i + 1}</span>
         <span class="ko-third-team">${teamFlag(r.code)} ${esc(teamName(r.code))}</span>
@@ -53,6 +54,7 @@ export function renderGroups(overlay, { thirds } = {}) {
   const anyPlayed = groups.some((g) => g.rows.some((r) => r.p > 0));
   return `<div class="groups-pane">
     ${anyPlayed ? '' : '<p class="data-note" role="status">Official results are temporarily unavailable — tables will fill in automatically.</p>'}
+    ${thirdPlacePanel(t, { active: anyPlayed })}
     <div class="groups-grid">
     ${groups.map((g) => {
     const st = groupState(g);
@@ -72,6 +74,5 @@ export function renderGroups(overlay, { thirds } = {}) {
       </section>`;
   }).join('')}
     </div>
-    ${thirdPlacePanel(t)}
   </div>`;
 }

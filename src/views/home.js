@@ -44,6 +44,39 @@ function comingUp(m) {
   </section>`;
 }
 
+function commandCenterHTML(m) {
+  const hero = m.hero;
+  const current = m.road.stages.find((s) => s.stage === m.road.currentStage) || m.road.stages[0];
+  const nextMoment = m.nextAction || m.comingUp[0] || m.today.find((x) => !x.final && (!hero || x.id !== hero.id));
+  const liveCopy = m.liveNow.length
+    ? `${m.liveNow.length} live match${m.liveNow.length === 1 ? '' : 'es'} shaping ${current ? current.name : 'the Road'}`
+    : hero ? `${hero.stageName} is the next tournament window` : 'Official schedule is standing by';
+  const consequence = hero && hero.feeds
+    ? `Winner moves toward Match ${hero.feeds.id}`
+    : hero && hero.stage === 'group'
+      ? `Group ${hero.group} qualification pressure`
+      : current ? `${current.done}/${current.total} ${current.name} complete` : 'Road forming';
+  return `<section class="command-center" aria-label="Tournament command center">
+    <div class="cc-primary">
+      <span class="cc-label">What matters now</span>
+      <strong>${esc(liveCopy)}</strong>
+      <span>${esc(consequence)}</span>
+    </div>
+    <div class="cc-grid">
+      <div class="cc-tile action">
+        <span>Next decisive moment</span>
+        <strong>${nextMoment ? esc(nextMoment.stageName) : 'Waiting'}</strong>
+        <small>${nextMoment ? `${esc(nextMoment.home.name)} v ${esc(nextMoment.away.name)} · ${esc(nextMoment.time)}` : 'No official match in range'}</small>
+      </div>
+      <div class="cc-tile">
+        <span>Road status</span>
+        <strong>${current ? esc(current.label) : 'Road'}</strong>
+        <small>${current ? `${current.live ? 'Live now' : current.done + '/' + current.total + ' complete'} · ${esc(current.dateLabel || 'Final path')}` : 'Knockout path pending'}</small>
+      </div>
+    </div>
+  </section>`;
+}
+
 /* Road to the Final — a compact truth snapshot of the knockout arc. */
 function roadHTML(road) {
   const groupsPhase = road.groupDone < road.groupTotal && road.stages.every((s) => s.done === 0 && s.state !== 'live');
@@ -94,6 +127,7 @@ export function render(outlet) {
     </header>
     ${scoreStage(m.hero, { countdown: m.heroCountdown })}
     ${m.providerState !== 'ok' ? '<p class="data-note" role="status">Live scores are temporarily unavailable. Schedule shown is official.</p>' : ''}
+    ${commandCenterHTML(m)}
     ${todayBoard(m)}
     ${comingUp(m)}
     ${roadHTML(m.road)}

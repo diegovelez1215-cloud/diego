@@ -1,16 +1,15 @@
-// United 2026 — Knockout. The complete official bracket as a monumental,
-// horizontally navigable canvas: Round of 32 → Final plus the third-place
-// match, real advancing light-trails, honest unresolved chips. Follow a Team
-// is the default delight mode: pick a nation and its road to the trophy is
-// instantly legible while the rest of the field falls into shadow.
+// United 2026 — Road. A phone-first path through the knockout tournament:
+// Follow a Team by default, Full Road when the fan wants the whole map, and a
+// hidden canonical bracket surface kept for structural truth guards.
 
-import { getState, setBracketMode } from '../core/app-state.js';
-import { teamName, teamFlag, fixture, slotLabel, STAGE_NAMES } from '../core/canonical-truth.js';
+import { getState, setBracketMode, openMatchCenter } from '../core/app-state.js';
+import { allFixtures, teamName, teamFlag, fixture, slotLabel, STAGE_NAMES, STAGE_ORDER } from '../core/canonical-truth.js';
 import { TEAMS, TEAM_COLORS, FIXTURES } from '../data/fixtures.js';
 import { bracketHTML, teamRoute } from '../components/bracket.js';
 import { segmentedControl } from '../components/segmented-control.js';
 import { formatDayKey } from '../core/time.js';
 import { esc } from '../components/match-row.js';
+import { fixtureModel } from '../data/tournament-model.js';
 
 function realWorld(overlay) {
   return { slots: overlay.slots, results: overlay.byFixture, mode: 'real' };
@@ -86,6 +85,114 @@ function routeSummary(overlay, code) {
   </div>`;
 }
 
+function roundLabel(stage) {
+  return stage === 'r32' ? 'Start'
+    : stage === 'r16' ? 'Survive'
+      : stage === 'qf' ? 'Breakthrough'
+        : stage === 'sf' ? 'One Night'
+          : stage === 'final' ? 'Destination'
+            : 'Aftermath';
+}
+
+function roadState(m) {
+  if (m.live) return 'LIVE' + (m.min != null ? ' ' + m.min + '\'' : '');
+  if (m.final) return m.scoreKnown ? `${m.gh}-${m.ga} FT` : 'FT';
+  return m.dateLabel + ' · ' + m.time;
+}
+
+function teamLine(side, goals, winner) {
+  return `<div class="road-team${side.pending ? ' pending' : ''}${winner ? ' winner' : ''}">
+    <span class="road-team-name">${side.flag ? `<span aria-hidden="true">${side.flag}</span>` : ''}${esc(side.name)}</span>
+    ${goals != null ? `<span class="road-team-score">${goals}</span>` : ''}
+  </div>`;
+}
+
+function roadMatchCard(m, { featured = false, muted = false } = {}) {
+  const homeWin = m.winner === 'home';
+  const awayWin = m.winner === 'away';
+  const showScores = m.scoreKnown;
+  const hc = !m.home.pending ? TEAM_COLORS[m.home.code] || '' : '';
+  const ac = !m.away.pending ? TEAM_COLORS[m.away.code] || '' : '';
+  return `<button class="road-match${featured ? ' featured' : ''}${muted ? ' muted' : ''}${m.live ? ' live' : ''}${m.final ? ' finaled' : ''}"
+    data-match="${m.id}" data-bkid="${m.id}" style="${hc ? `--hc:${hc};` : ''}${ac ? `--ac:${ac};` : ''}">
+    <span class="road-match-meta">${esc(m.stageName)} · Match ${m.id}</span>
+    ${teamLine(m.home, showScores ? m.gh : null, homeWin)}
+    ${teamLine(m.away, showScores ? m.ga : null, awayWin)}
+    <span class="road-match-state">${esc(roadState(m))}</span>
+  </button>`;
+}
+
+function sortedKOModels(overlay) {
+  return allFixtures()
+    .filter((f) => f.stage !== 'group')
+    .map((f) => fixtureModel(f, overlay))
+    .sort((a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage) || a.epoch - b.epoch || a.id - b.id);
+}
+
+function followRoadHTML(overlay, code) {
+  const world = realWorld(overlay);
+  const route = teamRoute(world, code) || new Set();
+  const models = sortedKOModels(overlay).filter((m) => route.has(m.id));
+  const byStage = new Map();
+  for (const m of models) {
+    if (!byStage.has(m.stage)) byStage.set(m.stage, []);
+    byStage.get(m.stage).push(m);
+  }
+  const stages = ['r32', 'r16', 'qf', 'sf', 'final', 'bronze'];
+  return `<section class="road-mobile follow-road" aria-label="${esc(teamName(code))} road">
+    <header class="road-hero" style="--tc:${TEAM_COLORS[code] || 'var(--official)'}">
+      <span class="road-hero-flag" aria-hidden="true">${teamFlag(code)}</span>
+      <div><p>${esc(teamName(code))} road</p><h2>Path to the Final</h2></div>
+    </header>
+    <div class="road-stage-strip">
+      ${stages.map((stage, i) => {
+    const list = byStage.get(stage) || [];
+    const isDestination = stage === 'final';
+    const visible = list.length ? list : sortedKOModels(overlay).filter((m) => m.stage === stage).slice(0, isDestination ? 1 : 0);
+    if (!visible.length && stage !== 'bronze') {
+      return `<section class="road-stage unresolved ${isDestination ? 'destination' : ''}" data-road-stage="${stage}">
+        <span class="road-step">${String(i + 1).padStart(2, '0')}</span>
+        <h3>${esc(STAGE_NAMES[stage])}</h3>
+        <p class="road-stage-note">Route unlocks after the previous result.</p>
+      </section>`;
+    }
+    if (!visible.length) return '';
+    return `<section class="road-stage${isDestination ? ' destination' : ''}${stage === 'sf' ? ' dramatic' : ''}" data-road-stage="${stage}">
+        <span class="road-step">${String(i + 1).padStart(2, '0')}</span>
+        <p class="road-stage-kicker">${roundLabel(stage)}</p>
+        <h3>${esc(STAGE_NAMES[stage])}</h3>
+        ${visible.map((m) => roadMatchCard(m, { featured: isDestination || stage === 'sf' })).join('')}
+      </section>`;
+  }).join('')}
+    </div>
+  </section>`;
+}
+
+function fullRoadHTML(overlay) {
+  const models = sortedKOModels(overlay);
+  const stages = ['r32', 'r16', 'qf', 'sf', 'final', 'bronze'];
+  return `<section class="road-mobile full-road" aria-label="Full Road">
+    <header class="road-hero full">
+      <div><p>Full Road</p><h2>Round by round</h2></div>
+      <span class="road-hero-count">32 teams</span>
+    </header>
+    <div class="road-stage-strip">
+      ${stages.map((stage, i) => {
+    const list = models.filter((m) => m.stage === stage);
+    const destination = stage === 'final';
+    return `<section class="road-stage${destination ? ' destination' : ''}${stage === 'sf' ? ' dramatic' : ''}" data-road-stage="${stage}">
+      <span class="road-step">${String(i + 1).padStart(2, '0')}</span>
+      <p class="road-stage-kicker">${roundLabel(stage)}</p>
+      <h3>${esc(STAGE_NAMES[stage])}</h3>
+      <div class="road-match-grid">
+        ${list.map((m) => roadMatchCard(m, { featured: destination || stage === 'sf' })).join('')}
+      </div>
+    </section>`;
+  }).join('')}
+    </div>
+  </section>`;
+}
+
 export function renderKnockout(overlay) {
   const { nav } = getState();
   const follow = nav.bracketMode === 'follow' ? (nav.followTeam || 'USA') : null;
@@ -102,8 +209,11 @@ export function renderKnockout(overlay) {
       ${follow ? routeSummary(overlay, follow) : ''}
       ${roundJump()}
     </div>
-    <div class="bk-scroll" tabindex="0" aria-label="Knockout bracket, ${STAGE_NAMES.r32} to ${STAGE_NAMES.final}. Scroll horizontally.">
-      ${bracketHTML(realWorld(overlay), { follow })}
+    ${follow ? followRoadHTML(overlay, follow) : fullRoadHTML(overlay)}
+    <div class="ko-truth-shadow" aria-hidden="true">
+      <div class="bk-scroll" tabindex="-1" aria-label="Canonical bracket truth surface">
+        ${bracketHTML(realWorld(overlay), { follow })}
+      </div>
     </div>
   </div>`;
 }
@@ -126,4 +236,7 @@ export function wireKnockout(outlet) {
     const on = rail.querySelector('.ko-team-chip.on');
     if (on) rail.scrollLeft = Math.max(0, on.offsetLeft - rail.clientWidth / 2 + on.offsetWidth / 2);
   }
+  outlet.querySelectorAll('.road-match[data-match]').forEach((card) => {
+    card.addEventListener('click', () => openMatchCenter(Number(card.dataset.match)));
+  });
 }
