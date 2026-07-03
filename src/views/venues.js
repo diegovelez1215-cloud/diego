@@ -58,6 +58,9 @@ export function renderVenues(overlay) {
           <span>${v.capacity ? Number(v.capacity).toLocaleString() + ' capacity' : 'World Cup venue'}</span>
           ${status}
         </div>
+        <div class="venue-hosts">${[...new Set(v.matches.map((m) => m.stage))]
+    .map((st) => `<span class="venue-stage${['sf', 'final', 'bronze'].includes(st) ? ' marquee' : ''}">${esc(st === 'group' ? 'Groups' : STAGE_NAMES[st] || st)}</span>`).join('')}
+        </div>
         <div class="venue-matches">
           ${v.matches.map((m) => matchRow(m, { context: `${STAGE_NAMES[m.stage] || m.stage} · Match ${m.id}` })).join('')}
         </div>

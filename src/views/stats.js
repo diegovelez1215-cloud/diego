@@ -54,11 +54,28 @@ function teamRows(rows, metric) {
   </div>`).join('');
 }
 
+/** G+A combines the two verified leader lists — never invents a component. */
+function combinedGA(goals, assists) {
+  const byKey = new Map();
+  const add = (list, field) => {
+    for (const r of list) {
+      const key = r.player + '|' + r.team;
+      if (!byKey.has(key)) byKey.set(key, { player: r.player, team: r.team, g: 0, a: 0 });
+      byKey.get(key)[field] += r.n;
+    }
+  };
+  add(goals, 'g'); add(assists, 'a');
+  return [...byKey.values()]
+    .map((r) => ({ ...r, n: r.g + r.a }))
+    .sort((a, b) => b.n - a.n || b.g - a.g || a.player.localeCompare(b.player));
+}
+
 export function renderStats(overlay, stats) {
   const teams = teamTotals(overlay);
   const stamp = updatedLabel(stats && stats.fetchedAt);
   const goals = stats && Array.isArray(stats.goals) ? stats.goals : [];
   const assists = stats && Array.isArray(stats.assists) ? stats.assists : [];
+  const ga = goals.length && assists.length ? combinedGA(goals, assists) : [];
   return `<section class="stats-pane" aria-label="Stats">
     <div class="stats-lede">
       <div><p class="venue-kicker">Verified leaders</p><h2>Stats that have a source</h2></div>
@@ -71,6 +88,19 @@ export function renderStats(overlay, stats) {
     <article class="stats-card">
       <h3>Assists</h3>
       ${leaderRows(assists, 'Official assist data is unavailable from the current feed.')}
+    </article>
+    <article class="stats-card">
+      <h3>Goals + assists</h3>
+      ${ga.length ? ga.slice(0, 8).map((r, i) => {
+    const code = resolveTeamCode(r.team);
+    return `<div class="stats-row">
+        <span class="stats-rank">${i + 1}</span>
+        <span class="stats-name">${esc(r.player)}</span>
+        <span class="stats-team">${r.g}g · ${r.a}a${code ? ' · ' + teamFlag(code) : ''}</span>
+        <strong>${r.n}</strong>
+      </div>`;
+  }).join('') + '<p class="stats-foot">Combined from the verified goal and assist leader lists.</p>'
+    : '<p class="stats-empty">G+A needs both verified goal and assist data — one of the two is unavailable right now.</p>'}
     </article>
     <article class="stats-card">
       <h3>Team goals</h3>

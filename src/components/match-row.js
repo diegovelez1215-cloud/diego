@@ -8,10 +8,16 @@ export function esc(s) {
   ));
 }
 
+/** Long names scale down and wrap at word boundaries — never mid-word. */
+export function nameSizeClass(name) {
+  const n = String(name || '').length;
+  return n > 16 ? ' xl' : n > 11 ? ' lg' : '';
+}
+
 function sideHTML(side, cls) {
   return `<span class="mr-team ${cls}${side.pending ? ' pending' : ''}">
     ${side.flag ? `<span class="mr-flag" aria-hidden="true">${side.flag}</span>` : ''}
-    <span class="mr-name">${esc(side.name)}</span>
+    <span class="mr-name${nameSizeClass(side.name)}">${esc(side.name)}</span>
   </span>`;
 }
 

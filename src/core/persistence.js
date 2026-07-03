@@ -42,9 +42,10 @@ function write(key, value) {
   try { ls.setItem(key, JSON.stringify(value)); } catch { /* quota — non-fatal */ }
 }
 
-// Keys that would smuggle real-tournament truth into storage are stripped.
+// Keys that would smuggle real-tournament truth into storage are stripped,
+// plus retired feature namespaces (the removed Club League profile store).
 const FORBIDDEN_FIELDS = ['fixtures', 'officialFixtures', 'standings', 'results',
-  'live', 'overlay', 'providerFixtures', 'koFixtures', 'scores'];
+  'live', 'overlay', 'providerFixtures', 'koFixtures', 'scores', 'club'];
 function sanitize(obj) {
   if (!obj || typeof obj !== 'object') return {};
   const clean = { ...obj };

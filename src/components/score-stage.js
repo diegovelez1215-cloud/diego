@@ -3,14 +3,14 @@
 // consequence are the hero, lit by the two teams' colors. Cinematic through
 // hierarchy and quiet light — no blur stacks, no invented data.
 
-import { esc } from './match-row.js';
+import { esc, nameSizeClass } from './match-row.js';
 import { TEAM_COLORS } from '../data/fixtures.js';
 import { fixture, STAGE_NAMES } from '../core/canonical-truth.js';
 
 function teamHTML(side, cls) {
   return `<div class="ss-team ${cls}${side.pending ? ' pending' : ''}">
     ${side.flag ? `<div class="ss-flag" aria-hidden="true">${side.flag}</div>` : ''}
-    <div class="ss-name">${esc(side.name)}</div>
+    <div class="ss-name${nameSizeClass(side.name)}">${esc(side.name)}</div>
   </div>`;
 }
 

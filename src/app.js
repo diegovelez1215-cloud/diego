@@ -5,6 +5,7 @@
 // refresh loop. Tab taps never reach the network or storage.
 
 import { purgeLegacy, loadPrefs, loadPlay, loadSims } from './core/persistence.js';
+import { pollDelay, snapshotDue, scorersDue } from './core/refresh-policy.js';
 import { getState, setOverlay, setPrefs, setPlay, setSims, setStats, subscribe } from './core/app-state.js';
 import { buildOverlay } from './core/provider-overlay.js';
 import * as router from './navigation/router.js';
@@ -16,12 +17,17 @@ import * as you from './views/you.js';
 import { renderMatchCenter } from './views/match-center.js';
 import { todayKey } from './core/time.js';
 
-/* ---------------- provider refresh (never during navigation) ---------------- */
+/* ---------------- provider refresh (never during navigation) ----------------
+   Usage protection: one shared in-memory snapshot, duplicate refreshes
+   coalesced behind a single in-flight flag, fast polling only while a
+   validated match is live and the app is visible, no polling at all in a
+   hidden tab, scorer stats on a much longer clock, and a visibility return
+   that refreshes only when the snapshot is genuinely due. */
 
-const LIVE_POLL_MS = 60 * 1000;
-const IDLE_POLL_MS = 5 * 60 * 1000;
 let pollTimer = null;
 let refreshing = false;
+let lastSnapshotAt = 0;  // in-memory only — official data never touches storage
+let lastScorersAt = 0;
 
 async function fetchJson(url) {
   try {
@@ -29,6 +35,10 @@ async function fetchJson(url) {
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }
+}
+
+function anyLiveNow() {
+  return [...getState().real.overlay.byFixture.values()].some((o) => o.status === 'live');
 }
 
 async function refreshProviderData() {
@@ -40,16 +50,21 @@ async function refreshProviderData() {
       fetchJson('/api/live'),
     ]);
     setOverlay(buildOverlay({ results, live }));
-    const scorerStats = await fetchJson('/api/scorers');
-    if (scorerStats && scorerStats.configured !== false && scorerStats.isStale !== true) {
-      setStats({
-        providerState: scorerStats.sourceStatus || 'ok',
-        fetchedAt: scorerStats.fetchedAt || null,
-        goals: Array.isArray(scorerStats.goals) ? scorerStats.goals : [],
-        assists: Array.isArray(scorerStats.assists) ? scorerStats.assists : [],
-      });
-    } else {
-      setStats({ providerState: 'unavailable', fetchedAt: scorerStats && scorerStats.fetchedAt || null, goals: [], assists: [] });
+    lastSnapshotAt = Date.now();
+    // Player stats move slowly — refresh them on their own, longer clock.
+    if (scorersDue(Date.now(), lastScorersAt)) {
+      const scorerStats = await fetchJson('/api/scorers');
+      if (scorerStats) lastScorersAt = Date.now();
+      if (scorerStats && scorerStats.configured !== false && scorerStats.isStale !== true) {
+        setStats({
+          providerState: scorerStats.sourceStatus || 'ok',
+          fetchedAt: scorerStats.fetchedAt || null,
+          goals: Array.isArray(scorerStats.goals) ? scorerStats.goals : [],
+          assists: Array.isArray(scorerStats.assists) ? scorerStats.assists : [],
+        });
+      } else {
+        setStats({ providerState: 'unavailable', fetchedAt: scorerStats && scorerStats.fetchedAt || null, goals: [], assists: [] });
+      }
     }
   } finally {
     refreshing = false;
@@ -59,8 +74,8 @@ async function refreshProviderData() {
 
 function armPoll() {
   clearTimeout(pollTimer);
-  const anyLive = [...getState().real.overlay.byFixture.values()].some((o) => o.status === 'live');
-  pollTimer = setTimeout(refreshProviderData, anyLive ? LIVE_POLL_MS : IDLE_POLL_MS);
+  if (document.visibilityState === 'hidden') return; // hidden tabs do not poll
+  pollTimer = setTimeout(refreshProviderData, pollDelay(anyLiveNow()));
 }
 
 /* ---------------- boot ---------------- */
@@ -99,7 +114,11 @@ export function boot() {
 
   refreshProviderData();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') refreshProviderData();
+    if (document.visibilityState === 'hidden') { clearTimeout(pollTimer); return; }
+    // Back to visible: refresh only when the snapshot is actually due;
+    // otherwise just re-arm the poll from the existing fresh snapshot.
+    if (snapshotDue(Date.now(), lastSnapshotAt, anyLiveNow())) refreshProviderData();
+    else armPoll();
   });
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {

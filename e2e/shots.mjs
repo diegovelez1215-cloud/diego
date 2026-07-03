@@ -1,7 +1,7 @@
 // Ad-hoc screenshot harness for design review (not a test). Reuses the e2e
 // mock world plus a richer knockout snapshot so completed/live/upcoming Road
 // states are all inspectable. Usage: ONLY=390 node e2e/shots.mjs [outDir]
-import { chromium } from '@playwright/test';
+import { webkit } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { fullGroupFinished, mockSlots, livePayloadFor, OK } from '../tests/mock-provider.mjs';
@@ -53,7 +53,7 @@ const RESULTS = {
 };
 const LIVE = livePayloadFor(80, { gh: 1, ga: 0, min: 63 });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browser = await webkit.launch();
 
 async function shootAll(width, height, tag) {
   const ctx = await browser.newContext({
@@ -120,7 +120,6 @@ async function shootAll(width, height, tag) {
   await snap('lab-reveal');
   await seg('play-mode', 'myworldcup'); await snap('myworldcup');
   await seg('play-mode', 'prediction'); await snap('prediction');
-  await seg('play-mode', 'club'); await snap('club');
   await seg('play-mode', 'lobby'); await snap('lobby-after-play');
 
   await tab('you');

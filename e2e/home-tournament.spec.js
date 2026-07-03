@@ -117,7 +117,10 @@ test.describe('Tournament', () => {
     await openTournamentSection(page, 'stats');
     await expect(page.locator('.stats-card').first()).toContainText('A Player');
     await expect(page.locator('.stats-card').nth(1)).toContainText('Official assist data is unavailable');
-    await expect(page.locator('.stats-card')).toHaveCount(4);
+    await expect(page.locator('.stats-card')).toHaveCount(5);
+    // G+A stays honest: with assists unavailable it must say so, never invent
+    await expect(page.locator('.stats-card').nth(2)).toContainText('Goals + assists');
+    await expect(page.locator('.stats-card').nth(2)).toContainText('unavailable');
     await expectNoHorizontalOverflow(page, expect, 'stats');
     await screenshot(page, testInfo, 'stats');
   });

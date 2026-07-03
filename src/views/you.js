@@ -5,7 +5,7 @@
 import { getState, setPrefs, setSims } from '../core/app-state.js';
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName } from '../core/canonical-truth.js';
-import { gradePredictions, clubTable, achievementState } from './play.js';
+import { gradePredictions, arcadeLedger, achievementState } from './play.js';
 import { esc } from '../components/match-row.js';
 
 export const seedHTML = `<div class="view you-view">
@@ -24,8 +24,7 @@ export function render(outlet) {
   const lab = play.labHistory || [];
   const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
   const pickCount = Object.keys(play.predictions?.picks || {}).length;
-  const { rows } = clubTable(play, real.overlay, sims);
-  const you = rows.find((r) => r.id === 'you');
+  const ledger = arcadeLedger(play, real.overlay, sims);
   const ach = achievementState();
   const earned = ach.filter((a) => a.on);
   const labWins = lab.filter((e) => e.win).length;
@@ -44,11 +43,11 @@ export function render(outlet) {
     : '<p class="empty-line">No calls yet. Prediction Run is waiting on the Play tab.</p>'}
     </section>
 
-    <section class="you-card you-standing" aria-label="Club standing">
-      <h2>Club standing</h2>
+    <section class="you-card you-standing" aria-label="Arcade record">
+      <h2>Arcade record</h2>
       <div class="you-cp-row">
-        <strong class="display">${you ? you.cp : 0}</strong>
-        <span>Club Points · rank #${you ? you.rank : 1} in your club<br><small>Private game score. No cash value.</small></span>
+        <strong class="display">${ledger.points}</strong>
+        <span>Arcade Points · ${ledger.streak >= 2 ? ledger.streak + ' wins running' : 'streak ' + ledger.streak}<br><small>Private game score. No cash value.</small></span>
       </div>
       ${earned.length ? `<div class="you-ach-row" aria-label="Earned achievements">
         ${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}
