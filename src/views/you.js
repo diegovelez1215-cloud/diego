@@ -134,9 +134,10 @@ function logActivity(text) {
 
 function signInCardHTML() {
   if (!boardConfigured()) {
-    return `<section class="you-card" aria-label="Leaderboard unavailable">
-      <h2>World Cup Leaderboard</h2>
-      <p class="empty-line">The global leaderboard backend isn't configured in this build.</p>
+    return `<section class="you-card board-soon" aria-label="Global Leaderboard opening soon">
+      <p class="bd-kicker">Global competition</p>
+      <h2 class="display">Global Leaderboard is opening soon</h2>
+      <p class="league-sub">Your Prediction Run, Match Lab history, saved timelines, and arcade progress are ready now. The worldwide table will open when live accounts are enabled.</p>
     </section>`;
   }
   const step = authStep;
@@ -402,6 +403,7 @@ function arcadeBoardHTML(state) {
 /* ================= the leaderboard surface ================= */
 
 function boardHTML(state) {
+  if (!boardConfigured()) return signInCardHTML();
   const tab = state.nav.boardTab;
   const tabs = segmentedControl({
     id: 'board-tab', label: 'Leaderboard sections', value: tab,

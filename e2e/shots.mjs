@@ -75,49 +75,9 @@ async function shootAll(width, height, tag) {
     Date = FrozenDate;
   }, FROZEN);
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
-  // Global leaderboard backend mock (design-review world, same shape as e2e).
-  // Signed-in session is seeded so the boards render; rows are the mock data
-  // a real Supabase view would return.
-  const ME = { id: 'u-diego-test', email: 'diego@example.com' };
-  await page.addInitScript((u) => {
-    window.localStorage.setItem('u26v2.auth', JSON.stringify({
-      access_token: 'test-access-token', refresh_token: 'test-refresh-token',
-      expires_at: Math.floor(Date.now() / 1000) + 3600, user: u,
-    }));
-  }, ME);
-  const row = (o) => ({
-    user_id: 'u-x', display_name: 'Player', avatar: null, points: 0, accuracy: null,
-    streak: 0, best_streak: 0, exact: 0, correct: 0, total: 0,
-    round_stage: 'r32', round_points: 0, round_correct: 0, round_total: 0,
-    rank: 1, joined_at: '2026-06-29T12:00:00Z', ...o,
-  });
-  const BOARD = [
-    row({ user_id: 'u-ana', display_name: 'Ana', avatar: '🦅', points: 155, accuracy: 80, streak: 4, best_streak: 5, exact: 1, correct: 8, total: 10, round_points: 40, rank: 1, joined_at: '2026-06-30T12:00:00Z' }),
-    row({ user_id: 'u-luca', display_name: 'Luca', avatar: '🐺', points: 120, accuracy: 71, streak: 1, correct: 7, total: 10, round_points: 20, rank: 2 }),
-    row({ user_id: 'u-mei', display_name: 'Mei', avatar: '⚡', points: 95, accuracy: 64, streak: 3, correct: 6, total: 9, round_points: 30, rank: 3 }),
-    row({ user_id: 'u-max', display_name: 'Maximiliano Fernández', points: 60, accuracy: 50, correct: 4, total: 8, rank: 4 }),
-    row({ user_id: 'u-omar', display_name: 'Omar', avatar: '🔥', points: 45, accuracy: 44, correct: 3, total: 7, rank: 5 }),
-  ];
-  const MY_ROW = row({ user_id: ME.id, display_name: 'Diego', avatar: '🎯', points: 12, accuracy: 33, correct: 1, total: 3, rank: 57, joined_at: '2026-07-01T09:00:00Z' });
-  const ARCADE = [
-    row({ user_id: 'u-ana', display_name: 'Ana', avatar: '🦅', points: 900, wins: 12, played: 15, streak: 4, rank: 1 }),
-    row({ user_id: ME.id, display_name: 'Diego', avatar: '🎯', points: 300, wins: 4, played: 7, streak: 1, rank: 2 }),
-    row({ user_id: 'u-mei', display_name: 'Mei', avatar: '⚡', points: 180, wins: 3, played: 6, streak: 0, rank: 3 }),
-  ];
-  await page.route('**/auth/v1/**', (r) => r.fulfill({
-    json: { access_token: 'test-access-token', refresh_token: 'test-refresh-token', expires_in: 3600, user: ME },
+  await page.route('**/api/leaderboard-config*', (r) => r.fulfill({
+    json: { url: '', anonKey: '' },
   }));
-  await page.route('**/rest/v1/leaderboard_v2*', (r) => {
-    const mine = r.request().url().includes('user_id=eq.');
-    r.fulfill({ json: mine ? [MY_ROW] : BOARD });
-  });
-  await page.route('**/rest/v1/arcade_ladder_v2*', (r) => r.fulfill({ json: ARCADE }));
-  await page.route('**/rest/v1/profiles*', (r) => {
-    if (r.request().method() === 'GET') r.fulfill({ json: [{ id: ME.id, display_name: 'Diego', avatar: '🎯' }] });
-    else r.fulfill({ status: 201, body: '' });
-  });
-  await page.route('**/rest/v1/picks*', (r) => r.fulfill({ status: 201, body: '' }));
-  await page.route('**/rest/v1/arcade_scores*', (r) => r.fulfill({ status: 201, body: '' }));
   await page.route('**/api/results*', (r) => r.fulfill({ json: RESULTS }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: LIVE }));
   await page.route('**/api/scorers*', (r) => r.fulfill({
@@ -178,10 +138,7 @@ async function shootAll(width, height, tag) {
   await seg('you-view', 'board');
   await page.waitForSelector('.lg-rows', { timeout: 4000 }).catch(() => {});
   await page.waitForTimeout(400);
-  await snap('picks-leaderboard');
-  await seg('board-tab', 'arcade');
-  await page.waitForTimeout(400);
-  await snap('arcade-ladder');
+  await snap('leaderboard-opening-soon');
   await ctx.close();
 }
 

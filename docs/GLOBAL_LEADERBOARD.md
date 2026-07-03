@@ -68,7 +68,14 @@ Tournament bonuses: `best streak × 20` and `exact scorelines × 15`. Accuracy
 is `correct / settled`. The SQL view and the local `gradePredictions` /
 `officialPickPoints` derivations agree by construction.
 
-## One-time setup
+## Future enablement
+
+This launch does **not** require Supabase Auth, the SQL migration, Vercel
+secrets, Cron, or server settlement. When `SUPABASE_URL` /
+`SUPABASE_ANON_KEY` are absent, the shipped app shows an opening-soon state
+and leaves the rest of United 2026 fully usable.
+
+When the global board is ready to open:
 
 1. **Apply the migration once** (Supabase Dashboard → SQL editor, or
    `supabase db push`): run

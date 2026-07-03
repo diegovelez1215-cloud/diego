@@ -30,6 +30,21 @@ async function openBoard(page, tab) {
 }
 
 test.describe('Global World Cup Leaderboard', () => {
+  test('launch-safe when Supabase is not configured: opening soon, no fake board', async ({ page }, testInfo) => {
+    await gotoApp(page, { leaderboardConfigured: false });
+    await openBoard(page);
+    await expect(page.locator('.board-soon')).toBeVisible();
+    await expect(page.locator('.board-soon')).toContainText('Global Leaderboard is opening soon');
+    await expect(page.locator('#board-email')).toHaveCount(0);
+    await expect(page.locator('.lg-row')).toHaveCount(0);
+    await expect(page.locator('.lg-stamp')).toHaveCount(0);
+    const text = (await page.locator('.you-view').innerText()).toLowerCase();
+    for (const banned of ['updated just now', 'couldn\'t sync', 'backend', 'error', 'rank #', 'ana', 'luca', 'mei']) {
+      expect(text).not.toContain(banned);
+    }
+    await screenshot(page, testInfo, 'leaderboard-opening-soon');
+  });
+
   test('signed out: a sign-in gate, never an invented table', async ({ page }) => {
     await gotoApp(page);
     await openBoard(page);

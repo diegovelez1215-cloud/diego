@@ -726,15 +726,15 @@
   color: var(--official-ink); font-size: 0.66rem; font-weight: var(--w-bold);
   letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2px;
 }
-.board-signin h2.display, .board-profile h2.display {
+.board-signin h2.display, .board-profile h2.display, .board-soon h2.display {
   font-family: var(--font-display); font-weight: 830; font-stretch: var(--stretch-wide);
   font-size: var(--fs-display); margin-bottom: var(--sp-1);
 }
-.board-signin {
+.board-signin, .board-soon {
   position: relative; overflow: hidden;
   border-color: color-mix(in srgb, var(--official) 30%, var(--hairline));
 }
-.board-signin::before {
+.board-signin::before, .board-soon::before {
   content: ""; position: absolute; inset: -45% -10% auto; height: 60%;
   background: radial-gradient(55% 100% at 50% 0%, color-mix(in srgb, var(--official) 14%, transparent) 0%, transparent 70%);
   pointer-events: none;

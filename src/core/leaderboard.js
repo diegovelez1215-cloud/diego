@@ -30,7 +30,9 @@ function configLooksPublic(c) {
 }
 
 function notifyConfigReady() {
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:leaderboard-config'));
+  if (typeof window !== 'undefined' && typeof window.Event === 'function') {
+    window.dispatchEvent(new window.Event('u26:leaderboard-config'));
+  }
 }
 
 function ensureConfig() {
@@ -65,7 +67,7 @@ if (typeof window !== 'undefined') ensureConfig();
 
 export function boardConfigured() {
   ensureConfig();
-  return !!supabaseConfig || supabaseConfigStatus === 'loading';
+  return !!supabaseConfig;
 }
 
 async function requireConfig() {

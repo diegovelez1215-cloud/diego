@@ -53,13 +53,14 @@ export function boardRow(over = {}) {
 export async function mockProviders(page, {
   results = RESULTS_FULL, live = LIVE_80,
   board = [], me = null, arcade = [], profile = null,
+  leaderboardConfigured = true,
 } = {}) {
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
   await page.route('**/api/leaderboard-config*', (r) => r.fulfill({
-    json: {
+    json: leaderboardConfigured ? {
       url: 'https://example.supabase.co',
       anonKey: 'test-public-anon-key-for-local-browser-runs',
-    },
+    } : { url: '', anonKey: '' },
   }));
   // Supabase Auth: OTP send + verify + refresh acknowledge deterministically.
   const session = {
