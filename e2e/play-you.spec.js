@@ -89,7 +89,7 @@ test.describe('Prediction Run', () => {
     for (const banned of ['odds', 'bet', 'wallet', 'cashout', 'payout', 'deposit', 'stake ', 'hunch']) {
       expect(text.toLowerCase()).not.toContain(banned);
     }
-    expect(text).toContain('Picks League');
+    expect(text).toContain('World Cup Leaderboard');
     await tapTab(page, 'you');
     await expect(page.locator('.you-card').first()).toContainText('1 call');
   });

@@ -15,15 +15,24 @@ const state = {
     bracketMode: 'full',    // full | follow
     followTeam: null,       // team code illuminated in follow mode
     playMode: 'lobby',      // lobby | lab | myworldcup | prediction
-    youView: 'you',         // you | league | ladder
+    youView: 'you',         // you | board
+    boardTab: 'picks',      // picks | arcade
+    boardScope: 'tournament', // tournament | round
   },
   real: {
     overlay: EMPTY_OVERLAY,
     stats: { providerState: 'unavailable', fetchedAt: null, goals: [], assists: [] },
   },
-  // Picks League standings cache — shared scoreboard data only. It is NEVER
-  // a source of fixtures, scores, or tournament truth, and is never persisted.
-  league: { status: 'idle', standings: [], fetchedAt: 0, error: null },
+  // Global leaderboard cache — shared standings data only. It is NEVER a
+  // source of fixtures, scores, or tournament truth, and is never persisted.
+  board: {
+    status: 'idle',          // idle | loading | ok | offline | error
+    picks: [],               // top rows of the global Picks leaderboard
+    me: null,                // my own row (global rank), even outside the top
+    arcade: [],              // top rows of the global Arcade ladder
+    fetchedAt: 0,
+    error: null,
+  },
   prefs: {},
   play: {},                 // owned by views/play.js
   sims: { saved: [] },
@@ -84,8 +93,20 @@ export function setYouView(view) {
   emit(['nav', 'you']);
 }
 
-export function setLeague(league) {
-  state.league = { ...state.league, ...league };
+export function setBoardTab(tab) {
+  if (state.nav.boardTab === tab) return;
+  state.nav.boardTab = tab;
+  emit(['nav', 'you']);
+}
+
+export function setBoardScope(scope) {
+  if (state.nav.boardScope === scope) return;
+  state.nav.boardScope = scope;
+  emit(['nav', 'you']);
+}
+
+export function setBoard(board) {
+  state.board = { ...state.board, ...board };
   emit(['you']);
 }
 

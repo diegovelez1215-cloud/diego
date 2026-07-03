@@ -16,6 +16,7 @@ import {
 } from '../core/canonical-truth.js';
 import { TEAMS, RATINGS, TEAM_COLORS } from '../data/fixtures.js';
 import { bracketHTML, wireBracketScroller } from '../components/bracket.js';
+import { currentUser, pushPick } from '../core/leaderboard.js';
 import { segmentedControl } from '../components/segmented-control.js';
 import { formatKickoffTime, formatDayKey, now } from '../core/time.js';
 import { esc } from '../components/match-row.js';
@@ -557,6 +558,9 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
   const nextPlay = { ...play, predictions: { picks } };
   setPlay(nextPlay);
   savePlay(nextPlay);
+  // Global leaderboard sync: my own pick, pre-kickoff only (the database
+  // enforces the same lock). Fire-and-forget — local play never blocks.
+  if (currentUser()) pushPick(fixtureId, picks[fixtureId]);
 }
 
 /* ================= personal arcade ledger ================= */
@@ -565,10 +569,10 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
 // Arcade Points are a private game score with no cash value — game
 // progression only, never money.
 
-/** Picks League points — settled ONLY from validated official results.
+/** Official leaderboard points — settled ONLY from validated official results.
     Derived live, never stored, idempotent: the same official truth always
     yields the same total, so duplicate settlement cannot duplicate points. */
-export function leaguePickPoints(play, overlay) {
+export function officialPickPoints(play, overlay) {
   const picks = play.predictions?.picks || {};
   const s = gradePredictions(picks, overlay);
   return s.insight + s.best * 20 + s.exact * 15;
@@ -772,7 +776,7 @@ function labRunHTML(run) {
       </div>
       ${run.pens ? `<div class="lab-pens">Penalties ${run.pens.ph}–${run.pens.pa}</div>` : ''}
       <div class="lab-momentum" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
-      <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.away))}</span><span>momentum</span><span>${esc(teamName(run.home))}</span></div>
+      <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.home))}</span><span>momentum</span><span>${esc(teamName(run.away))}</span></div>
       ${labPitchHTML(run)}
     </div>
     ${!run.done ? `<div class="lab-pace" role="group" aria-label="Broadcast pace">
@@ -979,7 +983,7 @@ function predictionHTML(overlay, play) {
     </div>` : ''}
     ${upcoming.length ? upcoming.map((f) => prFixtureHTML(overlay, f, picks[f.id], prDrafts[f.id])).join('')
     : '<p class="empty-line grug-line">no callable fixtures right now. the future is still assembling itself.</p>'}
-    <p class="pr-league-note">Confirmed calls score in your <b>Picks League</b> on the You tab — settled only from official results.</p>
+    <p class="pr-board-note">Confirmed calls score on the global <b>World Cup Leaderboard</b> on the You tab — settled only from official results.</p>
   </section>`;
 }
 

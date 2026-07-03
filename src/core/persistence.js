@@ -6,7 +6,10 @@
 const PREFS_KEY = 'u26v2.prefs';
 const PLAY_KEY = 'u26v2.play';
 const SIMS_KEY = 'u26v2.sims';
-const WHITELIST = new Set([PREFS_KEY, PLAY_KEY, SIMS_KEY]);
+// Auth session credentials for the global leaderboard (core/leaderboard.js).
+// Credentials only — never fixtures, scores, standings, or official truth.
+const AUTH_KEY = 'u26v2.auth';
+const WHITELIST = new Set([PREFS_KEY, PLAY_KEY, SIMS_KEY, AUTH_KEY]);
 
 function storage() {
   try { return window.localStorage; } catch { return null; }
@@ -64,4 +67,4 @@ export function savePlay(play) { write(PLAY_KEY, sanitize(play)); }
 export function loadSims() { const v = read(SIMS_KEY, { saved: [] }); return Array.isArray(v.saved) ? v : { saved: [] }; }
 export function saveSims(sims) { write(SIMS_KEY, { saved: Array.isArray(sims.saved) ? sims.saved.slice(0, 50) : [] }); }
 
-export const KEYS = Object.freeze({ PREFS_KEY, PLAY_KEY, SIMS_KEY });
+export const KEYS = Object.freeze({ PREFS_KEY, PLAY_KEY, SIMS_KEY, AUTH_KEY });

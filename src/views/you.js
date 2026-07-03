@@ -1,25 +1,32 @@
-// United 2026 — You. Three surfaces, two scoreboards, zero mixing:
-//   You          — the quiet museum: saved timelines, lab history, preferences.
-//   Picks League — the invite-only SHARED scoreboard, backed by the restored
-//                  hosted backend (see core/picks-league.js). Official-match
-//                  predictions only, settled from validated official results.
-//   Arcade Ladder — Match Lab + My World Cup performance only. Private,
-//                  local, simulation-flavoured. Never touches the league.
-// Official truth never comes from the league; the league never feeds truth.
+// United 2026 — You. Two surfaces, one honest wall between them:
+//   You         — the quiet museum: saved timelines, lab history, preferences.
+//   Leaderboard — THE global World Cup competition. Two boards inside:
+//     Picks  — official-pick points for every authenticated player worldwide,
+//              settled ONLY server-side from validated official finals.
+//     Arcade — the global Match Lab / My World Cup game ladder. Simulation
+//              energy, fully separate — it can never touch official points.
+// Official truth never comes from the leaderboard; the leaderboard never
+// feeds truth. Every row is a real signed-in player. Nothing is invented.
 
-import { getState, setPrefs, setSims, setLeague, setYouView } from '../core/app-state.js';
-import { savePrefs, saveSims } from '../core/persistence.js';
-import { teamFlag, teamName, allFixtures } from '../core/canonical-truth.js';
-import { gradePredictions, arcadeLedger, achievementState, leaguePickPoints } from './play.js';
 import {
-  leagueConfigured, validMemberName, validRoomCode, makeRoomCode,
-  memberRow, fetchStandings, postMemberRow, rankMovement, ranksOf,
-} from '../core/picks-league.js';
+  getState, setPrefs, setSims, setBoard, setYouView, setBoardTab, setBoardScope,
+} from '../core/app-state.js';
+import { savePrefs, saveSims } from '../core/persistence.js';
+import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
+import { gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff } from './play.js';
+import {
+  boardConfigured, currentUser, signOut,
+  requestEmailCode, verifyEmailCode,
+  validDisplayName, AVATARS, fetchMyProfile, upsertMyProfile,
+  fetchPicksBoard, fetchMyBoardRow, fetchArcadeLadder,
+  pushEligiblePicks, pushArcadeScore,
+  rankMovement, ranksOf, updatedLabel, freshlySynced, boardActivity,
+} from '../core/leaderboard.js';
 import { segmentedControl } from '../components/segmented-control.js';
 import { esc } from '../components/match-row.js';
 
 export const seedHTML = `<div class="view you-view">
-  <header class="view-head"><h1>You</h1><p class="view-sub">Museum · Picks League · Arcade Ladder</p></header>
+  <header class="view-head"><h1>You</h1><p class="view-sub">Museum · World Cup Leaderboard</p></header>
   <div class="view-shell-note"></div>
 </div>`;
 
@@ -28,91 +35,159 @@ function fmtDate(iso) {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/* ================= Picks League data flow ================= */
+/* ================= leaderboard data flow ================= */
 
 const FETCH_TTL = 60_000;
 let fetching = false;
-let lastPostKey = null;
-let lastPostAt = 0;
-let editingProfile = false; // module-local UI state; identity itself lives in prefs
+let lastArcadeKey = null;
+let lastArcadeAt = 0;
+let picksSynced = false;
 
-/** My champion call: the official Final pick, if I made one. Official picks only. */
-function myChampionCall(play, overlay) {
-  const finalFx = allFixtures().find((f) => f.stage === 'final');
-  const pick = finalFx ? play.predictions?.picks?.[finalFx.id] : null;
-  if (!pick || pick.side === 'draw') return null;
-  const s = overlay.slots.get(finalFx.id) || {};
-  const code = pick.side === 'home' ? s.home : s.away;
-  return code ? teamName(code) : null;
+// Sign-in / profile UI state (module-local; credentials live in one
+// whitelisted storage key owned by core/leaderboard.js).
+let authStep = 'email';   // email | code | busy
+let authEmail = '';
+let authError = null;
+let profile = null;        // { display_name, avatar } once loaded
+let profileLoaded = false;
+let editingProfile = false;
+let profileError = null;
+
+function repaintYou() {
+  const o = document.querySelector('#outlet-you');
+  if (o) render(o);
 }
 
-/** My row, derived live from official settlement. Idempotent by construction. */
-function myDerivedRow(prefs, play, overlay) {
-  if (!prefs.leagueName) return null;
-  const stats = gradePredictions(play.predictions?.picks || {}, overlay);
-  const accuracy = stats.total ? Math.round((stats.right / stats.total) * 100) : null;
-  return memberRow({
-    name: prefs.leagueName,
-    code: prefs.leagueCode || null,
-    points: leaguePickPoints(play, overlay),
-    accuracy,
-    champion: myChampionCall(play, overlay),
-  });
-}
-
-function refreshLeague(force = false) {
-  const { prefs, league } = getState();
-  if (!leagueConfigured() || fetching) return;
-  if (!force && Date.now() - (league.fetchedAt || 0) < FETCH_TTL) return;
+function refreshBoard(force = false) {
+  const { board } = getState();
+  if (!boardConfigured() || fetching || !currentUser()) return;
+  if (!force && Date.now() - (board.fetchedAt || 0) < FETCH_TTL) return;
   fetching = true;
-  setLeague({ status: league.standings.length ? league.status : 'loading' });
-  fetchStandings(prefs.leagueCode || null).then((standings) => {
-    fetching = false;
-    setLeague({ status: 'ok', standings, fetchedAt: Date.now(), error: null });
-    // remember genuinely observed ranks so movement stays honest
-    const nextPrefs = { ...getState().prefs, leagueRanks: ranksOf(standings) };
-    setPrefs({ leagueRanks: nextPrefs.leagueRanks });
-    savePrefs(nextPrefs);
-  }).catch(() => {
-    fetching = false;
-    // navigator.onLine is only trusted to EXPLAIN a failure, never to skip
-    // the attempt (headless/misreporting devices say offline while fine).
-    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    setLeague({ status: offline ? 'offline' : 'error', error: 'sync' });
-  });
+  const hasRows = board.picks.length || board.arcade.length;
+  setBoard({ status: hasRows ? board.status : 'loading' });
+  const uid = currentUser().id;
+  Promise.all([fetchPicksBoard(), fetchMyBoardRow(uid), fetchArcadeLadder()])
+    .then(([picks, me, arcade]) => {
+      fetching = false;
+      // movement compares against the PREVIOUS genuinely observed ranks —
+      // captured before this fetch overwrites them. Never fabricated.
+      const prev = getState().prefs;
+      setBoard({
+        status: 'ok', picks, me, arcade, fetchedAt: Date.now(), error: null,
+        prevRanks: prev.boardRanks || null,
+        prevArcadeRanks: prev.arcadeRanks || null,
+      });
+      const observed = {
+        boardRanks: ranksOf(me ? picks.concat([me]) : picks),
+        arcadeRanks: ranksOf(arcade),
+      };
+      setPrefs(observed);
+      savePrefs({ ...getState().prefs });
+    })
+    .catch(() => {
+      fetching = false;
+      // navigator.onLine only EXPLAINS a failure; it never skips the attempt.
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      setBoard({ status: offline ? 'offline' : 'error', error: 'sync' });
+    });
 }
 
-/** Auto-sync my own row when my officially-settled facts changed. Throttled;
-    posting the same facts twice is a no-op upsert of identical numbers. */
-function syncMyRow() {
-  const { prefs, play, real } = getState();
-  const row = myDerivedRow(prefs, play, real.overlay);
-  if (!row || !leagueConfigured()) return;
-  const key = JSON.stringify(row);
-  if (key === lastPostKey && Date.now() - lastPostAt < 55_000) return;
-  lastPostKey = key; lastPostAt = Date.now();
-  postMemberRow(row).then((ok) => { if (ok) refreshLeague(true); });
+async function loadProfileOnce() {
+  if (profileLoaded || !currentUser()) return;
+  profileLoaded = true;
+  try {
+    profile = await fetchMyProfile();
+  } catch { profile = null; profileLoaded = false; }
+  repaintYou();
 }
 
-/* ================= Picks League rendering ================= */
+/** After sign-in or a new confirmed call: push MY eligible pre-kickoff picks. */
+function syncMyPicks() {
+  if (!currentUser() || picksSynced) return;
+  picksSynced = true;
+  const picks = getState().play.predictions?.picks || {};
+  pushEligiblePicks(picks, (id) => !pickLockedAtKickoff(id))
+    .then((n) => { if (n) refreshBoard(true); })
+    .catch(() => { picksSynced = false; });
+}
 
-function joinCardHTML(prefs) {
-  return `<section class="you-card league-join" aria-label="Join the Picks League">
-    <h2>Picks League</h2>
-    <p class="league-sub">Invite-only. Call official matches in Prediction Run; points settle only when results are official. No stakes, no money — bragging rights.</p>
+/** Throttled arcade-score sync — same-facts posts are no-op upserts. */
+function syncArcade() {
+  const { play, real, sims } = getState();
+  if (!currentUser() || !profile) return;
+  const ledger = arcadeLedger(play, real.overlay, sims);
+  const key = JSON.stringify([ledger.points, ledger.wins, ledger.played, ledger.streak]);
+  if (key === lastArcadeKey && Date.now() - lastArcadeAt < 55_000) return;
+  lastArcadeKey = key; lastArcadeAt = Date.now();
+  pushArcadeScore(ledger).then((ok) => { if (ok) refreshBoard(true); });
+}
+
+function logActivity(text) {
+  const entry = { t: new Date().toISOString(), text };
+  const boardLog = [entry, ...(getState().prefs.boardLog || [])].slice(0, 12);
+  setPrefs({ boardLog });
+  savePrefs({ ...getState().prefs });
+}
+
+/* ================= sign-in + profile cards ================= */
+
+function signInCardHTML() {
+  if (!boardConfigured()) {
+    return `<section class="you-card" aria-label="Leaderboard unavailable">
+      <h2>World Cup Leaderboard</h2>
+      <p class="empty-line">The global leaderboard backend isn't configured in this build.</p>
+    </section>`;
+  }
+  const step = authStep;
+  return `<section class="you-card board-signin" aria-label="Join the global leaderboard">
+    <p class="bd-kicker">One global competition</p>
+    <h2 class="display">World Cup Leaderboard</h2>
+    <p class="league-sub">Call official matches, climb the worldwide table. Every row is a real
+      signed-in player; points settle only when results are official. No stakes, no money.</p>
+    ${step === 'email' || step === 'busy' ? `
     <div class="league-form">
-      <label for="league-name">Your name</label>
-      <input id="league-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Diego" value="${esc(prefs.leagueName || '')}">
-      <label for="league-code">League code <em>(blank = open board)</em></label>
-      <input id="league-code" maxlength="8" autocapitalize="characters" autocomplete="off" placeholder="e.g. QK7M2" value="${esc(prefs.leagueCode || '')}">
+      <label for="board-email">Email</label>
+      <input id="board-email" type="email" inputmode="email" autocomplete="email"
+        placeholder="you@example.com" value="${esc(authEmail)}">
+      <button class="play-btn gold" id="board-sendcode"${step === 'busy' ? ' disabled' : ''}>
+        ${step === 'busy' ? 'Sending…' : 'Email me a sign-in code'}</button>
+    </div>` : `
+    <div class="league-form">
+      <label for="board-code">Enter the 6-digit code sent to <b>${esc(authEmail)}</b></label>
+      <input id="board-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
       <div class="league-join-actions">
-        <button class="play-btn gold" id="league-join">Join league</button>
-        <button class="play-btn quiet" id="league-newroom">Start a new league</button>
+        <button class="play-btn gold" id="board-verify">Sign in</button>
+        <button class="play-btn quiet" id="board-back">Different email</button>
       </div>
-      <p class="league-hint" id="league-hint"></p>
+    </div>`}
+    <p class="league-hint" id="board-hint">${esc(authError || '')}</p>
+  </section>`;
+}
+
+function profileCardHTML(prefill) {
+  const name = prefill?.display_name || '';
+  const avatar = prefill?.avatar || AVATARS[0];
+  return `<section class="you-card board-profile" aria-label="Your leaderboard profile">
+    <p class="bd-kicker">${profile ? 'Edit profile' : 'Claim your place'}</p>
+    <h2 class="display">Your profile</h2>
+    <p class="league-sub">This is how the world sees you on the global table.</p>
+    <div class="league-form">
+      <label for="board-name">Display name</label>
+      <input id="board-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Diego" value="${esc(name)}">
+      <span class="bd-avatar-label" id="bd-avatar-label">Crest</span>
+      <div class="bd-avatars" role="group" aria-labelledby="bd-avatar-label">
+        ${AVATARS.map((a) => `<button class="bd-avatar${a === avatar ? ' on' : ''}" data-avatar="${a}">${a}</button>`).join('')}
+      </div>
+      <div class="league-join-actions">
+        <button class="play-btn gold" id="board-saveprofile">${profile ? 'Save changes' : 'Join the leaderboard'}</button>
+        ${profile ? '<button class="play-btn quiet" id="board-cancelprofile">Cancel</button>' : ''}
+      </div>
+      <p class="league-hint">${esc(profileError || '')}</p>
     </div>
   </section>`;
 }
+
+/* ================= Picks board rendering ================= */
 
 function moveTag(m) {
   if (m.move === 'new') return '<span class="lg-mv new">NEW</span>';
@@ -121,137 +196,151 @@ function moveTag(m) {
   return '<span class="lg-mv hold">–</span>';
 }
 
-function podiumHTML(rows) {
+function avatarHTML(m) {
+  return `<span class="lg-avatar" aria-hidden="true">${m.avatar ? esc(m.avatar) : esc((m.name[0] || '?').toUpperCase())}</span>`;
+}
+
+function boardHeadHTML(board, title, sub) {
+  const stamp = updatedLabel(board.fetchedAt);
+  const fresh = freshlySynced(board.fetchedAt);
+  return `<header class="lg-head">
+    <div>
+      <h2>${title}</h2>
+      <p class="league-sub">${sub}</p>
+    </div>
+    <div class="lg-head-side">
+      ${stamp ? `<span class="lg-stamp${fresh ? ' fresh' : ''}">${fresh ? '<i class="lg-dot-fresh" aria-hidden="true"></i>' : ''}${esc(stamp)}</span>` : ''}
+      <button class="lg-refresh" id="board-refresh" aria-label="Refresh standings">↻</button>
+    </div>
+  </header>`;
+}
+
+function podiumHTML(rows, scope) {
   if (rows.length < 2) return '';
   const medals = ['gold', 'silver', 'bronze'];
+  const order = rows.slice(0, 3);
   return `<div class="lg-podium" aria-label="Podium">
-    ${rows.slice(0, 3).map((m, i) => `
+    ${order.map((m, i) => `
       <div class="lg-podium-step ${medals[i]}">
         <span class="lg-podium-rank">${i + 1}</span>
+        ${avatarHTML(m)}
         <span class="lg-podium-name">${esc(m.name)}</span>
-        <b>${m.points}</b>
+        <b>${scope === 'round' ? m.roundPoints : m.points}</b>
       </div>`).join('')}
   </div>`;
 }
 
-function rivalHTML(rows, meKey) {
-  const i = rows.findIndex((m) => m.key === meKey);
-  if (i < 0) return '';
-  const me = rows[i];
-  const rival = i > 0 ? rows[i - 1] : rows[1];
-  if (!rival) return '';
-  const gap = i > 0 ? rival.points - me.points : me.points - rival.points;
-  const line = i > 0
-    ? `${gap} point${gap === 1 ? '' : 's'} behind ${esc(rival.name)}`
-    : `${gap} point${gap === 1 ? '' : 's'} clear of ${esc(rival.name)}`;
-  return `<div class="lg-rival" role="status">
-    <span class="lg-rival-kicker">Your race</span>
-    <span>#${i + 1} of ${rows.length} · ${line}</span>
+function rowHTML(m, rankShown, meId, scope) {
+  const me = m.userId === meId;
+  const pts = scope === 'round' ? m.roundPoints : m.points;
+  return `<div class="lg-row${me ? ' me' : ''}${rankShown <= 3 ? ' top' : ''}">
+    <span class="lg-rank">${rankShown}</span>
+    ${avatarHTML(m)}
+    <span class="lg-name">${esc(m.name)}${scope === 'tournament' ? moveTag(m) : ''}
+      ${m.streak >= 3 ? `<small class="lg-streak" title="Current streak">🔥${m.streak}</small>` : ''}</span>
+    ${m.accuracy != null ? `<span class="lg-acc">${m.accuracy}%</span>` : '<span class="lg-acc dim">—</span>'}
+    <b class="lg-points">${pts}</b>
   </div>`;
 }
 
 function myFormHTML(play, overlay) {
   const stats = gradePredictions(play.predictions?.picks || {}, overlay);
   const recent = stats.graded.slice(-8);
-  const conf3 = stats.graded.filter((g) => g.conf === 3);
-  const conf3Right = conf3.filter((g) => g.correct).length;
   return `<div class="lg-myform" aria-label="Your settled record">
     <div class="lg-myform-row">
       <span class="lg-chip"><b>${stats.right}/${stats.total}</b> settled</span>
-      <span class="lg-chip"><b>${stats.best}</b> best streak</span>
+      <span class="lg-chip"><b>${stats.streak}</b> streak</span>
+      <span class="lg-chip"><b>${stats.best}</b> best run</span>
       <span class="lg-chip"><b>${stats.exact}</b> exact scores</span>
-      <span class="lg-chip"><b>${conf3.length ? conf3Right + '/' + conf3.length : '—'}</b> all-in calls</span>
     </div>
     ${recent.length ? `<div class="lg-dots" aria-hidden="true">${recent.map((g) => `<i class="lg-dot ${g.correct ? 'w' : 'l'}"></i>`).join('')}</div>` : ''}
   </div>`;
 }
 
 function activityHTML(prefs, rows) {
-  const local = (prefs.leagueActivity || []).slice(0, 6).map((a) => ({
-    t: a.t, text: a.text,
-  }));
-  // remote joins are real facts from stored rows — nothing invented
-  const joins = rows
-    .filter((m) => m.at)
-    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-    .slice(0, 4)
-    .map((m) => ({ t: m.at, text: `${m.name} is on the board` }));
-  const all = [...local, ...joins]
-    .sort((a, b) => Date.parse(b.t || 0) - Date.parse(a.t || 0))
-    .slice(0, 6);
+  const mine = (prefs.boardLog || []).slice(0, 4);
+  const all = boardActivity(rows, mine.map((a) => ({ at: a.t, text: a.text })), { limit: 6 });
   if (!all.length) return '';
-  return `<div class="lg-activity" aria-label="Recent league activity">
+  return `<div class="lg-activity" aria-label="Recent leaderboard activity">
     ${all.map((a) => `<div class="lg-act"><span>${esc(fmtDate(a.t) || '')}</span>${esc(a.text)}</div>`).join('')}
   </div>`;
 }
 
-function leagueHTML(state) {
-  const { prefs, play, real, league } = state;
-  if (!leagueConfigured()) {
-    return `<section class="you-card" aria-label="Picks League unavailable">
-      <h2>Picks League</h2>
-      <p class="empty-line">The shared league backend isn't configured in this build.</p>
-    </section>`;
+function boardStateHTML(board, empty) {
+  if (board.status === 'loading' && !board.picks.length) {
+    return '<div class="lg-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>';
   }
-  if (!prefs.leagueName || editingProfile) return joinCardHTML(prefs);
+  if (board.status === 'offline') {
+    return '<p class="lg-state">You\'re offline. Standings will sync when you\'re back — nothing here is ever made up.</p>';
+  }
+  if (board.status === 'error' && !board.picks.length) {
+    return '<p class="lg-state">Standings couldn\'t sync. <button class="lg-retry" id="board-retry">Try again</button></p>';
+  }
+  return empty;
+}
 
-  const meKey = prefs.leagueName.trim().toLowerCase();
-  const moved = rankMovement(league.standings, prefs.leagueRanks || null);
-  const room = prefs.leagueCode || null;
+function picksBoardHTML(state) {
+  const { prefs, play, real, board, nav } = state;
+  const scope = nav.boardScope;
+  const meId = currentUser()?.id || null;
+  let rows = rankMovement(board.picks, board.prevRanks || null);
+  if (scope === 'round') {
+    rows = [...rows].sort((a, b) => b.roundPoints - a.roundPoints || (a.rank || 0) - (b.rank || 0));
+  }
+  const roundStage = rows.find((r) => r.roundStage)?.roundStage || board.me?.roundStage || null;
+  const meVisible = meId && rows.some((r) => r.userId === meId);
+  const me = board.me;
 
-  let board;
-  if (league.status === 'loading' && !league.standings.length) {
-    board = '<div class="lg-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>';
-  } else if (league.status === 'offline') {
-    board = '<p class="lg-state">You\'re offline. Standings will sync when you\'re back — nothing here is ever made up.</p>';
-  } else if (league.status === 'error' && !league.standings.length) {
-    board = '<p class="lg-state">Standings couldn\'t sync. <button class="lg-retry" id="league-retry">Try again</button></p>';
-  } else if (!league.standings.length) {
-    board = `<p class="lg-state">No members on the board yet${room ? ` in <b>${esc(room)}</b>` : ''}. Share the code — every row here is a real person.</p>`;
+  let table;
+  const stateHTML = boardStateHTML(board,
+    '<p class="lg-state">Nobody on the global table yet. Confirm a call in Prediction Run — every row here is a real player.</p>');
+  if (!board.picks.length) {
+    table = stateHTML;
   } else {
-    board = `
-      ${podiumHTML(moved)}
-      ${rivalHTML(moved, meKey)}
-      <div class="lg-rows">
-        ${moved.map((m, i) => `
-          <div class="lg-row${m.key === meKey ? ' me' : ''}${i < 3 ? ' top' : ''}">
-            <span class="lg-rank">${i + 1}</span>
-            <span class="lg-avatar" aria-hidden="true">${esc((m.name[0] || '?').toUpperCase())}</span>
-            <span class="lg-name">${esc(m.name)}${moveTag(m)}
-              ${m.champion ? `<small class="lg-champ">🏆 ${esc(m.champion)}</small>` : ''}</span>
-            ${m.accuracy != null ? `<span class="lg-acc">${m.accuracy}%</span>` : ''}
-            <b class="lg-points">${m.points}</b>
-          </div>`).join('')}
+    table = `
+      ${podiumHTML(rows, scope)}
+      <div class="lg-scope" role="group" aria-label="Leaderboard scope">
+        <button class="lg-scope-btn${scope === 'tournament' ? ' on' : ''}" data-scope="tournament">Tournament</button>
+        <button class="lg-scope-btn${scope === 'round' ? ' on' : ''}" data-scope="round">${roundStage ? esc(STAGE_NAMES[roundStage] || 'This round') : 'This round'}</button>
       </div>
-      ${league.status === 'error' ? '<p class="lg-state stale">Showing the last synced table — refresh failed.</p>' : ''}`;
+      <div class="lg-rows">
+        ${rows.map((m, i) => rowHTML(m, scope === 'round' ? i + 1 : (m.rank || i + 1), meId, scope)).join('')}
+      </div>
+      ${me && !meVisible && scope === 'tournament' ? `
+      <div class="lg-pinned" aria-label="Your global rank">
+        <span class="lg-rank">${me.rank ?? '—'}</span>
+        ${avatarHTML(me)}
+        <span class="lg-name">${esc(me.name)} <small class="lg-you-tag">you</small></span>
+        ${me.accuracy != null ? `<span class="lg-acc">${me.accuracy}%</span>` : ''}
+        <b class="lg-points">${me.points}</b>
+      </div>` : ''}
+      ${board.status === 'error' ? '<p class="lg-state stale">Showing the last synced table — refresh failed.</p>' : ''}
+      ${scope === 'round' ? '<p class="lg-scope-note">Round view re-ranks the loaded top table by points earned in this round.</p>' : ''}`;
   }
 
-  return `<section class="you-card league" aria-label="Picks League">
-    <header class="lg-head">
-      <div>
-        <h2>Picks League</h2>
-        <p class="league-sub">${room ? `League <b class="lg-code">${esc(room)}</b> · invite-only` : 'Open board'} · settles on official results only</p>
-      </div>
-      <button class="lg-refresh" id="league-refresh" aria-label="Refresh standings">↻</button>
-    </header>
+  return `<section class="you-card league" aria-label="Global Picks leaderboard">
+    ${boardHeadHTML(board, 'World Cup Leaderboard', 'Global · official picks only · settles on official results')}
     ${myFormHTML(play, real.overlay)}
-    ${board}
-    ${activityHTML(prefs, league.standings)}
+    ${table}
+    ${activityHTML(prefs, rows)}
     <div class="lg-foot">
-      <span>You're in as <b>${esc(prefs.leagueName)}</b></span>
-      <button class="lg-leave" id="league-edit">Edit profile</button>
+      <span>You're in as <b>${esc(profile?.display_name || '')}</b></span>
+      <span class="lg-foot-actions">
+        <button class="lg-leave" id="board-editprofile">Edit profile</button>
+        <button class="lg-leave" id="board-signout">Sign out</button>
+      </span>
     </div>
   </section>`;
 }
 
-/* ================= Arcade Ladder (local, simulation-only) ================= */
+/* ================= Arcade board rendering ================= */
 
 const TIERS = [
   ['Sunday League', 0], ['Casual', 120], ['Contender', 300],
   ['Manager Material', 600], ['Tactician', 1000], ['Arcade Legend', 1600],
 ];
 
-function ladderHTML(state) {
+function tierCardHTML(state) {
   const { play, real, sims } = state;
   const ledger = arcadeLedger(play, real.overlay, sims);
   let tier = 0;
@@ -259,15 +348,9 @@ function ladderHTML(state) {
   const next = TIERS[tier + 1] || null;
   const prevFloor = TIERS[tier][1];
   const pct = next ? Math.min(100, Math.round(((ledger.points - prevFloor) / (next[1] - prevFloor)) * 100)) : 100;
-  const lab = play.labHistory || [];
-  // Ladder purity: only achievements earned in the arcade itself. Badges that
-  // derive from official predictions live with the Picks League story instead.
   const ARCADE_ACH = new Set(['extra-time-merchant', 'road-builder', 'lab-upsetter']);
   const ach = achievementState().filter((a) => a.on && ARCADE_ACH.has(a.id));
-  return `<section class="you-card ladder" aria-label="Arcade Ladder">
-    <h2>Arcade Ladder <span class="sim-badge">SIMULATION</span></h2>
-    <p class="league-sub">Match Lab and My World Cup only. A private game ladder — completely separate from the Picks League, never mixed with official results.</p>
-    <div class="ladder-tier">
+  return `<div class="ladder-tier">
       <div class="ladder-now">
         <strong class="display">${esc(TIERS[tier][0])}</strong>
         <span>${ledger.points} Arcade Points</span>
@@ -278,20 +361,61 @@ function ladderHTML(state) {
     <div class="ladder-grid" role="group" aria-label="Arcade record">
       <span class="ladder-cell"><b>${ledger.wins}W–${ledger.played - ledger.wins}L</b><small>Match Lab</small></span>
       <span class="ladder-cell"><b>${ledger.streak}</b><small>win streak</small></span>
-      <span class="ladder-cell"><b>${(sims.saved || []).length}</b><small>timelines saved</small></span>
+      <span class="ladder-cell"><b>${(state.sims.saved || []).length}</b><small>timelines saved</small></span>
       <span class="ladder-cell"><b>${ledger.best ? `${ledger.best.gh}–${ledger.best.ga}` : '—'}</b><small>best win</small></span>
     </div>
-    ${lab.length ? `<div class="ladder-recent" aria-label="Recent lab results">
-      ${lab.slice(0, 4).map((m) => `<div class="ladder-run">
-        <span>${teamFlag(m.home)} <b>${m.gh}–${m.ga}</b>${m.pens ? `<small>${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}</span>
-        <small>${m.win ? '+' : ''}${m.cp || 0} pts · ${esc(fmtDate(m.at))}</small>
-      </div>`).join('')}
-    </div>` : '<p class="empty-line">No ladder games yet — Match Lab is one tab away.</p>'}
     ${ach.length ? `<div class="you-ach-row" aria-label="Earned achievements">
       ${ach.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}
-    </div>` : ''}
-    <p class="ladder-note">Arcade Points are a private game score. No cash value.</p>
+    </div>` : ''}`;
+}
+
+function arcadeBoardHTML(state) {
+  const { board } = state;
+  const meId = currentUser()?.id || null;
+  const rows = rankMovement(board.arcade, board.prevArcadeRanks || null);
+  const stateHTML = boardStateHTML({ ...board, picks: board.arcade },
+    '<p class="lg-state">No arcade scores on the global ladder yet — Match Lab is one tab away.</p>');
+  const table = !board.arcade.length ? stateHTML : `
+    <div class="lg-rows arcade">
+      ${rows.map((m) => `
+        <div class="lg-row${m.userId === meId ? ' me' : ''}${(m.rank || 99) <= 3 ? ' top' : ''}">
+          <span class="lg-rank">${m.rank}</span>
+          ${avatarHTML(m)}
+          <span class="lg-name">${esc(m.name)}${moveTag(m)}
+            <small class="lg-arcade-sub">${m.wins}W–${Math.max(0, m.played - m.wins)}L</small></span>
+          ${m.streak >= 2 ? `<span class="lg-acc">🔥${m.streak}</span>` : '<span class="lg-acc dim">—</span>'}
+          <b class="lg-points">${m.points}</b>
+        </div>`).join('')}
+    </div>
+    ${board.status === 'error' ? '<p class="lg-state stale">Showing the last synced ladder — refresh failed.</p>' : ''}`;
+  return `<section class="you-card ladder" aria-label="Global Arcade Ladder">
+    ${boardHeadHTML(board, 'Arcade Ladder', 'Global game ladder · Match Lab & My World Cup only')}
+    <span class="sim-badge">SIMULATION</span>
+    ${tierCardHTML(state)}
+    ${table}
+    <p class="ladder-note">Arcade Points are a game score with no cash value. This ladder never
+      touches the official Picks standings.</p>
   </section>`;
+}
+
+/* ================= the leaderboard surface ================= */
+
+function boardHTML(state) {
+  const tab = state.nav.boardTab;
+  const tabs = segmentedControl({
+    id: 'board-tab', label: 'Leaderboard sections', value: tab,
+    options: [
+      { value: 'picks', label: 'Picks' },
+      { value: 'arcade', label: 'Arcade' },
+    ],
+  });
+  if (!currentUser()) return `${tabs}${signInCardHTML()}`;
+  if (!profileLoaded && !profile) {
+    return `${tabs}<section class="you-card" aria-label="Loading profile">
+      <div class="lg-skeleton" aria-hidden="true"><i></i><i></i></div></section>`;
+  }
+  if (!profile || editingProfile) return `${tabs}${profileCardHTML(profile)}`;
+  return `${tabs}${tab === 'arcade' ? arcadeBoardHTML(state) : picksBoardHTML(state)}`;
 }
 
 /* ================= the museum (unchanged spirit) ================= */
@@ -353,54 +477,98 @@ function museumHTML(state) {
 
 /* ================= wiring ================= */
 
-function logActivity(text) {
-  const prefs = getState().prefs;
-  const entry = { t: new Date().toISOString(), text };
-  const leagueActivity = [entry, ...(prefs.leagueActivity || [])].slice(0, 20);
-  setPrefs({ leagueActivity });
-  savePrefs({ ...getState().prefs, leagueActivity });
+function wireAuth(outlet) {
+  const send = outlet.querySelector('#board-sendcode');
+  if (send) {
+    send.addEventListener('click', async () => {
+      const email = (outlet.querySelector('#board-email')?.value || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { authError = 'Enter a valid email address.'; repaintYou(); return; }
+      authEmail = email; authError = null; authStep = 'busy'; repaintYou();
+      try { await requestEmailCode(email); authStep = 'code'; }
+      catch { authStep = 'email'; authError = 'Couldn\'t send the code. Try again.'; }
+      repaintYou();
+    });
+  }
+  const verify = outlet.querySelector('#board-verify');
+  if (verify) {
+    verify.addEventListener('click', async () => {
+      const code = (outlet.querySelector('#board-code')?.value || '').trim();
+      if (!/^\d{6}$/.test(code)) { authError = 'Codes are 6 digits.'; repaintYou(); return; }
+      authError = null;
+      try {
+        await verifyEmailCode(authEmail, code);
+        authStep = 'email';
+        profileLoaded = false; profile = null;
+        await loadProfileOnce();
+        // no fetch while the claim-profile form is open: a background
+        // repaint must never eat what the player is typing
+        if (profile) { syncMyPicks(); refreshBoard(true); }
+      } catch { authError = 'That code didn\'t work — check it and try again.'; }
+      repaintYou();
+    });
+  }
+  const back = outlet.querySelector('#board-back');
+  if (back) back.addEventListener('click', () => { authStep = 'email'; authError = null; repaintYou(); });
 }
 
-function wireLeague(outlet) {
-  const join = outlet.querySelector('#league-join');
-  const newroom = outlet.querySelector('#league-newroom');
-  const hint = outlet.querySelector('#league-hint');
-  const commit = (code) => {
-    const name = (outlet.querySelector('#league-name')?.value || '').trim();
-    if (!validMemberName(name)) { if (hint) hint.textContent = 'Names are 2–24 letters or numbers.'; return; }
-    if (code && !validRoomCode(code)) { if (hint) hint.textContent = 'League codes are 4–8 letters/numbers.'; return; }
-    editingProfile = false;
-    const prefs = { ...getState().prefs, leagueName: name, leagueCode: code || null };
-    setPrefs({ leagueName: name, leagueCode: code || null });
-    savePrefs(prefs);
-    logActivity(code ? `${name} joined league ${code}` : `${name} joined the board`);
-    syncMyRow();
-    refreshLeague(true);
-  };
-  if (join) {
-    join.addEventListener('click', () => {
-      commit((outlet.querySelector('#league-code')?.value || '').trim().toUpperCase() || null);
+function wireProfile(outlet) {
+  let chosen = profile?.avatar || AVATARS[0];
+  outlet.querySelectorAll('[data-avatar]').forEach((b) => {
+    b.addEventListener('click', () => {
+      chosen = b.dataset.avatar;
+      outlet.querySelectorAll('[data-avatar]').forEach((x) => x.classList.toggle('on', x === b));
+    });
+  });
+  const save = outlet.querySelector('#board-saveprofile');
+  if (save) {
+    save.addEventListener('click', async () => {
+      const name = (outlet.querySelector('#board-name')?.value || '').trim();
+      if (!validDisplayName(name)) { profileError = 'Names are 2–24 letters or numbers.'; repaintYou(); return; }
+      profileError = null;
+      try {
+        await upsertMyProfile({ displayName: name, avatar: chosen });
+        const isNew = !profile;
+        profile = { display_name: name, avatar: chosen };
+        editingProfile = false;
+        if (isNew) logActivity('You joined the leaderboard');
+        syncMyPicks();
+        refreshBoard(true);
+      } catch {
+        profileError = 'Couldn\'t save — that name may already be taken.';
+      }
+      repaintYou();
     });
   }
-  if (newroom) {
-    newroom.addEventListener('click', () => {
-      const code = makeRoomCode();
-      const input = outlet.querySelector('#league-code');
-      if (input) input.value = code;
-      commit(code);
+  const cancel = outlet.querySelector('#board-cancelprofile');
+  if (cancel) cancel.addEventListener('click', () => { editingProfile = false; repaintYou(); });
+}
+
+function wireBoard(outlet) {
+  wireAuth(outlet);
+  wireProfile(outlet);
+  const refresh = outlet.querySelector('#board-refresh');
+  if (refresh) refresh.addEventListener('click', () => refreshBoard(true));
+  const retry = outlet.querySelector('#board-retry');
+  if (retry) retry.addEventListener('click', () => refreshBoard(true));
+  const edit = outlet.querySelector('#board-editprofile');
+  if (edit) edit.addEventListener('click', () => { editingProfile = true; repaintYou(); });
+  const out = outlet.querySelector('#board-signout');
+  if (out) {
+    out.addEventListener('click', () => {
+      signOut();
+      profile = null; profileLoaded = false; picksSynced = false;
+      setBoard({ status: 'idle', picks: [], me: null, arcade: [], fetchedAt: 0, error: null });
+      repaintYou();
     });
   }
-  const refresh = outlet.querySelector('#league-refresh');
-  if (refresh) refresh.addEventListener('click', () => refreshLeague(true));
-  const retry = outlet.querySelector('#league-retry');
-  if (retry) retry.addEventListener('click', () => refreshLeague(true));
-  const edit = outlet.querySelector('#league-edit');
-  if (edit) {
-    edit.addEventListener('click', () => {
-      // reopen the join card prefilled; saved identity survives until re-saved
-      editingProfile = true;
-      const o = document.querySelector('#outlet-you');
-      if (o) render(o);
+  outlet.querySelectorAll('[data-scope]').forEach((b) => {
+    b.addEventListener('click', () => setBoardScope(b.dataset.scope));
+  });
+  const tabCtl = outlet.querySelector('[data-segmented="board-tab"]');
+  if (tabCtl) {
+    tabCtl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-value]');
+      if (btn) setBoardTab(btn.dataset.value);
     });
   }
 }
@@ -408,17 +576,14 @@ function wireLeague(outlet) {
 export function render(outlet) {
   const state = getState();
   const view = state.nav.youView;
-  const body = view === 'league' ? leagueHTML(state)
-    : view === 'ladder' ? ladderHTML(state)
-      : museumHTML(state);
+  const body = view === 'board' ? boardHTML(state) : museumHTML(state);
   outlet.innerHTML = `<div class="view you-view">
-    <header class="view-head"><p class="view-kicker gold">${view === 'league' ? 'Shared Scoreboard' : view === 'ladder' ? 'The Arcade' : 'Your Museum'}</p><h1>You</h1></header>
+    <header class="view-head"><p class="view-kicker gold">${view === 'board' ? 'Global Competition' : 'Your Museum'}</p><h1>You</h1></header>
     ${segmentedControl({
     id: 'you-view', label: 'You sections', value: view,
     options: [
       { value: 'you', label: 'You' },
-      { value: 'league', label: 'Picks League' },
-      { value: 'ladder', label: 'Arcade Ladder' },
+      { value: 'board', label: 'Leaderboard' },
     ],
   })}
     ${body}
@@ -427,11 +592,15 @@ export function render(outlet) {
     const btn = e.target.closest('[data-value]');
     if (btn) setYouView(btn.dataset.value);
   });
-  if (view === 'league') {
-    wireLeague(outlet);
-    if (state.prefs.leagueName) {
-      refreshLeague();
-      syncMyRow();
+  if (view === 'board') {
+    wireBoard(outlet);
+    if (currentUser()) {
+      loadProfileOnce();
+      if (profile) {
+        refreshBoard();
+        syncMyPicks();
+        if (state.nav.boardTab === 'arcade') syncArcade();
+      }
     }
   }
   outlet.querySelectorAll('[data-del]').forEach((el) => {

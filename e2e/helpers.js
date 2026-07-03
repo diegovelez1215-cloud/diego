@@ -26,14 +26,55 @@ export const LIVE_80 = livePayloadFor(LIVE_FIXTURE, { gh: 1, ga: 0, min: 63 });
 export const RESULTS_EMPTY = { ...OK, finished: [], live: [], hold: [], scheduled: [] };
 export const OUTAGE = { configured: false, finished: [], live: [], hold: [], scheduled: [], response: [] };
 
-export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_80, league = [] } = {}) {
+/* Global leaderboard backend mocks — never reached for real in tests. */
+export const TEST_USER = { id: 'u-diego-test', email: 'diego@example.com' };
+
+/** Seed a signed-in Supabase session before boot (credentials only). */
+export async function seedSession(page, user = TEST_USER) {
+  await page.addInitScript((u) => {
+    window.localStorage.setItem('u26v2.auth', JSON.stringify({
+      access_token: 'test-access-token',
+      refresh_token: 'test-refresh-token',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      user: u,
+    }));
+  }, user);
+}
+
+export function boardRow(over = {}) {
+  return {
+    user_id: 'u-x', display_name: 'Player', avatar: null, points: 0,
+    accuracy: null, streak: 0, best_streak: 0, exact: 0, correct: 0, total: 0,
+    round_stage: 'r32', round_points: 0, round_correct: 0, round_total: 0,
+    rank: 1, joined_at: '2026-06-29T12:00:00Z', ...over,
+  };
+}
+
+export async function mockProviders(page, {
+  results = RESULTS_FULL, live = LIVE_80,
+  board = [], me = null, arcade = [], profile = null,
+} = {}) {
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
-  // Picks League backend: never reached for real in tests. GETs return the
-  // provided rows; writes acknowledge and store nothing.
-  await page.route('**/rest/v1/scores*', (r) => {
-    if (r.request().method() === 'GET') r.fulfill({ json: league });
+  // Supabase Auth: OTP send + verify + refresh acknowledge deterministically.
+  const session = {
+    access_token: 'test-access-token', refresh_token: 'test-refresh-token',
+    expires_in: 3600, user: TEST_USER,
+  };
+  await page.route('**/auth/v1/otp*', (r) => r.fulfill({ json: {} }));
+  await page.route('**/auth/v1/verify*', (r) => r.fulfill({ json: session }));
+  await page.route('**/auth/v1/token*', (r) => r.fulfill({ json: session }));
+  // PostgREST: reads return the provided rows; writes acknowledge, store nothing.
+  await page.route('**/rest/v1/leaderboard_v2*', (r) => {
+    const mine = r.request().url().includes('user_id=eq.');
+    r.fulfill({ json: mine ? (me ? [me] : []) : board });
+  });
+  await page.route('**/rest/v1/arcade_ladder_v2*', (r) => r.fulfill({ json: arcade }));
+  await page.route('**/rest/v1/profiles*', (r) => {
+    if (r.request().method() === 'GET') r.fulfill({ json: profile ? [profile] : [] });
     else r.fulfill({ status: 201, body: '' });
   });
+  await page.route('**/rest/v1/picks*', (r) => r.fulfill({ status: 201, body: '' }));
+  await page.route('**/rest/v1/arcade_scores*', (r) => r.fulfill({ status: 201, body: '' }));
   await page.route('**/api/results*', (r) => r.fulfill({ json: results }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: live }));
   await page.route('**/api/scorers*', (r) => r.fulfill({
@@ -50,6 +91,7 @@ export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_
 
 export async function gotoApp(page, opts = {}) {
   await freezeClock(page, opts.iso);
+  if (opts.signedIn) await seedSession(page);
   await mockProviders(page, opts);
   await page.goto('/');
   await page.waitForSelector('.dock');
