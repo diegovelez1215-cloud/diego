@@ -13,6 +13,7 @@ import {
 import { buildOverlay } from '../src/core/provider-overlay.js';
 import { gradePredictions, officialPickPoints, arcadeLedger } from '../src/views/play.js';
 import settleHandler from '../api/settle.js';
+import configHandler from '../api/leaderboard-config.js';
 import { OK } from './mock-provider.mjs';
 
 const FINALS = {
@@ -213,4 +214,50 @@ test('settlement validates finals through the SAME canonical pipeline the app tr
   assert.ok(src.includes("from '../src/core/provider-overlay.js'"), 'imports the shared validated pipeline');
   assert.ok(src.includes('on_conflict=fixture_id'), 'settlement upserts idempotently by fixture');
   assert.ok(/merge-duplicates/.test(src), 'duplicate settlement merges, never duplicates');
+});
+
+test('browser Supabase config exposes only the public anon key', async () => {
+  const previous = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+  process.env.SUPABASE_URL = 'https://preview.supabase.co';
+  process.env.SUPABASE_ANON_KEY = 'public-anon-key-for-preview';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-must-not-escape';
+  let body = null;
+  const res = {
+    setHeader() {},
+    status(n) { this.statusCode = n; return this; },
+    json(x) { body = x; return this; },
+  };
+  try {
+    configHandler({}, res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(body, {
+      url: 'https://preview.supabase.co',
+      anonKey: 'public-anon-key-for-preview',
+    });
+    assert.ok(!JSON.stringify(body).includes('service-role-must-not-escape'));
+  } finally {
+    for (const [k, v] of Object.entries(previous)) {
+      if (v == null) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+});
+
+test('leaderboard migration is rerunnable and grants no anonymous writes', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/0001_global_leaderboard_v2.sql', import.meta.url), 'utf8');
+  const createdPolicies = [...sql.matchAll(/create policy "([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(createdPolicies.length >= 10, 'expected RLS policies for fixtures, profiles, picks, results, arcade');
+  for (const name of createdPolicies) {
+    assert.ok(sql.includes(`drop policy if exists "${name}"`), `${name} is dropped before recreation`);
+  }
+  assert.ok(!/create policy[^;]+to\s+anon/i.test(sql), 'no policy grants anonymous table access');
+  assert.ok(!/grant\s+(insert|update|delete|all)[^;]+to\s+anon/i.test(sql), 'no anonymous write grants');
+  assert.ok(/revoke all on public\.leaderboard_v2\s+from anon/i.test(sql), 'leaderboard view revoked from anon');
+  assert.ok(/revoke all on public\.arcade_ladder_v2 from anon/i.test(sql), 'arcade view revoked from anon');
+  const resultsBlock = sql.slice(sql.indexOf('create table if not exists public.results'), sql.indexOf('-- ---------------------------------------------------------------------------\n-- 5) Arcade'));
+  assert.ok(!/for\s+(insert|update|delete)/i.test(resultsBlock), 'results table has no client write policy');
 });

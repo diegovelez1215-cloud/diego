@@ -31,7 +31,8 @@ const FORBIDDEN = [
 // (service-role env vars, never a literal credential).
 const BOARD_CLIENT = join(root, 'src', 'core', 'leaderboard.js');
 const SETTLE_ROUTE = join(root, 'api', 'settle.js');
-const SANCTIONED_SUPABASE = new Set([BOARD_CLIENT, SETTLE_ROUTE]);
+const BOARD_CONFIG = join(root, 'api', 'leaderboard-config.js');
+const SANCTIONED_SUPABASE = new Set([BOARD_CLIENT, SETTLE_ROUTE, BOARD_CONFIG]);
 
 test('shipped app code contains no betting, private-league, or legacy-transition surfaces', async () => {
   const files = [
@@ -62,10 +63,15 @@ test('shipped app code contains no betting, private-league, or legacy-transition
   assert.ok(/anon/i.test(client), 'leaderboard client documents anon-key usage');
   assert.ok(!/service.?role.{0,40}=.{0,10}eyJ/i.test(client), 'no service-role credential in the browser client');
   assert.ok(!/SUPABASE_SERVICE_ROLE_KEY/.test(client), 'browser client never reads the service-role env var');
+  assert.ok(!/https:\/\/[^'"]+\.supabase\.co/.test(client), 'browser client has no hardcoded Supabase project URL');
+  assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(client), 'browser client has no hardcoded Supabase JWT');
   // the server route reads the service-role key ONLY from env
   const settle = await readFile(SETTLE_ROUTE, 'utf8');
   assert.ok(/process\.env\.SUPABASE_SERVICE_ROLE_KEY/.test(settle), 'service role comes from server env');
   assert.ok(!/SUPABASE_SERVICE_ROLE_KEY\s*=/.test(settle), 'no hardcoded service-role value');
+  const config = await readFile(BOARD_CONFIG, 'utf8');
+  assert.ok(/process\.env\.SUPABASE_ANON_KEY/.test(config), 'browser config exposes only the public anon key');
+  assert.ok(!/SUPABASE_SERVICE_ROLE_KEY/.test(config), 'browser config route cannot read the service role');
 });
 
 test('the private Picks League is gone: no rooms, no invite codes, no legacy client', async () => {

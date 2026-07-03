@@ -66,20 +66,21 @@ Supabase `picks`  ◄─── RLS ───►      validates finals through th
 Per settled official final: a correct call earns `confidence × 10` insight.
 Tournament bonuses: `best streak × 20` and `exact scorelines × 15`. Accuracy
 is `correct / settled`. The SQL view and the local `gradePredictions` /
-`leaguePickPoints` derivations agree by construction.
+`officialPickPoints` derivations agree by construction.
 
 ## One-time setup
 
-1. **Apply the migration** (Supabase Dashboard → SQL editor, or
+1. **Apply the migration once** (Supabase Dashboard → SQL editor, or
    `supabase db push`): run
    `supabase/migrations/0001_global_leaderboard_v2.sql`.
 2. **Enable email OTP auth** (Supabase Dashboard → Authentication →
    Sign In / Up): make sure Email provider is enabled with OTP codes
    (default). No SMTP config is required for the built-in sender, but a
    custom SMTP sender is recommended for production volume.
-3. **Vercel env vars** (Project → Settings → Environment Variables):
+3. **Vercel Preview env vars** (Project → Settings → Environment Variables):
    - `FOOTBALL_DATA_KEY` — already used by `/api/results`
-   - `SUPABASE_URL` — `https://pzjedlfdrbbblrgrpgff.supabase.co`
+   - `SUPABASE_URL` — `https://<ref>.supabase.co`
+   - `SUPABASE_ANON_KEY` — browser-safe public anon key
    - `SUPABASE_SERVICE_ROLE_KEY` — from Supabase → Settings → API
      (server-only; never expose)
    - `CRON_SECRET` — any long random string; Vercel Cron sends it

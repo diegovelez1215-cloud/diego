@@ -45,6 +45,7 @@ create table if not exists public.fixtures (
   kickoff  timestamptz not null
 );
 alter table public.fixtures enable row level security;
+drop policy if exists "fixtures readable by signed-in users" on public.fixtures;
 create policy "fixtures readable by signed-in users"
   on public.fixtures for select to authenticated using (true);
 
@@ -178,10 +179,13 @@ drop trigger if exists profiles_touch on public.profiles;
 create trigger profiles_touch before insert or update on public.profiles
   for each row execute function public.set_updated_at();
 alter table public.profiles enable row level security;
+drop policy if exists "profiles readable by signed-in users" on public.profiles;
 create policy "profiles readable by signed-in users"
   on public.profiles for select to authenticated using (true);
+drop policy if exists "insert own profile" on public.profiles;
 create policy "insert own profile"
   on public.profiles for insert to authenticated with check (auth.uid() = id);
+drop policy if exists "update own profile" on public.profiles;
 create policy "update own profile"
   on public.profiles for update to authenticated
   using (auth.uid() = id) with check (auth.uid() = id);
@@ -200,14 +204,17 @@ create table if not exists public.picks (
   primary key (user_id, fixture_id)
 );
 alter table public.picks enable row level security;
+drop policy if exists "read own picks" on public.picks;
 create policy "read own picks"
   on public.picks for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "insert own pick before kickoff" on public.picks;
 create policy "insert own pick before kickoff"
   on public.picks for insert to authenticated with check (
     auth.uid() = user_id
     and exists (select 1 from public.fixtures f
                 where f.id = fixture_id and now() < f.kickoff)
   );
+drop policy if exists "update own pick before kickoff" on public.picks;
 create policy "update own pick before kickoff"
   on public.picks for update to authenticated
   using (
@@ -233,6 +240,7 @@ create table if not exists public.results (
   settled_at timestamptz not null default now()
 );
 alter table public.results enable row level security;
+drop policy if exists "results readable by signed-in users" on public.results;
 create policy "results readable by signed-in users"
   on public.results for select to authenticated using (true);
 -- no insert/update/delete policies: browsers cannot write settlement.
@@ -249,10 +257,13 @@ create table if not exists public.arcade_scores (
   updated_at timestamptz not null default now()
 );
 alter table public.arcade_scores enable row level security;
+drop policy if exists "arcade readable by signed-in users" on public.arcade_scores;
 create policy "arcade readable by signed-in users"
   on public.arcade_scores for select to authenticated using (true);
+drop policy if exists "insert own arcade score" on public.arcade_scores;
 create policy "insert own arcade score"
   on public.arcade_scores for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "update own arcade score" on public.arcade_scores;
 create policy "update own arcade score"
   on public.arcade_scores for update to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);

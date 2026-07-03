@@ -55,6 +55,12 @@ export async function mockProviders(page, {
   board = [], me = null, arcade = [], profile = null,
 } = {}) {
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
+  await page.route('**/api/leaderboard-config*', (r) => r.fulfill({
+    json: {
+      url: 'https://example.supabase.co',
+      anonKey: 'test-public-anon-key-for-local-browser-runs',
+    },
+  }));
   // Supabase Auth: OTP send + verify + refresh acknowledge deterministically.
   const session = {
     access_token: 'test-access-token', refresh_token: 'test-refresh-token',

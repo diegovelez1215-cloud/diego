@@ -20,12 +20,58 @@
 //     credentials, not official truth — no fixtures, scores, or standings
 //     are ever persisted locally.
 
-const SUPA_URL = 'https://pzjedlfdrbbblrgrpgff.supabase.co';
-// Public anon key (browser-safe by design; scoped by RLS — NOT the service role).
-const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6amVkbGZkcmJiYmxyZ3JwZ2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTAwNjMsImV4cCI6MjA5NzM2NjA2M30.RSHT6w-xdagKmim16TLuxRQZ0SRg52P88PhpC15oFNc';
+let supabaseConfig = null;
+let supabaseConfigStatus = 'idle';
+let supabaseConfigPromise = null;
+
+function configLooksPublic(c) {
+  return c && /^https:\/\/[^/]+\.supabase\.co$/.test(String(c.url || ''))
+    && String(c.anonKey || '').length > 20;
+}
+
+function notifyConfigReady() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:leaderboard-config'));
+}
+
+function ensureConfig() {
+  if (supabaseConfigPromise) return supabaseConfigPromise;
+  if (typeof fetch !== 'function') {
+    supabaseConfigStatus = 'failed';
+    return Promise.resolve(null);
+  }
+  supabaseConfigStatus = 'loading';
+  supabaseConfigPromise = fetch('/api/leaderboard-config', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((c) => {
+      if (!configLooksPublic(c)) {
+        supabaseConfig = null;
+        supabaseConfigStatus = 'failed';
+        return null;
+      }
+      supabaseConfig = { url: c.url.replace(/\/$/, ''), anonKey: c.anonKey };
+      supabaseConfigStatus = 'ready';
+      return supabaseConfig;
+    })
+    .catch(() => {
+      supabaseConfig = null;
+      supabaseConfigStatus = 'failed';
+      return null;
+    })
+    .finally(notifyConfigReady);
+  return supabaseConfigPromise;
+}
+
+if (typeof window !== 'undefined') ensureConfig();
 
 export function boardConfigured() {
-  return /^https:\/\//.test(SUPA_URL) && SUPA_ANON.length > 20;
+  ensureConfig();
+  return !!supabaseConfig || supabaseConfigStatus === 'loading';
+}
+
+async function requireConfig() {
+  const c = supabaseConfig || await ensureConfig();
+  if (!c) throw new Error('leaderboard backend not configured');
+  return c;
 }
 
 /* ================= auth session (whitelisted storage key) ================= */
@@ -71,19 +117,20 @@ export function currentUser() {
   return s ? s.user : null;
 }
 
-function authHeaders(token) {
+function authHeaders(anonKey, token) {
   return {
-    apikey: SUPA_ANON,
-    Authorization: 'Bearer ' + (token || SUPA_ANON),
+    apikey: anonKey,
+    Authorization: 'Bearer ' + (token || anonKey),
     'Content-Type': 'application/json',
   };
 }
 
 /** Sign-in step 1: email a 6-digit code (creates the account when new). */
 export async function requestEmailCode(email) {
-  const r = await fetch(`${SUPA_URL}/auth/v1/otp`, {
+  const cfg = await requireConfig();
+  const r = await fetch(`${cfg.url}/auth/v1/otp`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: authHeaders(cfg.anonKey),
     body: JSON.stringify({ email, create_user: true }),
   });
   if (!r.ok) throw new Error('otp request failed: ' + r.status);
@@ -92,9 +139,10 @@ export async function requestEmailCode(email) {
 
 /** Sign-in step 2: verify the code; stores the session on success. */
 export async function verifyEmailCode(email, token) {
-  const r = await fetch(`${SUPA_URL}/auth/v1/verify`, {
+  const cfg = await requireConfig();
+  const r = await fetch(`${cfg.url}/auth/v1/verify`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: authHeaders(cfg.anonKey),
     body: JSON.stringify({ type: 'email', email, token }),
   });
   if (!r.ok) throw new Error('verify failed: ' + r.status);
@@ -105,11 +153,12 @@ export async function verifyEmailCode(email, token) {
 }
 
 async function refreshSession() {
+  const cfg = await requireConfig();
   const s = loadSession();
   if (!s || !s.refresh_token) return null;
-  const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const r = await fetch(`${cfg.url}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: authHeaders(cfg.anonKey),
     body: JSON.stringify({ refresh_token: s.refresh_token }),
   });
   if (!r.ok) { saveSession(null); return null; }
@@ -121,14 +170,15 @@ async function refreshSession() {
 
 /** Authenticated REST call; transparently refreshes an expired token once. */
 async function rest(path, init = {}) {
+  const cfg = await requireConfig();
   let s = loadSession();
   if (s && s.expires_at && s.expires_at * 1000 < Date.now() + 30_000) {
     s = await refreshSession();
   }
   if (!s) throw new Error('signed-out');
-  const doFetch = (token) => fetch(`${SUPA_URL}/rest/v1/${path}`, {
+  const doFetch = (token) => fetch(`${cfg.url}/rest/v1/${path}`, {
     ...init,
-    headers: { ...authHeaders(token), ...(init.headers || {}) },
+    headers: { ...authHeaders(cfg.anonKey, token), ...(init.headers || {}) },
   });
   let r = await doFetch(s.access_token);
   if (r.status === 401) {

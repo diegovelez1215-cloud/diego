@@ -57,6 +57,7 @@ function repaintYou() {
   const o = document.querySelector('#outlet-you');
   if (o) render(o);
 }
+if (typeof window !== 'undefined') window.addEventListener('u26:leaderboard-config', repaintYou);
 
 function refreshBoard(force = false) {
   const { board } = getState();
