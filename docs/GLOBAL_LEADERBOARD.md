@@ -93,6 +93,7 @@ When the global board is ready to open:
    - `CRON_SECRET` — any long random string; Vercel Cron sends it
      automatically as `Authorization: Bearer <CRON_SECRET>`
    - `SETTLE_SECRET` — optional, for manual runs
-4. **Cron.** `vercel.json` schedules `/api/settle` every 30 minutes.
+4. **Cron.** Settlement cron is disabled for this launch. When the global
+   leaderboard opens, add a Vercel Cron for `/api/settle`.
    Manual settlement:
    `curl -H "Authorization: Bearer $SETTLE_SECRET" https://<app>/api/settle`
