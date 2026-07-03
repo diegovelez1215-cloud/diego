@@ -15,11 +15,15 @@ const state = {
     bracketMode: 'full',    // full | follow
     followTeam: null,       // team code illuminated in follow mode
     playMode: 'lobby',      // lobby | lab | myworldcup | prediction
+    youView: 'you',         // you | league | ladder
   },
   real: {
     overlay: EMPTY_OVERLAY,
     stats: { providerState: 'unavailable', fetchedAt: null, goals: [], assists: [] },
   },
+  // Picks League standings cache — shared scoreboard data only. It is NEVER
+  // a source of fixtures, scores, or tournament truth, and is never persisted.
+  league: { status: 'idle', standings: [], fetchedAt: 0, error: null },
   prefs: {},
   play: {},                 // owned by views/play.js
   sims: { saved: [] },
@@ -72,6 +76,17 @@ export function setPlayMode(mode) {
   if (state.nav.playMode === mode) return;
   state.nav.playMode = mode;
   emit(['nav', 'play']);
+}
+
+export function setYouView(view) {
+  if (state.nav.youView === view) return;
+  state.nav.youView = view;
+  emit(['nav', 'you']);
+}
+
+export function setLeague(league) {
+  state.league = { ...state.league, ...league };
+  emit(['you']);
 }
 
 export function openMatchCenter(id) { state.nav.matchCenterId = id; emit(['match-center']); }

@@ -556,6 +556,23 @@
   text-transform: uppercase;
 }
 .road-match.live .road-match-state { color: var(--live); }
+/* forward feeder: a decided tie names its next stop — feeder clarity, no wiring */
+.road-match-next {
+  margin-top: 2px;
+  color: var(--official-ink);
+  font-size: 0.68rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.04em;
+}
+/* stronger later-round hierarchy: SF/Final cards carry more presence */
+.road-stage.dramatic .road-match.featured {
+  border-color: color-mix(in srgb, var(--official) 55%, var(--hairline));
+  box-shadow: 0 10px 34px -18px color-mix(in srgb, var(--official) 55%, transparent);
+}
+.road-stage.destination .road-match.featured {
+  border-color: color-mix(in srgb, var(--gold) 40%, var(--hairline));
+  box-shadow: 0 14px 44px -18px color-mix(in srgb, var(--gold) 45%, transparent);
+}
 
 /* qualification races (group stage only) */
 .races-grid { display: grid; gap: var(--sp-2); }

@@ -64,7 +64,8 @@ export function init(root) {
   subscribe((tags) => {
     if (tags.includes('real')) {
       // Canonical/overlay updates invalidate only the views that read them.
-      for (const id of ['home', 'tournament', 'play']) markStale(id);
+      // 'you' reads the overlay too: official settlement of Picks League calls.
+      for (const id of ['home', 'tournament', 'play', 'you']) markStale(id);
     }
     if (tags.includes('tournament')) markStale('tournament');
     if (tags.includes('play')) markStale('play');
@@ -80,12 +81,27 @@ function markStale(id) {
 }
 
 /**
+ * Re-tapping the tab you are already on returns that tab's vertical scroll
+ * to the top — the native iPhone gesture. It must never reset state: no
+ * setTab, no repaint, no touching Tournament subsections, Bracket position
+ * (horizontal scrollers are left alone), Play mode, or simulation state.
+ */
+export function scrollActiveToTop() {
+  const reduced = typeof matchMedia === 'function'
+    && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+    try { window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' }); } catch { window.scrollTo(0, 0); }
+  }
+}
+
+/**
  * Normal tab activation. Synchronous, storage-free, fetch-free,
  * transition-free. Prior content stays visible in the target outlet until a
  * queued repaint (if any) lands in the next frame.
  */
 export function activate(id) {
   if (!outlets.has(id)) return;
+  if (getState().nav.tab === id) { scrollActiveToTop(); return; }
   setTab(id);
   for (const [tid, el] of outlets) el.classList.toggle('active', tid === id);
   document.querySelectorAll('.dock-tab').forEach((b) => {

@@ -116,3 +116,23 @@ test('dock reflects the active tab for assistive tech', () => {
   assert.equal(selected.length, 1);
   assert.equal(selected[0].dataset.tab, 'you');
 });
+
+test('re-tapping the active tab scrolls to top and resets NOTHING', () => {
+  const scrolls = [];
+  dom.window.scrollTo = (opts) => { scrolls.push(opts); };
+  router.activate('tournament'); flushRaf();
+  const nav0 = { ...getState().nav };
+  const html0 = router.outletFor('tournament').innerHTML;
+  const f0 = counters.fetch; const s0 = counters.storageWrites;
+  const jobs0 = rafQueue.length;
+
+  router.activate('tournament'); // re-tap the tab we are already on
+
+  assert.equal(scrolls.length, 1, 'exactly one scroll-to-top');
+  assert.equal(scrolls[0].top, 0);
+  assert.deepEqual({ ...getState().nav }, nav0, 'no nav state reset — subsection, bracket mode, play mode all survive');
+  assert.equal(router.outletFor('tournament').innerHTML, html0, 'no repaint — DOM (and horizontal scrollers) untouched');
+  assert.equal(rafQueue.length, jobs0, 'no render job enqueued');
+  assert.equal(counters.fetch, f0, 'no fetch');
+  assert.equal(counters.storageWrites, s0, 'no storage write');
+});

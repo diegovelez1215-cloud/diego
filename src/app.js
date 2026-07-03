@@ -100,7 +100,7 @@ export function boot() {
       return [v, s.real.stats.fetchedAt || '', s.nav.tournamentView, s.nav.matchesDate, s.nav.bracketMode, s.nav.followTeam, todayKey()].join(':');
     }
     if (id === 'play') return 'play:' + s.nav.playMode; // repainted via play/real tags
-    return 'you';
+    return ['you', s.nav.youView, s.league.status, s.league.fetchedAt, v].join(':');
   });
   router.init(document.getElementById('app'));
 

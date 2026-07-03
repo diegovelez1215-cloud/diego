@@ -68,7 +68,7 @@ test.describe('Tournament', () => {
     await expect(page.locator('.group-state.idle')).toHaveCount(12);
   });
 
-  test('Full Road: readable staged bracket with real teams, live score, and round movement', async ({ page }, testInfo) => {
+  test('Full Bracket: readable staged bracket with real teams, live score, and round movement', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
     await expect(page.locator('[data-segmented="bracket-mode"] [data-value="full"]')).toHaveAttribute('aria-selected', 'true');
@@ -88,7 +88,7 @@ test.describe('Tournament', () => {
     expect(after).toBeGreaterThan(before);
   });
 
-  test('Follow a Team: pick a nation, its route lights, the field dims', async ({ page }, testInfo) => {
+  test('My Team: pick a nation, its route lights, the field dims', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'knockout');
     await page.locator('[data-segmented="bracket-mode"] [data-value="follow"]').click();

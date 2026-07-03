@@ -45,7 +45,7 @@ test('long country names fit without mid-word breaks across key surfaces', async
   expect(await overflowing(page, '.outlet.active .mr-name'), 'match-row names do not overflow').toEqual([]);
   await screenshot(page, testInfo, 'long-names-matches');
 
-  // Full Road cards — Switzerland, Bosnia & Herzegovina, Côte d'Ivoire live here
+  // Full Bracket cards — Switzerland, Bosnia & Herzegovina, Côte d'Ivoire live here
   await openTournamentSection(page, 'knockout');
   await page.waitForSelector('.outlet.active .road-team-name');
   expect(await singleWordWraps(page, '.outlet.active .road-team-name'), 'road single-word names on one line').toEqual([]);

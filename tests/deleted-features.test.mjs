@@ -17,11 +17,19 @@ async function collectShipped(dir, out = []) {
   return out;
 }
 
+// Money mechanics stay banned everywhere, permanently. The Picks League is a
+// points scoreboard, so nothing below may reappear even though the shared
+// Supabase backend is restored.
 const FORBIDDEN = [
-  /bankroll/i, /wallet/i, /\bbets?\b/i, /betting/i, /\bodds\b/i, /bet.?slip/i,
-  /cash.?out/i, /payout/i, /pick.?em/i, /ticket/i,
-  /supabase/i, /startViewTransition/, /theoddsapi/i, /open-meteo/i, /wikipedia/i,
+  /wallet/i, /\bbets?\b/i, /betting/i, /\bodds\b/i, /bet.?slip/i,
+  /cash.?out/i, /payout/i, /pick.?em/i, /ticket/i, /deposit/i, /withdraw/i,
+  /startViewTransition/, /theoddsapi/i, /open-meteo/i, /wikipedia/i,
 ];
+// `bankroll` is a legacy COLUMN NAME in the restored scores table; the only
+// file allowed to mention it (to map it to League Points) is the league
+// client. Supabase likewise exists only inside that one sanctioned module.
+const LEAGUE_CLIENT = join(root, 'src', 'core', 'picks-league.js');
+const LEAGUE_ONLY = [/bankroll/i, /supabase/i];
 
 test('shipped app code contains no betting, social, or legacy-transition surfaces', async () => {
   const files = [
@@ -35,7 +43,21 @@ test('shipped app code contains no betting, social, or legacy-transition surface
     for (const re of FORBIDDEN) {
       assert.ok(!re.test(text), `${f} matches forbidden pattern ${re}`);
     }
+    if (f !== LEAGUE_CLIENT) {
+      for (const re of LEAGUE_ONLY) {
+        assert.ok(!re.test(text), `${f} matches league-client-only pattern ${re}`);
+      }
+      // outside the league client nothing may even mention the service role
+      assert.ok(!/service.?role/i.test(text), `${f} must not reference the service role`);
+    }
+    // A service-role JWT must never ship to browsers, anywhere, ever.
+    // (Supabase JWTs carry the role in their base64 payload: "service_role".)
+    assert.ok(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*c2VydmljZV9yb2xl/.test(text), `${f} must not embed a service-role JWT`);
   }
+  // the league client itself: anon usage only
+  const league = await readFile(LEAGUE_CLIENT, 'utf8');
+  assert.ok(/anon/i.test(league), 'league client documents anon-key usage');
+  assert.ok(!/service.?role.{0,40}=.{0,10}eyJ/i.test(league), 'no service-role credential in league client');
 });
 
 test('legacy routes and dead files are physically gone', async () => {

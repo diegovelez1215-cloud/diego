@@ -1,7 +1,7 @@
 // Ad-hoc screenshot harness for design review (not a test). Reuses the e2e
 // mock world plus a richer knockout snapshot so completed/live/upcoming Road
 // states are all inspectable. Usage: ONLY=390 node e2e/shots.mjs [outDir]
-import { webkit } from '@playwright/test';
+import { webkit, chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { fullGroupFinished, mockSlots, livePayloadFor, OK } from '../tests/mock-provider.mjs';
@@ -53,7 +53,11 @@ const RESULTS = {
 };
 const LIVE = livePayloadFor(80, { gh: 1, ga: 0, min: 63 });
 
-const browser = await webkit.launch();
+// WebKit is the iPhone-fidelity default; PW_BROWSER=chromium exists only for
+// sandboxes where WebKit host libraries are unavailable (same policy as e2e).
+const browser = process.env.PW_BROWSER === 'chromium'
+  ? await chromium.launch({ args: process.env.PW_NO_SANDBOX ? ['--no-sandbox'] : [] })
+  : await webkit.launch();
 
 async function shootAll(width, height, tag) {
   const ctx = await browser.newContext({
@@ -71,6 +75,16 @@ async function shootAll(width, height, tag) {
     Date = FrozenDate;
   }, FROZEN);
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
+  // Picks League backend mock (design-review world, same as e2e)
+  await page.route('**/rest/v1/scores*', (r) => {
+    if (r.request().method() === 'GET') {
+      r.fulfill({ json: [
+        { name: 'QK7M2|Ana', bankroll: 120, roi: 80, champ: 'France', created_at: '2026-06-30T12:00:00Z' },
+        { name: 'QK7M2|Diego', bankroll: 85, roi: 67, champ: 'Argentina', created_at: '2026-07-01T09:00:00Z' },
+        { name: 'QK7M2|Dingus', bankroll: 60, roi: 40, champ: null, created_at: '2026-06-29T12:00:00Z' },
+      ] });
+    } else r.fulfill({ status: 201, body: '' });
+  });
   await page.route('**/api/results*', (r) => r.fulfill({ json: RESULTS }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: LIVE }));
   await page.route('**/api/scorers*', (r) => r.fulfill({
@@ -119,11 +133,26 @@ async function shootAll(width, height, tag) {
   }
   await snap('lab-reveal');
   await seg('play-mode', 'myworldcup'); await snap('myworldcup');
-  await seg('play-mode', 'prediction'); await snap('prediction');
+  await seg('play-mode', 'prediction');
+  // open the ritual on the first fixture so the draft step is inspectable
+  const firstSide = await page.waitForSelector('.pr-fixture [data-prside="home"]', { timeout: 4000 }).catch(() => null);
+  if (firstSide) { await firstSide.click(); await page.waitForTimeout(300); }
+  await snap('prediction');
   await seg('play-mode', 'lobby'); await snap('lobby-after-play');
 
   await tab('you');
   await snap('you');
+  await seg('you-view', 'league');
+  const nameIn = await page.waitForSelector('#league-name', { timeout: 4000 }).catch(() => null);
+  if (nameIn) {
+    await page.locator('#league-name').fill('Diego');
+    await page.locator('#league-code').fill('QK7M2');
+    await page.locator('#league-join').click();
+    await page.waitForSelector('.lg-rows', { timeout: 4000 }).catch(() => {});
+    await page.waitForTimeout(400);
+  }
+  await snap('picks-league');
+  await seg('you-view', 'ladder'); await snap('arcade-ladder');
   await ctx.close();
 }
 

@@ -66,22 +66,30 @@ test.describe('My World Cup', () => {
 });
 
 test.describe('Prediction Run', () => {
-  test('confidence calls are recorded and surface in You — no stakes anywhere', async ({ page }, testInfo) => {
+  test('the call ritual: pick → confidence → confirm once → sealed until the real kickoff', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openPlayMode(page, 'prediction');
     await expect(page.locator('.pr-stats')).toBeVisible();
     const first = page.locator('.pr-fixture').first();
+    // step 1 — make your call
     await first.locator('[data-prside="home"]').click();
-    await expect(first).toHaveClass(/picked/);
-    await first.locator('[data-prconf="3"]').click();
-    await expect(first.locator('.pr-conf-btn[data-prconf="3"]')).toHaveClass(/on/);
+    await expect(page.locator('.pr-fixture').first()).toHaveClass(/drafting/);
+    // step 2 — confidence (scoreline stays optional)
+    await page.locator('.pr-fixture').first().locator('[data-prconf="3"]').click();
+    await expect(page.locator('.pr-fixture').first().locator('.pr-conf-btn[data-prconf="3"]')).toHaveClass(/on/);
+    // step 3 — confirm once → sealed, edit stays open until the real whistle
+    await page.locator('.pr-fixture').first().locator('[data-prconfirm]').click();
+    const sealed = page.locator('.pr-fixture.sealed').first();
+    await expect(sealed).toBeVisible();
+    await expect(sealed).toContainText('Locks at kickoff');
+    await expect(sealed.locator('[data-predit]')).toBeVisible();
     await screenshot(page, testInfo, 'play-prediction');
     await expectNoHorizontalOverflow(page, expect, 'prediction');
     const text = await page.locator('.play-view').innerText();
-    for (const banned of ['odds', 'bet', 'wallet', 'cashout', 'payout', 'deposit', 'stake ']) {
+    for (const banned of ['odds', 'bet', 'wallet', 'cashout', 'payout', 'deposit', 'stake ', 'hunch']) {
       expect(text.toLowerCase()).not.toContain(banned);
     }
-    expect(text).toContain('No cash value');
+    expect(text).toContain('Picks League');
     await tapTab(page, 'you');
     await expect(page.locator('.you-card').first()).toContainText('1 call');
   });

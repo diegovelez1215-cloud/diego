@@ -26,8 +26,14 @@ export const LIVE_80 = livePayloadFor(LIVE_FIXTURE, { gh: 1, ga: 0, min: 63 });
 export const RESULTS_EMPTY = { ...OK, finished: [], live: [], hold: [], scheduled: [] };
 export const OUTAGE = { configured: false, finished: [], live: [], hold: [], scheduled: [], response: [] };
 
-export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_80 } = {}) {
+export async function mockProviders(page, { results = RESULTS_FULL, live = LIVE_80, league = [] } = {}) {
   await page.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
+  // Picks League backend: never reached for real in tests. GETs return the
+  // provided rows; writes acknowledge and store nothing.
+  await page.route('**/rest/v1/scores*', (r) => {
+    if (r.request().method() === 'GET') r.fulfill({ json: league });
+    else r.fulfill({ status: 201, body: '' });
+  });
   await page.route('**/api/results*', (r) => r.fulfill({ json: results }));
   await page.route('**/api/live*', (r) => r.fulfill({ json: live }));
   await page.route('**/api/scorers*', (r) => r.fulfill({
@@ -74,8 +80,11 @@ export async function expectNoHorizontalOverflow(page, expect, label) {
 
 export async function screenshot(page, testInfo, name) {
   await page.waitForTimeout(250); // let 140ms control transitions settle
+  // PW_SHOT_DIR lets sandboxed runs write to a fresh directory when older
+  // host-owned artifacts cannot be overwritten.
+  const dir = process.env.PW_SHOT_DIR || 'test-results/playwright';
   await page.screenshot({
-    path: `test-results/playwright/${testInfo.project.name}-${name}.png`,
+    path: `${dir}/${testInfo.project.name}-${name}.png`,
     fullPage: true,
   });
 }

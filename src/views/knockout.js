@@ -1,9 +1,11 @@
-// United 2026 — Road. A phone-first path through the knockout tournament:
-// Full Road by default, Follow a Team when the fan wants a personal path, and
+// United 2026 — Bracket. A phone-first path through the knockout tournament:
+// Full Bracket by default, My Team when the fan wants a personal lens, and
 // a hidden canonical bracket surface kept for structural truth guards.
+// Every card answers: who won, who went home, who is next, and which earlier
+// tie feeds a later one — without becoming a wall of connectors.
 
 import { getState, setBracketMode, openMatchCenter } from '../core/app-state.js';
-import { allFixtures, teamName, teamFlag, fixture, slotLabel, STAGE_NAMES, STAGE_ORDER } from '../core/canonical-truth.js';
+import { allFixtures, teamName, teamFlag, fixture, slotLabel, winnerFeeds, STAGE_NAMES, STAGE_ORDER } from '../core/canonical-truth.js';
 import { TEAMS, TEAM_COLORS, FIXTURES } from '../data/fixtures.js';
 import { bracketHTML, teamRoute } from '../components/bracket.js';
 import { segmentedControl } from '../components/segmented-control.js';
@@ -125,6 +127,26 @@ function feederLabel(overlay, spec) {
   return `${prefix}Match ${id} · ${STAGE_NAMES[fx.stage]}`;
 }
 
+/**
+ * Forward feeder line: where the winner of this tie goes next. Only shown
+ * when it reads like football — a decided tie pointing at its next round,
+ * named after the real opponent when validated truth already knows it.
+ */
+function nextTieLabel(overlay, m) {
+  const feed = winnerFeeds(m.id);
+  if (!feed) return null;
+  const nextFx = fixture(feed.id);
+  if (!nextFx) return null;
+  const winCode = m.winner === 'home' ? m.home.code : m.winner === 'away' ? m.away.code : null;
+  const s = overlay.slots.get(feed.id) || {};
+  if (m.final && winCode) {
+    const oppCode = s.home === winCode ? s.away : s.away === winCode ? s.home : null;
+    const opp = oppCode ? `v ${teamName(oppCode)}` : 'opponent to come';
+    return `${teamName(winCode)} on to the ${STAGE_NAMES[nextFx.stage]} · ${opp}`;
+  }
+  return `Winner on to the ${STAGE_NAMES[nextFx.stage]}`;
+}
+
 function roadMatchCard(m, { featured = false, muted = false, overlay = null } = {}) {
   const homeWin = m.winner === 'home';
   const awayWin = m.winner === 'away';
@@ -134,12 +156,14 @@ function roadMatchCard(m, { featured = false, muted = false, overlay = null } = 
   const fx = fixture(m.id);
   const homePending = overlay && m.home.pending ? feederLabel(overlay, fx.home) : null;
   const awayPending = overlay && m.away.pending ? feederLabel(overlay, fx.away) : null;
+  const next = overlay && fx.stage !== 'final' && fx.stage !== 'bronze' ? nextTieLabel(overlay, m) : null;
   return `<button class="road-match${featured ? ' featured' : ''}${muted ? ' muted' : ''}${m.live ? ' live' : ''}${m.final ? ' finaled' : ''}"
     data-match="${m.id}" data-bkid="${m.id}" style="${hc ? `--hc:${hc};` : ''}${ac ? `--ac:${ac};` : ''}">
     <span class="road-match-meta">${esc(m.venueCity)}</span>
     ${teamLine(m.home, showScores ? m.gh : null, homeWin, m.final && m.winner && !homeWin, { pendingLabel: homePending })}
     ${teamLine(m.away, showScores ? m.ga : null, awayWin, m.final && m.winner && !awayWin, { pendingLabel: awayPending })}
     <span class="road-match-state">${esc(roadState(m))}</span>
+    ${next && m.final ? `<span class="road-match-next">↳ ${esc(next)}</span>` : ''}
   </button>`;
 }
 
@@ -160,10 +184,10 @@ function followRoadHTML(overlay, code) {
     byStage.get(m.stage).push(m);
   }
   const stages = ['r32', 'r16', 'qf', 'sf', 'final', 'bronze'];
-  return `<section class="road-mobile follow-road" aria-label="${esc(teamName(code))} road">
+  return `<section class="road-mobile follow-road" aria-label="${esc(teamName(code))} bracket path">
     <header class="road-hero" style="--tc:${TEAM_COLORS[code] || 'var(--official)'}">
       <span class="road-hero-flag" aria-hidden="true">${teamFlag(code)}</span>
-      <div><p>${esc(teamName(code))} road</p><h2>Path to the Final</h2></div>
+      <div><p>My Team · ${esc(teamName(code))}</p><h2>Road to the Final</h2></div>
     </header>
     <div class="road-stage-strip">
       ${stages.map((stage, i) => {
@@ -192,10 +216,10 @@ function followRoadHTML(overlay, code) {
 function fullRoadHTML(overlay) {
   const models = sortedKOModels(overlay);
   const stages = ['r32', 'r16', 'qf', 'sf', 'final', 'bronze'];
-  return `<section class="road-mobile full-road" aria-label="Full Road">
+  return `<section class="road-mobile full-road" aria-label="Full Bracket">
     <header class="road-hero full">
-      <div><p>Full Road</p><h2>Round by round</h2></div>
-      <span class="road-hero-count">32 teams</span>
+      <div><p>Full Bracket</p><h2>32 teams. One trophy.</h2></div>
+      <span class="road-hero-count">Round by round</span>
     </header>
     <div class="road-stage-strip">
       ${stages.map((stage, i) => {
@@ -228,8 +252,8 @@ export function renderKnockout(overlay) {
       ${segmentedControl({
     id: 'bracket-mode', label: 'Bracket mode', value: nav.bracketMode,
     options: [
-      { value: 'full', label: 'Full Road' },
-      { value: 'follow', label: 'Follow a Team' },
+      { value: 'full', label: 'Full Bracket' },
+      { value: 'follow', label: 'My Team' },
     ],
   })}
       ${follow ? followPicker(follow) : ''}

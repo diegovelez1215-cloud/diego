@@ -48,8 +48,8 @@ test('Knockout renders the complete graphical bracket: every KO match, all round
   }
   assert.ok(html.includes('bk-links'), 'connector layer present');
   assert.ok(html.includes('Group L winners'), 'pending slots are honest chips, never blank');
-  assert.ok(html.includes('Full Road'), 'Full Road is the default mode');
-  assert.ok(!html.includes('ko-follow-rail'), 'Follow a Team is secondary until selected');
+  assert.ok(html.includes('Full Bracket'), 'Full Bracket is the default mode');
+  assert.ok(!html.includes('ko-follow-rail'), 'My Team is secondary until selected');
   assert.ok(!/bk-goals/.test(html), 'no scores anywhere while every slot is unresolved');
 });
 

@@ -6,8 +6,8 @@
 // Gold light, tactile controls, rare weirdness. It can never modify real
 // fixtures, standings, Home, the official bracket, or Match Center —
 // everything here operates on deep copies in the Play namespace only.
-// Arcade Points are a private game score: no cash value, non-purchasable,
-// non-transferable, non-withdrawable.
+// Arcade Points are a private game score with no cash value — game
+// progression only, never money.
 
 import { getState, setPlay, setSims, setPlayMode } from '../core/app-state.js';
 import { savePlay, saveSims } from '../core/persistence.js';
@@ -105,6 +105,11 @@ const DECISIONS = {
 // the ticking run itself is module-local (never persisted mid-run).
 let labRun = null; // { home, away, seed, rng, minute, gh, ga, events, momentum, approach, mods, paused, decisionAt, done, pens }
 let labTimer = null;
+// Broadcast pace: how fast simulated minutes pass. 'key' sprints between the
+// moments that matter and breathes on them. Never persisted; UI-only.
+let labPace = 'normal'; // normal | fast | key
+let labMute = false;    // true while a beat batches ticks — paint once per beat
+const PACE_TICKS = { normal: 1, fast: 3 };
 
 function labChanceRates(run) {
   const rh = RATINGS[run.home] || 70; const ra = RATINGS[run.away] || 70;
@@ -116,6 +121,13 @@ function labChanceRates(run) {
   let aRate = Math.max(0.006, base * (1 - edge * 0.55) * (2 - a.def) * (2 - m.def));
   aRate *= run.oppMod || 1;            // away red card / fatigue penalty
   h *= run.homeMod || 1;               // home red card penalty
+  // fatigue is the price of aggression: pressing postures burn legs, and
+  // after ~72' tired legs genuinely open you up at the back. This is what
+  // makes "Throw everything" a real gamble instead of a free attack boost.
+  const pressCost = Math.max(0, a.atk * m.atk - 1.1);
+  if (run.minute > 72 && pressCost > 0) {
+    aRate *= 1 + Math.min(0.55, pressCost * 0.5);
+  }
   // late drama: a tight game past 80' loosens up — the chasing side pushes
   if (run.minute > 80 && Math.abs(run.gh - run.ga) <= 1) {
     const chasingHome = run.gh <= run.ga;
@@ -150,7 +162,17 @@ function labTick() {
         if (side === 'h') run.gh++; else run.ga++;
         run.events.push({ min: run.minute, type: 'goal', side, text: `GOAL — ${teamName(team)} (${run.gh}–${run.ga})` });
         run.goalAt = run.minute;
-        run.mo += side === 'h' ? 0.6 : -0.6;
+        const swingTo = side === 'h' ? 0.6 : -0.6;
+        // turning point: the moment that swung the night hardest
+        if (Math.abs(swingTo) + Math.abs(run.mo) >= (run.turnMag || 0)) {
+          run.turnMag = Math.abs(swingTo) + Math.abs(run.mo);
+          run.turn = { min: run.minute, text: `${teamName(team)}'s goal for ${run.gh}–${run.ga}` };
+        }
+        run.mo += swingTo;
+      } else if (rng() < 0.42) {
+        // an unconverted chance often dies as a corner — texture plus a count
+        if (side === 'h') run.ckh = (run.ckh || 0) + 1; else run.cka = (run.cka || 0) + 1;
+        run.events.push({ min: run.minute, type: 'corner', side, text: `Corner — ${teamName(team)} keep the pressure on` });
       } else if (rng() < 0.3) {
         run.events.push({ min: run.minute, type: 'chance', side, text: CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)) });
       }
@@ -164,6 +186,7 @@ function labTick() {
       run[side === 'h' ? 'redH' : 'redA'] = true;
       if (side === 'h') run.homeMod = 0.78; else run.oppMod = 0.78;
       run.events.push({ min: run.minute, type: 'red', side, text: `RED CARD — ${team} down to ten` });
+      if (1.1 >= (run.turnMag || 0)) { run.turnMag = 1.1; run.turn = { min: run.minute, text: `the red card that left ${team} with ten` }; }
       run.mo += side === 'h' ? -0.4 : 0.4;
     } else {
       run.events.push({ min: run.minute, type: 'card', side, text: `Booking for ${team}` });
@@ -198,7 +221,7 @@ function labTick() {
     run.line = grugLine(rng);
     finishLab();
   }
-  paintLab();
+  if (!labMute) paintLab();
   if (run.paused || run.done) stopLabTimer();
 }
 
@@ -208,7 +231,40 @@ function startLabTimer() {
   stopLabTimer();
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { while (labRun && !labRun.done && !labRun.paused) labTick(); return; }
-  labTimer = setInterval(labTick, 55);
+  labTimer = setInterval(labBeat, 55);
+}
+
+/* One broadcast beat. Normal = a minute per beat; Fast = three; Key Moments
+   sprints quietly between events and lets each moment land on screen. */
+function labBeat() {
+  const run = labRun;
+  if (!run || run.paused || run.done) return;
+  labMute = true;
+  try {
+    if (labPace === 'key') {
+      const before = run.events.length;
+      let guard = 0;
+      do { labTick(); guard++; } while (
+        labRun && !labRun.done && !labRun.paused
+        && labRun.events.length === before && guard < 15);
+    } else {
+      for (let i = 0; i < (PACE_TICKS[labPace] || 1); i++) {
+        if (!labRun || labRun.done || labRun.paused) break;
+        labTick();
+      }
+    }
+  } finally {
+    labMute = false;
+  }
+  paintLab(); // one paint per beat, whatever the pace — kind to iPhone Safari
+}
+
+function setLabPace(p) {
+  labPace = p === 'fast' || p === 'key' ? p : 'normal';
+  const card = document.querySelector('.play-view .lab.running');
+  if (card) {
+    card.querySelectorAll('[data-pace]').forEach((b) => b.classList.toggle('active', b.dataset.pace === labPace));
+  }
 }
 
 function beginLab(home, away, approach) {
@@ -254,6 +310,20 @@ function labArcadePoints(run, facts) {
   return cp;
 }
 
+/* Player of the Match — a positional honour derived from what actually
+   happened in the run (units, not invented named people). */
+function labPotm(run, facts) {
+  const winSide = run.pens ? (run.pens.ph > run.pens.pa ? 'h' : 'a') : (run.gh > run.ga ? 'h' : run.gh < run.ga ? 'a' : null);
+  if (!winSide) return 'both back lines — a night the defences won';
+  const team = teamName(winSide === 'h' ? run.home : run.away);
+  const goalsFor = winSide === 'h' ? run.gh : run.ga;
+  const concede = winSide === 'h' ? run.ga : run.gh;
+  if (run.pens) return `${team}'s keeper — the wall the shootout broke against`;
+  if (goalsFor >= 3) return `${team}'s front line — ${goalsFor} goals of pure momentum`;
+  if (concede === 0) return `${team}'s back line — a clean sheet under the lights`;
+  return `${team}'s midfield — they owned the minutes that mattered`;
+}
+
 function labStory(run, facts) {
   const goals = run.events.filter((e) => e.type === 'goal');
   const yourGoals = goals.filter((g) => g.side === 'h');
@@ -280,6 +350,7 @@ function finishLab() {
   const facts = labResultFacts(run);
   const cp = labArcadePoints(run, facts);
   run.cp = cp; run.win = facts.win; run.story = labStory(run, facts);
+  run.potm = labPotm(run, facts);
   const entry = {
     at: new Date().toISOString(),
     home: run.home, away: run.away, gh: run.gh, ga: run.ga,
@@ -427,9 +498,12 @@ export function saveCurrentSim() {
   saveSims(next);
 }
 
-/* ================= Prediction Run ================= */
+/* ================= Prediction Run =================
+   A simple premium ritual: 1) Make your call 2) winner + optional scoreline +
+   confidence 3) confirm once 4) Locked at kickoff 5) settled only from
+   validated official truth. No lock jargon, no form maze. */
 
-const CONF = { 1: 'Hunch', 2: 'Call', 3: 'Lock' };
+const CONF = { 1: 'Cool', 2: 'Confident', 3: 'All-in' };
 
 function predictableFixtures(overlay) {
   const t = now();
@@ -442,7 +516,9 @@ function predictableFixtures(overlay) {
     .slice(0, 8);
 }
 
-/** Grade picks against current validated finals — computed live, never stored. */
+/** Grade picks against current validated finals — computed live, never stored.
+    Settlement is idempotent by construction: the record is re-derived from the
+    same official truth every time, so re-settling can never double-count. */
 export function gradePredictions(picks, overlay) {
   const graded = [];
   for (const [idStr, pick] of Object.entries(picks || {})) {
@@ -450,21 +526,34 @@ export function gradePredictions(picks, overlay) {
     const ov = overlay.byFixture.get(id);
     const fx = allFixtures().find((f) => f.id === id);
     if (!fx || !ov || ov.status !== 'final' || !ov.winner) continue;
-    graded.push({ id, epoch: fx.epoch, correct: ov.winner === pick.side, conf: pick.conf });
+    // exact scoreline: only when the caller committed one AND official goals
+    // are known for a canonically resolved tie (score guards upstream).
+    const exact = pick.gh != null && pick.ga != null && ov.gh != null && ov.ga != null
+      && Number(pick.gh) === ov.gh && Number(pick.ga) === ov.ga;
+    graded.push({ id, epoch: fx.epoch, correct: ov.winner === pick.side, conf: pick.conf, exact });
   }
   graded.sort((a, b) => a.epoch - b.epoch);
-  let insight = 0; let streak = 0; let best = 0; let right = 0;
+  let insight = 0; let streak = 0; let best = 0; let right = 0; let exact = 0;
   for (const g of graded) {
     if (g.correct) { right++; insight += g.conf * 10; streak++; best = Math.max(best, streak); }
     else streak = 0;
+    if (g.exact) exact++;
   }
-  return { graded, right, total: graded.length, insight, streak, best };
+  return { graded, right, total: graded.length, insight, streak, best, exact };
 }
 
-function setPick(fixtureId, side, conf) {
+/** Locked at kickoff, editable before it: the only lock that exists is the
+    real one — the official kickoff whistle. */
+export function pickLockedAtKickoff(fixtureId) {
+  const fx = allFixtures().find((f) => f.id === fixtureId);
+  return !!fx && fx.epoch <= now();
+}
+
+function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
+  if (pickLockedAtKickoff(fixtureId)) return; // locked at kickoff — no edits
   const { play } = getState();
   const picks = { ...(play.predictions?.picks || {}) };
-  picks[fixtureId] = { side, conf, at: new Date().toISOString() };
+  picks[fixtureId] = { side, conf, gh, ga, at: new Date().toISOString() };
   const nextPlay = { ...play, predictions: { picks } };
   setPlay(nextPlay);
   savePlay(nextPlay);
@@ -473,29 +562,31 @@ function setPick(fixtureId, side, conf) {
 /* ================= personal arcade ledger ================= */
 // One player: you. Every number is derived from things that actually happened
 // in this Play space — finished Lab runs, graded predictions, saved runs.
-// Arcade Points are a private game score: no cash value, non-purchasable,
-// non-transferable, non-withdrawable.
+// Arcade Points are a private game score with no cash value — game
+// progression only, never money.
 
-/** Prediction Arcade Points — derived live from graded calls, never stored. */
-export function predictionPoints(play, overlay) {
+/** Picks League points — settled ONLY from validated official results.
+    Derived live, never stored, idempotent: the same official truth always
+    yields the same total, so duplicate settlement cannot duplicate points. */
+export function leaguePickPoints(play, overlay) {
   const picks = play.predictions?.picks || {};
   const s = gradePredictions(picks, overlay);
-  return s.insight + s.best * 20 + Object.keys(picks).length * 5;
+  return s.insight + s.best * 20 + s.exact * 15;
 }
 
-/** Your complete arcade record, derived on demand. */
+/** Your arcade record — Match Lab and My World Cup ONLY. The Picks League
+    (official predictions) is a separate scoreboard and never mixes in here. */
 export function arcadeLedger(play, overlay, sims) {
   const labs = play.labHistory || [];
   const labCp = labs.reduce((n, e) => n + (e.cp || 0), 0);
-  const predCp = predictionPoints(play, overlay);
   const runCp = ((sims && sims.saved) || []).length * 40;
   let streak = 0;
   for (const e of labs) { if (e.win) streak++; else break; }
   const wins = labs.filter((e) => e.win);
   const best = [...wins].sort((a, b) => (b.gh - b.ga) - (a.gh - a.ga))[0] || null;
   return {
-    points: labCp + predCp + runCp,
-    labCp, predCp, runCp,
+    points: labCp + runCp,
+    labCp, runCp,
     streak,
     wins: wins.length,
     played: labs.length,
@@ -648,7 +739,9 @@ function labPitchHTML(run) {
   const homePress = Math.max(18, Math.min(78, 48 + (run.mo || 0) * 24));
   const awayPress = Math.max(22, Math.min(82, 52 - (run.mo || 0) * 24));
   const possH = run.minute ? Math.round(Math.max(28, Math.min(72, ((run.possAcc || run.minute / 2) / run.minute) * 100))) : 50;
-  return `<div class="lab-pitch" aria-label="Animated pitch simulation">
+  return `<div class="lab-pitch" aria-label="Animated pitch simulation" style="--mo:${(run.mo || 0).toFixed(2)}">
+    <i class="pitch-zone home" style="opacity:${Math.max(0, run.mo || 0).toFixed(2)}"></i>
+    <i class="pitch-zone away" style="opacity:${Math.max(0, -(run.mo || 0)).toFixed(2)}"></i>
     <span class="pitch-line halfway"></span><span class="pitch-box left"></span><span class="pitch-box right"></span>
     <i class="pitch-team home" style="left:${homePress}%;top:34%"></i>
     <i class="pitch-team home" style="left:${Math.max(12, homePress - 18)}%;top:62%"></i>
@@ -664,13 +757,17 @@ function labRunHTML(run) {
   const awayColor = TEAM_COLORS[run.away] || 'var(--gold)';
   const decision = run.decisionAt != null ? DECISIONS[run.decisionAt] : null;
   const moPct = ((run.mo + 1) / 2) * 100;
-  const scoreFlash = !run.done && run.goalAt != null && run.minute - run.goalAt < 3;
-  return `<section class="play-card lab running${run.done ? ' done' : ''}" aria-label="Match Lab simulation">
-    <div class="lab-stage" style="--hc:${homeColor};--ac:${awayColor}">
+  const goalLive = !run.done && run.goalAt != null && run.minute - run.goalAt < 3;
+  // stadium energy: tight late games and fresh goals raise the lights
+  const closeness = 1 - Math.min(1, Math.abs(run.gh - run.ga) / 3);
+  const energy = Math.min(1, 0.25 + (run.minute / 120) * 0.4 + closeness * 0.25 + (goalLive ? 0.35 : 0));
+  return `<section class="play-card lab running${run.done ? ' done' : ''}${goalLive ? ' goal-live' : ''}" aria-label="Match Lab simulation">
+    <div class="lab-stage" style="--hc:${homeColor};--ac:${awayColor};--energy:${energy.toFixed(2)}">
+      ${goalLive ? '<div class="lab-goal-banner" aria-hidden="true">GOAL</div>' : ''}
       <div class="lab-clock" aria-live="polite">${run.done ? '<span class="lab-ft-stamp">FULL TIME</span>' : minLabel(run.minute) + '&prime;'}</div>
       <div class="lab-score-row">
         <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span></div>
-        <div class="lab-score${scoreFlash ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
+        <div class="lab-score${goalLive ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
         <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
       </div>
       ${run.pens ? `<div class="lab-pens">Penalties ${run.pens.ph}–${run.pens.pa}</div>` : ''}
@@ -678,6 +775,10 @@ function labRunHTML(run) {
       <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.away))}</span><span>momentum</span><span>${esc(teamName(run.home))}</span></div>
       ${labPitchHTML(run)}
     </div>
+    ${!run.done ? `<div class="lab-pace" role="group" aria-label="Broadcast pace">
+      ${[['normal', 'Normal'], ['fast', 'Fast'], ['key', 'Key moments']].map(([p, label]) => `
+        <button class="lab-pace-btn${labPace === p ? ' active' : ''}" data-pace="${p}">${label}</button>`).join('')}
+    </div>` : ''}
     ${decision ? `<div class="lab-decision" role="group" aria-label="${esc(decision.prompt)}">
       <p class="lab-decision-prompt">${esc(decision.prompt)}</p>
       <div class="lab-decision-opts">
@@ -705,8 +806,10 @@ function labPayoffHTML(run) {
       <span class="lab-payoff-streak">${esc(streakLine)}</span>
     </div>
     <div class="lab-boxscore" aria-label="Match numbers">
-      <span>${run.sh}–${run.sa} shots</span><span>${possH}–${100 - possH} possession</span><span>${run.events.filter((e) => e.type === 'card' || e.type === 'red').length} cards</span>
+      <span>${run.sh}–${run.sa} shots</span><span>${possH}–${100 - possH} possession</span><span>${(run.ckh || 0)}–${(run.cka || 0)} corners</span><span>${run.events.filter((e) => e.type === 'card' || e.type === 'red').length} cards</span>
     </div>
+    ${run.turn ? `<p class="lab-turning"><span>Turning point</span>${minLabel(run.turn.min)}&prime; — ${esc(run.turn.text)}</p>` : ''}
+    ${run.potm ? `<p class="lab-potm"><span>Player of the Match</span>${esc(run.potm)}</p>` : ''}
     ${run.story ? `<p class="lab-story">${esc(run.story)}</p>` : ''}
     <p class="grug-line">${esc(run.line || '')}</p>
     <div class="play-actions">
@@ -772,17 +875,85 @@ function myWorldCupHTML(overlay, play, pendingPick) {
   </section>`;
 }
 
+/* Draft calls in progress — module-local, discarded unless confirmed. */
+let prDrafts = {};
+
+function pickSummaryLine(overlay, id, pick) {
+  const s = overlay.slots.get(id) || {};
+  const who = pick.side === 'draw' ? 'Draw'
+    : pick.side === 'home' ? (s.home ? teamName(s.home) : 'Home') : (s.away ? teamName(s.away) : 'Away');
+  const score = pick.gh != null && pick.ga != null ? ` · ${pick.gh}–${pick.ga}` : '';
+  return `${who}${score} · ${CONF[pick.conf] || 'Cool'}`;
+}
+
+/** Confirmed picks now inside the real match window: locked at kickoff. */
+function lockedLivePicks(overlay, picks) {
+  const t = now();
+  return Object.entries(picks || {})
+    .map(([idStr, pick]) => ({ id: Number(idStr), pick }))
+    .filter(({ id }) => {
+      const fx = allFixtures().find((f) => f.id === id);
+      const ov = overlay.byFixture.get(id);
+      return fx && fx.epoch <= t && (!ov || ov.status !== 'final' || !ov.winner);
+    })
+    .sort((a, b) => b.id - a.id)
+    .slice(0, 4);
+}
+
+function prFixtureHTML(overlay, f, pick, draft) {
+  const s = overlay.slots.get(f.id);
+  const meta = `${esc(f.stage === 'group' ? 'Group ' + f.group : STAGE_NAMES[f.stage])} · ${esc(formatDayKey(f.day))} · ${esc(formatKickoffTime(f.epoch))}`;
+  // Sealed call: confirmed, still editable until the real whistle.
+  if (pick && !draft) {
+    return `<div class="pr-fixture sealed" data-prfx="${f.id}">
+      <div class="pr-meta">${meta}</div>
+      <div class="pr-sealed-call">
+        <span class="pr-sealed-tie">${teamFlag(s.home)} ${esc(teamName(s.home))} <em>v</em> ${esc(teamName(s.away))} ${teamFlag(s.away)}</span>
+        <span class="pr-sealed-line">Your call — ${esc(pickSummaryLine(overlay, f.id, pick))}</span>
+        <span class="pr-sealed-lock">Locks at kickoff · ${esc(formatKickoffTime(f.epoch))}</span>
+      </div>
+      <button class="pr-edit" data-predit="${f.id}">Change call</button>
+    </div>`;
+  }
+  const d = draft || {};
+  const step = !d.side ? 1 : 2;
+  return `<div class="pr-fixture${d.side ? ' drafting' : ''}" data-prfx="${f.id}">
+    <div class="pr-meta">${meta}</div>
+    <div class="pr-teams">
+      <button class="pr-side${d.side === 'home' ? ' on' : ''}" data-prside="home">${teamFlag(s.home)} ${esc(teamName(s.home))}</button>
+      ${f.stage === 'group' ? `<button class="pr-side draw${d.side === 'draw' ? ' on' : ''}" data-prside="draw">Draw</button>` : '<span class="pr-v">v</span>'}
+      <button class="pr-side${d.side === 'away' ? ' on' : ''}" data-prside="away">${esc(teamName(s.away))} ${teamFlag(s.away)}</button>
+    </div>
+    ${step === 1 ? '<p class="pr-hint">Make your call — pick a winner.</p>' : `
+    <div class="pr-refine">
+      <div class="pr-scoreline" role="group" aria-label="Optional scoreline">
+        <span class="pr-score-label">Scoreline <em>optional</em></span>
+        <div class="pr-score-steppers">
+          <button class="pr-step" data-prstep="gh">${d.gh != null ? d.gh : '–'}</button>
+          <span>:</span>
+          <button class="pr-step" data-prstep="ga">${d.ga != null ? d.ga : '–'}</button>
+          ${d.gh != null ? '<button class="pr-step clear" data-prstep="clear">×</button>' : ''}
+        </div>
+      </div>
+      <div class="pr-conf" role="group" aria-label="Confidence">
+        ${[1, 2, 3].map((c) => `<button class="pr-conf-btn${(d.conf || 1) === c ? ' on' : ''}" data-prconf="${c}">${CONF[c]}</button>`).join('')}
+      </div>
+      <button class="pr-confirm" data-prconfirm="${f.id}">Confirm call</button>
+    </div>`}
+  </div>`;
+}
+
 function predictionHTML(overlay, play) {
   const picks = play.predictions?.picks || {};
   const stats = gradePredictions(picks, overlay);
   const upcoming = predictableFixtures(overlay);
+  const locked = lockedLivePicks(overlay, picks);
   const recent = stats.graded.slice(-3).reverse();
-  const points = predictionPoints(play, overlay);
   const iq = stats.total >= 3 ? Math.round((stats.right / stats.total) * 100) : null;
   return `<section class="play-card prediction" aria-label="Prediction Run">
     <div class="prediction-hero">
       <div><h2 class="display">Prediction Run</h2>
-      <p class="play-sub">Call official fixtures before they happen. Confidence earns insight; misses reset the streak.</p></div>
+      <p class="play-sub">Make your call, confirm once. It locks at the real kickoff and settles only on the official result.</p></div>
       <span class="prediction-chip">No stakes</span>
     </div>
     <div class="pr-stats" role="group" aria-label="Prediction record">
@@ -791,31 +962,24 @@ function predictionHTML(overlay, play) {
       <div class="pr-stat${stats.streak >= 3 ? ' hot' : ''}"><strong>${stats.streak >= 3 ? '🔥' + stats.streak : stats.streak}</strong><span>streak</span></div>
       <div class="pr-stat"><strong>${iq != null ? iq : '—'}</strong><span>Tournament IQ</span></div>
     </div>
-    ${recent.length ? `<div class="pr-recent" aria-label="Recent graded calls">
+    ${recent.length ? `<div class="pr-recent" aria-label="Recent settled calls">
       ${recent.map((g) => {
     const s = overlay.slots.get(g.id) || {};
-    return `<span class="pr-call ${g.correct ? 'hit' : 'miss'}">${g.correct ? '✓' : '✗'} ${s.home ? teamFlag(s.home) : ''}v${s.away ? teamFlag(s.away) : ''} ${CONF[g.conf] || ''}</span>`;
+    return `<span class="pr-call ${g.correct ? 'hit' : 'miss'}">${g.correct ? '✓' : '✗'} ${s.home ? teamFlag(s.home) : ''}v${s.away ? teamFlag(s.away) : ''} ${CONF[g.conf] || ''}${g.exact ? ' · exact' : ''}</span>`;
   }).join('')}
     </div>` : ''}
-    <div class="arcade-points" aria-label="Arcade Points from predictions">
-      <div class="private-head"><span>Your prediction haul</span><strong>${points} Arcade Points</strong></div>
-      <div class="private-copy">A private game score. Non-purchasable, non-transferable, non-withdrawable. No cash value.</div>
-    </div>
-    ${upcoming.length ? upcoming.map((f) => {
-    const s = overlay.slots.get(f.id);
-    const pick = picks[f.id];
-    return `<div class="pr-fixture${pick ? ' picked' : ''}" data-prfx="${f.id}">
-        <div class="pr-meta">${esc(f.stage === 'group' ? 'Group ' + f.group : STAGE_NAMES[f.stage])} · ${esc(formatDayKey(f.day))} · ${esc(formatKickoffTime(f.epoch))}</div>
-        <div class="pr-teams">
-          <button class="pr-side${pick && pick.side === 'home' ? ' on' : ''}" data-prside="home">${teamFlag(s.home)} ${esc(teamName(s.home))}</button>
-          ${f.stage === 'group' ? `<button class="pr-side draw${pick && pick.side === 'draw' ? ' on' : ''}" data-prside="draw">Draw</button>` : '<span class="pr-v">v</span>'}
-          <button class="pr-side${pick && pick.side === 'away' ? ' on' : ''}" data-prside="away">${esc(teamName(s.away))} ${teamFlag(s.away)}</button>
-        </div>
-        <div class="pr-conf" role="group" aria-label="Confidence">
-          ${[1, 2, 3].map((c) => `<button class="pr-conf-btn${pick && pick.conf === c ? ' on' : ''}" data-prconf="${c}">${CONF[c]}</button>`).join('')}
-        </div>
+    ${locked.length ? `<div class="pr-locked" aria-label="Locked calls">
+      ${locked.map(({ id, pick }) => {
+    const s = overlay.slots.get(id) || {};
+    return `<div class="pr-locked-row">
+        <span class="pr-locked-badge">Locked at kickoff</span>
+        <span>${s.home ? teamFlag(s.home) + ' ' + esc(teamName(s.home)) : ''} v ${s.away ? esc(teamName(s.away)) + ' ' + teamFlag(s.away) : ''} — ${esc(pickSummaryLine(overlay, id, pick))}</span>
       </div>`;
-  }).join('') : '<p class="empty-line grug-line">no callable fixtures right now. the future is still assembling itself.</p>'}
+  }).join('')}
+    </div>` : ''}
+    ${upcoming.length ? upcoming.map((f) => prFixtureHTML(overlay, f, picks[f.id], prDrafts[f.id])).join('')
+    : '<p class="empty-line grug-line">no callable fixtures right now. the future is still assembling itself.</p>'}
+    <p class="pr-league-note">Confirmed calls score in your <b>Picks League</b> on the You tab — settled only from official results.</p>
   </section>`;
 }
 
@@ -936,6 +1100,9 @@ function wireLab(outlet) {
   outlet.querySelectorAll('[data-decide]').forEach((b) => {
     b.addEventListener('click', () => decideLab(b.dataset.decide));
   });
+  outlet.querySelectorAll('[data-pace]').forEach((b) => {
+    b.addEventListener('click', () => setLabPace(b.dataset.pace));
+  });
   const again = outlet.querySelector('#lab-again');
   if (again) again.addEventListener('click', () => { const r = labRun; beginLab(r.home, r.away, r.approach); });
   const fresh = outlet.querySelector('#lab-new');
@@ -971,16 +1138,55 @@ function wireMwc(outlet) {
 function wirePrediction(outlet) {
   outlet.querySelectorAll('.pr-fixture').forEach((row) => {
     const id = Number(row.dataset.prfx);
-    const current = () => getState().play.predictions?.picks?.[id];
+    // step 1 — make your call
     row.querySelectorAll('[data-prside]').forEach((b) => {
-      b.addEventListener('click', () => setPick(id, b.dataset.prside, current()?.conf || 1));
+      b.addEventListener('click', () => {
+        const d = prDrafts[id] || { conf: 1, gh: null, ga: null };
+        prDrafts[id] = { ...d, side: b.dataset.prside };
+        repaintPlay();
+      });
+    });
+    // step 2 — optional scoreline (tap cycles 0→5) and confidence
+    row.querySelectorAll('[data-prstep]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const d = prDrafts[id];
+        if (!d) return;
+        const k = b.dataset.prstep;
+        if (k === 'clear') { d.gh = null; d.ga = null; }
+        else if (d.gh == null || d.ga == null) { d.gh = 0; d.ga = 0; } // first tap arms 0–0
+        else d[k] = (d[k] + 1) % 6;                                    // then taps count goals
+        repaintPlay();
+      });
     });
     row.querySelectorAll('[data-prconf]').forEach((b) => {
       b.addEventListener('click', () => {
-        const cur = current();
-        setPick(id, cur?.side || 'home', Number(b.dataset.prconf));
+        const d = prDrafts[id];
+        if (!d) return;
+        d.conf = Number(b.dataset.prconf);
+        repaintPlay();
       });
     });
+    // step 3 — confirm once
+    const confirm = row.querySelector('[data-prconfirm]');
+    if (confirm) {
+      confirm.addEventListener('click', () => {
+        const d = prDrafts[id];
+        if (!d || !d.side) return;
+        setPick(id, d);
+        delete prDrafts[id];
+        repaintPlay();
+      });
+    }
+    // sealed call — reopen for edits until the real kickoff
+    const edit = row.querySelector('[data-predit]');
+    if (edit) {
+      edit.addEventListener('click', () => {
+        if (pickLockedAtKickoff(id)) { repaintPlay(); return; }
+        const cur = getState().play.predictions?.picks?.[id];
+        if (cur) prDrafts[id] = { side: cur.side, conf: cur.conf, gh: cur.gh ?? null, ga: cur.ga ?? null };
+        repaintPlay();
+      });
+    }
   });
 }
 
