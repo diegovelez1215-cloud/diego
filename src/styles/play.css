@@ -108,6 +108,33 @@
 .lab-lobby .play-sub { margin-top: var(--sp-1); }
 .lab-lobby .wi-pickers { margin-top: var(--sp-3); }
 .lab-lobby .lab-approaches { margin: var(--sp-3) 0; }
+.lab-showdown-label {
+  display: grid;
+  gap: 2px;
+  margin-bottom: var(--sp-3);
+}
+.lab-showdown-label span {
+  color: var(--gold-ink);
+  font-size: 0.72rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.lab-showdown-label small {
+  color: var(--ink-3);
+  font-size: var(--fs-micro);
+}
+.lab-feature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.lab-feature-actions .play-btn {
+  min-height: 34px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-micro);
+}
 
 .mwc-runway {
   display: grid;
@@ -478,6 +505,14 @@
 .pitch-ball.goal, .pitch-ball.shot {
   transform: translate(-50%, -50%) scale(1.45);
   box-shadow: 0 0 24px color-mix(in srgb, var(--gold) 90%, transparent);
+}
+.pitch-ball.foul, .pitch-ball.free, .pitch-ball.var {
+  transform: translate(-50%, -50%) scale(1.25);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--official) 70%, transparent);
+}
+.pitch-ball.penalty {
+  transform: translate(-50%, -50%) scale(1.55);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--live) 65%, transparent);
 }
 .pitch-counts {
   position: absolute;
@@ -1138,6 +1173,19 @@
   font-weight: var(--w-bold);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 20px -12px var(--gold);
 }
+.lobby-runback {
+  width: 100%;
+  min-height: 38px;
+  margin: calc(-1 * var(--sp-1)) 0 var(--sp-3);
+  border: 1px solid color-mix(in srgb, var(--gold) 20%, var(--hairline));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-micro);
+  font-weight: var(--w-bold);
+}
+.lobby-runback b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .lobby-tile {
   appearance: none; cursor: pointer; text-align: left; font-family: inherit;

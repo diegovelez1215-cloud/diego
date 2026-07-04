@@ -7,7 +7,7 @@ import {
 } from './helpers.js';
 
 test.describe('Match Lab', () => {
-  test('renders 22 players, a moving ball, red-card shape, and muted sound control', async ({ page }) => {
+  test('renders synchronized ball movement, scoring, VAR, red cards, penalties, and muted sound', async ({ page }) => {
     await page.addInitScript(() => {
       window.__audioContexts = 0;
       class MockAudioContext {
@@ -35,11 +35,36 @@ test.describe('Match Lab', () => {
     expect(await page.evaluate(() => window.__audioContexts), 'muted start does not arm audio').toBe(0);
     const ballA = await page.locator('[data-ball]').getAttribute('style');
     await page.evaluate(() => window.__u26LabDebug.force('open'));
+    await page.waitForTimeout(420);
     const ballB = await page.locator('[data-ball]').getAttribute('style');
     expect(ballB).not.toBe(ballA);
+
+    await page.evaluate(() => window.__u26LabDebug.force('goal'));
+    await expect(page.locator('#lab-score')).toContainText('0–0');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#lab-score')).toContainText('1–0');
+
+    await page.evaluate(() => window.__u26LabDebug.force('var'));
+    await expect(page.locator('.lab-var-banner')).toBeVisible({ timeout: 2200 });
+    await page.waitForTimeout(3200);
+    await expect(page.locator('#lab-score')).toContainText('2–0');
+
+    await page.evaluate(() => window.__u26LabDebug.force('var-overturned'));
+    await expect(page.locator('.lab-var-banner')).toBeVisible({ timeout: 2200 });
+    await page.waitForTimeout(3200);
+    await expect(page.locator('#lab-score')).toContainText('2–0');
+
+    const awayBeforeRed = await page.locator('[data-player-side="away"]').count();
     await page.evaluate(() => window.__u26LabDebug.force('red'));
-    await expect(page.locator('[data-player-side="away"]')).toHaveCount(10);
     await expect(page.locator('.lab-card-banner')).toBeVisible();
+    expect(await page.locator('[data-player-side="away"]').count()).toBe(awayBeforeRed);
+    await page.waitForTimeout(1500);
+    await expect(page.locator('[data-player-side="away"]')).toHaveCount(10);
+
+    await page.evaluate(() => window.__u26LabDebug.force('pens'));
+    await expect(page.locator('.lab-pens')).toContainText('0–0');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('.lab-pens')).toContainText(/1–0|1–1/);
   });
 
   test('reduced motion keeps the simulation usable', async ({ page }) => {
@@ -58,13 +83,7 @@ test.describe('Match Lab', () => {
     await screenshot(page, testInfo, 'play-lab-setup');
     await page.locator('.lab-approach[data-approach="press"]').click();
     await page.locator('#lab-kickoff').click();
-    // halftime decision
-    await expect(page.locator('.lab-decision')).toBeVisible({ timeout: 10000 });
-    await screenshot(page, testInfo, 'play-lab-decision');
-    await page.locator('.lab-opt[data-decide="push"]').click();
-    // 68' decision
-    await expect(page.locator('.lab-decision')).toBeVisible({ timeout: 10000 });
-    await page.locator('.lab-opt[data-decide="gamble"]').click();
+    await page.evaluate(() => window.__u26LabDebug.force('final'));
     await expect(page.locator('.lab-clock')).toHaveText('FULL TIME', { timeout: 10000 });
     await expect(page.locator('.lab-feed .lab-ev').first()).toBeVisible();
     await screenshot(page, testInfo, 'play-lab-fulltime');

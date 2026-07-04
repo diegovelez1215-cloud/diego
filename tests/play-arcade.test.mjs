@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 
 import { buildOverlay } from '../src/core/provider-overlay.js';
 import { getState, setOverlay, setPlay } from '../src/core/app-state.js';
-import { gradePredictions, playNextRound, simulateLabForSeed, simulateMatch } from '../src/views/play.js';
+import {
+  featuredShowdownForDate, gradePredictions, playNextRound, simulateLabForSeed, simulateMatch,
+} from '../src/views/play.js';
 import { fullResultsPayload, OK } from './mock-provider.mjs';
 
 test('gradePredictions: confidence earns insight, misses reset the streak, ungraded picks wait', () => {
@@ -91,6 +93,15 @@ test('Match Lab records meaningful possession vocabulary and starts with 22 play
   assert.ok(['shot', 'chance', 'save', 'corner', 'free', 'goal'].some((type) => vocab.has(type)));
 });
 
+test('Match Lab event visuals move the ball through distinct player and goal points', () => {
+  const r = lab(260626);
+  const open = r.events.find((e) => ['possession', 'pass', 'carry', 'transition', 'pressure'].includes(e.type));
+  assert.ok(open, 'open-play event exists');
+  assert.ok(new Set(open.visual.map((p) => `${p[0]},${p[1]},${p[2]}`)).size >= 3, 'open play has at least three distinct visual points');
+  const goal = findLab((x) => x.events.some((e) => e.type === 'goal')).result.events.find((e) => e.type === 'goal');
+  assert.ok(goal.visual.some((p) => p[3] === 'goal'), 'goal path reaches the goal');
+});
+
 test('Match Lab visibly drops to ten after a red card', () => {
   const { result } = findLab((r) => r.events.some((e) => e.type === 'red'));
   assert.ok(result.players.home === 10 || result.players.away === 10);
@@ -106,8 +117,36 @@ test('VAR appears only after a goal and resolves to a football decision', () => 
   assert.ok(['confirmed', 'overturned'].includes(events[idx + 1]?.type), 'VAR resolves clearly');
 });
 
+test('VAR confirmed and overturned outcomes produce the matching final score', () => {
+  const confirmed = findLab((r) => r.events.some((e) => e.type === 'confirmed'), 2000).result;
+  const overturned = findLab((r) => r.events.some((e) => e.type === 'overturned'), 4000).result;
+  for (const r of [confirmed, overturned]) {
+    const confirmedGoals = r.events.filter((e) => e.type === 'confirmed' || (e.type === 'goal' && !e.underReview));
+    const h = confirmedGoals.filter((e) => e.side === 'h').length;
+    const a = confirmedGoals.filter((e) => e.side === 'a').length;
+    assert.deepEqual(r.score, [h, a], 'final score only counts confirmed or non-reviewed goals');
+  }
+  assert.ok(overturned.events.some((e) => e.type === 'overturned'), 'overturned sample is present');
+});
+
+test('card visuals identify the dismissed marker before the count changes', () => {
+  const { result } = findLab((r) => r.events.some((e) => e.type === 'red'));
+  const red = result.events.find((e) => e.type === 'red');
+  assert.ok(red.redRole, 'red card carries the dismissed role');
+  assert.ok(red.visual.every((p) => p[2] === red.redRole || p[3] === 'foul'), 'red-card ball stops by the incident role');
+  assert.equal(result.players.home + result.players.away, 21);
+});
+
 test('penalties are reserved for tied knockout simulations', () => {
   const { result } = findLab((r) => r.pens);
   assert.ok(result.pens);
   assert.equal(result.score[0], result.score[1], 'shootout only follows a tied match score');
+  assert.ok(result.events.filter((e) => e.type === 'pens').length >= result.pens.kicks, 'shootout is represented kick by kick');
+});
+
+test('daily featured showdown is stable by date and changes with shuffle or date', () => {
+  const day = featuredShowdownForDate('2026-07-04', 0);
+  assert.deepEqual(day, featuredShowdownForDate('2026-07-04', 0));
+  assert.notDeepEqual([day.home, day.away, day.seed], [featuredShowdownForDate('2026-07-04', 1).home, featuredShowdownForDate('2026-07-04', 1).away, featuredShowdownForDate('2026-07-04', 1).seed]);
+  assert.notDeepEqual([day.home, day.away, day.seed], [featuredShowdownForDate('2026-07-05', 0).home, featuredShowdownForDate('2026-07-05', 0).away, featuredShowdownForDate('2026-07-05', 0).seed]);
 });

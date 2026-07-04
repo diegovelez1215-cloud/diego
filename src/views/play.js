@@ -114,11 +114,46 @@ const ROLE_NAMES = {
 };
 const RED_DROP_ROLE = 'RM';
 const POSSESSION_TYPES = ['possession', 'pass', 'carry', 'transition', 'pressure'];
+const FEATURED_POOL = [
+  ['FRA', 'BRA'], ['ARG', 'ENG'], ['ESP', 'POR'], ['USA', 'MEX'],
+  ['GER', 'NED'], ['MAR', 'SEN'], ['JPN', 'KOR'], ['COL', 'URU'],
+  ['SUI', 'CRO'], ['CAN', 'USA'], ['BRA', 'ARG'], ['ENG', 'NED'],
+];
+const LAB_SEQUENCE_MS = { normal: 1250, fast: 520, key: 740 };
+let labVisualRaf = 0;
+
+function hashSeed(text) {
+  let h = 2166136261;
+  for (let i = 0; i < String(text).length; i++) {
+    h ^= String(text).charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function localDayKey(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function featuredShowdownForDate(dateKey = localDayKey(), shuffle = 0) {
+  const idx = hashSeed(`u26-lab-${dateKey}-${shuffle}`) % FEATURED_POOL.length;
+  return { dateKey, shuffle, home: FEATURED_POOL[idx][0], away: FEATURED_POOL[idx][1], seed: hashSeed(`lab-seed-${dateKey}-${shuffle}`) || 1 };
+}
+
+function currentFeaturedShowdown(play) {
+  const today = localDayKey();
+  const saved = play.labFeatured || {};
+  return featuredShowdownForDate(today, saved.dateKey === today ? saved.shuffle || 0 : 0);
+}
 
 function activeFormation(side, run) {
   const red = side === 'h' ? run.redH : run.redA;
+  const redRole = side === 'h' ? run.redRoleH : run.redRoleA;
   return FORMATION
-    .filter(([role]) => !(red && role === RED_DROP_ROLE))
+    .filter(([role]) => !(red && role === (redRole || RED_DROP_ROLE)))
     .map(([role, x, y], i) => {
       const home = side === 'h';
       const mo = run.mo || 0;
@@ -148,31 +183,86 @@ function actorFor(run, side, kind = 'possession') {
   return players.find((p) => pool.includes(p.role)) || players[Math.min(players.length - 1, 5)] || players[0];
 }
 
-function moveBall(run, side, kind = 'possession') {
-  const actor = actorFor(run, side, kind);
-  if (!actor) return;
-  const attackingRight = side === 'h';
-  let x = actor.x; let y = actor.y;
-  if (kind === 'shot' || kind === 'goal') {
-    x = attackingRight ? 96 : 4;
-    y = 50 + Math.sin(run.minute) * 9;
-  } else if (kind === 'cross' || kind === 'corner') {
-    x = attackingRight ? 86 : 14;
-    y = side === 'h' ? 18 + (run.minute % 2) * 64 : 82 - (run.minute % 2) * 64;
-  } else if (kind === 'save') {
-    x = attackingRight ? 91 : 9;
-    y = 50;
-  } else {
-    x += attackingRight ? 5 : -5;
-    y += Math.sin((run.minute || 1) * 1.7) * 5;
-  }
-  run.ball = {
-    x: Math.max(3, Math.min(97, x)),
-    y: Math.max(8, Math.min(92, y)),
+function playerPoint(run, side, role, kind = 'possession') {
+  const p = activeFormation(side, run).find((x) => x.role === role) || actorFor(run, side, kind);
+  return {
+    x: p?.x || 50,
+    y: p?.y || 50,
     side,
+    from: p?.role || role || 'DM',
     kind,
-    from: actor.role,
   };
+}
+
+function goalPoint(side, kind = 'goal') {
+  return { x: side === 'h' ? 98 : 2, y: 50, side, from: 'goal', kind };
+}
+
+function keeperPoint(run, attackingSide, kind = 'save') {
+  return playerPoint(run, attackingSide === 'h' ? 'a' : 'h', 'GK', kind);
+}
+
+function cornerPoint(side, run, kind = 'corner') {
+  const top = run.minute % 2 === 0;
+  return { x: side === 'h' ? 97 : 3, y: top ? 8 : 92, side, from: 'corner', kind };
+}
+
+function boxPoint(side, run, kind = 'cross') {
+  return { x: side === 'h' ? 84 : 16, y: 41 + ((run.minute * 7) % 18), side, from: 'ST', kind };
+}
+
+function incidentPoint(run, side, role) {
+  const p = playerPoint(run, side, role || actorFor(run, side, 'defence')?.role || 'DM', 'foul');
+  return { ...p, x: Math.max(16, Math.min(84, p.x + (side === 'h' ? 3 : -3))), kind: 'foul' };
+}
+
+function possessionPath(run, side, kind) {
+  const patterns = {
+    possession: ['LCB', 'DM', 'LM', 'ST'],
+    pass: ['DM', 'RM', 'RW', 'ST'],
+    carry: ['LB', 'LM', 'LW', 'ST'],
+    transition: ['RCB', 'DM', 'RW', 'ST'],
+    pressure: ['LW', 'ST', 'RW', 'DM'],
+  };
+  const roles = patterns[kind] || patterns.possession;
+  const offset = Math.floor((run.seed + run.minute + (side === 'h' ? 3 : 7)) % roles.length);
+  const count = kind === 'carry' ? 3 : 4 + ((run.minute + offset) % 2);
+  const ordered = Array.from({ length: count }, (_, i) => roles[(offset + i) % roles.length]);
+  return ordered.map((role) => playerPoint(run, side, role, kind));
+}
+
+function labVisualForEvent(run, event) {
+  const side = event.side || 'h';
+  const actor = event.actor || actorFor(run, side, event.type)?.role || 'DM';
+  if (POSSESSION_TYPES.includes(event.type) || event.type === 'pass') return possessionPath(run, side, event.type);
+  if (event.type === 'shot' || event.type === 'chance') return [playerPoint(run, side, actor, 'shot'), boxPoint(side, run, 'shot'), goalPoint(side, 'shot')];
+  if (event.type === 'save') return [playerPoint(run, side, actor, 'shot'), boxPoint(side, run, 'shot'), keeperPoint(run, side, 'save')];
+  if (event.type === 'corner') return [cornerPoint(side, run), boxPoint(side, run, 'cross'), playerPoint(run, side, 'ST', 'corner')];
+  if (event.type === 'free') return [incidentPoint(run, side, actor), incidentPoint(run, side, actor), boxPoint(side, run, 'free')];
+  if (event.type === 'card' || event.type === 'red') return [incidentPoint(run, side, actor), incidentPoint(run, side, actor), incidentPoint(run, side, actor)];
+  if (event.type === 'goal') return [playerPoint(run, side, actor, 'shot'), boxPoint(side, run, 'shot'), goalPoint(side, 'goal')];
+  if (event.type === 'var') return [goalPoint(side, 'var'), goalPoint(side, 'var')];
+  if (event.type === 'confirmed') return [goalPoint(side, 'goal'), goalPoint(side, 'goal')];
+  if (event.type === 'overturned') return [goalPoint(side, 'var'), keeperPoint(run, side, 'save')];
+  if (event.type === 'pens') return [playerPoint(run, side, 'ST', 'penalty'), { x: 50, y: 50, side, from: 'spot', kind: 'penalty' }, event.scored ? goalPoint(side, 'goal') : keeperPoint(run, side, 'save')];
+  return [playerPoint(run, side, actor, event.type || 'possession')];
+}
+
+function setBallPoint(run, point) {
+  if (!point) return;
+  run.ball = {
+    x: Math.max(2, Math.min(98, point.x)),
+    y: Math.max(6, Math.min(94, point.y)),
+    side: point.side || 'h',
+    kind: point.kind || 'possession',
+    from: point.from || 'DM',
+  };
+  run.visualTrace = (run.visualTrace || []).concat([{ x: +run.ball.x.toFixed(1), y: +run.ball.y.toFixed(1), side: run.ball.side, from: run.ball.from, kind: run.ball.kind }]).slice(-32);
+}
+
+function moveBall(run, side, kind = 'possession') {
+  const path = labVisualForEvent(run, { type: kind === 'possession' ? 'possession' : kind, side });
+  setBallPoint(run, path[path.length - 1]);
 }
 
 function eventText(type, side, team, run) {
@@ -185,15 +275,178 @@ function eventText(type, side, team, run) {
   if (type === 'free') return `Free kick — ${name} stand over it`;
   if (type === 'save') return `Save — the keeper keeps ${name} out`;
   if (type === 'var') return 'VAR checking the final touch';
-  if (type === 'confirmed') return `VAR confirms the goal (${run.gh}–${run.ga})`;
+  if (type === 'confirmed') return `VAR confirms the goal (${run.gh + (side === 'h' ? 1 : 0)}–${run.ga + (side === 'a' ? 1 : 0)})`;
   if (type === 'overturned') return 'VAR overturns it — no goal';
   return `${name} build again`;
 }
 
 function addLabEvent(run, type, side, text, extra = {}) {
-  run.events.push({ min: run.minute, type, side, text, ...extra });
+  const event = { min: run.minute, type, side, text, ...extra };
+  event.visual = labVisualForEvent(run, event);
+  run.events.push(event);
   run.lastEventType = type;
   run.lastEventSide = side;
+  if (event.visual?.length) queueLabVisual(run, event);
+}
+
+function canAnimateLab() {
+  return !labMute
+    && typeof window !== 'undefined'
+    && typeof document !== 'undefined'
+    && typeof requestAnimationFrame === 'function'
+    && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function queueLabVisual(run, event) {
+  run.visualQueue = run.visualQueue || [];
+  run.visualQueue.push(event);
+  if (canAnimateLab()) startLabVisualLoop(run);
+  else drainLabVisuals(run);
+}
+
+function drainLabVisuals(run) {
+  while (run.visualQueue?.length) {
+    const event = run.visualQueue.shift();
+    for (const point of event.visual || []) setBallPoint(run, point);
+    commitLabVisual(run, event);
+  }
+}
+
+function startLabVisualLoop(run) {
+  if (labVisualRaf || run.visual) return;
+  const next = run.visualQueue?.shift();
+  if (!next) return;
+  const points = next.visual?.length ? next.visual : [run.ball || { x: 50, y: 50, side: next.side || 'h' }];
+  run.visual = {
+    event: next,
+    points,
+    started: performance.now(),
+    duration: LAB_SEQUENCE_MS[labPace] || LAB_SEQUENCE_MS.normal,
+  };
+  setBallPoint(run, points[0]);
+  const frame = (ts) => {
+    if (!labRun || labRun !== run || !run.visual) { labVisualRaf = 0; return; }
+    const v = run.visual;
+    const total = Math.max(1, v.points.length - 1);
+    const t = Math.min(1, (ts - v.started) / v.duration);
+    const eased = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+    const raw = eased * total;
+    const idx = Math.min(total - 1, Math.floor(raw));
+    const local = raw - idx;
+    const a = v.points[idx];
+    const b = v.points[idx + 1] || a;
+    setBallPoint(run, {
+      ...b,
+      x: a.x + (b.x - a.x) * local,
+      y: a.y + (b.y - a.y) * local,
+      from: local < 0.5 ? a.from : b.from,
+    });
+    paintLab();
+    if (t < 1) {
+      labVisualRaf = requestAnimationFrame(frame);
+      return;
+    }
+    run.visual = null;
+    labVisualRaf = 0;
+    setBallPoint(run, v.points[v.points.length - 1]);
+    commitLabVisual(run, v.event);
+    paintLab();
+    if (run.visualQueue?.length) startLabVisualLoop(run);
+  };
+  labVisualRaf = requestAnimationFrame(frame);
+}
+
+function stopLabVisualLoop() {
+  if (labVisualRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(labVisualRaf);
+  labVisualRaf = 0;
+  if (labRun) labRun.visual = null;
+}
+
+function applyScoreDelta(run, side) {
+  if (side === 'h') run.gh += 1;
+  else run.ga += 1;
+}
+
+function commitLabVisual(run, event) {
+  if (!run || !event || event.committed) return;
+  event.committed = true;
+  if (event.type === 'goal' && event.scoreDelta && !event.underReview) {
+    applyScoreDelta(run, event.side);
+    run.goalAt = run.minute;
+  }
+  if (event.type === 'confirmed' && event.scoreDelta) {
+    applyScoreDelta(run, event.side);
+    run.goalAt = run.minute;
+  }
+  if (event.type === 'red') {
+    if (event.side === 'h') {
+      run.redH = true; run.redRoleH = event.redRole || RED_DROP_ROLE; run.homeMod = 0.78;
+    } else {
+      run.redA = true; run.redRoleA = event.redRole || RED_DROP_ROLE; run.oppMod = 0.78;
+    }
+  }
+  if (event.type === 'pens' && event.kick) {
+    run.pens = run.pens || { ph: 0, pa: 0, kicks: [] };
+    run.pens.ph = event.kick.ph;
+    run.pens.pa = event.kick.pa;
+    run.pens.kicks.push(event.kick);
+    queueNextPenalty(run);
+  }
+  if (event.afterVar && !event.afterVarQueued) {
+    event.afterVarQueued = true;
+    addLabEvent(run, 'var', event.side, eventText('var', event.side, event.team, run), { scoreDelta: event.scoreDelta, verdict: event.verdict });
+    labSound('var');
+  } else if (event.type === 'var' && event.verdict) {
+    const type = event.verdict === 'overturned' ? 'overturned' : 'confirmed';
+    addLabEvent(run, type, event.side, eventText(type, event.side, event.team, run), {
+      scoreDelta: type === 'confirmed',
+      visual: true,
+    });
+  }
+  if (event.type === 'confirmed') labSound('goal');
+}
+
+function completeLabRun(run) {
+  if (!run || run.done) return;
+  run.done = true;
+  run.line = grugLine(run.rng);
+  finishLab();
+  labSound('final');
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:high-attention-end'));
+}
+
+function buildPenaltyKicks(run) {
+  const rng = run.rng;
+  const kicks = [];
+  let ph = 0; let pa = 0;
+  for (let i = 0; i < 5 || ph === pa; i++) {
+    const hScored = rng() < 0.76; if (hScored) ph++;
+    kicks.push({ side: 'h', n: i + 1, scored: hScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
+    const aScored = rng() < 0.76; if (aScored) pa++;
+    kicks.push({ side: 'a', n: i + 1, scored: aScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
+  }
+  return kicks;
+}
+
+function startPenaltyShootout(run, forcedKicks = null) {
+  if (!run || run.shootout) return;
+  run.shootout = { kicks: forcedKicks || buildPenaltyKicks(run), index: 0 };
+  run.pens = { ph: 0, pa: 0, kicks: [] };
+  queueNextPenalty(run);
+}
+
+function queueNextPenalty(run) {
+  if (!run?.shootout) return;
+  const kick = run.shootout.kicks[run.shootout.index++];
+  if (!kick) {
+    run.shootout = null;
+    completeLabRun(run);
+    return;
+  }
+  addLabEvent(run, 'pens', kick.side, `${teamName(kick.side === 'h' ? run.home : run.away)} penalty ${kick.scored ? 'scores' : 'saved'} (${kick.ph}–${kick.pa})`, {
+    kick,
+    scored: kick.scored,
+  });
 }
 
 // Minute-by-minute segment simulation. Lab state lives in the Play namespace;
@@ -311,6 +564,7 @@ const CHANCE_LINES = [
 function labTick() {
   const run = labRun;
   if (!run || run.paused || run.done) return;
+  if (run.visual || run.visualQueue?.length || run.shootout) return;
   if (run.minute === 0) addLabEvent(run, 'whistle', 'h', 'Kick off.');
   run.minute++;
   const rng = run.rng;
@@ -319,51 +573,50 @@ function labTick() {
   run.mo = Math.max(-1, Math.min(1, (run.mo || 0) * 0.9 + swing + (rates.h - rates.aRate) * 6));
   const possSide = rng() < 0.5 + (run.mo || 0) * 0.24 ? 'h' : 'a';
   const possKind = POSSESSION_TYPES[Math.floor(rng() * POSSESSION_TYPES.length)];
-  moveBall(run, possSide, possKind === 'pass' ? 'possession' : possKind);
   if (run.minute % 7 === 0 && rng() < 0.58) {
     addLabEvent(run, possKind, possSide, eventText(possKind, possSide, possSide === 'h' ? run.home : run.away, run));
+  } else {
+    moveBall(run, possSide, possKind === 'pass' ? 'possession' : possKind);
   }
   for (const [side, rate] of [['h', rates.h], ['a', rates.aRate]]) {
     if (rng() < rate) {
       const team = side === 'h' ? run.home : run.away;
-      moveBall(run, side, 'shot');
+      const shooter = actorFor(run, side, 'shot')?.role || 'ST';
+      addLabEvent(run, 'shot', side, `Shot — ${teamName(team)} open the angle`, { actor: shooter });
       if (side === 'h') run.sh++; else run.sa++; // every chance is an attempt
       if (rng() < rates.convert) {
-        if (side === 'h') run.gh++; else run.ga++;
-        moveBall(run, side, 'goal');
-        addLabEvent(run, 'goal', side, `GOAL — ${teamName(team)} (${run.gh}–${run.ga})`);
-        labSound('goal');
-        if (run.minute > 14 && rng() < 0.16) {
-          addLabEvent(run, 'var', side, eventText('var', side, team, run));
-          labSound('var');
-          if (rng() < 0.28) {
-            if (side === 'h') run.gh--; else run.ga--;
-            addLabEvent(run, 'overturned', side, eventText('overturned', side, team, run));
-          } else {
-            addLabEvent(run, 'confirmed', side, eventText('confirmed', side, team, run));
-          }
-        }
-        run.goalAt = run.minute;
+        const hasVar = run.minute > 14 && rng() < 0.16;
+        const overturned = hasVar && rng() < 0.28;
+        const nextGh = run.gh + (side === 'h' && !hasVar ? 1 : 0);
+        const nextGa = run.ga + (side === 'a' && !hasVar ? 1 : 0);
+        addLabEvent(run, 'goal', side, hasVar
+          ? `Goal? ${teamName(team)} wait on the check`
+          : `GOAL — ${teamName(team)} (${nextGh}–${nextGa})`, {
+          actor: shooter,
+          team,
+          scoreDelta: true,
+          underReview: hasVar,
+          afterVar: hasVar,
+          verdict: overturned ? 'overturned' : 'confirmed',
+        });
+        if (!hasVar) labSound('goal');
         const swingTo = side === 'h' ? 0.6 : -0.6;
         // turning point: the moment that swung the night hardest
         if (Math.abs(swingTo) + Math.abs(run.mo) >= (run.turnMag || 0)) {
           run.turnMag = Math.abs(swingTo) + Math.abs(run.mo);
-          run.turn = { min: run.minute, text: `${teamName(team)}'s goal for ${run.gh}–${run.ga}` };
+          run.turn = { min: run.minute, text: `${teamName(team)}'s goal changed the match` };
         }
         run.mo += swingTo;
       } else if (rng() < 0.42) {
         // an unconverted chance often dies as a corner — texture plus a count
         if (side === 'h') run.ckh = (run.ckh || 0) + 1; else run.cka = (run.cka || 0) + 1;
-        moveBall(run, side, 'corner');
         addLabEvent(run, 'corner', side, `Corner — ${teamName(team)} keep the pressure on`);
       } else if (rng() < 0.22) {
-        moveBall(run, side, 'save');
-        addLabEvent(run, 'save', side, eventText('save', side, team, run));
+        addLabEvent(run, 'save', side, eventText('save', side, team, run), { actor: shooter });
       } else if (rng() < 0.2) {
-        moveBall(run, side, 'free');
-        addLabEvent(run, 'free', side, eventText('free', side, team, run));
+        addLabEvent(run, 'free', side, eventText('free', side, team, run), { actor: shooter });
       } else if (rng() < 0.3) {
-        addLabEvent(run, 'chance', side, CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)));
+        addLabEvent(run, 'chance', side, CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)), { actor: shooter });
       }
     }
   }
@@ -371,15 +624,14 @@ function labTick() {
   if (rng() < 0.016) {
     const side = rng() < 0.5 ? 'h' : 'a';
     const team = teamName(side === 'h' ? run.home : run.away);
+    const redRole = actorFor(run, side, 'defence')?.role || RED_DROP_ROLE;
     if (rng() < 0.1 && !run[side === 'h' ? 'redH' : 'redA']) {
-      run[side === 'h' ? 'redH' : 'redA'] = true;
-      if (side === 'h') run.homeMod = 0.78; else run.oppMod = 0.78;
-      addLabEvent(run, 'red', side, `RED CARD — ${team} down to ten`);
+      addLabEvent(run, 'red', side, `RED CARD — ${team} down to ten`, { actor: redRole, redRole });
       labSound('ref');
       if (1.1 >= (run.turnMag || 0)) { run.turnMag = 1.1; run.turn = { min: run.minute, text: `the red card that left ${team} with ten` }; }
       run.mo += side === 'h' ? -0.4 : 0.4;
     } else {
-      addLabEvent(run, 'card', side, `Booking for ${team}`);
+      addLabEvent(run, 'card', side, `Booking for ${team}`, { actor: redRole });
       labSound('ref');
     }
   }
@@ -402,36 +654,24 @@ function labTick() {
   }
   if (run.minute >= 90 + (run.added || 0)) {
     if (run.knockout && run.gh === run.ga) {
-      // finals rules in the Lab: straight to a seeded shootout after stoppage
-      const kicks = [];
-      let ph = 0; let pa = 0;
-      for (let i = 0; i < 5 || ph === pa; i++) {
-        const hScored = rng() < 0.76; if (hScored) ph++;
-        kicks.push({ side: 'h', n: i + 1, scored: hScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
-        const aScored = rng() < 0.76; if (aScored) pa++;
-        kicks.push({ side: 'a', n: i + 1, scored: aScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
-      }
-      run.pens = { ph, pa, kicks };
-      moveBall(run, ph > pa ? 'h' : 'a', 'goal');
-      addLabEvent(run, 'pens', ph > pa ? 'h' : 'a', `Penalty shootout: ${ph}–${pa}`);
+      startPenaltyShootout(run);
       labSound('pen');
+      return;
     }
-    run.done = true;
-    run.line = grugLine(rng);
-    finishLab();
-    labSound('final');
+    completeLabRun(run);
   }
   if (!labMute) paintLab();
   if (run.paused || run.done) stopLabTimer();
 }
 
-function stopLabTimer() { clearInterval(labTimer); labTimer = null; }
+function stopLabTimer() { clearInterval(labTimer); labTimer = null; stopLabVisualLoop(); }
 
 function startLabTimer() {
   stopLabTimer();
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { while (labRun && !labRun.done && !labRun.paused) labTick(); return; }
-  labTimer = setInterval(labBeat, 55);
+  const ms = labPace === 'fast' ? 360 : labPace === 'key' ? 170 : 820;
+  labTimer = setInterval(labBeat, ms);
 }
 
 /* One broadcast beat. Normal = a minute per beat; Fast = three; Key Moments
@@ -439,24 +679,20 @@ function startLabTimer() {
 function labBeat() {
   const run = labRun;
   if (!run || run.paused || run.done) return;
-  labMute = true;
-  try {
-    if (labPace === 'key') {
-      const before = run.events.length;
-      let guard = 0;
-      do { labTick(); guard++; } while (
-        labRun && !labRun.done && !labRun.paused
-        && labRun.events.length === before && guard < 15);
-    } else {
-      for (let i = 0; i < (PACE_TICKS[labPace] || 1); i++) {
-        if (!labRun || labRun.done || labRun.paused) break;
-        labTick();
-      }
+  if (labPace === 'key') {
+    const before = run.events.length;
+    let guard = 0;
+    do { labTick(); guard++; } while (
+      labRun && !labRun.done && !labRun.paused
+      && !labRun.visual && !labRun.visualQueue?.length
+      && labRun.events.length === before && guard < 15);
+  } else {
+    for (let i = 0; i < (PACE_TICKS[labPace] || 1); i++) {
+      if (!labRun || labRun.done || labRun.paused || labRun.visual || labRun.visualQueue?.length) break;
+      labTick();
     }
-  } finally {
-    labMute = false;
   }
-  paintLab(); // one paint per beat, whatever the pace — kind to iPhone Safari
+  paintLab(); // one paint per beat, plus rAF paints while a sequence is active
 }
 
 function setLabPace(p) {
@@ -465,6 +701,7 @@ function setLabPace(p) {
   if (card) {
     card.querySelectorAll('[data-pace]').forEach((b) => b.classList.toggle('active', b.dataset.pace === labPace));
   }
+  if (labRun && !labRun.done && !labRun.paused && !labRun.visual) startLabTimer();
 }
 
 function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 2147483647) | 1) {
@@ -472,6 +709,7 @@ function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 21
     home, away, approach, seed, rng: mulberry32(seed),
     minute: 0, gh: 0, ga: 0, sh: 0, sa: 0, mo: 0, events: [], decided: {}, mods: { atk: 1, def: 1 },
     paused: false, decisionAt: null, done: false, pens: null, knockout: true,
+    visualQueue: [], visualTrace: [],
     ball: { x: 50, y: 50, side: 'h', kind: 'kickoff', from: 'DM' },
   };
   return labRun;
@@ -528,7 +766,18 @@ export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced'
     score: [r.gh, r.ga],
     pens: r.pens ? { ph: r.pens.ph, pa: r.pens.pa, kicks: r.pens.kicks.length } : null,
     players: { home: activeFormation('h', r).length, away: activeFormation('a', r).length },
-    events: r.events.map((e) => ({ min: e.min, type: e.type, side: e.side, text: e.text })),
+    visualTrace: r.visualTrace,
+    events: r.events.map((e) => ({
+      min: e.min,
+      type: e.type,
+      side: e.side,
+      text: e.text,
+      scoreDelta: !!e.scoreDelta,
+      underReview: !!e.underReview,
+      committed: !!e.committed,
+      redRole: e.redRole || null,
+      visual: (e.visual || []).map((p) => [Number(p.x.toFixed(1)), Number(p.y.toFixed(1)), p.from || '', p.kind || '']),
+    })),
   };
 }
 
@@ -932,10 +1181,15 @@ function tapeHTML(home, away) {
 
 function labSetupHTML(play) {
   const last = (play.labHistory || [])[0];
-  const home = last ? last.home : 'USA';
-  const away = last ? last.away : 'ARG';
+  const featured = currentFeaturedShowdown(play);
+  const home = featured.home;
+  const away = featured.away;
   const soundOn = play.labSound !== false;
   return `<section class="play-card lab lab-lobby" aria-label="Match Lab">
+    <div class="lab-showdown-label">
+      <span>Tonight’s Showdown</span>
+      <small>Daily featured simulation · not a live fixture</small>
+    </div>
     <div class="lab-attract" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
       <div class="lab-attract-top"><span>Match Lab</span><strong>90'</strong></div>
       <div class="lab-attract-score">
@@ -947,6 +1201,10 @@ function labSetupHTML(play) {
     </div>
     <h2 class="display">Match Lab</h2>
     <p class="play-sub">Pick the matchup, choose the posture, then react when the match turns. Every finished run saves to You.</p>
+    <div class="lab-feature-actions">
+      <button class="play-btn quiet" id="lab-shuffle">Shuffle exhibition</button>
+      ${last ? `<button class="play-btn quiet" id="lab-runback">${teamFlag(last.home)} Run it back ${teamFlag(last.away)}</button>` : ''}
+    </div>
     <div class="wi-pickers">
       <select id="lab-home" aria-label="Home team">${teamOptions(home)}</select>
       <span class="wi-v">v</span>
@@ -960,7 +1218,7 @@ function labSetupHTML(play) {
         </button>`).join('')}
     </div>
     <div class="lab-start-row">
-      <button class="play-btn gold lab-kick" id="lab-kickoff">Start the match</button>
+      <button class="play-btn gold lab-kick" id="lab-kickoff">Start Showdown</button>
       <button class="lab-sound" id="lab-sound" aria-pressed="${soundOn}" data-sound="${soundOn ? 'on' : 'off'}">${soundOn ? 'Sound On' : 'Sound Off'}</button>
     </div>
     ${last ? `<p class="lab-last">Last time: ${teamFlag(last.home)} ${last.gh}–${last.ga}${last.pens ? ' (' + last.pens.ph + '–' + last.pens.pa + 'p)' : ''} ${teamFlag(last.away)} · <span class="grug-line">${esc(last.line || '')}</span></p>` : ''}
@@ -1105,52 +1363,50 @@ function forceLabMoment(type) {
   stopLabTimer();
   run.paused = false;
   run.done = false;
+  run.visualQueue = [];
+  run.visual = null;
   if (type === 'open') {
     run.minute = Math.max(12, run.minute || 12);
-    moveBall(run, 'h', 'possession');
     addLabEvent(run, 'pass', 'h', eventText('pass', 'h', run.home, run));
   } else if (type === 'goal') {
     run.minute = Math.max(82, run.minute || 82);
-    run.gh += 1;
-    run.goalAt = run.minute;
-    moveBall(run, 'h', 'goal');
-    addLabEvent(run, 'goal', 'h', `GOAL — ${teamName(run.home)} (${run.gh}–${run.ga})`);
-  } else if (type === 'var') {
+    run.sh += 1;
+    addLabEvent(run, 'goal', 'h', `GOAL — ${teamName(run.home)} (${run.gh + 1}–${run.ga})`, { actor: 'ST', team: run.home, scoreDelta: true });
+  } else if (type === 'var' || type === 'var-overturned') {
     run.minute = Math.max(63, run.minute || 63);
-    moveBall(run, 'h', 'shot');
-    addLabEvent(run, 'var', 'h', eventText('var', 'h', run.home, run));
+    run.sh += 1;
+    addLabEvent(run, 'goal', 'h', `Goal? ${teamName(run.home)} wait on the check`, {
+      actor: 'ST', team: run.home, scoreDelta: true, underReview: true, afterVar: true, verdict: type === 'var-overturned' ? 'overturned' : 'confirmed',
+    });
   } else if (type === 'red') {
     run.minute = Math.max(67, run.minute || 67);
-    run.redA = true;
-    run.oppMod = 0.78;
-    addLabEvent(run, 'red', 'a', `RED CARD — ${teamName(run.away)} down to ten`);
+    addLabEvent(run, 'red', 'a', `RED CARD — ${teamName(run.away)} down to ten`, { actor: 'DM', redRole: 'DM' });
   } else if (type === 'pens') {
     run.minute = 90;
     run.gh = 1;
     run.ga = 1;
-    run.pens = {
-      ph: 4, pa: 3,
-      kicks: [
-        { side: 'h', n: 1, scored: true, ph: 1, pa: 0, dir: 'left' },
-        { side: 'a', n: 1, scored: true, ph: 1, pa: 1, dir: 'right' },
-        { side: 'h', n: 2, scored: true, ph: 2, pa: 1, dir: 'right' },
-        { side: 'a', n: 2, scored: false, ph: 2, pa: 1, dir: 'left' },
-        { side: 'h', n: 3, scored: false, ph: 2, pa: 1, dir: 'left' },
-        { side: 'a', n: 3, scored: true, ph: 2, pa: 2, dir: 'right' },
-        { side: 'h', n: 4, scored: true, ph: 3, pa: 2, dir: 'right' },
-        { side: 'a', n: 4, scored: true, ph: 3, pa: 3, dir: 'left' },
-        { side: 'h', n: 5, scored: true, ph: 4, pa: 3, dir: 'left' },
-        { side: 'a', n: 5, scored: false, ph: 4, pa: 3, dir: 'right' },
-      ],
-    };
-    moveBall(run, 'h', 'goal');
-    addLabEvent(run, 'pens', 'h', 'Penalty shootout: 4–3');
+    startPenaltyShootout(run, [
+      { side: 'h', n: 1, scored: true, ph: 1, pa: 0, dir: 'left' },
+      { side: 'a', n: 1, scored: true, ph: 1, pa: 1, dir: 'right' },
+      { side: 'h', n: 2, scored: true, ph: 2, pa: 1, dir: 'right' },
+      { side: 'a', n: 2, scored: false, ph: 2, pa: 1, dir: 'left' },
+      { side: 'h', n: 3, scored: false, ph: 2, pa: 1, dir: 'left' },
+      { side: 'a', n: 3, scored: true, ph: 2, pa: 2, dir: 'right' },
+      { side: 'h', n: 4, scored: true, ph: 3, pa: 2, dir: 'right' },
+      { side: 'a', n: 4, scored: true, ph: 3, pa: 3, dir: 'left' },
+      { side: 'h', n: 5, scored: true, ph: 4, pa: 3, dir: 'left' },
+      { side: 'a', n: 5, scored: false, ph: 4, pa: 3, dir: 'right' },
+    ]);
   } else if (type === 'final') {
     run.minute = Math.max(93, run.minute || 93);
     if (run.gh === run.ga) run.gh += 1;
-    run.done = true;
-    run.line = grugLine(run.rng);
-    finishLab();
+    if (!run.events.length) {
+      const wasMuted = labMute;
+      labMute = true;
+      addLabEvent(run, 'whistle', 'h', 'Kick off.');
+      labMute = wasMuted;
+    }
+    completeLabRun(run);
   }
   paintLab();
   return {
@@ -1183,6 +1439,8 @@ function installLabDebug() {
           away: activeFormation('a', labRun).length,
         },
         ball: labRun.ball,
+        visualTrace: labRun.visualTrace,
+        shootout: labRun.pens ? { ph: labRun.pens.ph, pa: labRun.pens.pa, kicks: labRun.pens.kicks.length } : null,
         events: labRun.events.slice(-8).map((e) => e.type),
       };
     },
@@ -1356,8 +1614,9 @@ function lobbyHTML(overlay, play, sims) {
   const predStats = gradePredictions(play.predictions?.picks || {}, overlay);
   const lab = play.labHistory || [];
   const last = lab[0];
-  const home = last ? last.home : 'USA';
-  const away = last ? last.away : 'ARG';
+  const featured = currentFeaturedShowdown(play);
+  const home = featured.home;
+  const away = featured.away;
   // Tonight's Challenge: the next real fixture you haven't called yet.
   const picks = play.predictions?.picks || {};
   const challenge = predictableFixtures(overlay).find((f) => !picks[f.id]) || null;
@@ -1376,10 +1635,11 @@ function lobbyHTML(overlay, play, sims) {
     </div>
 
     <button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
-      <span class="lk-label">${last ? 'Tonight’s Showdown — run it back' : 'Tonight’s Showdown'}</span>
+      <span class="lk-label">Tonight’s Showdown</span>
       <span class="lk-tie">${teamFlag(home)} ${esc(teamName(home))} <em>v</em> ${esc(teamName(away))} ${teamFlag(away)}</span>
-      <span class="lk-go">▶ Kick off now</span>
+      <span class="lk-go">Daily featured simulation · not a live fixture</span>
     </button>
+    ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} Run it back <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
 
     <div class="lobby-grid">
       ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
@@ -1425,9 +1685,19 @@ function wireLobby(outlet) {
   if (kick) {
     kick.addEventListener('click', () => {
       const { play } = getState();
-      const last = (play.labHistory || [])[0];
+      const featured = currentFeaturedShowdown(play);
       setPlayMode('lab');
-      beginLab(last ? last.home : 'USA', last ? last.away : 'ARG', last ? last.approach : 'balanced');
+      beginLab(featured.home, featured.away, 'balanced', featured.seed);
+    });
+  }
+  const runback = outlet.querySelector('#lobby-runback');
+  if (runback) {
+    runback.addEventListener('click', () => {
+      const { play } = getState();
+      const last = (play.labHistory || [])[0];
+      if (!last) return;
+      setPlayMode('lab');
+      beginLab(last.home, last.away, last.approach || 'balanced');
     });
   }
 }
@@ -1455,7 +1725,30 @@ function wireLab(outlet) {
   if (kickoff) {
     kickoff.addEventListener('click', () => {
       const approach = outlet.querySelector('[data-approach].active')?.dataset.approach || 'balanced';
-      beginLab(outlet.querySelector('#lab-home').value, outlet.querySelector('#lab-away').value, approach);
+      const home = outlet.querySelector('#lab-home').value;
+      const away = outlet.querySelector('#lab-away').value;
+      const featured = currentFeaturedShowdown(getState().play);
+      const seed = home === featured.home && away === featured.away ? featured.seed : undefined;
+      beginLab(home, away, approach, seed);
+    });
+  }
+  const shuffle = outlet.querySelector('#lab-shuffle');
+  if (shuffle) {
+    shuffle.addEventListener('click', () => {
+      const { play } = getState();
+      const today = localDayKey();
+      const current = play.labFeatured?.dateKey === today ? play.labFeatured.shuffle || 0 : 0;
+      const nextPlay = { ...play, labFeatured: { dateKey: today, shuffle: current + 1 } };
+      setPlay(nextPlay);
+      savePlay(nextPlay);
+      repaintPlay();
+    });
+  }
+  const runback = outlet.querySelector('#lab-runback');
+  if (runback) {
+    runback.addEventListener('click', () => {
+      const last = (getState().play.labHistory || [])[0];
+      if (last) beginLab(last.home, last.away, last.approach || 'balanced');
     });
   }
   const sound = outlet.querySelector('#lab-sound');

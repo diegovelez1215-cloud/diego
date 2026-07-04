@@ -104,10 +104,21 @@ async function shootAll(width, height, tag) {
   await snap('worldcup');
   await page.screenshot({ path: `${out}/${tag}-worldcup-fold.png` });
   await page.waitForSelector('#pwa-toast', { timeout: 4000 }).catch(() => {});
-  if (await page.locator('#pwa-toast').isVisible().catch(() => false)) await snap('pwa-install-guidance', false);
+  if (await page.locator('#pwa-toast').isVisible().catch(() => false)) {
+    await snap('pwa-install-guidance', false);
+    const installDismiss = page.locator('#pwa-toast .pwa-dismiss');
+    if (await installDismiss.isVisible().catch(() => false)) await installDismiss.click();
+  }
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await page.waitForSelector('#pwa-toast', { timeout: 2000 }).catch(() => {});
   await snap('pwa-offline-worldcup', false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.waitForFunction(() => {
+    const toast = document.getElementById('pwa-toast');
+    return !toast || toast.hidden || getComputedStyle(toast).display === 'none';
+  }, null, { timeout: 2000 }).catch(() => {});
+  const dismissToast = page.locator('#pwa-toast .pwa-dismiss');
+  if (await dismissToast.isVisible().catch(() => false)) await dismissToast.click();
 
   await tab('tournament');
   await snap('matches');
@@ -120,20 +131,27 @@ async function shootAll(width, height, tag) {
   await tab('play');
   await snap('play-lobby');
   await seg('play-mode', 'lab');
+  await snap('daily-featured-showdown', false);
   await page.locator('#lab-kickoff').click();
   await page.waitForTimeout(250);
   await snap('lab-kickoff', false);
   await page.evaluate(() => window.__u26LabDebug.force('open'));
+  await page.waitForTimeout(420);
   await snap('lab-open-play-22-ball', false);
   await page.evaluate(() => window.__u26LabDebug.force('goal'));
+  await page.waitForTimeout(1500);
   await snap('lab-goal-moment', false);
   await page.evaluate(() => window.__u26LabDebug.force('var'));
+  await page.locator('.lab-var-banner').waitFor({ timeout: 2200 }).catch(() => {});
   await snap('lab-var-check', false);
   await page.evaluate(() => window.__u26LabDebug.force('red'));
+  await page.locator('.lab-card-banner').waitFor({ timeout: 2200 }).catch(() => {});
   await snap('lab-red-card', false);
   await page.evaluate(() => window.__u26LabDebug.force('pens'));
+  await page.waitForTimeout(900);
   await snap('lab-penalty-shootout', false);
   await page.evaluate(() => window.__u26LabDebug.force('final'));
+  await page.waitForTimeout(350);
   await snap('lab-final-result', false);
   await seg('play-mode', 'myworldcup'); await snap('myworldcup');
   await seg('play-mode', 'prediction');
