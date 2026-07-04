@@ -3,11 +3,11 @@
    overflow, safe-area respected everywhere, 44px targets guaranteed. */
 
 @media (max-width: 400px) {
-  :root { --fs-hero: clamp(2.2rem, 12vw, 3rem); }
+  :root { --fs-hero: clamp(2.1rem, 11vw, 2.8rem); }
   .outlets { padding-left: max(var(--sp-3), env(safe-area-inset-left)); padding-right: max(var(--sp-3), env(safe-area-inset-right)); }
-  .score-stage { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
-  .ss-flag { font-size: 2rem; }
-  .dock-label { font-size: 0.72rem; }
+  .score-stage { padding: var(--sp-4); }
+  .ss-flag { font-size: 1.9rem; }
+  .dock-label { font-size: 0.7rem; }
 }
 
 @media (min-width: 700px) {

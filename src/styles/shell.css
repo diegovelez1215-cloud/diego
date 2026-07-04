@@ -44,7 +44,7 @@ body::after {
   margin: 0 auto;
   padding: max(var(--sp-4), env(safe-area-inset-top))
            max(var(--sp-4), env(safe-area-inset-right))
-           calc(var(--dock-h) + var(--sp-6) + env(safe-area-inset-bottom))
+           calc(var(--dock-h) + var(--sp-5) + var(--sp-3) + env(safe-area-inset-bottom))
            max(var(--sp-4), env(safe-area-inset-left));
 }
 
@@ -52,28 +52,28 @@ body::after {
 .outlet { display: none; }
 .outlet.active { display: block; }
 
-.view-head { padding: var(--sp-5) 0 var(--sp-4); }
+.view-head { padding: var(--sp-4) 0 var(--sp-3); }
 .view-head h1 {
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
   font-weight: 800;
   font-size: var(--fs-display);
   letter-spacing: 0.005em;
-  line-height: 1.02;
+  line-height: 1.05;
   text-transform: uppercase;
 }
 .view-kicker {
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
   font-weight: 700;
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
+  font-size: 0.68rem;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--official-ink);
-  margin-bottom: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 .view-kicker.gold { color: var(--gold-ink); }
-.view-sub { color: var(--ink-3); font-size: var(--fs-micro); margin-top: var(--sp-2); }
+.view-sub { color: var(--ink-3); font-size: var(--fs-micro); margin-top: var(--sp-1); }
 .view-shell-note { color: var(--ink-3); padding: var(--sp-5) 0; }
 
 /* ---- dock (liquid glass, interaction-only) ---- */
@@ -163,6 +163,14 @@ body::after {
 .segmented.small .seg-btn { min-height: 40px; }
 .play-view .seg-btn.active { background: color-mix(in srgb, var(--gold) 18%, transparent); }
 
+/* responsive tab labels: short visual label on narrow phones, full label on
+   wider screens — the full label always remains the accessible name */
+.seg-label-short { display: none; }
+@media (max-width: 560px) {
+  .segmented.has-short .seg-label-full { display: none; }
+  .segmented.has-short .seg-label-short { display: inline; }
+}
+
 :focus-visible { outline: 2px solid var(--official); outline-offset: 2px; }
 
 .data-note {
@@ -189,7 +197,7 @@ body::after {
   padding: var(--sp-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-line);
-  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-raise) 90%, transparent);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-stage);

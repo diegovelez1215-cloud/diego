@@ -119,8 +119,7 @@ const FEATURED_POOL = [
   ['GER', 'NED'], ['MAR', 'SEN'], ['JPN', 'KOR'], ['COL', 'URU'],
   ['SUI', 'CRO'], ['CAN', 'USA'], ['BRA', 'ARG'], ['ENG', 'NED'],
 ];
-const LAB_SEQUENCE_MS = { normal: 1250, fast: 520, key: 740 };
-let labVisualRaf = 0;
+const LAB_SEQUENCE_MS = { normal: 1150, fast: 460, key: 700 };
 
 function hashSeed(text) {
   let h = 2166136261;
@@ -149,7 +148,7 @@ function currentFeaturedShowdown(play) {
   return featuredShowdownForDate(today, saved.dateKey === today ? saved.shuffle || 0 : 0);
 }
 
-function activeFormation(side, run) {
+export function activeFormation(side, run) {
   const red = side === 'h' ? run.redH : run.redA;
   const redRole = side === 'h' ? run.redRoleH : run.redRoleA;
   return FORMATION
@@ -260,9 +259,18 @@ function setBallPoint(run, point) {
   run.visualTrace = (run.visualTrace || []).concat([{ x: +run.ball.x.toFixed(1), y: +run.ball.y.toFixed(1), side: run.ball.side, from: run.ball.from, kind: run.ball.kind }]).slice(-32);
 }
 
-function moveBall(run, side, kind = 'possession') {
-  const path = labVisualForEvent(run, { type: kind === 'possession' ? 'possession' : kind, side });
-  setBallPoint(run, path[path.length - 1]);
+/* Quiet minutes still play football: every minute without a feed event runs a
+   3–6 touch possession chain across distinct role markers, so the ball keeps
+   travelling between the moments that matter. Key Moments pace skips the
+   animation but still records the same deterministic chain. */
+function queueLabFlow(run, side, kind = 'possession') {
+  const type = kind === 'pass' ? 'possession' : kind;
+  const flow = { type, side, silent: true, visual: possessionPath(run, side, type) };
+  if (canAnimateLab() && labPace === 'key') {
+    for (const point of flow.visual) setBallPoint(run, point);
+    return;
+  }
+  queueLabVisual(run, flow);
 }
 
 function eventText(type, side, team, run) {
@@ -297,35 +305,158 @@ function canAnimateLab() {
     && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
+let labDraining = false;
+
 function queueLabVisual(run, event) {
   run.visualQueue = run.visualQueue || [];
   run.visualQueue.push(event);
-  if (canAnimateLab()) startLabVisualLoop(run);
+  if (labDraining) return; // the active drain loop will consume it
+  if (canAnimateLab()) startDirector();
   else drainLabVisuals(run);
 }
 
+/* Resolve every pending visual instantly (headless, reduced motion, pause,
+   or tab hidden): each waypoint still lands in the deterministic trace and
+   every commit (score, cards, penalties) still happens in order. */
 function drainLabVisuals(run) {
-  while (run.visualQueue?.length) {
-    const event = run.visualQueue.shift();
-    for (const point of event.visual || []) setBallPoint(run, point);
-    commitLabVisual(run, event);
+  labDraining = true;
+  try {
+    while (run.visual || run.visualQueue?.length) {
+      if (run.visual) {
+        const v = run.visual;
+        run.visual = null;
+        setBallPoint(run, v.points[v.points.length - 1]);
+        commitLabVisual(run, v.event);
+        continue;
+      }
+      const event = run.visualQueue.shift();
+      for (const point of event.visual || []) setBallPoint(run, point);
+      commitLabVisual(run, event);
+    }
+  } finally {
+    labDraining = false;
   }
 }
 
-function startLabVisualLoop(run) {
-  if (labVisualRaf || run.visual) return;
-  const next = run.visualQueue?.shift();
-  if (!next) return;
-  const points = next.visual?.length ? next.visual : [run.ball || { x: 50, y: 50, side: next.side || 'h' }];
-  run.visual = {
-    event: next,
-    points,
-    started: performance.now(),
-    duration: LAB_SEQUENCE_MS[labPace] || LAB_SEQUENCE_MS.normal,
+/* ================= broadcast director =================
+   One persistent pitch scene, one bounded requestAnimationFrame loop.
+   The deterministic minute timeline stays the source of truth; the director
+   only interpolates the current ball sequence and drifts the 22 role markers
+   toward their live formation targets. It never rebuilds DOM mid-frame and
+   stops immediately when the match is paused, finished, hidden, or
+   reduced-motion is enabled. */
+const director = {
+  raf: 0,
+  scene: null,
+  pos: new Map(),
+  ballPos: { x: 50, y: 50 },
+};
+
+function directorShouldRun() {
+  return !!labRun && !labRun.done && !labRun.paused
+    && canAnimateLab()
+    && !(typeof document !== 'undefined' && document.hidden);
+}
+
+function bindLabScene() {
+  if (typeof document === 'undefined') { director.scene = null; return; }
+  const card = document.querySelector('.play-view .lab.running');
+  const pitch = card ? card.querySelector('.lab-pitch') : null;
+  if (!card || !pitch) { director.scene = null; return; }
+  const players = new Map();
+  pitch.querySelectorAll('.pitch-player').forEach((el) => players.set(el.dataset.key, el));
+  director.scene = {
+    card,
+    pitch,
+    players,
+    ball: pitch.querySelector('[data-ball]'),
+    clock: card.querySelector('.lab-clock'),
+    score: card.querySelector('#lab-score'),
+    mo: card.querySelector('#lab-mo'),
+    stage: card.querySelector('.lab-stage'),
+    feed: card.querySelector('#lab-feed'),
+    banners: card.querySelector('[data-lab-banners]'),
+    pens: card.querySelector('[data-lab-pens]'),
+    counts: pitch.querySelectorAll('.pitch-counts span'),
   };
-  setBallPoint(run, points[0]);
-  const frame = (ts) => {
-    if (!labRun || labRun !== run || !run.visual) { labVisualRaf = 0; return; }
+  director.pos = new Map();
+  director.ballPos = labRun && labRun.ball
+    ? { x: labRun.ball.x, y: labRun.ball.y }
+    : { x: 50, y: 50 };
+}
+
+function startDirector() {
+  if (director.raf || !directorShouldRun()) return;
+  if (!director.scene || !director.scene.pitch.isConnected) bindLabScene();
+  if (!director.scene) return;
+  director.raf = requestAnimationFrame(directorFrame);
+}
+
+function stopDirector({ drain = true } = {}) {
+  if (director.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(director.raf);
+  director.raf = 0;
+  if (drain && labRun) drainLabVisuals(labRun);
+}
+
+function updateFormationMarkers(run, ts, holder, ballPos, segKind) {
+  const scene = director.scene;
+  const wave = ts / 1000;
+  for (const side of ['h', 'a']) {
+    const formation = activeFormation(side, run);
+    for (let i = 0; i < formation.length; i++) {
+      const p = formation[i];
+      const key = `${side}-${p.role}`;
+      const el = scene.players.get(key);
+      if (!el) continue;
+      const possessing = run.ball && run.ball.side === side;
+      // support runners advance with the ball; the defending shape compresses
+      const push = possessing ? 1.8 : -1.5;
+      let tx = p.x + (side === 'h' ? push : -push) + Math.sin(wave * 1.3 + i * 1.7) * 1.2;
+      let ty = p.y + Math.cos(wave * 1.1 + i * 2.3) * 1.1;
+      if (p.role === 'GK') {
+        const defensive = side === 'h' ? ballPos.x < 32 : ballPos.x > 68;
+        tx = p.x + (defensive ? 0 : (side === 'h' ? 2 : -2));
+        ty = p.y + (defensive ? (ballPos.y - 50) * 0.3 : 0);
+      }
+      if (holder && segKind === 'carry' && holder.side === side && holder.role === p.role) {
+        tx = ballPos.x + (side === 'h' ? -1.5 : 1.5); // the carrier travels with the ball
+        ty = ballPos.y;
+      }
+      let cur = director.pos.get(key);
+      if (!cur) { cur = { x: p.x, y: p.y }; director.pos.set(key, cur); }
+      cur.x += (Math.max(2, Math.min(98, tx)) - cur.x) * 0.06;
+      cur.y += (Math.max(6, Math.min(94, ty)) - cur.y) * 0.06;
+      el.style.left = `${cur.x.toFixed(2)}%`;
+      el.style.top = `${cur.y.toFixed(2)}%`;
+      el.classList.toggle('has-ball', !!holder && holder.side === side && holder.role === p.role);
+    }
+  }
+}
+
+function directorFrame(ts) {
+  const run = labRun;
+  if (!directorShouldRun()) { director.raf = 0; return; }
+  if (!director.scene || !director.scene.pitch.isConnected) {
+    bindLabScene();
+    if (!director.scene) { director.raf = 0; return; }
+  }
+  // 1) advance the active ball sequence (one at a time, in timeline order)
+  if (!run.visual && run.visualQueue && run.visualQueue.length) {
+    const next = run.visualQueue.shift();
+    const points = next.visual && next.visual.length
+      ? next.visual
+      : [run.ball || { x: 50, y: 50, side: next.side || 'h' }];
+    run.visual = {
+      event: next,
+      points,
+      started: ts,
+      duration: (LAB_SEQUENCE_MS[labPace] || LAB_SEQUENCE_MS.normal) * (next.silent ? 0.75 : 1),
+    };
+  }
+  let ballTarget;
+  let segKind;
+  let holder = null;
+  if (run.visual) {
     const v = run.visual;
     const total = Math.max(1, v.points.length - 1);
     const t = Math.min(1, (ts - v.started) / v.duration);
@@ -335,31 +466,51 @@ function startLabVisualLoop(run) {
     const local = raw - idx;
     const a = v.points[idx];
     const b = v.points[idx + 1] || a;
-    setBallPoint(run, {
-      ...b,
-      x: a.x + (b.x - a.x) * local,
-      y: a.y + (b.y - a.y) * local,
-      from: local < 0.5 ? a.from : b.from,
-    });
-    paintLab();
-    if (t < 1) {
-      labVisualRaf = requestAnimationFrame(frame);
-      return;
+    ballTarget = { x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
+    segKind = (local < 0.5 ? a.kind : b.kind) || 'possession';
+    holder = { side: b.side || v.event.side || 'h', role: local < 0.5 ? a.from : b.from };
+    if (t >= 1) {
+      run.visual = null;
+      setBallPoint(run, v.points[v.points.length - 1]);
+      commitLabVisual(run, v.event);
+      paintLab(); // one targeted update per completed sequence — never per frame
+      if (!labRun || labRun !== run) { director.raf = 0; return; }
     }
-    run.visual = null;
-    labVisualRaf = 0;
-    setBallPoint(run, v.points[v.points.length - 1]);
-    commitLabVisual(run, v.event);
-    paintLab();
-    if (run.visualQueue?.length) startLabVisualLoop(run);
-  };
-  labVisualRaf = requestAnimationFrame(frame);
+  } else {
+    // idle possession: the ball breathes at the current holder's feet
+    const b = run.ball || { x: 50, y: 50 };
+    ballTarget = { x: b.x + Math.sin(ts / 900) * 1.1, y: b.y + Math.cos(ts / 700) * 0.8 };
+    segKind = (run.ball && run.ball.kind) || 'possession';
+    holder = run.ball ? { side: run.ball.side, role: run.ball.from } : null;
+  }
+  // 2) ease the visible ball toward its target — smooth travel, never a jump
+  const bp = director.ballPos;
+  bp.x += (ballTarget.x - bp.x) * 0.32;
+  bp.y += (ballTarget.y - bp.y) * 0.32;
+  const ballEl = director.scene && director.scene.ball;
+  if (ballEl) {
+    ballEl.style.left = `${bp.x.toFixed(2)}%`;
+    ballEl.style.top = `${bp.y.toFixed(2)}%`;
+    if (ballEl.dataset.kind !== segKind) {
+      ballEl.dataset.kind = segKind;
+      ballEl.className = `pitch-ball ${segKind}`;
+    }
+  }
+  // 3) drift the role markers toward the live shape
+  if (director.scene) updateFormationMarkers(run, ts, holder, bp, segKind);
+  director.raf = requestAnimationFrame(directorFrame);
 }
 
-function stopLabVisualLoop() {
-  if (labVisualRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(labVisualRaf);
-  labVisualRaf = 0;
-  if (labRun) labRun.visual = null;
+/* Stop all animation work the moment the tab is hidden; resume cleanly. */
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopDirector({ drain: true });
+    } else if (labRun && !labRun.done && !labRun.paused) {
+      paintLab();
+      startDirector();
+    }
+  });
 }
 
 function applyScoreDelta(run, side) {
@@ -384,6 +535,7 @@ function commitLabVisual(run, event) {
     } else {
       run.redA = true; run.redRoleA = event.redRole || RED_DROP_ROLE; run.oppMod = 0.78;
     }
+    run.sceneDirty = true; // one marker leaves the pitch — rebuild the scene once
   }
   if (event.type === 'pens' && event.kick) {
     run.pens = run.pens || { ph: 0, pa: 0, kicks: [] };
@@ -576,7 +728,7 @@ function labTick() {
   if (run.minute % 7 === 0 && rng() < 0.58) {
     addLabEvent(run, possKind, possSide, eventText(possKind, possSide, possSide === 'h' ? run.home : run.away, run));
   } else {
-    moveBall(run, possSide, possKind === 'pass' ? 'possession' : possKind);
+    queueLabFlow(run, possSide, possKind);
   }
   for (const [side, rate] of [['h', rates.h], ['a', rates.aRate]]) {
     if (rng() < rate) {
@@ -664,7 +816,7 @@ function labTick() {
   if (run.paused || run.done) stopLabTimer();
 }
 
-function stopLabTimer() { clearInterval(labTimer); labTimer = null; stopLabVisualLoop(); }
+function stopLabTimer() { clearInterval(labTimer); labTimer = null; stopDirector({ drain: true }); }
 
 function startLabTimer() {
   stopLabTimer();
@@ -1243,21 +1395,36 @@ function labEventIcon(type) {
 /** 90+2 style stoppage-time minutes. */
 function minLabel(min) { return min > 90 ? '90+' + (min - 90) : String(min); }
 
+function labPossessionPct(run) {
+  return run.minute ? Math.round(Math.max(28, Math.min(72, ((run.possAcc || run.minute / 2) / run.minute) * 100))) : 50;
+}
+
 function labPitchHTML(run) {
   const ball = run.ball || { x: 50, y: 50, side: 'h', kind: 'possession' };
   const homePlayers = activeFormation('h', run);
   const awayPlayers = activeFormation('a', run);
-  const possH = run.minute ? Math.round(Math.max(28, Math.min(72, ((run.possAcc || run.minute / 2) / run.minute) * 100))) : 50;
+  const possH = labPossessionPct(run);
+  const marker = (p, side) => `<i class="pitch-player ${side === 'h' ? 'home' : 'away'}${ball.side === side && ball.from === p.role ? ' has-ball' : ''}" data-key="${side}-${p.role}" data-player-side="${side === 'h' ? 'home' : 'away'}" data-role="${p.role}" title="${esc(p.label)}" style="left:${p.x.toFixed(1)}%;top:${p.y.toFixed(1)}%"><em>${p.role === 'GK' ? '1' : ''}</em></i>`;
   return `<div class="lab-pitch" aria-label="Animated pitch simulation" style="--mo:${(run.mo || 0).toFixed(2)}">
-    <i class="pitch-zone home" style="opacity:${Math.max(0, run.mo || 0).toFixed(2)}"></i>
-    <i class="pitch-zone away" style="opacity:${Math.max(0, -(run.mo || 0)).toFixed(2)}"></i>
+    <i class="pitch-zone home" data-zone="h" style="opacity:${Math.max(0, run.mo || 0).toFixed(2)}"></i>
+    <i class="pitch-zone away" data-zone="a" style="opacity:${Math.max(0, -(run.mo || 0)).toFixed(2)}"></i>
     <span class="pitch-line halfway"></span><span class="pitch-box left"></span><span class="pitch-box right"></span>
     <span class="pitch-centre"></span>
-    ${homePlayers.map((p) => `<i class="pitch-player home ${ball.side === 'h' && ball.from === p.role ? 'has-ball' : ''}" data-player-side="home" data-role="${p.role}" title="${esc(p.label)}" style="left:${p.x.toFixed(1)}%;top:${p.y.toFixed(1)}%"><em>${p.role === 'GK' ? '1' : ''}</em></i>`).join('')}
-    ${awayPlayers.map((p) => `<i class="pitch-player away ${ball.side === 'a' && ball.from === p.role ? 'has-ball' : ''}" data-player-side="away" data-role="${p.role}" title="${esc(p.label)}" style="left:${p.x.toFixed(1)}%;top:${p.y.toFixed(1)}%"><em>${p.role === 'GK' ? '1' : ''}</em></i>`).join('')}
-    <b class="pitch-ball ${ball.kind || 'possession'}" data-ball style="left:${ball.x.toFixed(1)}%;top:${ball.y.toFixed(1)}%"></b>
+    ${homePlayers.map((p) => marker(p, 'h')).join('')}
+    ${awayPlayers.map((p) => marker(p, 'a')).join('')}
+    <b class="pitch-ball ${ball.kind || 'possession'}" data-ball data-kind="${ball.kind || 'possession'}" style="left:${ball.x.toFixed(1)}%;top:${ball.y.toFixed(1)}%"></b>
     <div class="pitch-counts"><span>${possH}% poss · ${run.sh} shots</span><span>${100 - possH}% · ${run.sa} shots</span></div>
   </div>`;
+}
+
+function labBannersHTML(goalLive, checking, redLive) {
+  return `${goalLive ? '<div class="lab-goal-banner" aria-hidden="true">GOAL</div>' : ''}${
+    checking ? '<div class="lab-var-banner" role="status">Checking</div>' : ''}${
+    redLive ? '<div class="lab-card-banner" role="status">RED CARD</div>' : ''}`;
+}
+
+function labFeedItemsHTML(run) {
+  return run.events.slice(-7).map((e) => `<li class="lab-ev ${e.type}"><span class="lab-ev-min">${minLabel(e.min)}&prime;</span><span class="lab-ev-ic">${labEventIcon(e.type)}</span>${esc(e.text)}</li>`).join('');
 }
 
 function labRunHTML(run) {
@@ -1276,23 +1443,21 @@ function labRunHTML(run) {
   const energy = Math.min(1, 0.25 + (run.minute / 120) * 0.4 + closeness * 0.25 + (goalLive ? 0.35 : 0));
   return `<section class="play-card lab running${run.done ? ' done' : ''}${goalLive ? ' goal-live' : ''}${checking ? ' var-live' : ''}${late ? ' late-live' : ''}" aria-label="Match Lab simulation">
     <div class="lab-stage" style="--hc:${homeColor};--ac:${awayColor};--energy:${energy.toFixed(2)}">
-      ${goalLive ? '<div class="lab-goal-banner" aria-hidden="true">GOAL</div>' : ''}
-      ${checking ? '<div class="lab-var-banner" role="status">Checking</div>' : ''}
-      ${redLive ? '<div class="lab-card-banner" role="status">RED CARD</div>' : ''}
+      <div class="lab-banners" data-lab-banners>${labBannersHTML(goalLive, checking, redLive)}</div>
       <div class="lab-clock" aria-live="polite">${run.done ? '<span class="lab-ft-stamp">FULL TIME</span>' : minLabel(run.minute) + '&prime;'}</div>
       <div class="lab-score-row">
         <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span></div>
-        <div class="lab-score${goalLive ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
+        <div class="lab-score${goalLive ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score" data-v="${run.gh}-${run.ga}">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
         <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
       </div>
-      ${run.pens ? `<div class="lab-pens">Penalties ${run.pens.ph}–${run.pens.pa}</div>` : ''}
+      <div class="lab-pens" data-lab-pens${run.pens ? '' : ' hidden'}>${run.pens ? `Penalties ${run.pens.ph}–${run.pens.pa}` : ''}</div>
       <div class="lab-momentum" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
       <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.home))}</span><span>momentum</span><span>${esc(teamName(run.away))}</span></div>
       ${labPitchHTML(run)}
     </div>
     ${!run.done ? `<div class="lab-pace" role="group" aria-label="Broadcast pace">
-      ${[['normal', 'Normal'], ['fast', 'Fast'], ['key', 'Key moments']].map(([p, label]) => `
-        <button class="lab-pace-btn${labPace === p ? ' active' : ''}" data-pace="${p}">${label}</button>`).join('')}
+      ${[['normal', 'Normal', 'Normal'], ['fast', 'Fast', 'Fast'], ['key', 'Key moments', 'Key']].map(([p, label, short]) => `
+        <button class="lab-pace-btn${labPace === p ? ' active' : ''}" data-pace="${p}" aria-label="${label}">${short}</button>`).join('')}
       <button class="lab-sound" id="lab-sound" aria-pressed="${soundOn}" data-sound="${soundOn ? 'on' : 'off'}">${soundOn ? 'Sound On' : 'Sound Off'}</button>
     </div>` : ''}
     ${decision ? `<div class="lab-decision" role="group" aria-label="${esc(decision.prompt)}">
@@ -1301,8 +1466,8 @@ function labRunHTML(run) {
         ${decision.options.map((o) => `<button class="lab-opt" data-decide="${o.id}">${o.label}</button>`).join('')}
       </div>
     </div>` : ''}
-    <ol class="lab-feed" id="lab-feed" aria-label="Match events">
-      ${run.events.slice(-7).map((e) => `<li class="lab-ev ${e.type}"><span class="lab-ev-min">${minLabel(e.min)}&prime;</span><span class="lab-ev-ic">${labEventIcon(e.type)}</span>${esc(e.text)}</li>`).join('')}
+    <ol class="lab-feed" id="lab-feed" aria-label="Match events" data-n="${run.events.length}">
+      ${labFeedItemsHTML(run)}
     </ol>
     ${run.done ? labPayoffHTML(run) : ''}
   </section>`;
@@ -1340,14 +1505,87 @@ function labPayoffHTML(run) {
   </div>`;
 }
 
-// Targeted mid-run repaint: swap only the lab card, keep selects/timers alive.
+/* Targeted mid-run paint. Structural moments (decision, full time, red card,
+   first render) swap the card once; every other beat only touches the small
+   dynamic regions — clock, score, banners, feed, momentum — while the pitch
+   scene and its 23 moving nodes persist untouched for the director. */
 function paintLab() {
+  if (typeof document === 'undefined') return;
   const card = document.querySelector('.play-view .lab.running');
   if (!card || !labRun) { repaintPlay(); return; }
-  const wrap = document.createElement('div');
-  wrap.innerHTML = labRunHTML(labRun);
-  card.replaceWith(wrap.firstElementChild);
-  wireLab(document.querySelector('.play-view'));
+  const run = labRun;
+  const structural = run.done || run.paused || run.decisionAt != null || run.sceneDirty
+    || !director.scene || director.scene.card !== card || !director.scene.pitch.isConnected;
+  if (structural) {
+    run.sceneDirty = false;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = labRunHTML(run);
+    card.replaceWith(wrap.firstElementChild);
+    wireLab(document.querySelector('.play-view'));
+    bindLabScene();
+    startDirector();
+    return;
+  }
+  updateLabDynamic(run);
+}
+
+function updateLabDynamic(run) {
+  const sc = director.scene;
+  if (!sc) return;
+  if (sc.clock && !run.done) sc.clock.innerHTML = `${minLabel(run.minute)}&prime;`;
+  const scoreKey = `${run.gh}-${run.ga}`;
+  if (sc.score && sc.score.dataset.v !== scoreKey) {
+    sc.score.dataset.v = scoreKey;
+    sc.score.innerHTML = `${run.gh}<span class="lab-sep">–</span>${run.ga}`;
+    sc.score.classList.remove('flash');
+    void sc.score.offsetWidth; // restart the goal-pop animation
+    sc.score.classList.add('flash');
+  }
+  if (sc.mo) sc.mo.style.width = `${((((run.mo || 0) + 1) / 2) * 100).toFixed(1)}%`;
+  const last = run.events[run.events.length - 1] || null;
+  const goalLive = !run.done && run.goalAt != null && run.minute - run.goalAt < 3;
+  const checking = !!last && last.type === 'var';
+  const redLive = !!last && last.type === 'red' && run.minute - last.min < 4;
+  const late = !run.done && run.minute >= 80 && Math.abs(run.gh - run.ga) <= 1;
+  sc.card.classList.toggle('goal-live', goalLive);
+  sc.card.classList.toggle('var-live', checking);
+  sc.card.classList.toggle('late-live', late);
+  if (sc.stage) {
+    const closeness = 1 - Math.min(1, Math.abs(run.gh - run.ga) / 3);
+    const energy = Math.min(1, 0.25 + (run.minute / 120) * 0.4 + closeness * 0.25 + (goalLive ? 0.35 : 0));
+    sc.stage.style.setProperty('--energy', energy.toFixed(2));
+    sc.stage.style.setProperty('--mo', (run.mo || 0).toFixed(2));
+  }
+  if (sc.banners) {
+    const bannerKey = `${goalLive ? 'g' : ''}${checking ? 'v' : ''}${redLive ? 'r' : ''}`;
+    if (sc.banners.dataset.state !== bannerKey) {
+      sc.banners.dataset.state = bannerKey;
+      sc.banners.innerHTML = labBannersHTML(goalLive, checking, redLive);
+    }
+  }
+  if (sc.pens) {
+    if (run.pens) {
+      sc.pens.hidden = false;
+      sc.pens.textContent = `Penalties ${run.pens.ph}–${run.pens.pa}`;
+    } else if (!sc.pens.hidden) {
+      sc.pens.hidden = true;
+      sc.pens.textContent = '';
+    }
+  }
+  if (sc.feed && sc.feed.dataset.n !== String(run.events.length)) {
+    sc.feed.dataset.n = String(run.events.length);
+    sc.feed.innerHTML = labFeedItemsHTML(run);
+  }
+  if (sc.counts && sc.counts.length === 2) {
+    const possH = labPossessionPct(run);
+    sc.counts[0].textContent = `${possH}% poss · ${run.sh} shots`;
+    sc.counts[1].textContent = `${100 - possH}% · ${run.sa} shots`;
+  }
+  const zones = sc.pitch.querySelectorAll('.pitch-zone');
+  if (zones.length === 2) {
+    zones[0].style.opacity = Math.max(0, run.mo || 0).toFixed(2);
+    zones[1].style.opacity = Math.max(0, -(run.mo || 0)).toFixed(2);
+  }
 }
 
 function labDebugAllowed() {
@@ -1637,7 +1875,8 @@ function lobbyHTML(overlay, play, sims) {
     <button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
       <span class="lk-label">Tonight’s Showdown</span>
       <span class="lk-tie">${teamFlag(home)} ${esc(teamName(home))} <em>v</em> ${esc(teamName(away))} ${teamFlag(away)}</span>
-      <span class="lk-go">Daily featured simulation · not a live fixture</span>
+      <span class="lk-go">Start Showdown</span>
+      <span class="lk-note">Daily featured simulation · not a live fixture</span>
     </button>
     ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} Run it back <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
 
@@ -1869,9 +2108,9 @@ export function render(outlet) {
     id: 'play-mode', label: 'Play modes', value: mode,
     options: [
       { value: 'lobby', label: 'Lobby' },
-      { value: 'lab', label: 'Match Lab' },
-      { value: 'myworldcup', label: 'My World Cup' },
-      { value: 'prediction', label: 'Prediction Run' },
+      { value: 'lab', label: 'Match Lab', short: 'Lab' },
+      { value: 'myworldcup', label: 'My World Cup', short: 'My Cup' },
+      { value: 'prediction', label: 'Prediction Run', short: 'Predict' },
     ],
   })}
     </div>
@@ -1891,8 +2130,12 @@ export function render(outlet) {
   if (railEl && activeChip) {
     railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
   }
-  if (mode === 'lab') wireLab(outlet);
-  else if (mode === 'myworldcup') wireMwc(outlet);
+  if (mode === 'lab') {
+    wireLab(outlet);
+    // (re)bind the persistent pitch scene after any full render
+    bindLabScene();
+    startDirector();
+  } else if (mode === 'myworldcup') wireMwc(outlet);
   else if (mode === 'prediction') wirePrediction(outlet);
   else wireLobby(outlet);
 }

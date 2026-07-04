@@ -67,6 +67,26 @@ test.describe('Match Lab', () => {
     await expect(page.locator('.lab-pens')).toContainText(/1–0|1–1/);
   });
 
+  test('the pitch scene persists across beats and the ball keeps moving in open play', async ({ page }) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await page.locator('#lab-kickoff').click();
+    await expect(page.locator('.pitch-player')).toHaveCount(22);
+    // mark the live scene: it must never be rebuilt during ordinary open play
+    await page.evaluate(() => { document.querySelector('.lab-pitch').dataset.persist = 'scene'; });
+    const positions = [];
+    for (let i = 0; i < 3; i++) {
+      positions.push(await page.locator('[data-ball]').evaluate((el) => `${el.style.left}|${el.style.top}`));
+      await page.waitForTimeout(650);
+    }
+    expect(new Set(positions).size, 'ball position changes between samples').toBeGreaterThan(1);
+    await expect(page.locator('.lab-pitch[data-persist="scene"]'), 'pitch DOM persisted — no full rerender').toHaveCount(1);
+    const playerA = await page.locator('.pitch-player').first().evaluate((el) => `${el.style.left}|${el.style.top}`);
+    await page.waitForTimeout(700);
+    const playerB = await page.locator('.pitch-player').first().evaluate((el) => `${el.style.left}|${el.style.top}`);
+    expect(playerB, 'role markers drift with the match').not.toBe(playerA);
+  });
+
   test('reduced motion keeps the simulation usable', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await gotoApp(page);

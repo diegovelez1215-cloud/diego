@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { buildOverlay } from '../src/core/provider-overlay.js';
 import { getState, setOverlay, setPlay } from '../src/core/app-state.js';
 import {
-  featuredShowdownForDate, gradePredictions, playNextRound, simulateLabForSeed, simulateMatch,
+  activeFormation, featuredShowdownForDate, gradePredictions, playNextRound, simulateLabForSeed, simulateMatch,
 } from '../src/views/play.js';
 import { fullResultsPayload, OK } from './mock-provider.mjs';
 
@@ -142,6 +142,40 @@ test('penalties are reserved for tied knockout simulations', () => {
   assert.ok(result.pens);
   assert.equal(result.score[0], result.score[1], 'shootout only follows a tied match score');
   assert.ok(result.events.filter((e) => e.type === 'pens').length >= result.pens.kicks, 'shootout is represented kick by kick');
+});
+
+test('open play keeps the ball travelling through distinct waypoints and role markers', () => {
+  const r = lab(260626);
+  const trace = r.visualTrace;
+  assert.ok(trace.length >= 8, 'the trace records continuous ball movement');
+  const distinctPoints = new Set(trace.map((p) => `${p.x},${p.y}`));
+  assert.ok(distinctPoints.size >= 4, 'ball travels through at least four distinct waypoints');
+  const roles = new Set(trace.map((p) => p.from));
+  assert.ok(roles.size >= 3, 'quiet possession chains touch distinct players');
+});
+
+test('players react to possession: momentum pushes the attacking shape forward', () => {
+  const base = { minute: 30, gh: 0, ga: 0, home: 'USA', away: 'ARG', mods: { atk: 1, def: 1 } };
+  const meanX = (players) => players.reduce((n, p) => n + p.x, 0) / players.length;
+  const attacking = activeFormation('h', { ...base, mo: 0.9 });
+  const defending = activeFormation('h', { ...base, mo: -0.9 });
+  assert.equal(attacking.length, 11);
+  assert.ok(meanX(attacking) > meanX(defending) + 3, 'home shape advances with momentum');
+  const awayAttacking = activeFormation('a', { ...base, mo: -0.9 });
+  const awayDefending = activeFormation('a', { ...base, mo: 0.9 });
+  assert.ok(meanX(awayAttacking) < meanX(awayDefending) - 3, 'away shape advances toward the home goal');
+});
+
+test('the score changes only after a completed goal sequence that reaches the goal', () => {
+  const r = findLab((x) => x.events.some((e) => e.type === 'goal' && !e.underReview)).result;
+  const scoring = r.events.filter((e) => (e.type === 'goal' && !e.underReview) || e.type === 'confirmed');
+  assert.ok(scoring.length >= 1);
+  assert.ok(scoring.every((e) => e.committed), 'every scoring event committed through its full visual sequence');
+  const h = scoring.filter((e) => e.side === 'h').length;
+  const a = scoring.filter((e) => e.side === 'a').length;
+  assert.deepEqual(r.score, [h, a], 'the scoreboard equals exactly the committed goals');
+  const goal = r.events.find((e) => e.type === 'goal' && !e.underReview);
+  assert.equal(goal.visual[goal.visual.length - 1][3], 'goal', 'the goal sequence ends at the goal mouth');
 });
 
 test('daily featured showdown is stable by date and changes with shuffle or date', () => {

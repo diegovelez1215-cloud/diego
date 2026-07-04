@@ -6,7 +6,7 @@
 .score-stage {
   position: relative;
   border-radius: var(--radius);
-  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
   background: var(--bg-stage);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-stage), inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -39,7 +39,7 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.24em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--official-ink);
 }
@@ -69,11 +69,11 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: var(--sp-3);
-  margin: var(--sp-5) 0 var(--sp-4);
+  margin: var(--sp-4) 0 var(--sp-3);
 }
 .ss-team { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; }
 .ss-flag {
-  font-size: 2.6rem;
+  font-size: 2.2rem;
   line-height: 1;
   filter: drop-shadow(0 6px 14px rgba(0, 3, 12, 0.6));
 }
@@ -148,10 +148,10 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.2em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--ink-3);
-  margin: var(--sp-6) 0 var(--sp-3);
+  margin: var(--sp-5) 0 var(--sp-3);
   display: flex; align-items: center; gap: var(--sp-2);
 }
 .rail-count {
@@ -194,15 +194,16 @@
 }
 .mr-body {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* score column is isolated and can never be crowded by long names */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--sp-2);
+  column-gap: var(--sp-3);
 }
 .mr-team { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .mr-team.away { justify-content: flex-end; text-align: right; }
 .mr-team.pending .mr-name { color: var(--ink-3); }
 .mr-flag { flex: none; }
-.mr-name { font-weight: var(--w-bold); overflow-wrap: normal; word-break: keep-all; }
+.mr-name { min-width: 0; font-weight: var(--w-bold); overflow-wrap: normal; word-break: keep-all; }
 .mr-state {
   font-variant-numeric: tabular-nums;
   font-weight: var(--w-bold);
@@ -210,6 +211,7 @@
   align-items: center;
   gap: var(--sp-2);
   white-space: nowrap;
+  padding: 0 var(--sp-1);
 }
 .mr-state.final, .mr-state.live { font-family: var(--font-display); font-stretch: var(--stretch-wide); font-size: 1.05rem; }
 .mr-state.time { color: var(--ink-2); font-weight: var(--w-reg); }
@@ -224,7 +226,7 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--ink-3);
   margin: var(--sp-5) 0 var(--sp-3);
@@ -263,7 +265,7 @@
   font-stretch: var(--stretch-wide);
   font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.17em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--official-ink);
 }
@@ -366,7 +368,7 @@
   font-stretch: var(--stretch-wide);
   font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.19em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--official-ink);
 }
@@ -456,15 +458,15 @@
   font-stretch: var(--stretch-wide);
   font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
 }
 .road-stage h3 {
-  margin: var(--sp-1) 0 var(--sp-4);
+  margin: var(--sp-1) 0 var(--sp-3);
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
-  font-size: 1.42rem;
-  line-height: 1.02;
+  font-size: 1.2rem;
+  line-height: 1.08;
   text-transform: uppercase;
 }
 .road-stage-note { color: var(--ink-3); font-size: var(--fs-micro); }
@@ -659,7 +661,7 @@
 .mc-grab { width: 36px; height: 4px; border-radius: 2px; background: var(--ink-3); opacity: 0.5; margin: 0 auto var(--sp-4); }
 .mc-round {
   font-family: var(--font-display); font-stretch: var(--stretch-wide);
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.22em;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: var(--track-kicker);
   text-transform: uppercase; color: var(--official-ink);
 }
 .mc-status { margin-top: var(--sp-2); font-size: var(--fs-micro); font-weight: var(--w-bold); color: var(--ink-2); display: inline-flex; align-items: center; gap: var(--sp-2); }
@@ -672,7 +674,7 @@
 .mc-flag { font-size: 1.8rem; }
 .mc-score {
   font-family: var(--font-display); font-stretch: var(--stretch-wide);
-  font-size: 2.6rem; font-weight: 830; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  font-size: 2.2rem; font-weight: 830; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
 .mc-score.pending { font-size: var(--fs-micro); color: var(--ink-3); font-weight: var(--w-reg); max-width: 9em; font-family: var(--font); }
 .mc-score.vs { color: var(--ink-3); font-weight: 500; }
@@ -698,7 +700,7 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3);
+  letter-spacing: var(--track-kicker); text-transform: uppercase; color: var(--ink-3);
 }
 .md-lane.live-lane .md-lane-head h3 { color: var(--live); }
 .md-lane-note { font-size: var(--fs-micro); color: var(--ink-3); }
@@ -735,7 +737,7 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3);
+  letter-spacing: var(--track-kicker); text-transform: uppercase; color: var(--ink-3);
 }
 .ko-thirds-sub { font-size: var(--fs-micro); color: var(--ink-3); }
 .ko-thirds-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-1); }
@@ -768,7 +770,7 @@
   font-stretch: var(--stretch-wide);
   font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--track-kicker);
   text-transform: uppercase;
   color: var(--official-ink);
 }
@@ -818,8 +820,8 @@
   margin-top: var(--sp-1);
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
-  font-size: 1.15rem;
-  line-height: 1.08;
+  font-size: 1.02rem;
+  line-height: 1.12;
   text-transform: uppercase;
 }
 .venue-head > span {
@@ -969,13 +971,13 @@
   font-stretch: var(--stretch-wide);
   font-weight: 700;
   font-size: 0.7rem;
-  letter-spacing: 0.18em; text-transform: uppercase; color: var(--official-ink);
+  letter-spacing: var(--track-kicker); text-transform: uppercase; color: var(--official-ink);
 }
 .bk-bronze-label {
   position: absolute;
   font-family: var(--font-display); font-stretch: var(--stretch-wide);
   font-size: 0.68rem; font-weight: 700;
-  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3);
+  letter-spacing: var(--track-kicker); text-transform: uppercase; color: var(--ink-3);
 }
 /* the destination crest above the Final */
 .bk-final-crest {
@@ -986,7 +988,7 @@
 .bk-crest-star { color: var(--official-ink); font-size: 0.85rem; line-height: 1; }
 .bk-crest-title {
   font-family: var(--font-display); font-stretch: var(--stretch-wide);
-  font-weight: 800; font-size: 0.78rem; letter-spacing: 0.24em; text-transform: uppercase;
+  font-weight: 800; font-size: 0.78rem; letter-spacing: var(--track-kicker); text-transform: uppercase;
   color: var(--ink);
 }
 .bk-crest-date { font-size: 0.64rem; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1108,7 +1110,7 @@
 }
 .stats-hero-n {
   font-family: var(--font-display); font-weight: 800; font-stretch: var(--stretch-wide);
-  font-size: 2.4rem; line-height: 1; color: var(--official-ink);
+  font-size: 2rem; line-height: 1; color: var(--official-ink);
   font-variant-numeric: tabular-nums;
 }
 .stats-hero-who { display: flex; flex-direction: column; gap: 2px; }
