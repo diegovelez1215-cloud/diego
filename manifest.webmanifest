@@ -1,12 +1,14 @@
 {
-  "name": "United 2026 — World Cup",
+  "name": "United 2026",
   "short_name": "United 2026",
-  "start_url": "./",
-  "scope": "./",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0f1c",
   "theme_color": "#0a0f1c",
+  "categories": ["sports", "entertainment"],
   "description": "A score-first live World Cup 2026 companion: official schedule, groups, knockout bracket, and private simulations.",
   "icons": [
     { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },

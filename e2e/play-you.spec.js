@@ -7,6 +7,50 @@ import {
 } from './helpers.js';
 
 test.describe('Match Lab', () => {
+  test('renders 22 players, a moving ball, red-card shape, and muted sound control', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__audioContexts = 0;
+      class MockAudioContext {
+        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'running'; }
+        resume() { return Promise.resolve(); }
+        createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {} }, connect() { return this; }, start() {}, stop() {} }; }
+        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
+        createBufferSource() { return { connect() { return this; }, start() {}, stop() {}, set buffer(_) {} }; }
+        createBuffer(_channels, length) { return { getChannelData() { return new Float32Array(length); } }; }
+        createBiquadFilter() { return { type: 'lowpass', frequency: { value: 0 }, connect() { return this; } }; }
+      }
+      window.AudioContext = MockAudioContext;
+      window.webkitAudioContext = MockAudioContext;
+    });
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
+    expect(await page.evaluate(() => window.__audioContexts)).toBe(0);
+    await page.locator('#lab-sound').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
+    await page.locator('#lab-kickoff').click();
+    await expect(page.locator('[data-player-side="home"]')).toHaveCount(11);
+    await expect(page.locator('[data-player-side="away"]')).toHaveCount(11);
+    await expect(page.locator('[data-ball]')).toBeVisible();
+    expect(await page.evaluate(() => window.__audioContexts), 'muted start does not arm audio').toBe(0);
+    const ballA = await page.locator('[data-ball]').getAttribute('style');
+    await page.evaluate(() => window.__u26LabDebug.force('open'));
+    const ballB = await page.locator('[data-ball]').getAttribute('style');
+    expect(ballB).not.toBe(ballA);
+    await page.evaluate(() => window.__u26LabDebug.force('red'));
+    await expect(page.locator('[data-player-side="away"]')).toHaveCount(10);
+    await expect(page.locator('.lab-card-banner')).toBeVisible();
+  });
+
+  test('reduced motion keeps the simulation usable', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await page.locator('#lab-kickoff').click();
+    await expect(page.locator('[data-ball]')).toBeVisible();
+    await expect(page.locator('.lab-clock')).toContainText(/45|FULL TIME/, { timeout: 5000 });
+  });
+
   test('kick off, decide at the breaks, reach full time, land in You', async ({ page }, testInfo) => {
     await gotoApp(page);
     const heroBefore = await page.locator('.score-stage').innerText();

@@ -103,6 +103,11 @@ async function shootAll(width, height, tag) {
 
   await snap('worldcup');
   await page.screenshot({ path: `${out}/${tag}-worldcup-fold.png` });
+  await page.waitForSelector('#pwa-toast', { timeout: 4000 }).catch(() => {});
+  if (await page.locator('#pwa-toast').isVisible().catch(() => false)) await snap('pwa-install-guidance', false);
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await page.waitForSelector('#pwa-toast', { timeout: 2000 }).catch(() => {});
+  await snap('pwa-offline-worldcup', false);
 
   await tab('tournament');
   await snap('matches');
@@ -114,17 +119,22 @@ async function shootAll(width, height, tag) {
 
   await tab('play');
   await snap('play-lobby');
-  // quick kick from the lobby → running sim → decisions → reveal
-  await page.locator('#lobby-kick').click();
-  await page.waitForTimeout(1500);
-  await snap('lab-running', false);
-  for (let i = 0; i < 40; i++) {
-    const opt = page.locator('[data-decide]').first();
-    if (await opt.count()) await opt.click();
-    if (await page.locator('.lab-payoff').count()) break;
-    await page.waitForTimeout(400);
-  }
-  await snap('lab-reveal');
+  await seg('play-mode', 'lab');
+  await page.locator('#lab-kickoff').click();
+  await page.waitForTimeout(250);
+  await snap('lab-kickoff', false);
+  await page.evaluate(() => window.__u26LabDebug.force('open'));
+  await snap('lab-open-play-22-ball', false);
+  await page.evaluate(() => window.__u26LabDebug.force('goal'));
+  await snap('lab-goal-moment', false);
+  await page.evaluate(() => window.__u26LabDebug.force('var'));
+  await snap('lab-var-check', false);
+  await page.evaluate(() => window.__u26LabDebug.force('red'));
+  await snap('lab-red-card', false);
+  await page.evaluate(() => window.__u26LabDebug.force('pens'));
+  await snap('lab-penalty-shootout', false);
+  await page.evaluate(() => window.__u26LabDebug.force('final'));
+  await snap('lab-final-result', false);
   await seg('play-mode', 'myworldcup'); await snap('myworldcup');
   await seg('play-mode', 'prediction');
   // open the ritual on the first fixture so the draft step is inspectable
@@ -140,6 +150,40 @@ async function shootAll(width, height, tag) {
   await page.waitForTimeout(400);
   await snap('leaderboard-opening-soon');
   await ctx.close();
+
+  const standalone = await browser.newContext({
+    viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  });
+  const sp = await standalone.newPage();
+  await sp.addInitScript((fixedNow) => {
+    const RealDate = Date;
+    class FrozenDate extends RealDate {
+      constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+      static now() { return fixedNow; }
+    }
+    Date = FrozenDate;
+    const nativeMatchMedia = window.matchMedia;
+    window.matchMedia = (query) => query === '(display-mode: standalone)'
+      ? { matches: true, media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false; } }
+      : nativeMatchMedia(query);
+  }, FROZEN);
+  await sp.route('**/_vercel/**', (r) => r.fulfill({ status: 204, body: '' }));
+  await sp.route('**/api/leaderboard-config*', (r) => r.fulfill({ json: { url: '', anonKey: '' } }));
+  await sp.route('**/api/results*', (r) => r.fulfill({ json: RESULTS }));
+  await sp.route('**/api/live*', (r) => r.fulfill({ json: LIVE }));
+  await sp.route('**/api/scorers*', (r) => r.fulfill({ json: { configured: true, sourceStatus: 'fresh', isStale: false, fetchedAt: '2026-07-01T17:05:00Z', goals: [], assists: [] } }));
+  await sp.goto(`http://127.0.0.1:${PORT}/`);
+  await sp.waitForSelector('.dock');
+  await sp.waitForTimeout(450);
+  await sp.screenshot({ path: `${out}/${tag}-pwa-standalone-worldcup.png`, fullPage: true });
+  await sp.locator('.dock-tab[data-tab="play"]').click();
+  await sp.locator('[data-segmented="play-mode"] [data-value="lab"]').click();
+  await sp.locator('#lab-kickoff').click();
+  await sp.evaluate(() => window.__u26LabDebug.force('open'));
+  await sp.waitForTimeout(250);
+  await sp.screenshot({ path: `${out}/${tag}-pwa-standalone-lab-active.png`, fullPage: false });
+  await standalone.close();
 }
 
 try {

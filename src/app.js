@@ -4,7 +4,7 @@
 // shell immediately (never blank, even offline), then start the provider
 // refresh loop. Tab taps never reach the network or storage.
 
-import { purgeLegacy, loadPrefs, loadPlay, loadSims } from './core/persistence.js';
+import { purgeLegacy, loadPrefs, loadPlay, loadSims, savePrefs } from './core/persistence.js';
 import { pollDelay, snapshotDue, scorersDue } from './core/refresh-policy.js';
 import { getState, setOverlay, setPrefs, setPlay, setSims, setStats, subscribe } from './core/app-state.js';
 import { buildOverlay } from './core/provider-overlay.js';
@@ -28,13 +28,172 @@ let pollTimer = null;
 let refreshing = false;
 let lastSnapshotAt = 0;  // in-memory only — official data never touches storage
 let lastScorersAt = 0;
+let deferredInstallPrompt = null;
+let pendingUpdateWorker = null;
+let updateRefreshRequested = false;
+let pwaToastKind = null;
+
+function inStandaloneMode() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isAppleTouchSafari() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream && !inStandaloneMode();
+}
+
+function highAttentionPlay() {
+  return Boolean(document.querySelector('.lab.running:not(.done) .lab-stage'));
+}
+
+function pwaDismissed() {
+  return getState().prefs.installTipDismissed === true;
+}
+
+function setInstallDismissed() {
+  const prefs = { ...getState().prefs, installTipDismissed: true };
+  setPrefs(prefs);
+  savePrefs(prefs);
+}
+
+function pwaCopy(kind) {
+  if (kind === 'offline') {
+    return {
+      title: 'Offline',
+      body: 'Current World Cup data cannot refresh. Play simulations and saved views still work.',
+      action: '',
+    };
+  }
+  if (kind === 'update') {
+    return {
+      title: 'Update ready',
+      body: 'A fresh United 2026 version is ready when the match is quiet.',
+      action: 'Refresh',
+    };
+  }
+  if (kind === 'install') {
+    return {
+      title: 'Install United 2026',
+      body: 'Open it as a standalone app with the same live-truth safeguards.',
+      action: 'Install',
+    };
+  }
+  return {
+    title: 'Add to Home Screen',
+    body: 'On iPhone or iPad, use Share then Add to Home Screen.',
+    action: '',
+  };
+}
+
+function ensurePwaToast() {
+  let el = document.getElementById('pwa-toast');
+  if (el) return el;
+  el = document.createElement('aside');
+  el.id = 'pwa-toast';
+  el.className = 'pwa-toast';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  document.body.appendChild(el);
+  return el;
+}
+
+function hidePwaToast(kind) {
+  if (kind && pwaToastKind !== kind) return;
+  pwaToastKind = null;
+  const el = document.getElementById('pwa-toast');
+  if (el) el.hidden = true;
+}
+
+function showPwaToast(kind) {
+  if ((kind === 'install' || kind === 'ios') && (pwaDismissed() || highAttentionPlay())) return;
+  if (kind === 'update' && highAttentionPlay()) return;
+  const el = ensurePwaToast();
+  const copy = pwaCopy(kind);
+  pwaToastKind = kind;
+  el.hidden = false;
+  el.dataset.kind = kind;
+  el.innerHTML = `<div><strong>${copy.title}</strong><p>${copy.body}</p></div>
+    <div class="pwa-actions">
+      ${copy.action ? `<button type="button" class="pwa-action">${copy.action}</button>` : ''}
+      ${kind === 'offline' ? '' : '<button type="button" class="pwa-dismiss" aria-label="Dismiss install notice">×</button>'}
+    </div>`;
+  const dismiss = el.querySelector('.pwa-dismiss');
+  if (dismiss) dismiss.addEventListener('click', () => { setInstallDismissed(); hidePwaToast(); });
+  const action = el.querySelector('.pwa-action');
+  if (action && kind === 'install') {
+    action.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      const prompt = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      await prompt.prompt();
+      await prompt.userChoice.catch(() => null);
+      setInstallDismissed();
+      hidePwaToast();
+    });
+  }
+  if (action && kind === 'update') {
+    action.addEventListener('click', () => {
+      updateRefreshRequested = true;
+      pendingUpdateWorker?.postMessage({ type: 'SKIP_WAITING' });
+    });
+  }
+}
+
+function maybeShowInstallTip() {
+  if (pwaDismissed() || inStandaloneMode() || highAttentionPlay()) return;
+  if (pwaToastKind === 'offline' || pwaToastKind === 'update') return;
+  if (pendingUpdateWorker) { showPwaToast('update'); return; }
+  if (deferredInstallPrompt) showPwaToast('install');
+  else if (isAppleTouchSafari()) showPwaToast('ios');
+}
+
+function registerPwa() {
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    setTimeout(maybeShowInstallTip, 900);
+  });
+  window.addEventListener('u26:high-attention-start', () => {
+    if (pwaToastKind === 'install' || pwaToastKind === 'ios' || pwaToastKind === 'update') hidePwaToast();
+  });
+  window.addEventListener('online', () => hidePwaToast('offline'));
+  window.addEventListener('offline', () => showPwaToast('offline'));
+  window.addEventListener('u26:pwa-update-ready', () => {
+    pendingUpdateWorker = pendingUpdateWorker || { postMessage() {} };
+    showPwaToast('update');
+  });
+
+  const canRegister = 'serviceWorker' in navigator
+    && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  if (canRegister) {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            pendingUpdateWorker = worker;
+            showPwaToast('update');
+          }
+        });
+      });
+      if (registration.waiting) {
+        pendingUpdateWorker = registration.waiting;
+        showPwaToast('update');
+      }
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (updateRefreshRequested) window.location.reload();
+    });
+  }
+  setTimeout(maybeShowInstallTip, 1400);
+}
 
 async function fetchJson(url) {
   try {
     const r = await fetch(url, { headers: { accept: 'application/json' } });
-    if (!r.ok) return null;
+    if (!r.ok) { showPwaToast('offline'); return null; }
     return await r.json();
-  } catch { return null; }
+  } catch { showPwaToast('offline'); return null; }
 }
 
 function anyLiveNow() {
@@ -111,6 +270,10 @@ export function boot() {
     if (tags.includes('real') && getState().nav.matchCenterId != null) {
       schedule('match-center', renderMatchCenter);
     }
+    if (!highAttentionPlay()) {
+      if (pendingUpdateWorker && !pwaToastKind) showPwaToast('update');
+      else maybeShowInstallTip();
+    }
   });
 
   refreshProviderData();
@@ -122,9 +285,7 @@ export function boot() {
     else armPoll();
   });
 
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
+  registerPwa();
 }
 
 boot();

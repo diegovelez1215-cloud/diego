@@ -397,7 +397,7 @@
 }
 .lab-pitch {
   position: relative;
-  height: 118px;
+  height: 152px;
   margin-top: var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--hairline));
   border-radius: 16px;
@@ -432,25 +432,52 @@
 }
 .pitch-box.left { left: 0; border-left: 0; }
 .pitch-box.right { right: 0; border-right: 0; }
-.pitch-team,
+.pitch-centre {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 36px; height: 36px;
+  border: 1px solid color-mix(in srgb, var(--gold) 18%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.pitch-player,
 .pitch-ball {
   position: absolute;
   transform: translate(-50%, -50%);
-  transition: left 260ms ease, top 260ms ease;
+  transition: left 260ms ease, top 260ms ease, transform 180ms ease, opacity 180ms ease;
 }
-.pitch-team {
-  width: 10px; height: 10px; border-radius: 50%;
+.pitch-player {
+  width: 9px; height: 9px; border-radius: 50%;
   background: var(--hc);
   box-shadow: 0 0 12px color-mix(in srgb, var(--hc) 50%, transparent);
 }
-.pitch-team.away {
+.pitch-player.away {
   background: var(--ac);
   box-shadow: 0 0 12px color-mix(in srgb, var(--ac) 50%, transparent);
 }
+.pitch-player[data-role="GK"] {
+  width: 12px; height: 12px;
+  border: 1px solid color-mix(in srgb, #fff 42%, transparent);
+}
+.pitch-player.has-ball {
+  transform: translate(-50%, -50%) scale(1.35);
+  outline: 1px solid color-mix(in srgb, var(--gold) 80%, transparent);
+  outline-offset: 3px;
+}
+.pitch-player em {
+  position: absolute; inset: -1px 0 0;
+  display: grid; place-items: center;
+  font-size: 0.42rem; font-style: normal; color: #06101f; font-weight: 900;
+}
 .pitch-ball {
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
   background: #fff5c6;
   box-shadow: 0 0 16px color-mix(in srgb, var(--gold) 70%, transparent);
+  z-index: 3;
+}
+.pitch-ball.goal, .pitch-ball.shot {
+  transform: translate(-50%, -50%) scale(1.45);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--gold) 90%, transparent);
 }
 .pitch-counts {
   position: absolute;
@@ -490,6 +517,55 @@
   border-color: color-mix(in srgb, var(--gold) 55%, transparent);
   background: color-mix(in srgb, var(--gold) 9%, transparent);
 }
+.lab-start-row { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: center; }
+.lab-sound {
+  appearance: none;
+  min-height: 40px;
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--hairline));
+  border-radius: 999px;
+  padding: 0 var(--sp-3);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  color: var(--gold-ink);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lab-sound[data-sound="off"] {
+  color: var(--ink-3);
+  border-color: var(--hairline);
+  background: var(--bg-raise-2);
+}
+.lab-var-banner,
+.lab-card-banner {
+  position: absolute;
+  top: var(--sp-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.66rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.lab-var-banner {
+  color: var(--official-ink);
+  background: color-mix(in srgb, var(--official) 16%, #050914);
+  border: 1px solid color-mix(in srgb, var(--official) 40%, transparent);
+}
+.lab-card-banner {
+  color: #ffd3d3;
+  background: color-mix(in srgb, var(--live) 24%, #050914);
+  border: 1px solid color-mix(in srgb, var(--live) 55%, transparent);
+}
+.lab.late-live .lab-clock {
+  color: #ffd9a3;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent);
+}
 .lab-decision {
   margin-top: var(--sp-4); padding: var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
@@ -511,6 +587,8 @@
 .lab-ev { display: flex; gap: var(--sp-2); align-items: baseline; font-size: var(--fs-micro); color: var(--ink-2); }
 .lab-ev.goal { color: var(--ink); font-weight: var(--w-bold); }
 .lab-ev.pens { color: var(--gold-ink); font-weight: var(--w-bold); }
+.lab-ev.var, .lab-ev.confirmed, .lab-ev.overturned { color: var(--official-ink); }
+.lab-ev.save, .lab-ev.free, .lab-ev.transition { color: var(--ink); }
 .lab-ev.decision { color: var(--gold-ink); font-style: italic; }
 .lab-ev.whistle { color: var(--ink-3); }
 .lab-ev-min { color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 2.4em; }
@@ -1142,4 +1220,24 @@
   display: flex; gap: var(--sp-3); flex-wrap: wrap;
   color: var(--ink-3); font-size: 0.72rem; font-variant-numeric: tabular-nums;
   margin-top: var(--sp-3);
+}
+.lab-shootout {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: var(--sp-3);
+}
+.lab-shootout span {
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 0.68rem;
+  color: var(--ink-2);
+}
+.lab-shootout .scored { border-color: color-mix(in srgb, var(--gold) 48%, var(--hairline)); color: var(--gold-ink); }
+.lab-shootout .miss { color: var(--ink-3); }
+.lab-seed {
+  margin-top: var(--sp-2);
+  color: var(--ink-3);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
