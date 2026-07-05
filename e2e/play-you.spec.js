@@ -12,9 +12,10 @@ test.describe('Match Lab', () => {
       window.__audioContexts = 0;
       window.__audioStarts = 0;
       window.__audioStops = 0;
+      window.__audioResumeCalls = 0;
       class MockAudioContext {
-        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'running'; }
-        resume() { return Promise.resolve(); }
+        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'suspended'; this.onstatechange = null; }
+        resume() { window.__audioResumeCalls++; this.state = 'running'; if (this.onstatechange) this.onstatechange(); return Promise.resolve(); }
         createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, start() { window.__audioStarts++; }, stop() { window.__audioStops++; } }; }
         createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
         createBufferSource() { return { connect() { return this; }, start() { window.__audioStarts++; }, stop() { window.__audioStops++; }, set buffer(_) {} }; }
@@ -26,15 +27,19 @@ test.describe('Match Lab', () => {
     });
     await gotoApp(page);
     await openPlayMode(page, 'lab');
-    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'pending');
+    await expect(page.locator('#lab-sound')).toHaveText('Tap to enable sound');
     expect(await page.evaluate(() => window.__audioContexts)).toBe(0);
     await page.locator('#lab-sound').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
+    await page.locator('#lab-sound').click();
     await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
+    const mutedStarts = await page.evaluate(() => window.__audioStarts);
     await page.locator('#lab-kickoff').click();
     await expect(page.locator('[data-player-side="home"]')).toHaveCount(11);
     await expect(page.locator('[data-player-side="away"]')).toHaveCount(11);
     await expect(page.locator('[data-ball]')).toBeVisible();
-    expect(await page.evaluate(() => window.__audioContexts), 'muted start does not arm audio').toBe(0);
+    expect(await page.evaluate(() => window.__audioStarts), 'muted start does not create new audio').toBe(mutedStarts);
     const ballA = await page.locator('[data-ball]').getAttribute('style');
     await page.evaluate(() => window.__u26LabDebug.force('open'));
     await page.waitForTimeout(420);
@@ -80,9 +85,10 @@ test.describe('Match Lab', () => {
     await page.addInitScript(() => {
       window.__audioContexts = 0;
       window.__audioStarts = 0;
+      window.__audioResumeCalls = 0;
       class MockAudioContext {
-        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'running'; }
-        resume() { return Promise.resolve(); }
+        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'suspended'; this.onstatechange = null; }
+        resume() { window.__audioResumeCalls++; this.state = 'running'; if (this.onstatechange) this.onstatechange(); return Promise.resolve(); }
         createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, start() { window.__audioStarts++; }, stop() {} }; }
         createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
         createBufferSource() { return { connect() { return this; }, start() { window.__audioStarts++; }, stop() {}, set buffer(_) {} }; }
@@ -95,12 +101,14 @@ test.describe('Match Lab', () => {
     await gotoApp(page);
     await openPlayMode(page, 'lab');
     expect(await page.evaluate(() => window.__audioContexts)).toBe(0);
-    await page.locator('#lab-sound').click();
-    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'pending');
+    await expect(page.locator('#lab-sound')).toHaveText('Tap to enable sound');
     await page.locator('#lab-sound').click();
     await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
     expect(await page.evaluate(() => window.__audioContexts)).toBe(1);
+    expect(await page.evaluate(() => window.__audioResumeCalls)).toBe(1);
     expect(await page.evaluate(() => window.__audioStarts)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__u26LabDebug.audio().unlocked)).toBe(true);
     await page.locator('#lab-kickoff').click();
     await page.locator('#lab-sound').click();
     await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
@@ -108,6 +116,46 @@ test.describe('Match Lab', () => {
     await page.evaluate(() => window.__u26LabDebug.force('goal'));
     await page.waitForTimeout(900);
     expect(await page.evaluate(() => window.__audioStarts)).toBe(before);
+  });
+
+  test('kickoff directly unlocks Web Audio and starts an immediate confirmation cue', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__audioContexts = 0;
+      window.__audioStarts = 0;
+      window.__audioResumeCalls = 0;
+      class MockAudioContext {
+        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'suspended'; this.onstatechange = null; }
+        resume() { window.__audioResumeCalls++; this.state = 'running'; if (this.onstatechange) this.onstatechange(); return Promise.resolve(); }
+        createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, start() { window.__audioStarts++; }, stop() {} }; }
+        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
+        createBufferSource() { return { connect() { return this; }, start() { window.__audioStarts++; }, stop() {}, set buffer(_) {} }; }
+        createBuffer(_channels, length) { return { getChannelData() { return new Float32Array(length); } }; }
+        createBiquadFilter() { return { type: 'lowpass', frequency: { value: 0 }, connect() { return this; } }; }
+      }
+      window.AudioContext = MockAudioContext;
+      window.webkitAudioContext = MockAudioContext;
+    });
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'pending');
+    await page.locator('#lab-kickoff').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
+    expect(await page.evaluate(() => window.__audioContexts)).toBe(1);
+    expect(await page.evaluate(() => window.__audioResumeCalls)).toBe(1);
+    expect(await page.evaluate(() => window.__audioStarts)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__u26LabDebug.audio().unlocked)).toBe(true);
+  });
+
+  test('sound state never claims on while Web Audio is unavailable', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.AudioContext = undefined;
+      window.webkitAudioContext = undefined;
+    });
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'unavailable');
+    await expect(page.locator('#lab-sound')).toHaveText('Sound unavailable');
+    expect(await page.evaluate(() => window.__u26LabDebug.audio().supported)).toBe(false);
   });
 
   test('the pitch scene persists across beats and the ball keeps moving in open play', async ({ page }) => {
@@ -139,6 +187,46 @@ test.describe('Match Lab', () => {
     await page.waitForTimeout(700);
     const playerB = await page.locator('.pitch-player').first().evaluate((el) => `${el.style.left}|${el.style.top}`);
     expect(playerB, 'role markers drift with the match').not.toBe(playerA);
+  });
+
+  test('extra time appears before a shootout and the extra-time decision stays compact', async ({ page }) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await page.locator('#lab-kickoff').click();
+    await page.evaluate(() => window.__u26LabDebug.force('extra'));
+    await expect(page.locator('.lab-phase-badge')).toHaveText('Extra time');
+    await expect(page.locator('.lab-clock')).toContainText('EXTRA TIME');
+    await expect(page.locator('.lab-decision')).toContainText('Push for it');
+    await expect(page.locator('.lab-decision')).toContainText('Fresh legs');
+    await expect(page.locator('.lab-decision')).toContainText('Protect and counter');
+    await page.locator('[data-decide="fresh"]').click();
+    await expect.poll(() => page.evaluate(() => window.__u26LabDebug.snapshot().phase)).toBe('et1');
+    const score = page.locator('#lab-score');
+    const before = await score.getAttribute('data-v');
+    expect(before).toMatch(/^\d+-\d+$/);
+    const [home, away] = before.split('-').map(Number);
+
+    await page.evaluate(() => window.__u26LabDebug.force('et-goal'));
+    await expect(page.locator('.lab-phase-badge')).toHaveText('Extra time');
+    await expect(score).toHaveAttribute('data-v', before);
+    await expect(score).toHaveAttribute('data-v', `${home + 1}-${away}`, { timeout: 4000 });
+  });
+
+  test('penalty shootout keeps the pitch full and respects red-card reductions', async ({ page }) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    await page.locator('#lab-kickoff').click();
+    await page.evaluate(() => window.__u26LabDebug.force('pens'));
+    await expect(page.locator('.lab-clock')).toContainText('PENALTIES');
+    await expect(page.locator('.pitch-player')).toHaveCount(22);
+    await expect(page.locator('[data-role="GK"]')).toHaveCount(2);
+    await expect(page.locator('.lab-pens')).toContainText(/Penalties 0–0/);
+    await expect(page.locator('[data-ball]')).toHaveAttribute('data-kind', /penalty|goal|save|miss/);
+    await page.waitForTimeout(900);
+    await expect(page.locator('.lab-pens')).toContainText(/Penalties 1–0|Penalties 1–1/);
+    await page.evaluate(() => window.__u26LabDebug.force('pens-red'));
+    await expect(page.locator('.pitch-player')).toHaveCount(21);
+    await expect(page.locator('[data-player-side="away"]')).toHaveCount(10);
   });
 
   test('reduced motion keeps the simulation usable', async ({ page }) => {

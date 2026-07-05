@@ -169,11 +169,55 @@ test('card visuals identify the dismissed marker before the count changes', () =
   assert.equal(result.players.home + result.players.away, 21);
 });
 
-test('penalties are reserved for tied knockout simulations', () => {
-  const { result } = findLab((r) => r.pens);
+test('knockout ties enter extra time before penalties', () => {
+  const result = lab(4);
   assert.ok(result.pens);
+  const extraIdx = result.events.findIndex((e) => e.type === 'extra');
+  const pensIdx = result.events.findIndex((e) => e.type === 'pens');
+  assert.ok(extraIdx >= 0, 'extra time is announced');
+  assert.ok(pensIdx > extraIdx, 'penalties happen after extra time');
+  assert.ok(result.events.some((e) => e.type === 'interval' && e.min === 105), 'extra-time interval is represented');
+  assert.ok(result.events.filter((e) => e.type === 'pens').every((e) => e.min >= 120 && e.phase === 'pens'), 'shootout starts after 120');
   assert.equal(result.score[0], result.score[1], 'shootout only follows a tied match score');
   assert.ok(result.events.filter((e) => e.type === 'pens').length >= result.pens.kicks, 'shootout is represented kick by kick');
+});
+
+test('an extra-time winner never enters penalties', () => {
+  const result = lab(6);
+  assert.equal(result.extraStarted, true);
+  assert.equal(result.pens, null);
+  assert.notEqual(result.score[0], result.score[1]);
+  assert.ok(result.events.some((e) => e.type === 'goal' && e.min > 90 && e.phase.startsWith('et')), 'extra-time goal decides it');
+  assert.equal(result.events.some((e) => e.type === 'pens'), false);
+});
+
+test('tied extra time enters a shootout with the full player scene unless cards reduced it', () => {
+  const noCards = lab(4);
+  assert.ok(noCards.pens);
+  assert.deepEqual(noCards.players, { home: 11, away: 11 });
+  const reduced = lab(3);
+  assert.ok(reduced.pens);
+  assert.ok(reduced.events.some((e) => e.type === 'red'), 'sample includes a real red card');
+  assert.equal(reduced.players.home + reduced.players.away, 21, 'only the red card reduces the shootout scene');
+});
+
+test('penalty kicks animate taker, keeper, ball result, and update after the kick resolves', () => {
+  const result = lab(4);
+  const first = result.events.find((e) => e.type === 'pens');
+  assert.ok(first.kick, 'kick metadata is recorded');
+  assert.equal(first.committed, true, 'score is committed after the visual sequence');
+  assert.ok(first.visual.some((p) => p[3] === 'penalty'), 'taker moves through the penalty spot');
+  assert.ok(first.visual.some((p) => ['goal', 'save', 'miss'].includes(p[3])), 'kick visual ends in a result');
+  assert.equal(result.pens.kicks, result.events.filter((e) => e.type === 'pens').length);
+});
+
+test('penalty shootout supports sudden death', () => {
+  const result = lab(13);
+  assert.ok(result.pens);
+  const kicks = result.events.filter((e) => e.type === 'pens');
+  assert.ok(kicks.length > 10, 'shootout continued beyond the first five each');
+  assert.equal(kicks[9].kick.ph, kicks[9].kick.pa, 'level after the first five each');
+  assert.notEqual(result.pens.ph, result.pens.pa, 'sudden death found a winner');
 });
 
 test('open play keeps the ball travelling through distinct waypoints and role markers', () => {

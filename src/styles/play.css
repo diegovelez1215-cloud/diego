@@ -415,6 +415,22 @@
   letter-spacing: 0.1em; text-transform: uppercase;
   margin-bottom: var(--sp-2);
 }
+.lab-phase-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  margin-top: var(--sp-1);
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+  color: var(--gold-ink);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  font-size: 0.62rem;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
 .lab-momentum {
   height: 4px; border-radius: 2px; margin: var(--sp-3) auto 0; max-width: 280px;
   background: color-mix(in srgb, var(--ac, #666) 30%, var(--hairline));
@@ -512,11 +528,11 @@
   transform: translate(-50%, -50%) scale(1.45);
   box-shadow: 0 0 24px color-mix(in srgb, var(--gold) 90%, transparent);
 }
-.pitch-ball.foul, .pitch-ball.free, .pitch-ball.var {
+.pitch-ball.foul, .pitch-ball.free, .pitch-ball.var, .pitch-ball.extra, .pitch-ball.interval {
   transform: translate(-50%, -50%) scale(1.25);
   box-shadow: 0 0 20px color-mix(in srgb, var(--official) 70%, transparent);
 }
-.pitch-ball.penalty {
+.pitch-ball.penalty, .pitch-ball.miss {
   transform: translate(-50%, -50%) scale(1.55);
   box-shadow: 0 0 26px color-mix(in srgb, var(--live) 65%, transparent);
 }
@@ -581,6 +597,17 @@
   border-color: var(--hairline);
   background: var(--bg-raise-2);
 }
+.lab-sound[data-sound="pending"] {
+  color: var(--gold-ink);
+  border-color: color-mix(in srgb, var(--gold) 52%, var(--hairline));
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+}
+.lab-sound[data-sound="unavailable"] {
+  color: var(--ink-3);
+  border-color: var(--hairline);
+  background: color-mix(in srgb, var(--bg-raise-2) 82%, #111);
+  cursor: default;
+}
 .lab-var-banner,
 .lab-card-banner {
   position: absolute;
@@ -633,6 +660,7 @@
 .lab-ev.var, .lab-ev.confirmed, .lab-ev.overturned { color: var(--official-ink); }
 .lab-ev.save, .lab-ev.free, .lab-ev.transition { color: var(--ink); }
 .lab-ev.decision { color: var(--gold-ink); font-style: italic; }
+.lab-ev.extra, .lab-ev.interval { color: var(--gold-ink); font-weight: var(--w-bold); }
 .lab-ev.whistle { color: var(--ink-3); }
 .lab-ev-min { color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 2.4em; }
 .lab-ev-ic { color: var(--gold); }

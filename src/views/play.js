@@ -102,6 +102,15 @@ const DECISIONS = {
   },
 };
 
+const EXTRA_TIME_DECISION = {
+  prompt: 'Extra time. One call, thirty minutes.',
+  options: [
+    { id: 'push', label: 'Push for it', atk: 1.24, def: 0.82, plan: 'push' },
+    { id: 'fresh', label: 'Fresh legs', atk: 1.08, def: 1.05, plan: 'fresh' },
+    { id: 'protect', label: 'Protect and counter', atk: 0.82, def: 1.18, plan: 'protect' },
+  ],
+};
+
 const FORMATION = [
   ['GK', 7, 50],
   ['LB', 20, 24], ['LCB', 18, 42], ['RCB', 18, 58], ['RB', 20, 76],
@@ -119,7 +128,7 @@ const FEATURED_POOL = [
   ['GER', 'NED'], ['MAR', 'SEN'], ['JPN', 'KOR'], ['COL', 'URU'],
   ['SUI', 'CRO'], ['CAN', 'USA'], ['BRA', 'ARG'], ['ENG', 'NED'],
 ];
-const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'pens', 'final']);
+const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'extra', 'interval', 'pens', 'final']);
 const LAB_PACE_OPTIONS = [
   ['normal', 'Normal', 'Normal'],
   ['fast', 'Turbo', 'Turbo'],
@@ -145,6 +154,8 @@ const LAB_EVENT_MS = {
   overturned: { normal: 620, fast: 540, key: 520 },
   card: { normal: 560, fast: 480, key: 460 },
   red: { normal: 680, fast: 580, key: 560 },
+  extra: { normal: 760, fast: 620, key: 580 },
+  interval: { normal: 520, fast: 420, key: 380 },
   pens: { normal: 680, fast: 580, key: 560 },
   final: { normal: 900, fast: 780, key: 760 },
   decision: { normal: 220, fast: 160, key: 140 },
@@ -215,8 +226,10 @@ function currentFeaturedShowdown(play) {
 }
 
 export function activeFormation(side, run) {
+  if (run?.phase === 'pens' || run?.shootout) return shootoutFormation(side, run);
   const red = side === 'h' ? run.redH : run.redA;
   const redRole = side === 'h' ? run.redRoleH : run.redRoleA;
+  const extraTime = (run?.minute || 0) > 90 || String(run?.phase || '').startsWith('et');
   return FORMATION
     .filter(([role]) => !(red && role === (redRole || RED_DROP_ROLE)))
     .map(([role, x, y], i) => {
@@ -226,10 +239,12 @@ export function activeFormation(side, run) {
       const urgent = run.minute > 80 && ((home && run.gh <= run.ga) || (!home && run.ga <= run.gh));
       const compact = side === 'h' ? (run.mods?.def || 1) > 1.12 : (run.awayCompact || 1);
       const rolePush = role === 'GK' ? 0 : role === 'ST' ? 11 : role.includes('W') ? 8 : role.includes('M') ? 5 : 2;
-      const tacticalPush = attack * 7 + (urgent ? 5 : 0) + (compact ? -4 : 0);
-      const minuteWave = Math.sin((run.minute + i * 13) / 8) * (role === 'GK' ? 0.5 : 2.2);
+      const etRisk = extraTime ? (run.etPlan === 'push' ? 4 : run.etPlan === 'protect' ? -2 : 1.5) : 0;
+      const tacticalPush = attack * (extraTime ? 8.8 : 7) + (urgent ? (extraTime ? 7 : 5) : 0) + (compact ? -4 : 0) + etRisk;
+      const minuteWave = Math.sin((run.minute + i * 13) / (extraTime ? 10 : 8)) * (role === 'GK' ? 0.5 : extraTime ? 3.1 : 2.2);
+      const stretchedY = extraTime && role !== 'GK' ? (y - 50) * 0.08 : 0;
       const px = Math.max(4, Math.min(96, x + rolePush + tacticalPush + minuteWave));
-      const py = Math.max(10, Math.min(90, y + Math.cos((run.minute + i * 7) / 9) * 2));
+      const py = Math.max(10, Math.min(90, y + stretchedY + Math.cos((run.minute + i * 7) / (extraTime ? 11 : 9)) * (extraTime ? 2.8 : 2)));
       return {
         side, role,
         x: home ? px : 100 - px,
@@ -237,6 +252,45 @@ export function activeFormation(side, run) {
         label: `${home ? teamName(run.home) : teamName(run.away)} ${ROLE_NAMES[role] || role}`,
       };
     });
+}
+
+function shootoutFormation(side, run) {
+  const home = side === 'h';
+  const red = side === 'h' ? run.redH : run.redA;
+  const redRole = side === 'h' ? run.redRoleH : run.redRoleA;
+  const kick = run.currentKick;
+  const taking = kick && kick.side === side;
+  const roles = FORMATION.map(([role]) => role).filter((role) => !(red && role === (redRole || RED_DROP_ROLE)));
+  const fieldRoles = roles.filter((role) => role !== 'GK');
+  const group = fieldRoles.map((role, i) => {
+    const n = Math.max(1, fieldRoles.length);
+    const angle = (Math.PI * 2 * i) / n + (home ? -0.25 : 0.25);
+    const radiusX = role.includes('W') ? 7 : 5.6;
+    const radiusY = role.includes('B') ? 9 : 7;
+    return {
+      side, role,
+      x: 50 + Math.cos(angle) * radiusX + (home ? -6 : 6),
+      y: 50 + Math.sin(angle) * radiusY,
+      label: `${teamName(home ? run.home : run.away)} ${ROLE_NAMES[role] || role}`,
+    };
+  });
+  const players = [{
+    side,
+    role: 'GK',
+    x: home ? 7 : 93,
+    y: 50,
+    label: `${teamName(home ? run.home : run.away)} Keeper`,
+  }, ...group];
+  if (taking) {
+    const takerRole = kick.actor || (fieldRoles.includes('ST') ? 'ST' : fieldRoles[0]);
+    const taker = players.find((p) => p.role === takerRole);
+    if (taker) {
+      taker.x = home ? 76 : 24;
+      taker.y = 50;
+      taker.label = `${teamName(home ? run.home : run.away)} penalty taker`;
+    }
+  }
+  return players;
 }
 
 function actorFor(run, side, kind = 'possession') {
@@ -261,6 +315,11 @@ function playerPoint(run, side, role, kind = 'possession') {
 
 function goalPoint(side, kind = 'goal') {
   return { x: side === 'h' ? 98 : 2, y: 50, side, from: 'goal', kind };
+}
+
+function missPoint(side, dir = 'left') {
+  const y = dir === 'left' ? 31 : 69;
+  return { x: side === 'h' ? 99 : 1, y, side, from: 'wide', kind: 'miss' };
 }
 
 function keeperPoint(run, attackingSide, kind = 'save') {
@@ -309,7 +368,16 @@ function labVisualForEvent(run, event) {
   if (event.type === 'var') return [goalPoint(side, 'var'), goalPoint(side, 'var')];
   if (event.type === 'confirmed') return [goalPoint(side, 'goal'), goalPoint(side, 'goal')];
   if (event.type === 'overturned') return [goalPoint(side, 'var'), keeperPoint(run, side, 'save')];
-  if (event.type === 'pens') return [playerPoint(run, side, 'ST', 'penalty'), { x: 50, y: 50, side, from: 'spot', kind: 'penalty' }, event.scored ? goalPoint(side, 'goal') : keeperPoint(run, side, 'save')];
+  if (event.type === 'extra') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'extra' }];
+  if (event.type === 'interval') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'interval' }];
+  if (event.type === 'pens') {
+    const taker = event.kick?.actor || 'ST';
+    const spot = { x: side === 'h' ? 88 : 12, y: 50, side, from: 'spot', kind: 'penalty' };
+    const result = event.scored ? goalPoint(side, 'goal')
+      : event.outcome === 'miss' ? missPoint(side, event.kick?.dir)
+        : keeperPoint(run, side, 'save');
+    return [playerPoint(run, side, taker, 'penalty'), spot, result];
+  }
   if (event.type === 'final') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'final' }];
   return [playerPoint(run, side, actor, event.type || 'possession')];
 }
@@ -353,7 +421,7 @@ function eventText(type, side, team, run) {
 }
 
 function addLabEvent(run, type, side, text, extra = {}) {
-  const event = { min: run.minute, type, side, text, ...extra };
+  const event = { min: run.minute, phase: run.phase || 'reg', type, side, text, ...extra };
   event.visual = labVisualForEvent(run, event);
   run.events.push(event);
   run.lastEventType = type;
@@ -488,8 +556,9 @@ function updateFormationMarkers(run, ts, holder, ballPos, segKind) {
       }
       let cur = director.pos.get(key);
       if (!cur) { cur = { x: p.x, y: p.y }; director.pos.set(key, cur); }
-      cur.x += (Math.max(2, Math.min(98, tx)) - cur.x) * 0.06;
-      cur.y += (Math.max(6, Math.min(94, ty)) - cur.y) * 0.06;
+      const recovery = run.minute > 90 ? 0.045 : 0.06;
+      cur.x += (Math.max(2, Math.min(98, tx)) - cur.x) * recovery;
+      cur.y += (Math.max(6, Math.min(94, ty)) - cur.y) * recovery;
       el.style.left = `${cur.x.toFixed(2)}%`;
       el.style.top = `${cur.y.toFixed(2)}%`;
       el.classList.toggle('has-ball', !!holder && holder.side === side && holder.role === p.role);
@@ -632,7 +701,7 @@ function commitLabVisual(run, event) {
     labSound(type === 'confirmed' ? 'var-confirmed' : 'var-overturned');
   }
   if (event.type === 'confirmed') labSound('goal');
-  if (event.type === 'pens') labSound(event.scored ? 'pen-goal' : 'pen-save');
+  if (event.type === 'pens') labSound(event.scored ? 'pen-goal' : event.outcome === 'miss' ? 'pen-miss' : 'pen-save');
   if (event.type === 'final') completeLabRun(run);
 }
 
@@ -653,21 +722,53 @@ function requestLabComplete(run) {
   labSound('final');
 }
 
+function enterExtraTime(run) {
+  if (!run || run.extraStarted) return;
+  run.extraStarted = true;
+  run.phase = 'et-decision';
+  run.paused = true;
+  run.decisionAt = 'ET';
+  run.minute = 90;
+  run.added = 0;
+  addLabEvent(run, 'extra', 'h', 'EXTRA TIME — thirty more minutes.');
+}
+
+function shootoutStillLive(ph, pa, hTaken, aTaken) {
+  const remH = Math.max(0, 5 - hTaken);
+  const remA = Math.max(0, 5 - aTaken);
+  if (hTaken < 5 || aTaken < 5) return ph <= pa + remA && pa <= ph + remH;
+  if (hTaken !== aTaken) return true;
+  return ph === pa;
+}
+
 function buildPenaltyKicks(run) {
   const rng = run.rng;
   const kicks = [];
   let ph = 0; let pa = 0;
-  for (let i = 0; i < 5 || ph === pa; i++) {
+  let hTaken = 0; let aTaken = 0;
+  const rolesH = activeFormation('h', { ...run, phase: 'pens', currentKick: null }).filter((p) => p.role !== 'GK').map((p) => p.role);
+  const rolesA = activeFormation('a', { ...run, phase: 'pens', currentKick: null }).filter((p) => p.role !== 'GK').map((p) => p.role);
+  for (let guard = 0; guard < 24; guard++) {
+    hTaken++;
     const hScored = rng() < 0.76; if (hScored) ph++;
-    kicks.push({ side: 'h', n: i + 1, scored: hScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
+    const hDir = rng() < 0.5 ? 'left' : 'right';
+    const hOutcome = hScored ? 'goal' : (rng() < 0.72 ? 'save' : 'miss');
+    kicks.push({ side: 'h', n: hTaken, actor: rolesH[(hTaken - 1) % Math.max(1, rolesH.length)] || 'ST', scored: hScored, outcome: hOutcome, ph, pa, dir: hDir, hTaken, aTaken });
+    if (!shootoutStillLive(ph, pa, hTaken, aTaken)) break;
+    aTaken++;
     const aScored = rng() < 0.76; if (aScored) pa++;
-    kicks.push({ side: 'a', n: i + 1, scored: aScored, ph, pa, dir: rng() < 0.5 ? 'left' : 'right' });
+    const aDir = rng() < 0.5 ? 'left' : 'right';
+    const aOutcome = aScored ? 'goal' : (rng() < 0.72 ? 'save' : 'miss');
+    kicks.push({ side: 'a', n: aTaken, actor: rolesA[(aTaken - 1) % Math.max(1, rolesA.length)] || 'ST', scored: aScored, outcome: aOutcome, ph, pa, dir: aDir, hTaken, aTaken });
+    if (!shootoutStillLive(ph, pa, hTaken, aTaken)) break;
   }
   return kicks;
 }
 
 function startPenaltyShootout(run, forcedKicks = null) {
   if (!run || run.shootout) return;
+  run.phase = 'pens';
+  run.sceneDirty = true;
   run.shootout = { kicks: forcedKicks || buildPenaltyKicks(run), index: 0 };
   run.pens = { ph: 0, pa: 0, kicks: [] };
   queueNextPenalty(run);
@@ -678,12 +779,15 @@ function queueNextPenalty(run) {
   const kick = run.shootout.kicks[run.shootout.index++];
   if (!kick) {
     run.shootout = null;
+    run.currentKick = null;
     requestLabComplete(run);
     return;
   }
-  addLabEvent(run, 'pens', kick.side, `${teamName(kick.side === 'h' ? run.home : run.away)} penalty ${kick.scored ? 'scores' : 'saved'} (${kick.ph}–${kick.pa})`, {
+  run.currentKick = kick;
+  addLabEvent(run, 'pens', kick.side, `${teamName(kick.side === 'h' ? run.home : run.away)} penalty ${kick.scored ? 'scores' : kick.outcome === 'miss' ? 'misses' : 'saved'} (${kick.ph}–${kick.pa})`, {
     kick,
     scored: kick.scored,
+    outcome: kick.outcome,
   });
 }
 
@@ -697,10 +801,49 @@ let labPace = 'normal'; // normal | fast(Turbo) | key
 let labMute = false;    // true while a beat batches ticks — paint once per beat
 let audioCtx = null;
 let audioUnlocked = false;
+let audioBlocked = false;
+let lastSoundEvent = null;
 const audioNodes = new Set();
 
 function soundEnabled() {
   return getState().play.labSound !== false;
+}
+
+function audioSupported() {
+  return typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
+}
+
+function labAudioDiagnostic() {
+  const state = audioCtx?.state || 'none';
+  return {
+    supported: audioSupported(),
+    contextState: state,
+    unlocked: audioUnlocked && state === 'running',
+    enabled: soundEnabled(),
+    blocked: audioBlocked,
+    lastSoundEvent,
+  };
+}
+
+function labSoundButtonModel() {
+  const diag = labAudioDiagnostic();
+  if (!diag.supported || audioBlocked) {
+    return { label: 'Sound unavailable', data: 'unavailable', pressed: 'false', disabled: true };
+  }
+  if (!diag.enabled) return { label: 'Sound off', data: 'off', pressed: 'false', disabled: false };
+  if (!diag.unlocked) return { label: 'Tap to enable sound', data: 'pending', pressed: 'false', disabled: false };
+  return { label: 'Sound on', data: 'on', pressed: 'true', disabled: false };
+}
+
+function updateAudioButtons() {
+  if (typeof document === 'undefined') return;
+  const model = labSoundButtonModel();
+  document.querySelectorAll('#lab-sound').forEach((button) => {
+    button.textContent = model.label;
+    button.dataset.sound = model.data;
+    button.setAttribute('aria-pressed', model.pressed);
+    button.toggleAttribute('disabled', !!model.disabled);
+  });
 }
 
 function persistLabSound(on) {
@@ -709,20 +852,54 @@ function persistLabSound(on) {
   setPlay(nextPlay);
   savePlay(nextPlay);
   if (!on) silenceAudio();
+  updateAudioButtons();
 }
 
-function ensureAudio() {
-  if (!audioUnlocked || !soundEnabled() || typeof window === 'undefined') return null;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return null;
-  if (!audioCtx) audioCtx = new Ctx();
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+function markAudioState() {
+  audioUnlocked = !!audioCtx && audioCtx.state === 'running';
+  updateAudioButtons();
+}
+
+function playableAudio() {
+  if (!soundEnabled() || !audioSupported() || !audioCtx || audioCtx.state !== 'running') return null;
+  audioUnlocked = true;
   return audioCtx;
 }
 
-function unlockAudio() {
-  audioUnlocked = true;
-  return ensureAudio();
+function audioContextFromGesture() {
+  if (!soundEnabled()) return null;
+  if (!audioSupported()) {
+    audioBlocked = true;
+    updateAudioButtons();
+    return null;
+  }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  try {
+    if (!audioCtx) {
+      audioCtx = new Ctx();
+      audioCtx.onstatechange = markAudioState;
+    }
+    if (audioCtx.state === 'suspended' && typeof audioCtx.resume === 'function') {
+      const resumeAttempt = audioCtx.resume();
+      if (resumeAttempt && typeof resumeAttempt.catch === 'function') {
+        resumeAttempt.catch(() => { audioBlocked = true; markAudioState(); });
+      }
+    }
+  } catch (_) {
+    audioBlocked = true;
+    updateAudioButtons();
+    return null;
+  }
+  markAudioState();
+  return audioCtx;
+}
+
+function unlockAudioFromGesture() {
+  const ctx = audioContextFromGesture();
+  if (!ctx) return null;
+  playUnlockCue(ctx);
+  markAudioState();
+  return ctx;
 }
 
 function trackAudioNode(node) {
@@ -736,10 +913,11 @@ function silenceAudio() {
     try { node.stop(0); } catch (_) {}
   }
   audioNodes.clear();
+  lastSoundEvent = 'muted';
 }
 
-function tone(freq, dur = 0.12, gain = 0.04, type = 'sine', delay = 0, sweepTo = null) {
-  const ctx = ensureAudio();
+function tone(freq, dur = 0.12, gain = 0.04, type = 'sine', delay = 0, sweepTo = null, ctxOverride = null) {
+  const ctx = ctxOverride || playableAudio();
   if (!ctx) return;
   const start = ctx.currentTime + delay;
   const osc = trackAudioNode(ctx.createOscillator());
@@ -758,8 +936,8 @@ function tone(freq, dur = 0.12, gain = 0.04, type = 'sine', delay = 0, sweepTo =
   setTimeout(() => audioNodes.delete(osc), Math.ceil((delay + dur + 0.08) * 1000));
 }
 
-function noiseBurst(level = 0.05, dur = 0.45, delay = 0, cutoff = 620) {
-  const ctx = ensureAudio();
+function noiseBurst(level = 0.05, dur = 0.45, delay = 0, cutoff = 620, ctxOverride = null) {
+  const ctx = ctxOverride || playableAudio();
   if (!ctx) return;
   const start = ctx.currentTime + delay;
   const src = trackAudioNode(ctx.createBufferSource());
@@ -780,12 +958,21 @@ function noiseBurst(level = 0.05, dur = 0.45, delay = 0, cutoff = 620) {
   setTimeout(() => audioNodes.delete(src), Math.ceil((delay + dur + 0.08) * 1000));
 }
 
-function chord(notes, dur = 0.18, gain = 0.028, type = 'triangle', delay = 0) {
-  notes.forEach((n, i) => tone(n, dur + i * 0.035, gain * (1 - i * 0.12), type, delay + i * 0.045));
+function chord(notes, dur = 0.18, gain = 0.028, type = 'triangle', delay = 0, ctxOverride = null) {
+  notes.forEach((n, i) => tone(n, dur + i * 0.035, gain * (1 - i * 0.12), type, delay + i * 0.045, null, ctxOverride));
+}
+
+function playUnlockCue(ctx) {
+  if (!ctx || !soundEnabled()) return;
+  lastSoundEvent = 'enable';
+  tone(660, 0.07, 0.018, 'triangle', 0, 880, ctx);
+  tone(990, 0.08, 0.014, 'sine', 0.08, 740, ctx);
 }
 
 function labSound(kind) {
+  lastSoundEvent = kind;
   if (!soundEnabled()) return;
+  if (!playableAudio()) { updateAudioButtons(); return; }
   if (kind === 'kickoff') { tone(720, 0.09, 0.035, 'square', 0, 980); tone(1180, 0.1, 0.028, 'sine', 0.11, 760); noiseBurst(0.018, 0.18, 0, 900); }
   else if (kind === 'shot') { tone(180, 0.11, 0.026, 'sawtooth', 0, 330); tone(540, 0.08, 0.018, 'triangle', 0.08, 760); }
   else if (kind === 'save') { noiseBurst(0.042, 0.24, 0, 720); tone(260, 0.13, 0.028, 'triangle', 0.06, 180); tone(620, 0.08, 0.018, 'sine', 0.2); }
@@ -797,6 +984,7 @@ function labSound(kind) {
   else if (kind === 'pen') { tone(220, 0.22, 0.026, 'triangle'); tone(330, 0.18, 0.02, 'sine', 0.22); }
   else if (kind === 'pen-goal') { chord([440, 660, 880], 0.18, 0.03, 'triangle'); noiseBurst(0.04, 0.4, 0.04, 820); }
   else if (kind === 'pen-save') { noiseBurst(0.05, 0.24, 0, 640); tone(196, 0.18, 0.028, 'triangle', 0.08, 140); }
+  else if (kind === 'pen-miss') { tone(260, 0.16, 0.024, 'sine', 0, 180); noiseBurst(0.024, 0.18, 0.08, 520); }
   else if (kind === 'final') { tone(980, 0.12, 0.036, 'square'); tone(740, 0.12, 0.032, 'square', 0.16); tone(523, 0.28, 0.03, 'triangle', 0.34); noiseBurst(0.036, 0.55, 0.22, 620); }
 }
 
@@ -823,6 +1011,14 @@ function labChanceRates(run) {
     h *= chasingHome ? 1.4 : 0.95;
     aRate *= chasingHome ? 0.95 : 1.4;
   }
+  if (run.minute > 90) {
+    const fatigue = Math.min(0.45, (run.minute - 90) * 0.018);
+    h *= 1.08 + fatigue;
+    aRate *= 1.08 + fatigue;
+    if (run.etPlan === 'push') { h *= 1.18; aRate *= 1.12; }
+    if (run.etPlan === 'fresh') { h *= 1.06; aRate *= 0.96; }
+    if (run.etPlan === 'protect') { h *= 0.88; aRate *= 0.92; }
+  }
   return { h, aRate, convert: 0.34 };
 }
 
@@ -840,6 +1036,8 @@ function labTick() {
   if (run.visual || run.visualQueue?.length || run.shootout) return;
   if (run.minute === 0) addLabEvent(run, 'whistle', 'h', 'Kick off.');
   run.minute++;
+  if (run.phase === 'et-ready' && run.minute < 91) run.minute = 91;
+  if (run.phase === 'et-ready') run.phase = 'et1';
   const rng = run.rng;
   const rates = labChanceRates(run);
   const swing = (rng() - 0.5) * 0.5;
@@ -920,18 +1118,34 @@ function labTick() {
     run.decisionAt = run.minute;
   }
   // the fourth official's board goes up at 90
-  if (run.minute === 90 && run.added == null) {
+  if (run.phase !== 'et1' && run.phase !== 'et2' && run.minute === 90 && run.added == null) {
     const lateEvents = run.events.filter((e) => e.min > 75 && (e.type === 'goal' || e.type === 'card' || e.type === 'red' || e.type === 'sub')).length;
     run.added = Math.max(1, Math.min(6, 2 + lateEvents));
     addLabEvent(run, 'board', 'h', `+${run.added} minutes of stoppage time`);
   }
-  if (run.minute >= 90 + (run.added || 0)) {
+  if (run.phase === 'et1' && run.minute >= 105 && !run.etInterval) {
+    run.etInterval = true;
+    run.phase = 'et2';
+    addLabEvent(run, 'interval', 'h', 'Extra-time interval.');
+  }
+  if (run.phase === 'et2' && run.minute === 120 && run.etAdded == null) {
+    const lateEvents = run.events.filter((e) => e.min > 105 && (e.type === 'goal' || e.type === 'card' || e.type === 'red' || e.type === 'sub')).length;
+    run.etAdded = Math.max(1, Math.min(3, 1 + lateEvents));
+    addLabEvent(run, 'board', 'h', `+${run.etAdded} minutes of extra-time stoppage`);
+  }
+  if (run.phase === 'et2' && run.minute >= 120 + (run.etAdded || 0)) {
     if (run.knockout && run.gh === run.ga) {
       startPenaltyShootout(run);
       labSound('pen');
       return;
     }
     requestLabComplete(run);
+  } else if (run.phase !== 'et1' && run.phase !== 'et2' && run.minute >= 90 + (run.added || 0)) {
+    if (run.knockout && run.gh === run.ga) {
+      enterExtraTime(run);
+      labSound('ref');
+    }
+    else requestLabComplete(run);
   }
   if (!labMute) paintLab();
   if (run.paused || run.done) stopLabTimer();
@@ -995,7 +1209,7 @@ function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 21
   labRun = {
     home, away, approach, seed, rng: mulberry32(seed),
     minute: 0, gh: 0, ga: 0, sh: 0, sa: 0, mo: 0, events: [], decided: {}, mods: { atk: 1, def: 1 },
-    paused: false, decisionAt: null, done: false, pens: null, knockout: true,
+    paused: false, decisionAt: null, done: false, pens: null, knockout: true, phase: 'reg',
     visualQueue: [], visualTrace: [],
     ball: { x: 50, y: 50, side: 'h', kind: 'kickoff', from: 'DM' },
   };
@@ -1005,7 +1219,7 @@ function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 21
 function beginLab(home, away, approach, seed) {
   createLabRun(home, away, approach, seed);
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:high-attention-start'));
-  unlockAudio();
+  unlockAudioFromGesture();
   labSound('kickoff');
   repaintPlay();
   startLabTimer();
@@ -1013,10 +1227,15 @@ function beginLab(home, away, approach, seed) {
 
 function applyLabDecision(run, optionId) {
   if (!run || run.decisionAt == null) return false;
-  const d = DECISIONS[run.decisionAt];
+  const d = run.decisionAt === 'ET' ? EXTRA_TIME_DECISION : DECISIONS[run.decisionAt];
   const opt = d.options.find((o) => o.id === optionId);
   if (!opt) return false;
   run.mods = { atk: run.mods.atk * opt.atk, def: run.mods.def * opt.def };
+  if (run.decisionAt === 'ET') {
+    run.phase = 'et-ready';
+    run.etPlan = opt.plan || optionId;
+    run.awayCompact = optionId === 'protect' ? 1.08 : 0.98;
+  }
   run.decided[run.decisionAt] = optionId;
   addLabEvent(run, 'decision', 'h', opt.label);
   run.paused = false; run.decisionAt = null;
@@ -1030,7 +1249,7 @@ function decideLab(optionId) {
   startLabTimer();
 }
 
-export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced', decisions = { 45: 'steady', 68: 'fresh' } } = {}) {
+export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced', decisions = { 45: 'steady', 68: 'fresh', ET: 'fresh' } } = {}) {
   createLabRun(home, away, approach, seed);
   const wasMuted = labMute;
   labMute = true;
@@ -1038,7 +1257,7 @@ export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced'
   try {
     while (labRun && !labRun.done && guard < 220) {
       if (labRun.paused && labRun.decisionAt != null) {
-        applyLabDecision(labRun, decisions[labRun.decisionAt] || 'steady');
+        applyLabDecision(labRun, decisions[labRun.decisionAt] || (labRun.decisionAt === 'ET' ? 'fresh' : 'steady'));
       } else {
         labTick();
       }
@@ -1052,10 +1271,15 @@ export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced'
     seed: r.seed,
     score: [r.gh, r.ga],
     pens: r.pens ? { ph: r.pens.ph, pa: r.pens.pa, kicks: r.pens.kicks.length } : null,
+    phase: r.phase,
+    extraStarted: !!r.extraStarted,
+    etPlan: r.etPlan || null,
+    minute: r.minute,
     players: { home: activeFormation('h', r).length, away: activeFormation('a', r).length },
     visualTrace: r.visualTrace,
     events: r.events.map((e) => ({
       min: e.min,
+      phase: e.phase || 'reg',
       type: e.type,
       side: e.side,
       text: e.text,
@@ -1063,6 +1287,7 @@ export function simulateLabForSeed(home, away, { seed = 1, approach = 'balanced'
       underReview: !!e.underReview,
       committed: !!e.committed,
       redRole: e.redRole || null,
+      kick: e.kick ? { ...e.kick } : null,
       visual: (e.visual || []).map((p) => [Number(p.x.toFixed(1)), Number(p.y.toFixed(1)), p.from || '', p.kind || '']),
     })),
   };
@@ -1111,8 +1336,9 @@ function labStory(run, facts) {
   }
   const decider = goals.length ? goals[goals.length - 1] : null;
   const bits = [];
-  if (run.pens) bits.push(`Level after 90 — settled ${run.pens.ph}–${run.pens.pa} on penalties.`);
-  else if (decider) bits.push(`The decisive goal came at ${minLabel(decider.min)}'.`);
+  if (run.pens) bits.push(`Level after extra time — settled ${run.pens.ph}–${run.pens.pa} on penalties.`);
+  else if (run.extraStarted) bits.push('Extra time found the winner before penalties.');
+  else if (decider) bits.push(`The decisive goal came at ${minLabel(decider.min, decider.phase)}'.`);
   else bits.push('A goalless siege from first whistle to last.');
   if (coached != null) bits.push(`Your ${coached}' call produced a goal inside fifteen minutes.`);
   else if (decisionMins.length && !facts.win) bits.push('The bench calls never quite landed tonight.');
@@ -1131,9 +1357,9 @@ function finishLab() {
     at: new Date().toISOString(),
     home: run.home, away: run.away, gh: run.gh, ga: run.ga,
     pens: run.pens, approach: run.approach, line: run.line,
-    cp, win: facts.win, upset: facts.upset, story: run.story,
+    cp, win: facts.win, upset: facts.upset, story: run.story, extraStarted: !!run.extraStarted,
     seed: run.seed,
-    events: run.events.slice(-18).map((e) => ({ min: e.min, type: e.type, side: e.side, text: e.text })),
+    events: run.events.slice(-18).map((e) => ({ min: e.min, phase: e.phase || 'reg', type: e.type, side: e.side, text: e.text })),
   };
   const nextPlay = { ...play, labHistory: [entry, ...(play.labHistory || [])].slice(0, 30) };
   setPlay(nextPlay);
@@ -1405,7 +1631,7 @@ export const ACHIEVEMENTS = [
     id: 'extra-time-merchant', icon: '⏱️', name: 'Extra Time Merchant',
     desc: 'Won three Match Lab games after the 90',
     earned: ({ play }) => (play.labHistory || [])
-      .filter((e) => e.pens && e.pens.ph > e.pens.pa).length >= 3,
+      .filter((e) => e.win && (e.extraStarted || e.pens)).length >= 3,
   },
   {
     id: 'road-builder', icon: '🛣️', name: 'Road Builder',
@@ -1471,7 +1697,7 @@ function labSetupHTML(play) {
   const featured = currentFeaturedShowdown(play);
   const home = featured.home;
   const away = featured.away;
-  const soundOn = play.labSound !== false;
+  const sound = labSoundButtonModel();
   return `<section class="play-card lab lab-lobby" aria-label="Match Lab">
     <div class="lab-showdown-label">
       <span>Tonight’s Showdown</span>
@@ -1506,7 +1732,7 @@ function labSetupHTML(play) {
     </div>
     <div class="lab-start-row">
       <button class="play-btn gold lab-kick" id="lab-kickoff">Start Showdown</button>
-      <button class="lab-sound" id="lab-sound" aria-pressed="${soundOn}" data-sound="${soundOn ? 'on' : 'off'}">${soundOn ? 'Sound On' : 'Sound Off'}</button>
+      <button class="lab-sound" id="lab-sound" aria-pressed="${sound.pressed}" data-sound="${sound.data}"${sound.disabled ? ' disabled' : ''}>${sound.label}</button>
     </div>
     ${last ? `<p class="lab-last">Last time: ${teamFlag(last.home)} ${last.gh}–${last.ga}${last.pens ? ' (' + last.pens.ph + '–' + last.pens.pa + 'p)' : ''} ${teamFlag(last.away)} · <span class="grug-line">${esc(last.line || '')}</span></p>` : ''}
   </section>`;
@@ -1515,6 +1741,7 @@ function labSetupHTML(play) {
 function labEventIcon(type) {
   return type === 'goal' ? '●'
     : type === 'pens' ? '◐'
+      : type === 'extra' || type === 'interval' ? 'ET'
       : type === 'var' || type === 'confirmed' || type === 'overturned' ? '◇'
       : type === 'decision' ? '▸'
         : type === 'whistle' ? '♪'
@@ -1527,11 +1754,36 @@ function labEventIcon(type) {
                   : '○';
 }
 
-/** 90+2 style stoppage-time minutes. */
-function minLabel(min) { return min > 90 ? '90+' + (min - 90) : String(min); }
+/** Regulation stoppage is 90+; extra time shows 91-120, then 120+. */
+function minLabel(min, phase = 'reg') {
+  const p = String(phase || 'reg');
+  if (p.startsWith('et') || p === 'pens') return min > 120 ? '120+' + (min - 120) : String(min);
+  return min > 90 ? '90+' + (min - 90) : String(min);
+}
 
 function labPossessionPct(run) {
   return run.minute ? Math.round(Math.max(28, Math.min(72, ((run.possAcc || run.minute / 2) / run.minute) * 100))) : 50;
+}
+
+function labClockHTML(run) {
+  if (run.done) return '<span class="lab-ft-stamp">FULL TIME</span>';
+  if (run.phase === 'pens') return '<span class="lab-ft-stamp">PENALTIES</span>';
+  if (run.phase === 'et-decision' || run.phase === 'et-ready') return '<span class="lab-ft-stamp">EXTRA TIME</span>';
+  return `${minLabel(run.minute, run.phase)}&prime;`;
+}
+
+function labPhaseBadge(run) {
+  if (run.phase === 'pens') return 'Penalty shootout';
+  if (run.phase === 'et-decision' || run.phase === 'et-ready' || run.phase === 'et1' || run.phase === 'et2') return 'Extra time';
+  return '';
+}
+
+function shootoutLabel(run) {
+  if (!run.pens && !run.shootout) return '';
+  const kick = run.currentKick;
+  const count = kick ? ` · ${kick.side === 'h' ? teamName(run.home) : teamName(run.away)} kick ${kick.n}` : '';
+  const score = run.pens ? `${run.pens.ph}–${run.pens.pa}` : '0–0';
+  return `Penalties ${score}${count}`;
 }
 
 function labPitchHTML(run) {
@@ -1559,33 +1811,36 @@ function labBannersHTML(goalLive, checking, redLive) {
 }
 
 function labFeedItemsHTML(run) {
-  return run.events.slice(-7).map((e) => `<li class="lab-ev ${e.type}"><span class="lab-ev-min">${minLabel(e.min)}&prime;</span><span class="lab-ev-ic">${labEventIcon(e.type)}</span>${esc(e.text)}</li>`).join('');
+  return run.events.slice(-7).map((e) => `<li class="lab-ev ${e.type}"><span class="lab-ev-min">${minLabel(e.min, e.phase)}&prime;</span><span class="lab-ev-ic">${labEventIcon(e.type)}</span>${esc(e.text)}</li>`).join('');
 }
 
 function labRunHTML(run) {
   const homeColor = TEAM_COLORS[run.home] || 'var(--gold)';
   const awayColor = TEAM_COLORS[run.away] || 'var(--gold)';
-  const decision = run.decisionAt != null ? DECISIONS[run.decisionAt] : null;
+  const decision = run.decisionAt === 'ET' ? EXTRA_TIME_DECISION
+    : run.decisionAt != null ? DECISIONS[run.decisionAt] : null;
   const moPct = ((run.mo + 1) / 2) * 100;
   const goalLive = !run.done && run.goalAt != null && run.minute - run.goalAt < 3;
   const last = run.events[run.events.length - 1] || null;
   const checking = last && last.type === 'var';
   const redLive = last && last.type === 'red' && run.minute - last.min < 4;
   const late = !run.done && run.minute >= 80 && Math.abs(run.gh - run.ga) <= 1;
-  const soundOn = getState().play.labSound !== false;
+  const sound = labSoundButtonModel();
+  const phaseBadge = labPhaseBadge(run);
   // stadium energy: tight late games and fresh goals raise the lights
   const closeness = 1 - Math.min(1, Math.abs(run.gh - run.ga) / 3);
   const energy = Math.min(1, 0.25 + (run.minute / 120) * 0.4 + closeness * 0.25 + (goalLive ? 0.35 : 0));
   return `<section class="play-card lab running${run.done ? ' done' : ''}${goalLive ? ' goal-live' : ''}${checking ? ' var-live' : ''}${late ? ' late-live' : ''}" aria-label="Match Lab simulation">
     <div class="lab-stage" style="--hc:${homeColor};--ac:${awayColor};--energy:${energy.toFixed(2)}">
       <div class="lab-banners" data-lab-banners>${labBannersHTML(goalLive, checking, redLive)}</div>
-      <div class="lab-clock" aria-live="polite">${run.done ? '<span class="lab-ft-stamp">FULL TIME</span>' : minLabel(run.minute) + '&prime;'}</div>
+      <div class="lab-clock" aria-live="polite">${labClockHTML(run)}</div>
+      ${phaseBadge ? `<div class="lab-phase-badge">${esc(phaseBadge)}</div>` : ''}
       <div class="lab-score-row">
         <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span></div>
         <div class="lab-score${goalLive ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score" data-v="${run.gh}-${run.ga}">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
         <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
       </div>
-      <div class="lab-pens" data-lab-pens${run.pens ? '' : ' hidden'}>${run.pens ? `Penalties ${run.pens.ph}–${run.pens.pa}` : ''}</div>
+      <div class="lab-pens" data-lab-pens${run.pens || run.shootout ? '' : ' hidden'}>${esc(shootoutLabel(run))}</div>
       <div class="lab-momentum" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
       <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.home))}</span><span>momentum</span><span>${esc(teamName(run.away))}</span></div>
       ${labPitchHTML(run)}
@@ -1593,7 +1848,7 @@ function labRunHTML(run) {
     ${!run.done ? `<div class="lab-pace" role="group" aria-label="Broadcast pace">
       ${LAB_PACE_OPTIONS.map(([p, label, short]) => `
         <button class="lab-pace-btn${labPace === p ? ' active' : ''}" data-pace="${p}" aria-label="${label}">${short}</button>`).join('')}
-      <button class="lab-sound" id="lab-sound" aria-pressed="${soundOn}" data-sound="${soundOn ? 'on' : 'off'}">${soundOn ? 'Sound On' : 'Sound Off'}</button>
+      <button class="lab-sound" id="lab-sound" aria-pressed="${sound.pressed}" data-sound="${sound.data}"${sound.disabled ? ' disabled' : ''}>${sound.label}</button>
     </div>` : ''}
     ${decision ? `<div class="lab-decision" role="group" aria-label="${esc(decision.prompt)}">
       <p class="lab-decision-prompt">${esc(decision.prompt)}</p>
@@ -1667,7 +1922,7 @@ function paintLab() {
 function updateLabDynamic(run) {
   const sc = director.scene;
   if (!sc) return;
-  if (sc.clock && !run.done) sc.clock.innerHTML = `${minLabel(run.minute)}&prime;`;
+  if (sc.clock && !run.done) sc.clock.innerHTML = labClockHTML(run);
   const scoreKey = `${run.gh}-${run.ga}`;
   if (sc.score && sc.score.dataset.v !== scoreKey) {
     sc.score.dataset.v = scoreKey;
@@ -1699,9 +1954,9 @@ function updateLabDynamic(run) {
     }
   }
   if (sc.pens) {
-    if (run.pens) {
+    if (run.pens || run.shootout) {
       sc.pens.hidden = false;
-      sc.pens.textContent = `Penalties ${run.pens.ph}–${run.pens.pa}`;
+      sc.pens.textContent = shootoutLabel(run);
     } else if (!sc.pens.hidden) {
       sc.pens.hidden = true;
       sc.pens.textContent = '';
@@ -1738,6 +1993,10 @@ function forceLabMoment(type) {
   run.done = false;
   run.visualQueue = [];
   run.visual = null;
+  run.shootout = null;
+  run.currentKick = null;
+  if (type !== 'pens' && type !== 'pens-red') run.pens = null;
+  if (type !== 'final') run.finalQueued = false;
   if (type === 'open') {
     run.minute = Math.max(12, run.minute || 12);
     addLabEvent(run, 'pass', 'h', eventText('pass', 'h', run.home, run));
@@ -1755,21 +2014,44 @@ function forceLabMoment(type) {
     run.minute = Math.max(67, run.minute || 67);
     addLabEvent(run, 'red', 'a', `RED CARD — ${teamName(run.away)} down to ten`, { actor: 'DM', redRole: 'DM' });
   } else if (type === 'pens') {
-    run.minute = 90;
+    run.minute = 120;
+    run.phase = 'pens';
     run.gh = 1;
     run.ga = 1;
     startPenaltyShootout(run, [
-      { side: 'h', n: 1, scored: true, ph: 1, pa: 0, dir: 'left' },
-      { side: 'a', n: 1, scored: true, ph: 1, pa: 1, dir: 'right' },
-      { side: 'h', n: 2, scored: true, ph: 2, pa: 1, dir: 'right' },
-      { side: 'a', n: 2, scored: false, ph: 2, pa: 1, dir: 'left' },
-      { side: 'h', n: 3, scored: false, ph: 2, pa: 1, dir: 'left' },
-      { side: 'a', n: 3, scored: true, ph: 2, pa: 2, dir: 'right' },
-      { side: 'h', n: 4, scored: true, ph: 3, pa: 2, dir: 'right' },
-      { side: 'a', n: 4, scored: true, ph: 3, pa: 3, dir: 'left' },
-      { side: 'h', n: 5, scored: true, ph: 4, pa: 3, dir: 'left' },
-      { side: 'a', n: 5, scored: false, ph: 4, pa: 3, dir: 'right' },
+      { side: 'h', n: 1, actor: 'ST', scored: true, outcome: 'goal', ph: 1, pa: 0, dir: 'left', hTaken: 1, aTaken: 0 },
+      { side: 'a', n: 1, actor: 'ST', scored: true, outcome: 'goal', ph: 1, pa: 1, dir: 'right', hTaken: 1, aTaken: 1 },
+      { side: 'h', n: 2, actor: 'LW', scored: true, outcome: 'goal', ph: 2, pa: 1, dir: 'right', hTaken: 2, aTaken: 1 },
+      { side: 'a', n: 2, actor: 'LW', scored: false, outcome: 'save', ph: 2, pa: 1, dir: 'left', hTaken: 2, aTaken: 2 },
+      { side: 'h', n: 3, actor: 'RW', scored: false, outcome: 'miss', ph: 2, pa: 1, dir: 'left', hTaken: 3, aTaken: 2 },
+      { side: 'a', n: 3, actor: 'RW', scored: true, outcome: 'goal', ph: 2, pa: 2, dir: 'right', hTaken: 3, aTaken: 3 },
+      { side: 'h', n: 4, actor: 'LM', scored: true, outcome: 'goal', ph: 3, pa: 2, dir: 'right', hTaken: 4, aTaken: 3 },
+      { side: 'a', n: 4, actor: 'LM', scored: true, outcome: 'goal', ph: 3, pa: 3, dir: 'left', hTaken: 4, aTaken: 4 },
+      { side: 'h', n: 5, actor: 'RM', scored: true, outcome: 'goal', ph: 4, pa: 3, dir: 'left', hTaken: 5, aTaken: 4 },
+      { side: 'a', n: 5, actor: 'DM', scored: false, outcome: 'save', ph: 4, pa: 3, dir: 'right', hTaken: 5, aTaken: 5 },
     ]);
+  } else if (type === 'pens-red') {
+    run.minute = 120;
+    run.phase = 'pens';
+    run.gh = 1;
+    run.ga = 1;
+    run.redA = true;
+    run.redRoleA = 'DM';
+    startPenaltyShootout(run, [
+      { side: 'h', n: 1, actor: 'ST', scored: true, outcome: 'goal', ph: 1, pa: 0, dir: 'left', hTaken: 1, aTaken: 0 },
+      { side: 'a', n: 1, actor: 'ST', scored: false, outcome: 'save', ph: 1, pa: 0, dir: 'right', hTaken: 1, aTaken: 1 },
+    ]);
+  } else if (type === 'extra') {
+    run.minute = 93;
+    run.gh = 1;
+    run.ga = 1;
+    enterExtraTime(run);
+  } else if (type === 'et-goal') {
+    run.minute = Math.max(111, run.minute || 111);
+    run.phase = 'et2';
+    run.extraStarted = true;
+    run.sh += 1;
+    addLabEvent(run, 'goal', 'h', `GOAL — ${teamName(run.home)} (${run.gh + 1}–${run.ga})`, { actor: 'ST', team: run.home, scoreDelta: true });
   } else if (type === 'final') {
     run.minute = Math.max(93, run.minute || 93);
     if (run.gh === run.ga) run.gh += 1;
@@ -1814,6 +2096,10 @@ function installLabDebug() {
         ball: labRun.ball,
         visualTrace: labRun.visualTrace,
         shootout: labRun.pens ? { ph: labRun.pens.ph, pa: labRun.pens.pa, kicks: labRun.pens.kicks.length } : null,
+        currentKick: labRun.currentKick || null,
+        phase: labRun.phase,
+        extraStarted: !!labRun.extraStarted,
+        audio: labAudioDiagnostic(),
         events: labRun.events.slice(-8).map((e) => e.type),
         pace: labPace,
         activeMajor: !!labRun.visual && isLabMajorMoment(labRun.visual.event),
@@ -1827,6 +2113,9 @@ function installLabDebug() {
     pace(p) {
       setLabPace(p);
       return labPace;
+    },
+    audio() {
+      return labAudioDiagnostic();
     },
   };
 }
@@ -2139,10 +2428,16 @@ function wireLab(outlet) {
   const sound = outlet.querySelector('#lab-sound');
   if (sound) {
     sound.addEventListener('click', () => {
-      const on = sound.dataset.sound !== 'on';
-      persistLabSound(on);
-      if (on) { unlockAudio(); labSound('kickoff'); }
-      repaintPlay();
+      const state = sound.dataset.sound;
+      if (state === 'unavailable') return;
+      if (state === 'on') {
+        persistLabSound(false);
+        updateAudioButtons();
+        return;
+      }
+      persistLabSound(true);
+      unlockAudioFromGesture();
+      updateAudioButtons();
     });
   }
   outlet.querySelectorAll('[data-decide]').forEach((b) => {
