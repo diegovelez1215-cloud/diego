@@ -119,7 +119,73 @@ const FEATURED_POOL = [
   ['GER', 'NED'], ['MAR', 'SEN'], ['JPN', 'KOR'], ['COL', 'URU'],
   ['SUI', 'CRO'], ['CAN', 'USA'], ['BRA', 'ARG'], ['ENG', 'NED'],
 ];
-const LAB_SEQUENCE_MS = { normal: 1150, fast: 460, key: 700 };
+const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'pens', 'final']);
+const LAB_PACE_OPTIONS = [
+  ['normal', 'Normal', 'Normal'],
+  ['fast', 'Turbo', 'Turbo'],
+  ['key', 'Key moments', 'Key'],
+];
+export const LAB_PACE_CONTRACT = {
+  normal: { label: 'Normal', beatMs: 220, ticks: 1, targetMs: [25000, 40000] },
+  fast: { label: 'Turbo', beatMs: 115, ticks: 2, targetMs: [10000, 18000] },
+  key: { label: 'Key Moments', beatMs: 55, ticks: 12, targetMs: [4500, 14000] },
+};
+const LAB_EVENT_MS = {
+  quiet: { normal: 90, fast: 55, key: 0 },
+  open: { normal: 240, fast: 150, key: 0 },
+  whistle: { normal: 180, fast: 140, key: 120 },
+  shot: { normal: 360, fast: 230, key: 210 },
+  chance: { normal: 360, fast: 220, key: 180 },
+  corner: { normal: 340, fast: 210, key: 170 },
+  free: { normal: 380, fast: 240, key: 220 },
+  save: { normal: 620, fast: 520, key: 500 },
+  goal: { normal: 820, fast: 720, key: 700 },
+  var: { normal: 860, fast: 760, key: 740 },
+  confirmed: { normal: 620, fast: 540, key: 520 },
+  overturned: { normal: 620, fast: 540, key: 520 },
+  card: { normal: 560, fast: 480, key: 460 },
+  red: { normal: 680, fast: 580, key: 560 },
+  pens: { normal: 680, fast: 580, key: 560 },
+  final: { normal: 900, fast: 780, key: 760 },
+  decision: { normal: 220, fast: 160, key: 140 },
+  sub: { normal: 220, fast: 160, key: 0 },
+  board: { normal: 240, fast: 170, key: 0 },
+};
+
+function normalizeLabPace(p) {
+  return p === 'fast' || p === 'turbo' ? 'fast' : p === 'key' ? 'key' : 'normal';
+}
+
+export function isLabMajorMoment(eventOrType) {
+  const type = typeof eventOrType === 'string' ? eventOrType : eventOrType?.type;
+  return LAB_MAJOR_TYPES.has(type);
+}
+
+export function labVisualDuration(eventOrType, pace = 'normal') {
+  const p = normalizeLabPace(pace);
+  const type = typeof eventOrType === 'string' ? eventOrType : eventOrType?.type;
+  const bucket = POSSESSION_TYPES.includes(type) ? LAB_EVENT_MS.open : LAB_EVENT_MS[type] || LAB_EVENT_MS.open;
+  return bucket[p] ?? bucket.normal;
+}
+
+export function estimateLabPlaybackMs(events = [], pace = 'normal', {
+  minutes = 90,
+  excludeDecisionPauses = true,
+  excludeExtraTime = true,
+} = {}) {
+  const p = normalizeLabPace(pace);
+  const cfg = LAB_PACE_CONTRACT[p] || LAB_PACE_CONTRACT.normal;
+  const baseMinutes = excludeExtraTime ? Math.min(90, minutes) : minutes;
+  let ms = Math.ceil(baseMinutes / cfg.ticks) * cfg.beatMs;
+  for (const event of events) {
+    if (!event) continue;
+    if (excludeDecisionPauses && event.type === 'decision') continue;
+    if (excludeExtraTime && event.min > 90 && event.type !== 'final') continue;
+    const dur = labVisualDuration(event, p);
+    if (dur > 0) ms += dur;
+  }
+  return ms;
+}
 
 function hashSeed(text) {
   let h = 2166136261;
@@ -244,6 +310,7 @@ function labVisualForEvent(run, event) {
   if (event.type === 'confirmed') return [goalPoint(side, 'goal'), goalPoint(side, 'goal')];
   if (event.type === 'overturned') return [goalPoint(side, 'var'), keeperPoint(run, side, 'save')];
   if (event.type === 'pens') return [playerPoint(run, side, 'ST', 'penalty'), { x: 50, y: 50, side, from: 'spot', kind: 'penalty' }, event.scored ? goalPoint(side, 'goal') : keeperPoint(run, side, 'save')];
+  if (event.type === 'final') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'final' }];
   return [playerPoint(run, side, actor, event.type || 'possession')];
 }
 
@@ -259,18 +326,15 @@ function setBallPoint(run, point) {
   run.visualTrace = (run.visualTrace || []).concat([{ x: +run.ball.x.toFixed(1), y: +run.ball.y.toFixed(1), side: run.ball.side, from: run.ball.from, kind: run.ball.kind }]).slice(-32);
 }
 
-/* Quiet minutes still play football: every minute without a feed event runs a
-   3–6 touch possession chain across distinct role markers, so the ball keeps
-   travelling between the moments that matter. Key Moments pace skips the
-   animation but still records the same deterministic chain. */
+/* Quiet minutes still play football: every minute without a feed event moves
+   the live ball target across a compact possession chain. It does not enqueue
+   a blocking broadcast sequence, so the clock can sprint while the director
+   keeps easing the ball naturally toward fresh targets. */
 function queueLabFlow(run, side, kind = 'possession') {
   const type = kind === 'pass' ? 'possession' : kind;
   const flow = { type, side, silent: true, visual: possessionPath(run, side, type) };
-  if (canAnimateLab() && labPace === 'key') {
-    for (const point of flow.visual) setBallPoint(run, point);
-    return;
-  }
-  queueLabVisual(run, flow);
+  for (const point of flow.visual) setBallPoint(run, point);
+  if (canAnimateLab()) startDirector();
 }
 
 function eventText(type, side, team, run) {
@@ -450,14 +514,18 @@ function directorFrame(ts) {
       event: next,
       points,
       started: ts,
-      duration: (LAB_SEQUENCE_MS[labPace] || LAB_SEQUENCE_MS.normal) * (next.silent ? 0.75 : 1),
+      duration: labVisualDuration(next, labPace),
     };
   }
   let ballTarget;
   let segKind;
   let holder = null;
+  let visualDriving = false;
+  let visualEvent = null;
   if (run.visual) {
+    visualDriving = true;
     const v = run.visual;
+    visualEvent = v.event;
     const total = Math.max(1, v.points.length - 1);
     const t = Math.min(1, (ts - v.started) / v.duration);
     const eased = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
@@ -473,6 +541,10 @@ function directorFrame(ts) {
       run.visual = null;
       setBallPoint(run, v.points[v.points.length - 1]);
       commitLabVisual(run, v.event);
+      if (run.paceRestartPending) {
+        run.paceRestartPending = false;
+        startLabTimer({ drainDirector: false });
+      }
       paintLab(); // one targeted update per completed sequence — never per frame
       if (!labRun || labRun !== run) { director.raf = 0; return; }
     }
@@ -485,8 +557,9 @@ function directorFrame(ts) {
   }
   // 2) ease the visible ball toward its target — smooth travel, never a jump
   const bp = director.ballPos;
-  bp.x += (ballTarget.x - bp.x) * 0.32;
-  bp.y += (ballTarget.y - bp.y) * 0.32;
+  const ballEase = visualDriving ? (isLabMajorMoment(visualEvent) ? 0.32 : 0.12) : 0.055;
+  bp.x += (ballTarget.x - bp.x) * ballEase;
+  bp.y += (ballTarget.y - bp.y) * ballEase;
   const ballEl = director.scene && director.scene.ball;
   if (ballEl) {
     ballEl.style.left = `${bp.x.toFixed(2)}%`;
@@ -521,6 +594,8 @@ function applyScoreDelta(run, side) {
 function commitLabVisual(run, event) {
   if (!run || !event || event.committed) return;
   event.committed = true;
+  if (event.type === 'shot') labSound('shot');
+  if (event.type === 'save') labSound('save');
   if (event.type === 'goal' && event.scoreDelta && !event.underReview) {
     applyScoreDelta(run, event.side);
     run.goalAt = run.minute;
@@ -554,17 +629,28 @@ function commitLabVisual(run, event) {
       scoreDelta: type === 'confirmed',
       visual: true,
     });
+    labSound(type === 'confirmed' ? 'var-confirmed' : 'var-overturned');
   }
   if (event.type === 'confirmed') labSound('goal');
+  if (event.type === 'pens') labSound(event.scored ? 'pen-goal' : 'pen-save');
+  if (event.type === 'final') completeLabRun(run);
 }
 
 function completeLabRun(run) {
   if (!run || run.done) return;
+  clearInterval(labTimer);
+  labTimer = null;
   run.done = true;
   run.line = grugLine(run.rng);
   finishLab();
-  labSound('final');
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:high-attention-end'));
+}
+
+function requestLabComplete(run) {
+  if (!run || run.done || run.finalQueued) return;
+  run.finalQueued = true;
+  addLabEvent(run, 'final', 'h', 'Full-time whistle.');
+  labSound('final');
 }
 
 function buildPenaltyKicks(run) {
@@ -592,7 +678,7 @@ function queueNextPenalty(run) {
   const kick = run.shootout.kicks[run.shootout.index++];
   if (!kick) {
     run.shootout = null;
-    completeLabRun(run);
+    requestLabComplete(run);
     return;
   }
   addLabEvent(run, 'pens', kick.side, `${teamName(kick.side === 'h' ? run.home : run.away)} penalty ${kick.scored ? 'scores' : 'saved'} (${kick.ph}–${kick.pa})`, {
@@ -607,10 +693,11 @@ let labRun = null; // { home, away, seed, rng, minute, gh, ga, events, momentum,
 let labTimer = null;
 // Broadcast pace: how fast simulated minutes pass. 'key' sprints between the
 // moments that matter and breathes on them. Never persisted; UI-only.
-let labPace = 'normal'; // normal | fast | key
+let labPace = 'normal'; // normal | fast(Turbo) | key
 let labMute = false;    // true while a beat batches ticks — paint once per beat
-const PACE_TICKS = { normal: 1, fast: 3 };
 let audioCtx = null;
+let audioUnlocked = false;
+const audioNodes = new Set();
 
 function soundEnabled() {
   return getState().play.labSound !== false;
@@ -621,10 +708,11 @@ function persistLabSound(on) {
   const nextPlay = { ...play, labSound: !!on };
   setPlay(nextPlay);
   savePlay(nextPlay);
+  if (!on) silenceAudio();
 }
 
 function ensureAudio() {
-  if (!soundEnabled() || typeof window === 'undefined') return null;
+  if (!audioUnlocked || !soundEnabled() || typeof window === 'undefined') return null;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return null;
   if (!audioCtx) audioCtx = new Ctx();
@@ -632,51 +720,84 @@ function ensureAudio() {
   return audioCtx;
 }
 
-function tone(freq, dur = 0.12, gain = 0.04, type = 'sine', delay = 0) {
+function unlockAudio() {
+  audioUnlocked = true;
+  return ensureAudio();
+}
+
+function trackAudioNode(node) {
+  if (!node) return node;
+  audioNodes.add(node);
+  return node;
+}
+
+function silenceAudio() {
+  for (const node of audioNodes) {
+    try { node.stop(0); } catch (_) {}
+  }
+  audioNodes.clear();
+}
+
+function tone(freq, dur = 0.12, gain = 0.04, type = 'sine', delay = 0, sweepTo = null) {
   const ctx = ensureAudio();
   if (!ctx) return;
   const start = ctx.currentTime + delay;
-  const osc = ctx.createOscillator();
+  const osc = trackAudioNode(ctx.createOscillator());
   const amp = ctx.createGain();
   osc.type = type;
   osc.frequency.setValueAtTime(freq, start);
+  if (sweepTo && osc.frequency.exponentialRampToValueAtTime) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, sweepTo), start + dur * 0.85);
+  }
   amp.gain.setValueAtTime(0.0001, start);
   amp.gain.exponentialRampToValueAtTime(gain, start + 0.018);
   amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
   osc.connect(amp).connect(ctx.destination);
   osc.start(start);
   osc.stop(start + dur + 0.02);
+  setTimeout(() => audioNodes.delete(osc), Math.ceil((delay + dur + 0.08) * 1000));
 }
 
-function crowdSwell(level = 0.05, dur = 0.7) {
+function noiseBurst(level = 0.05, dur = 0.45, delay = 0, cutoff = 620) {
   const ctx = ensureAudio();
   if (!ctx) return;
-  const start = ctx.currentTime;
-  const src = ctx.createBufferSource();
+  const start = ctx.currentTime + delay;
+  const src = trackAudioNode(ctx.createBufferSource());
   const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = 560;
+  filter.frequency.value = cutoff;
   const amp = ctx.createGain();
   amp.gain.setValueAtTime(0.0001, start);
-  amp.gain.linearRampToValueAtTime(level, start + 0.15);
+  amp.gain.linearRampToValueAtTime(level, start + Math.min(0.12, dur * 0.35));
   amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
   src.buffer = buffer;
   src.connect(filter).connect(amp).connect(ctx.destination);
   src.start(start);
   src.stop(start + dur);
+  setTimeout(() => audioNodes.delete(src), Math.ceil((delay + dur + 0.08) * 1000));
+}
+
+function chord(notes, dur = 0.18, gain = 0.028, type = 'triangle', delay = 0) {
+  notes.forEach((n, i) => tone(n, dur + i * 0.035, gain * (1 - i * 0.12), type, delay + i * 0.045));
 }
 
 function labSound(kind) {
   if (!soundEnabled()) return;
-  if (kind === 'kickoff') { tone(740, 0.08, 0.035); tone(980, 0.08, 0.03, 'sine', 0.1); }
-  else if (kind === 'goal') { crowdSwell(0.07, 1.1); tone(523, 0.16, 0.04, 'triangle'); tone(784, 0.22, 0.035, 'triangle', 0.14); tone(1046, 0.32, 0.03, 'triangle', 0.34); }
-  else if (kind === 'ref') { tone(1180, 0.09, 0.04); tone(1180, 0.09, 0.04, 'sine', 0.13); }
-  else if (kind === 'var') { tone(220, 0.18, 0.035, 'sawtooth'); tone(330, 0.12, 0.025, 'sine', 0.18); }
-  else if (kind === 'pen') { tone(392, 0.12, 0.03, 'triangle'); tone(262, 0.18, 0.025, 'triangle', 0.18); }
-  else if (kind === 'final') { tone(880, 0.08, 0.035); tone(660, 0.08, 0.035, 'sine', 0.12); tone(440, 0.18, 0.03, 'sine', 0.25); }
+  if (kind === 'kickoff') { tone(720, 0.09, 0.035, 'square', 0, 980); tone(1180, 0.1, 0.028, 'sine', 0.11, 760); noiseBurst(0.018, 0.18, 0, 900); }
+  else if (kind === 'shot') { tone(180, 0.11, 0.026, 'sawtooth', 0, 330); tone(540, 0.08, 0.018, 'triangle', 0.08, 760); }
+  else if (kind === 'save') { noiseBurst(0.042, 0.24, 0, 720); tone(260, 0.13, 0.028, 'triangle', 0.06, 180); tone(620, 0.08, 0.018, 'sine', 0.2); }
+  else if (kind === 'goal') { noiseBurst(0.075, 0.95, 0, 760); chord([392, 523, 784, 1046], 0.24, 0.036, 'triangle', 0.03); tone(1568, 0.16, 0.018, 'sine', 0.38); }
+  else if (kind === 'ref') { tone(1280, 0.1, 0.038, 'square'); tone(1320, 0.1, 0.034, 'square', 0.13); noiseBurst(0.018, 0.12, 0.03, 1500); }
+  else if (kind === 'var') { tone(196, 0.34, 0.03, 'sawtooth', 0, 247); tone(294, 0.28, 0.022, 'sine', 0.2, 220); noiseBurst(0.02, 0.38, 0.06, 420); }
+  else if (kind === 'var-confirmed') { chord([330, 494, 660], 0.16, 0.026, 'triangle'); }
+  else if (kind === 'var-overturned') { tone(330, 0.16, 0.028, 'triangle', 0, 220); tone(165, 0.22, 0.02, 'sine', 0.17); }
+  else if (kind === 'pen') { tone(220, 0.22, 0.026, 'triangle'); tone(330, 0.18, 0.02, 'sine', 0.22); }
+  else if (kind === 'pen-goal') { chord([440, 660, 880], 0.18, 0.03, 'triangle'); noiseBurst(0.04, 0.4, 0.04, 820); }
+  else if (kind === 'pen-save') { noiseBurst(0.05, 0.24, 0, 640); tone(196, 0.18, 0.028, 'triangle', 0.08, 140); }
+  else if (kind === 'final') { tone(980, 0.12, 0.036, 'square'); tone(740, 0.12, 0.032, 'square', 0.16); tone(523, 0.28, 0.03, 'triangle', 0.34); noiseBurst(0.036, 0.55, 0.22, 620); }
 }
 
 function labChanceRates(run) {
@@ -725,7 +846,7 @@ function labTick() {
   run.mo = Math.max(-1, Math.min(1, (run.mo || 0) * 0.9 + swing + (rates.h - rates.aRate) * 6));
   const possSide = rng() < 0.5 + (run.mo || 0) * 0.24 ? 'h' : 'a';
   const possKind = POSSESSION_TYPES[Math.floor(rng() * POSSESSION_TYPES.length)];
-  if (run.minute % 7 === 0 && rng() < 0.58) {
+  if (labPace !== 'key' && run.minute % 7 === 0 && rng() < 0.58) {
     addLabEvent(run, possKind, possSide, eventText(possKind, possSide, possSide === 'h' ? run.home : run.away, run));
   } else {
     queueLabFlow(run, possSide, possKind);
@@ -810,36 +931,42 @@ function labTick() {
       labSound('pen');
       return;
     }
-    completeLabRun(run);
+    requestLabComplete(run);
   }
   if (!labMute) paintLab();
   if (run.paused || run.done) stopLabTimer();
 }
 
-function stopLabTimer() { clearInterval(labTimer); labTimer = null; stopDirector({ drain: true }); }
+function stopLabTimer({ drainDirector = true } = {}) {
+  clearInterval(labTimer);
+  labTimer = null;
+  if (drainDirector) stopDirector({ drain: true });
+}
 
-function startLabTimer() {
-  stopLabTimer();
+function startLabTimer({ drainDirector = true } = {}) {
+  stopLabTimer({ drainDirector });
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { while (labRun && !labRun.done && !labRun.paused) labTick(); return; }
-  const ms = labPace === 'fast' ? 360 : labPace === 'key' ? 170 : 820;
+  const ms = (LAB_PACE_CONTRACT[labPace] || LAB_PACE_CONTRACT.normal).beatMs;
   labTimer = setInterval(labBeat, ms);
 }
 
-/* One broadcast beat. Normal = a minute per beat; Fast = three; Key Moments
-   sprints quietly between events and lets each moment land on screen. */
+/* One broadcast beat. Normal walks minute-by-minute; Turbo advances compactly;
+   Key Moments sprints quietly between events and lets each moment land on screen. */
 function labBeat() {
   const run = labRun;
   if (!run || run.paused || run.done) return;
   if (labPace === 'key') {
     const before = run.events.length;
+    const ticks = (LAB_PACE_CONTRACT[labPace] || LAB_PACE_CONTRACT.key).ticks;
     let guard = 0;
     do { labTick(); guard++; } while (
       labRun && !labRun.done && !labRun.paused
       && !labRun.visual && !labRun.visualQueue?.length
-      && labRun.events.length === before && guard < 15);
+      && labRun.events.length === before && guard < ticks);
   } else {
-    for (let i = 0; i < (PACE_TICKS[labPace] || 1); i++) {
+    const ticks = (LAB_PACE_CONTRACT[labPace] || LAB_PACE_CONTRACT.normal).ticks;
+    for (let i = 0; i < ticks; i++) {
       if (!labRun || labRun.done || labRun.paused || labRun.visual || labRun.visualQueue?.length) break;
       labTick();
     }
@@ -848,12 +975,20 @@ function labBeat() {
 }
 
 function setLabPace(p) {
-  labPace = p === 'fast' || p === 'key' ? p : 'normal';
+  labPace = normalizeLabPace(p);
   const card = document.querySelector('.play-view .lab.running');
   if (card) {
     card.querySelectorAll('[data-pace]').forEach((b) => b.classList.toggle('active', b.dataset.pace === labPace));
   }
-  if (labRun && !labRun.done && !labRun.paused && !labRun.visual) startLabTimer();
+  if (labRun && !labRun.done && !labRun.paused) {
+    if (labRun.visual && !isLabMajorMoment(labRun.visual.event)) {
+      startLabTimer({ drainDirector: false });
+    } else if (!labRun.visual && !labRun.visualQueue?.length) {
+      startLabTimer();
+    } else {
+      labRun.paceRestartPending = true;
+    }
+  }
 }
 
 function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 2147483647) | 1) {
@@ -870,7 +1005,7 @@ function createLabRun(home, away, approach = 'balanced', seed = (Date.now() % 21
 function beginLab(home, away, approach, seed) {
   createLabRun(home, away, approach, seed);
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('u26:high-attention-start'));
-  ensureAudio();
+  unlockAudio();
   labSound('kickoff');
   repaintPlay();
   startLabTimer();
@@ -1456,7 +1591,7 @@ function labRunHTML(run) {
       ${labPitchHTML(run)}
     </div>
     ${!run.done ? `<div class="lab-pace" role="group" aria-label="Broadcast pace">
-      ${[['normal', 'Normal', 'Normal'], ['fast', 'Fast', 'Fast'], ['key', 'Key moments', 'Key']].map(([p, label, short]) => `
+      ${LAB_PACE_OPTIONS.map(([p, label, short]) => `
         <button class="lab-pace-btn${labPace === p ? ' active' : ''}" data-pace="${p}" aria-label="${label}">${short}</button>`).join('')}
       <button class="lab-sound" id="lab-sound" aria-pressed="${soundOn}" data-sound="${soundOn ? 'on' : 'off'}">${soundOn ? 'Sound On' : 'Sound Off'}</button>
     </div>` : ''}
@@ -1644,7 +1779,7 @@ function forceLabMoment(type) {
       addLabEvent(run, 'whistle', 'h', 'Kick off.');
       labMute = wasMuted;
     }
-    completeLabRun(run);
+    requestLabComplete(run);
   }
   paintLab();
   return {
@@ -1680,7 +1815,18 @@ function installLabDebug() {
         visualTrace: labRun.visualTrace,
         shootout: labRun.pens ? { ph: labRun.pens.ph, pa: labRun.pens.pa, kicks: labRun.pens.kicks.length } : null,
         events: labRun.events.slice(-8).map((e) => e.type),
+        pace: labPace,
+        activeMajor: !!labRun.visual && isLabMajorMoment(labRun.visual.event),
+        timingMs: {
+          normal: estimateLabPlaybackMs(labRun.events, 'normal'),
+          turbo: estimateLabPlaybackMs(labRun.events, 'fast'),
+          key: estimateLabPlaybackMs(labRun.events, 'key'),
+        },
       };
+    },
+    pace(p) {
+      setLabPace(p);
+      return labPace;
     },
   };
 }
@@ -1995,7 +2141,7 @@ function wireLab(outlet) {
     sound.addEventListener('click', () => {
       const on = sound.dataset.sound !== 'on';
       persistLabSound(on);
-      if (on) { ensureAudio(); labSound('kickoff'); }
+      if (on) { unlockAudio(); labSound('kickoff'); }
       repaintPlay();
     });
   }

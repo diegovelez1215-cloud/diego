@@ -10,12 +10,14 @@ test.describe('Match Lab', () => {
   test('renders synchronized ball movement, scoring, VAR, red cards, penalties, and muted sound', async ({ page }) => {
     await page.addInitScript(() => {
       window.__audioContexts = 0;
+      window.__audioStarts = 0;
+      window.__audioStops = 0;
       class MockAudioContext {
         constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'running'; }
         resume() { return Promise.resolve(); }
-        createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {} }, connect() { return this; }, start() {}, stop() {} }; }
+        createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, start() { window.__audioStarts++; }, stop() { window.__audioStops++; } }; }
         createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
-        createBufferSource() { return { connect() { return this; }, start() {}, stop() {}, set buffer(_) {} }; }
+        createBufferSource() { return { connect() { return this; }, start() { window.__audioStarts++; }, stop() { window.__audioStops++; }, set buffer(_) {} }; }
         createBuffer(_channels, length) { return { getChannelData() { return new Float32Array(length); } }; }
         createBiquadFilter() { return { type: 'lowpass', frequency: { value: 0 }, connect() { return this; } }; }
       }
@@ -38,8 +40,15 @@ test.describe('Match Lab', () => {
     await page.waitForTimeout(420);
     const ballB = await page.locator('[data-ball]').getAttribute('style');
     expect(ballB).not.toBe(ballA);
+    await page.locator('[data-pace="fast"]').click();
+    await expect(page.locator('[data-pace="fast"]')).toHaveClass(/active/);
+    expect(await page.evaluate(() => window.__u26LabDebug.snapshot().pace)).toBe('fast');
 
     await page.evaluate(() => window.__u26LabDebug.force('goal'));
+    await expect(page.locator('#lab-score')).toContainText('0–0');
+    await page.locator('[data-pace="key"]').click();
+    await expect(page.locator('[data-pace="key"]')).toHaveClass(/active/);
+    await expect.poll(() => page.evaluate(() => window.__u26LabDebug.snapshot().activeMajor)).toBe(true);
     await expect(page.locator('#lab-score')).toContainText('0–0');
     await page.waitForTimeout(1500);
     await expect(page.locator('#lab-score')).toContainText('1–0');
@@ -67,6 +76,40 @@ test.describe('Match Lab', () => {
     await expect(page.locator('.lab-pens')).toContainText(/1–0|1–1/);
   });
 
+  test('sound unlocks only from user action and mute prevents new audio', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__audioContexts = 0;
+      window.__audioStarts = 0;
+      class MockAudioContext {
+        constructor() { window.__audioContexts++; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; this.state = 'running'; }
+        resume() { return Promise.resolve(); }
+        createOscillator() { return { type: 'sine', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() { return this; }, start() { window.__audioStarts++; }, stop() {} }; }
+        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() { return this; } }; }
+        createBufferSource() { return { connect() { return this; }, start() { window.__audioStarts++; }, stop() {}, set buffer(_) {} }; }
+        createBuffer(_channels, length) { return { getChannelData() { return new Float32Array(length); } }; }
+        createBiquadFilter() { return { type: 'lowpass', frequency: { value: 0 }, connect() { return this; } }; }
+      }
+      window.AudioContext = MockAudioContext;
+      window.webkitAudioContext = MockAudioContext;
+    });
+    await gotoApp(page);
+    await openPlayMode(page, 'lab');
+    expect(await page.evaluate(() => window.__audioContexts)).toBe(0);
+    await page.locator('#lab-sound').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
+    await page.locator('#lab-sound').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'on');
+    expect(await page.evaluate(() => window.__audioContexts)).toBe(1);
+    expect(await page.evaluate(() => window.__audioStarts)).toBeGreaterThan(0);
+    await page.locator('#lab-kickoff').click();
+    await page.locator('#lab-sound').click();
+    await expect(page.locator('#lab-sound')).toHaveAttribute('data-sound', 'off');
+    const before = await page.evaluate(() => window.__audioStarts);
+    await page.evaluate(() => window.__u26LabDebug.force('goal'));
+    await page.waitForTimeout(900);
+    expect(await page.evaluate(() => window.__audioStarts)).toBe(before);
+  });
+
   test('the pitch scene persists across beats and the ball keeps moving in open play', async ({ page }) => {
     await gotoApp(page);
     await openPlayMode(page, 'lab');
@@ -80,6 +123,17 @@ test.describe('Match Lab', () => {
       await page.waitForTimeout(650);
     }
     expect(new Set(positions).size, 'ball position changes between samples').toBeGreaterThan(1);
+    await page.locator('[data-pace="fast"]').click();
+    const samples = [];
+    for (let i = 0; i < 5; i++) {
+      samples.push(await page.locator('[data-ball]').evaluate((el) => ({
+        x: parseFloat(el.style.left),
+        y: parseFloat(el.style.top),
+      })));
+      await page.waitForTimeout(100);
+    }
+    const jumps = samples.slice(1).map((p, i) => Math.hypot(p.x - samples[i].x, p.y - samples[i].y));
+    expect(Math.max(...jumps), 'Turbo open play stays eased, not teleported').toBeLessThan(35);
     await expect(page.locator('.lab-pitch[data-persist="scene"]'), 'pitch DOM persisted — no full rerender').toHaveCount(1);
     const playerA = await page.locator('.pitch-player').first().evaluate((el) => `${el.style.left}|${el.style.top}`);
     await page.waitForTimeout(700);

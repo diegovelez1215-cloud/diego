@@ -6,7 +6,16 @@ import assert from 'node:assert/strict';
 import { buildOverlay } from '../src/core/provider-overlay.js';
 import { getState, setOverlay, setPlay } from '../src/core/app-state.js';
 import {
-  activeFormation, featuredShowdownForDate, gradePredictions, playNextRound, simulateLabForSeed, simulateMatch,
+  LAB_PACE_CONTRACT,
+  activeFormation,
+  estimateLabPlaybackMs,
+  featuredShowdownForDate,
+  gradePredictions,
+  isLabMajorMoment,
+  labVisualDuration,
+  playNextRound,
+  simulateLabForSeed,
+  simulateMatch,
 } from '../src/views/play.js';
 import { fullResultsPayload, OK } from './mock-provider.mjs';
 
@@ -84,6 +93,29 @@ test('Match Lab replay is deterministic from the seed', () => {
   assert.deepEqual(a.events.map((e) => [e.min, e.type, e.side]), b.events.map((e) => [e.min, e.type, e.side]));
 });
 
+test('Match Lab pace contract hits mobile arcade duration targets', () => {
+  const r = lab(260626);
+  const normal = estimateLabPlaybackMs(r.events, 'normal');
+  const turbo = estimateLabPlaybackMs(r.events, 'fast');
+  const key = estimateLabPlaybackMs(r.events, 'key');
+  assert.ok(normal >= LAB_PACE_CONTRACT.normal.targetMs[0] && normal <= LAB_PACE_CONTRACT.normal.targetMs[1], `normal ${normal}ms is inside target`);
+  assert.ok(turbo >= LAB_PACE_CONTRACT.fast.targetMs[0] && turbo <= LAB_PACE_CONTRACT.fast.targetMs[1], `turbo ${turbo}ms is inside target`);
+  assert.ok(key <= LAB_PACE_CONTRACT.key.targetMs[1], `key moments ${key}ms stays aggressive`);
+  assert.ok(key < turbo && turbo < normal, 'paced modes get progressively faster');
+});
+
+test('major Match Lab moments keep readable fixed minimum durations at every pace', () => {
+  for (const type of ['goal', 'save', 'var', 'card', 'red', 'pens', 'final']) {
+    assert.equal(isLabMajorMoment(type), true, `${type} is major`);
+    assert.ok(labVisualDuration(type, 'normal') >= 560, `${type} normal duration is readable`);
+    assert.ok(labVisualDuration(type, 'fast') >= 480, `${type} turbo duration is readable`);
+    assert.ok(labVisualDuration(type, 'key') >= 460, `${type} key duration is readable`);
+  }
+  for (const type of ['possession', 'pass', 'carry', 'transition', 'pressure', 'sub', 'board']) {
+    assert.ok(labVisualDuration(type, 'key') <= 120, `${type} is compressed in key moments`);
+  }
+});
+
 test('Match Lab records meaningful possession vocabulary and starts with 22 players', () => {
   const r = lab(260626);
   assert.equal(r.players.home, 11);
@@ -152,6 +184,7 @@ test('open play keeps the ball travelling through distinct waypoints and role ma
   assert.ok(distinctPoints.size >= 4, 'ball travels through at least four distinct waypoints');
   const roles = new Set(trace.map((p) => p.from));
   assert.ok(roles.size >= 3, 'quiet possession chains touch distinct players');
+  assert.ok(trace.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)), 'compressed possession never records a missing waypoint');
 });
 
 test('players react to possession: momentum pushes the attacking shape forward', () => {
@@ -176,6 +209,22 @@ test('the score changes only after a completed goal sequence that reaches the go
   assert.deepEqual(r.score, [h, a], 'the scoreboard equals exactly the committed goals');
   const goal = r.events.find((e) => e.type === 'goal' && !e.underReview);
   assert.equal(goal.visual[goal.visual.length - 1][3], 'goal', 'the goal sequence ends at the goal mouth');
+});
+
+test('major moments are never cut off before their commit', () => {
+  const samples = [
+    findLab((x) => x.events.some((e) => e.type === 'goal' && !e.underReview), 2000).result,
+    findLab((x) => x.events.some((e) => e.type === 'save'), 2000).result,
+    findLab((x) => x.events.some((e) => e.type === 'var'), 2000).result,
+    findLab((x) => x.events.some((e) => e.type === 'red'), 2000).result,
+    findLab((x) => x.pens, 4000).result,
+  ];
+  for (const r of samples) {
+    for (const e of r.events.filter((event) => isLabMajorMoment(event.type))) {
+      assert.equal(e.committed, true, `${e.type} committed`);
+      assert.ok(e.visual.length >= 2, `${e.type} kept a complete visual path`);
+    }
+  }
 });
 
 test('daily featured showdown is stable by date and changes with shuffle or date', () => {
