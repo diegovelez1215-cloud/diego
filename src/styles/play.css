@@ -437,6 +437,15 @@
   overflow: hidden;
 }
 .lab-mo-fill { height: 100%; background: var(--hc, var(--gold)); transition: width 300ms ease; }
+.lab-momentum.kit-collision {
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--ac, #666) 32%, var(--hairline)) 0 4px,
+      color-mix(in srgb, var(--ball, #fff5c6) 24%, transparent) 4px 7px);
+}
+.lab-momentum.kit-collision .lab-mo-fill {
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--ball, #fff5c6) 70%, transparent);
+}
 .lab-mo-labels {
   display: flex; justify-content: space-between; max-width: 280px; margin: var(--sp-1) auto 0;
   font-size: 0.68rem; color: var(--ink-3);
@@ -499,14 +508,33 @@
   width: 9px; height: 9px; border-radius: 50%;
   background: var(--hc);
   box-shadow: 0 0 12px color-mix(in srgb, var(--hc) 50%, transparent);
+  outline: 1px solid var(--h-ring, rgba(242,246,255,0.38));
+  outline-offset: 1px;
 }
 .pitch-player.away {
   background: var(--ac);
   box-shadow: 0 0 12px color-mix(in srgb, var(--ac) 50%, transparent);
+  outline-color: var(--a-ring, rgba(242,246,255,0.54));
+}
+.lab-pitch.kit-collision .pitch-player.away {
+  outline-width: 2px;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ball-ring, #06101f) 70%, transparent),
+    0 0 14px color-mix(in srgb, var(--ac) 48%, transparent);
 }
 .pitch-player[data-role="GK"] {
   width: 12px; height: 12px;
-  border: 1px solid color-mix(in srgb, #fff 42%, transparent);
+  border: 1px solid var(--h-gk-ring, color-mix(in srgb, #fff 42%, transparent));
+}
+.pitch-player.away[data-role="GK"] {
+  border-color: var(--a-gk-ring, color-mix(in srgb, #fff 42%, transparent));
+}
+.lab-pitch.kit-collision .pitch-player.away[data-role="GK"] {
+  border-width: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ball-ring, #06101f) 70%, transparent),
+    0 0 16px color-mix(in srgb, var(--a-gk-ring, #fff5c6) 62%, transparent);
 }
 .pitch-player.has-ball {
   transform: translate(-50%, -50%) scale(1.35);
@@ -516,12 +544,15 @@
 .pitch-player em {
   position: absolute; inset: -1px 0 0;
   display: grid; place-items: center;
-  font-size: 0.42rem; font-style: normal; color: #06101f; font-weight: 900;
+  font-size: 0.42rem; font-style: normal; color: var(--h-label, #06101f); font-weight: 900;
 }
+.pitch-player.away em { color: var(--a-label, #06101f); }
 .pitch-ball {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #fff5c6;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--gold) 70%, transparent);
+  background: var(--ball, #fff5c6);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ball-ring, #06101f) 70%, transparent),
+    0 0 16px color-mix(in srgb, var(--gold) 70%, transparent);
   z-index: 3;
 }
 .pitch-ball.goal, .pitch-ball.shot {
@@ -683,6 +714,9 @@
 .bk-scroll.sim { border-color: color-mix(in srgb, var(--gold) 30%, transparent); }
 .bk-scroll.sim .bk-round-label { color: var(--gold-ink); }
 .bk-scroll.sim .bk-crest-star { color: var(--gold-ink); }
+.bk-scroll.sim .bk-card.pickable { border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+.bk-scroll.sim .bk-state.pick,
+.bk-scroll.sim .bk-state.picked { color: var(--gold-ink); }
 .mwc-pickbar {
   display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center;
   padding: var(--sp-3); margin-bottom: var(--sp-2);

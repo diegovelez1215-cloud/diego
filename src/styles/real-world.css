@@ -285,7 +285,7 @@
   flex-direction: column;
   justify-content: space-between;
 }
-.cc-tile.action { border-color: color-mix(in srgb, var(--live) 28%, var(--hairline)); }
+.cc-tile.action { border-color: color-mix(in srgb, var(--official) 30%, var(--hairline)); }
 .cc-tile strong { font-size: var(--fs-body); line-height: 1.12; }
 .cc-tile small { color: var(--ink-3); font-size: 0.72rem; line-height: 1.25; }
 
@@ -572,8 +572,8 @@
   box-shadow: 0 10px 34px -18px color-mix(in srgb, var(--official) 55%, transparent);
 }
 .road-stage.destination .road-match.featured {
-  border-color: color-mix(in srgb, var(--gold) 40%, var(--hairline));
-  box-shadow: 0 14px 44px -18px color-mix(in srgb, var(--gold) 45%, transparent);
+  border-color: color-mix(in srgb, var(--official) 44%, var(--hairline));
+  box-shadow: 0 14px 44px -18px color-mix(in srgb, var(--official) 38%, transparent);
 }
 
 /* qualification races (group stage only) */
@@ -718,7 +718,7 @@
   font-size: 0.7rem; font-weight: var(--w-bold); border-radius: 6px; padding: 1px 3px;
 }
 .q-mark.in { color: var(--official-ink); background: color-mix(in srgb, var(--official) 18%, transparent); }
-.q-mark.third { color: var(--gold-ink); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.q-mark.third { color: var(--official-ink); background: color-mix(in srgb, var(--official) 14%, transparent); }
 .q-mark.race { color: var(--ink-3); border: 1px dashed var(--hairline); }
 .q-mark.out { color: var(--ink-3); }
 .group-table tr.advancing td.t-team .t-name { font-weight: var(--w-bold); }
@@ -1021,7 +1021,7 @@
   border-color: color-mix(in srgb, var(--glow, var(--official)) 50%, var(--hairline));
   box-shadow: 0 0 26px -10px var(--glow, var(--official)), var(--shadow-row);
 }
-.bk-card.pickable { cursor: pointer; border-style: dashed; border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+.bk-card.pickable { cursor: pointer; border-style: dashed; border-color: color-mix(in srgb, var(--official) 45%, transparent); }
 .bk-card.pickable:active { transform: scale(0.97); }
 .bk-card.sf, .bk-card.final { padding: var(--sp-3) var(--sp-4); }
 .bk-card.final {
@@ -1050,8 +1050,8 @@
 .bk-state { font-size: 0.7rem; color: var(--ink-3); display: inline-flex; align-items: center; gap: 5px; margin-top: 2px; }
 .bk-state.live { color: var(--live); font-weight: var(--w-bold); }
 .bk-state.live .live-dot { width: 6px; height: 6px; }
-.bk-state.pick { color: var(--gold-ink); font-weight: var(--w-bold); }
-.bk-state.picked { color: var(--gold-ink); }
+.bk-state.pick { color: var(--official-ink); font-weight: var(--w-bold); }
+.bk-state.picked { color: var(--official-ink); }
 .bk-card.final .bk-name { max-width: 15ch; font-size: var(--fs-body); }
 .bk-card.final .bk-goals { font-size: 1.15rem; }
 
@@ -1146,7 +1146,7 @@
   margin: calc(-1 * var(--sp-2)) 0 var(--sp-3);
   opacity: 0.85;
 }
-.road-stage.destination .road-stage-flow { color: var(--gold-ink); }
+.road-stage.destination .road-stage-flow { color: var(--official-ink); }
 
 /* ---- Venues: stages hosted ---- */
 .venue-hosts { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }

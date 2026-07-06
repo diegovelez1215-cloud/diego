@@ -12,11 +12,14 @@ import {
   featuredShowdownForDate,
   gradePredictions,
   isLabMajorMoment,
+  labColorContrast,
   labVisualDuration,
   playNextRound,
+  resolveLabTeamColors,
   simulateLabForSeed,
   simulateMatch,
 } from '../src/views/play.js';
+import { FIXTURES, TEAM_COLORS } from '../src/data/fixtures.js';
 import { fullResultsPayload, OK } from './mock-provider.mjs';
 
 test('gradePredictions: confidence earns insight, misses reset the streak, ungraded picks wait', () => {
@@ -276,4 +279,45 @@ test('daily featured showdown is stable by date and changes with shuffle or date
   assert.deepEqual(day, featuredShowdownForDate('2026-07-04', 0));
   assert.notDeepEqual([day.home, day.away, day.seed], [featuredShowdownForDate('2026-07-04', 1).home, featuredShowdownForDate('2026-07-04', 1).away, featuredShowdownForDate('2026-07-04', 1).seed]);
   assert.notDeepEqual([day.home, day.away, day.seed], [featuredShowdownForDate('2026-07-05', 0).home, featuredShowdownForDate('2026-07-05', 0).away, featuredShowdownForDate('2026-07-05', 0).seed]);
+});
+
+test('red-vs-red Match Lab fixture resolves to distinct rendering tokens', () => {
+  const kits = resolveLabTeamColors('CAN', 'SUI');
+  assert.equal(kits.home.color, TEAM_COLORS.CAN);
+  assert.equal(kits.away.usedSecondary, true, 'away switches to an existing secondary kit');
+  assert.equal(kits.away.color, '#ffffff');
+  assert.equal(kits.contrast.distinct, true);
+  assert.notEqual(kits.home.color, kits.away.color);
+});
+
+test('normal contrasting Match Lab kits preserve intended primary colors', () => {
+  const kits = resolveLabTeamColors('USA', 'ARG');
+  assert.equal(kits.mode, 'primary');
+  assert.equal(kits.home.color, TEAM_COLORS.USA);
+  assert.equal(kits.away.color, TEAM_COLORS.ARG);
+  assert.equal(kits.away.usedSecondary, false);
+  assert.equal(kits.fallback, false);
+});
+
+test('Match Lab ball, keepers, markers, and momentum remain distinguishable when kits collide', () => {
+  const kits = resolveLabTeamColors('BRA', 'GHA');
+  assert.equal(kits.away.usedSecondary, true, 'yellow-vs-yellow switches the away kit');
+  assert.equal(kits.contrast.distinct, true);
+  assert.ok(labColorContrast(kits.home.color, kits.ball.color).distinct || labColorContrast(kits.home.color, kits.ball.ring).distinct);
+  assert.ok(labColorContrast(kits.away.color, kits.ball.color).distinct || labColorContrast(kits.away.color, kits.ball.ring).distinct);
+  assert.ok(labColorContrast(kits.home.color, kits.home.markerInk).ratio >= 3);
+  assert.ok(labColorContrast(kits.away.color, kits.away.markerInk).ratio >= 3);
+  assert.ok(kits.home.keeperRing);
+  assert.ok(kits.away.keeperRing);
+  assert.match(kits.momentumClass, /^kit-/);
+});
+
+test('Match Lab color resolver is deterministic and mutates no official truth', () => {
+  const fixturesBefore = JSON.stringify(FIXTURES);
+  const colorsBefore = JSON.stringify(TEAM_COLORS);
+  const a = resolveLabTeamColors('CAN', 'SUI');
+  const b = resolveLabTeamColors('CAN', 'SUI');
+  assert.deepEqual(a, b);
+  assert.equal(JSON.stringify(FIXTURES), fixturesBefore, 'fixture registry untouched');
+  assert.equal(JSON.stringify(TEAM_COLORS), colorsBefore, 'team primary colors untouched');
 });

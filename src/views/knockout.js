@@ -23,8 +23,7 @@ function followPicker(followTeam) {
   return `<div class="ko-follow-rail" id="ko-follow-team" role="listbox" aria-label="Team to follow">
     ${codes.map((c) => `
       <button class="ko-team-chip${c === followTeam ? ' on' : ''}" role="option"
-        aria-selected="${c === followTeam}" data-follow="${c}"
-        style="--tc:${TEAM_COLORS[c] || 'var(--official)'}">
+        aria-selected="${c === followTeam}" data-follow="${c}">
         <span class="ko-chip-flag" aria-hidden="true">${teamFlag(c)}</span>
         <span class="ko-chip-name">${esc(teamName(c))}</span>
       </button>`).join('')}
@@ -185,7 +184,7 @@ function followRoadHTML(overlay, code) {
   }
   const stages = ['r32', 'r16', 'qf', 'sf', 'final', 'bronze'];
   return `<section class="road-mobile follow-road" aria-label="${esc(teamName(code))} bracket path">
-    <header class="road-hero" style="--tc:${TEAM_COLORS[code] || 'var(--official)'}">
+    <header class="road-hero">
       <span class="road-hero-flag" aria-hidden="true">${teamFlag(code)}</span>
       <div><p>My Team · ${esc(teamName(code))}</p><h2>Road to the Final</h2></div>
     </header>

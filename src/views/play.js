@@ -128,6 +128,20 @@ const FEATURED_POOL = [
   ['GER', 'NED'], ['MAR', 'SEN'], ['JPN', 'KOR'], ['COL', 'URU'],
   ['SUI', 'CRO'], ['CAN', 'USA'], ['BRA', 'ARG'], ['ENG', 'NED'],
 ];
+const LAB_KIT_SECONDARY_COLORS = {
+  MEX: '#ffffff', RSA: '#1f3a93', KOR: '#ffffff', CZE: '#ffffff',
+  CAN: '#ffffff', BIH: '#f6c445', QAT: '#ffffff', SUI: '#ffffff',
+  BRA: '#1f3a93', MAR: '#ffffff', HAI: '#c81438', SCO: '#ffffff',
+  USA: '#ffffff', PAR: '#1f3a93', AUS: '#0a6640', CIV: '#ffffff',
+  ARG: '#1b2a6b', ALG: '#ffffff', AUT: '#ffffff', JOR: '#ce1126',
+  POR: '#c60b1e', URU: '#ffffff', COL: '#1f3a93', KSA: '#ffffff',
+  FRA: '#ffffff', SEN: '#f6c445', IRQ: '#ffffff', NOR: '#ffffff',
+  GER: '#1a1a1a', CUW: '#f6c445', CRO: '#ffffff', ECU: '#1f3a93',
+  NED: '#1b2a6b', JPN: '#ffffff', TUN: '#ffffff', CPV: '#ffffff',
+  BEL: '#1a1a1a', EGY: '#ffffff', IRN: '#ffffff', NZL: '#ffffff',
+  ESP: '#fcd116', UZB: '#ffffff', PAN: '#ffffff', GHA: '#1f3a93',
+  ENG: '#1f3a93', SWE: '#1f3a93', TUR: '#ffffff', COD: '#ce1126',
+};
 const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'extra', 'interval', 'pens', 'final']);
 const LAB_PACE_OPTIONS = [
   ['normal', 'Normal', 'Normal'],
@@ -217,6 +231,80 @@ function localDayKey(d = new Date()) {
 export function featuredShowdownForDate(dateKey = localDayKey(), shuffle = 0) {
   const idx = hashSeed(`u26-lab-${dateKey}-${shuffle}`) % FEATURED_POOL.length;
   return { dateKey, shuffle, home: FEATURED_POOL[idx][0], away: FEATURED_POOL[idx][1], seed: hashSeed(`lab-seed-${dateKey}-${shuffle}`) || 1 };
+}
+
+function labHexRGB(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return labHexRGB('#ffffff');
+  const n = Number.parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function labLum(hex) {
+  const c = labHexRGB(hex);
+  const channel = (v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+}
+
+export function labColorContrast(a, b) {
+  const ar = labHexRGB(a);
+  const br = labHexRGB(b);
+  const dist = Math.hypot(ar.r - br.r, ar.g - br.g, ar.b - br.b);
+  const l1 = labLum(a);
+  const l2 = labLum(b);
+  const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  return { distance: +dist.toFixed(2), ratio: +ratio.toFixed(2), distinct: ratio >= 1.8 || dist >= 105 };
+}
+
+function labMarkerInk(color) {
+  return labLum(color) > 0.46 ? '#06101f' : '#f2f6ff';
+}
+
+export function resolveLabTeamColors(home, away) {
+  const homePrimary = TEAM_COLORS[home] || '#d4ab55';
+  const awayPrimary = TEAM_COLORS[away] || '#d4ab55';
+  const awaySecondary = LAB_KIT_SECONDARY_COLORS[away] || awayPrimary;
+  let awayColor = awayPrimary;
+  let mode = 'primary';
+  if (!labColorContrast(homePrimary, awayPrimary).distinct) {
+    if (awaySecondary !== awayPrimary && labColorContrast(homePrimary, awaySecondary).distinct) {
+      awayColor = awaySecondary;
+      mode = 'away-secondary';
+    } else {
+      mode = 'away-ring';
+    }
+  }
+  const finalContrast = labColorContrast(homePrimary, awayColor);
+  const fallback = !finalContrast.distinct;
+  return {
+    home: {
+      code: home,
+      primary: homePrimary,
+      color: homePrimary,
+      markerInk: labMarkerInk(homePrimary),
+      markerRing: 'rgba(242,246,255,0.38)',
+      keeperRing: '#f2f6ff',
+    },
+    away: {
+      code: away,
+      primary: awayPrimary,
+      secondary: awaySecondary,
+      color: awayColor,
+      usedSecondary: mode === 'away-secondary',
+      markerInk: labMarkerInk(awayColor),
+      markerRing: fallback ? '#fff5c6' : 'rgba(242,246,255,0.54)',
+      keeperRing: fallback ? '#fff5c6' : '#f2f6ff',
+    },
+    ball: { color: '#fff5c6', ring: '#06101f' },
+    momentumClass: fallback ? 'kit-collision' : mode === 'away-secondary' ? 'kit-secondary' : 'kit-primary',
+    pitchClass: fallback ? 'kit-collision' : mode === 'away-secondary' ? 'kit-secondary' : '',
+    fallback,
+    mode,
+    contrast: finalContrast,
+  };
 }
 
 function currentFeaturedShowdown(play) {
@@ -1791,8 +1879,9 @@ function labPitchHTML(run) {
   const homePlayers = activeFormation('h', run);
   const awayPlayers = activeFormation('a', run);
   const possH = labPossessionPct(run);
+  const kits = resolveLabTeamColors(run.home, run.away);
   const marker = (p, side) => `<i class="pitch-player ${side === 'h' ? 'home' : 'away'}${ball.side === side && ball.from === p.role ? ' has-ball' : ''}" data-key="${side}-${p.role}" data-player-side="${side === 'h' ? 'home' : 'away'}" data-role="${p.role}" title="${esc(p.label)}" style="left:${p.x.toFixed(1)}%;top:${p.y.toFixed(1)}%"><em>${p.role === 'GK' ? '1' : ''}</em></i>`;
-  return `<div class="lab-pitch" aria-label="Animated pitch simulation" style="--mo:${(run.mo || 0).toFixed(2)}">
+  return `<div class="lab-pitch ${kits.pitchClass}" aria-label="Animated pitch simulation" style="--mo:${(run.mo || 0).toFixed(2)};--h-label:${kits.home.markerInk};--a-label:${kits.away.markerInk};--h-ring:${kits.home.markerRing};--a-ring:${kits.away.markerRing};--h-gk-ring:${kits.home.keeperRing};--a-gk-ring:${kits.away.keeperRing};--ball:${kits.ball.color};--ball-ring:${kits.ball.ring}">
     <i class="pitch-zone home" data-zone="h" style="opacity:${Math.max(0, run.mo || 0).toFixed(2)}"></i>
     <i class="pitch-zone away" data-zone="a" style="opacity:${Math.max(0, -(run.mo || 0)).toFixed(2)}"></i>
     <span class="pitch-line halfway"></span><span class="pitch-box left"></span><span class="pitch-box right"></span>
@@ -1815,8 +1904,9 @@ function labFeedItemsHTML(run) {
 }
 
 function labRunHTML(run) {
-  const homeColor = TEAM_COLORS[run.home] || 'var(--gold)';
-  const awayColor = TEAM_COLORS[run.away] || 'var(--gold)';
+  const kits = resolveLabTeamColors(run.home, run.away);
+  const homeColor = kits.home.color;
+  const awayColor = kits.away.color;
   const decision = run.decisionAt === 'ET' ? EXTRA_TIME_DECISION
     : run.decisionAt != null ? DECISIONS[run.decisionAt] : null;
   const moPct = ((run.mo + 1) / 2) * 100;
@@ -1841,7 +1931,7 @@ function labRunHTML(run) {
         <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
       </div>
       <div class="lab-pens" data-lab-pens${run.pens || run.shootout ? '' : ' hidden'}>${esc(shootoutLabel(run))}</div>
-      <div class="lab-momentum" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
+      <div class="lab-momentum ${kits.momentumClass}" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
       <div class="lab-mo-labels" aria-hidden="true"><span>${esc(teamName(run.home))}</span><span>momentum</span><span>${esc(teamName(run.away))}</span></div>
       ${labPitchHTML(run)}
     </div>
