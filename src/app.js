@@ -214,15 +214,32 @@ async function refreshProviderData() {
     if (scorersDue(Date.now(), lastScorersAt)) {
       const scorerStats = await fetchJson('/api/scorers');
       if (scorerStats) lastScorersAt = Date.now();
-      if (scorerStats && scorerStats.configured !== false && scorerStats.isStale !== true) {
+      // Only a verified payload may repaint the leader lists: configured,
+      // not an error fallback, not a stale fallback, with real arrays.
+      const verified = scorerStats
+        && scorerStats.configured !== false
+        && scorerStats.error !== true
+        && scorerStats.isStale !== true
+        && Array.isArray(scorerStats.goals)
+        && Array.isArray(scorerStats.assists);
+      if (verified) {
         setStats({
           providerState: scorerStats.sourceStatus || 'ok',
           fetchedAt: scorerStats.fetchedAt || null,
-          goals: Array.isArray(scorerStats.goals) ? scorerStats.goals : [],
-          assists: Array.isArray(scorerStats.assists) ? scorerStats.assists : [],
+          goals: scorerStats.goals,
+          assists: scorerStats.assists,
         });
       } else {
-        setStats({ providerState: 'unavailable', fetchedAt: scorerStats && scorerStats.fetchedAt || null, goals: [], assists: [] });
+        // Degraded refresh (error, stale fallback, unconfigured, malformed):
+        // a transient failure must never erase verified leaders already in
+        // memory, and a wiped screen must never be stamped as freshly
+        // updated. Keep the last verified snapshot with its honest
+        // fetchedAt; only an app with nothing verified shows unavailable.
+        const prev = getState().real.stats;
+        const hasVerified = (Array.isArray(prev.goals) && prev.goals.length > 0)
+          || (Array.isArray(prev.assists) && prev.assists.length > 0);
+        if (hasVerified) setStats({ ...prev, providerState: 'stale' });
+        else setStats({ providerState: 'unavailable', fetchedAt: null, goals: [], assists: [] });
       }
     }
   } finally {

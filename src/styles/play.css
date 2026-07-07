@@ -1183,14 +1183,15 @@
 }
 
 /* ================= Arcade Lobby ================= */
-.lobby { border-color: color-mix(in srgb, var(--gold) 24%, var(--hairline)); }
-.lobby::before {
-  content: "";
-  position: absolute;
-  inset: -40% -10% auto;
-  height: 55%;
-  background: radial-gradient(55% 100% at 50% 0%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 70%);
-  pointer-events: none;
+/* Flattened: the lobby draws no outer frame of its own, so Tonight's
+   Showdown (and its Start Showdown action) reads as the one hero card
+   instead of a box inside a box. Inner cards keep their own hairlines. */
+.play-card.lobby {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  overflow: visible;
 }
 .lobby-marquee {
   display: grid;

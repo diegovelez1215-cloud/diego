@@ -1595,7 +1595,7 @@ export function saveCurrentSim() {
    confidence 3) confirm once 4) Locked at kickoff 5) settled only from
    validated official truth. No lock jargon, no form maze. */
 
-const CONF = { 1: 'Cool', 2: 'Confident', 3: 'All-in' };
+const CONF = { 1: 'Cool', 2: 'Confident', 3: 'Certain' };
 
 function predictableFixtures(overlay) {
   const t = now();
