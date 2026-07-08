@@ -54,28 +54,19 @@ function teamRows(rows, metric) {
   </div>`).join('');
 }
 
-/** G+A combines the two verified leader lists — never invents a component. */
-function combinedGA(goals, assists) {
-  const byKey = new Map();
-  const add = (list, field) => {
-    for (const r of list) {
-      const key = r.player + '|' + r.team;
-      if (!byKey.has(key)) byKey.set(key, { player: r.player, team: r.team, g: 0, a: 0 });
-      byKey.get(key)[field] += r.n;
-    }
-  };
-  add(goals, 'g'); add(assists, 'a');
-  return [...byKey.values()]
-    .map((r) => ({ ...r, n: r.g + r.a }))
-    .sort((a, b) => b.n - a.n || b.g - a.g || a.player.localeCompare(b.player));
-}
+/* TRUTH MODEL — why there is no Assists or Goals+Assists leaderboard.
+ * The verified provider's scorer table is ranked by goals; assists exist only
+ * as fields on goal-scorer rows, so a player with assists but no goal can
+ * never be ranked (proved against the provider docs and the live payload,
+ * 2026-07-08). United 2026 does not publish leaderboards it cannot prove
+ * complete, and it never infers assists from goals, scorelines, match events,
+ * or simulations. When a complete assist source is connected, the cards can
+ * return. */
 
 export function renderStats(overlay, stats) {
   const teams = teamTotals(overlay);
   const stamp = updatedLabel(stats && stats.fetchedAt);
   const goals = stats && Array.isArray(stats.goals) ? stats.goals : [];
-  const assists = stats && Array.isArray(stats.assists) ? stats.assists : [];
-  const ga = goals.length && assists.length ? combinedGA(goals, assists) : [];
   return `<section class="stats-pane" aria-label="Stats">
     <div class="stats-lede">
       <div><p class="venue-kicker">Verified leaders</p><h2>Stats that have a source</h2></div>
@@ -84,34 +75,18 @@ export function renderStats(overlay, stats) {
     <article class="stats-card">
       <h3>Top scorers</h3>
       ${leaderRows(goals, 'Official scorer feed is unavailable. No player goals invented.', { hero: true })}
-    </article>
-    <article class="stats-card">
-      <h3>Assists</h3>
-      ${leaderRows(assists, 'Official assist data is unavailable from the current feed.')}
-      ${assists.length ? `<p class="stats-foot">${stats && stats.truncated
-    ? 'Verified from a capped scorer feed — players outside it, including assist-only leaders, are not ranked here.'
-    : 'Verified from the official scorer feed. Players without a goal are not ranked by this provider.'}</p>` : ''}
-    </article>
-    <article class="stats-card">
-      <h3>Goals + assists</h3>
-      ${ga.length ? ga.slice(0, 8).map((r, i) => {
-    const code = resolveTeamCode(r.team);
-    return `<div class="stats-row">
-        <span class="stats-rank">${i + 1}</span>
-        <span class="stats-name">${esc(r.player)}</span>
-        <span class="stats-team">${r.g}g · ${r.a}a${code ? ' · ' + teamFlag(code) : ''}</span>
-        <strong>${r.n}</strong>
-      </div>`;
-  }).join('') + '<p class="stats-foot">Combined from the verified provider rows — not a complete tournament leaderboard.</p>'
-    : '<p class="stats-empty">G+A needs both verified goal and assist data — one of the two is unavailable right now.</p>'}
+      ${goals.length ? '<p class="stats-foot">Official scorer feed — every ranked goal is verified.</p>' : ''}
     </article>
     <article class="stats-card">
       <h3>Team goals</h3>
       ${teamRows(teams, 'goals')}
+      <p class="stats-foot">Derived from validated final scores only.</p>
     </article>
     <article class="stats-card">
       <h3>Clean sheets</h3>
       ${teamRows([...teams].sort((a, b) => b.clean - a.clean || b.goals - a.goals || teamName(a.code).localeCompare(teamName(b.code))), 'clean')}
+      <p class="stats-foot">Derived from validated final scores only.</p>
     </article>
+    <p class="stats-note">Complete assist leaders are unavailable from the verified provider, so United 2026 does not rank assists until a complete source is connected.</p>
   </section>`;
 }

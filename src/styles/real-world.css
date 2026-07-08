@@ -1164,5 +1164,15 @@
   border-color: color-mix(in srgb, var(--official) 45%, transparent);
 }
 
-/* ---- Stats: G+A footnote ---- */
+/* ---- Stats: sourcing footnotes ---- */
 .stats-foot { color: var(--ink-3); font-size: 0.66rem; margin-top: var(--sp-2); }
+/* Calm truth note: why assists are not ranked. Quiet, not an error state. */
+.stats-note {
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-5);
+}

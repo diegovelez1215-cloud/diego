@@ -112,15 +112,17 @@ test.describe('Tournament', () => {
     await screenshot(page, testInfo, 'venues');
   });
 
-  test('Stats: verified player leaders and honest unavailable assists', async ({ page }, testInfo) => {
+  test('Stats: verified scorer leaders, no unprovable assist rankings', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'stats');
     await expect(page.locator('.stats-card').first()).toContainText('A Player');
-    await expect(page.locator('.stats-card').nth(1)).toContainText('Official assist data is unavailable');
-    await expect(page.locator('.stats-card')).toHaveCount(5);
-    // G+A stays honest: with assists unavailable it must say so, never invent
-    await expect(page.locator('.stats-card').nth(2)).toContainText('Goals + assists');
-    await expect(page.locator('.stats-card').nth(2)).toContainText('unavailable');
+    // Assist coverage cannot be proven from the goal-ranked provider rows, so
+    // no Assists or G+A leaderboard exists — only the calm truth note.
+    await expect(page.locator('.stats-card')).toHaveCount(3);
+    await expect(page.locator('.stats-pane')).not.toContainText('Goals + assists');
+    await expect(page.locator('.stats-note')).toContainText('does not rank assists until a complete source is connected');
+    await expect(page.locator('.stats-card').nth(1)).toContainText('Team goals');
+    await expect(page.locator('.stats-card').nth(2)).toContainText('Clean sheets');
     await expectNoHorizontalOverflow(page, expect, 'stats');
     await screenshot(page, testInfo, 'stats');
   });

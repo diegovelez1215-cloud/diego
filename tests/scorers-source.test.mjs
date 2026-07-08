@@ -83,21 +83,37 @@ test('a row set that hits the cap is flagged truncated; an uncapped one is not',
   assert.equal(open.assistScope, 'scorer-rows');
 });
 
-test('Stats view states assist scope honestly and G+A never claims completeness', () => {
+test('limited provider rows can never masquerade as an assist or G+A leaderboard', () => {
   const overlay = buildOverlay({ results: { configured: true, sourceStatus: 'fresh', isStale: false, finished: [] } });
   const base = {
     providerState: 'fresh', fetchedAt: '2026-07-08T15:11:36Z',
     goals: [{ player: 'A Player', team: 'Mexico', n: 4 }],
     assists: [{ player: 'B Creator', team: 'Japan', n: 3 }],
   };
-  const open = renderStats(overlay, { ...base, truncated: false });
-  assert.match(open, /Verified from the official scorer feed\. Players without a goal are not ranked by this provider\./);
-  assert.match(open, /Combined from the verified provider rows — not a complete tournament leaderboard\./);
+  // Even a rich-looking assist row set stays off the page: coverage is
+  // structurally unprovable (goal-ranked rows only), truncated or not.
+  for (const truncated of [false, true]) {
+    const html = renderStats(overlay, { ...base, truncated });
+    assert.doesNotMatch(html, /<h3>Assists<\/h3>/);
+    assert.doesNotMatch(html, /Goals \+ assists/);
+    assert.doesNotMatch(html, /B Creator/, 'scorer-row assists never render as rankings');
+    assert.match(html, /Complete assist leaders are unavailable from the verified provider, so United 2026 does not rank assists until a complete source is connected\./);
+    assert.match(html, /<h3>Top scorers<\/h3>/);
+    assert.match(html, /A Player/, 'verified goals still rank');
+  }
+});
 
-  const capped = renderStats(overlay, { ...base, truncated: true });
-  assert.match(capped, /capped scorer feed — players outside it, including assist-only leaders, are not ranked here/);
+test('Top scorers and freshness stay honest with and without a feed', () => {
+  const overlay = buildOverlay({ results: { configured: true, sourceStatus: 'fresh', isStale: false, finished: [] } });
+  const withFeed = renderStats(overlay, {
+    providerState: 'fresh', fetchedAt: new Date(Date.now() - 5 * 60000).toISOString(),
+    goals: [{ player: 'A Player', team: 'Mexico', n: 4 }], assists: [],
+  });
+  assert.match(withFeed, /Updated 5m ago/);
+  assert.match(withFeed, /every ranked goal is verified/);
 
-  const empty = renderStats(overlay, { ...base, assists: [] });
-  assert.match(empty, /Official assist data is unavailable from the current feed\./);
-  assert.doesNotMatch(empty, /Verified from the official scorer feed/, 'no scope note without assist rows');
+  const noFeed = renderStats(overlay, { providerState: 'unavailable', fetchedAt: null, goals: [], assists: [] });
+  assert.match(noFeed, /Player feed unavailable/);
+  assert.match(noFeed, /Official scorer feed is unavailable\. No player goals invented\./);
+  assert.doesNotMatch(noFeed, /every ranked goal is verified/);
 });

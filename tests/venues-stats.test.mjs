@@ -22,16 +22,21 @@ test('Venue explorer renders stadium match lists in chronological order', () => 
   assert.deepEqual(epochs, [...epochs].sort((a, b) => a - b), 'venue fixtures are chronological');
 });
 
-test('Stats view uses verified player feed or honest unavailable copy', () => {
+test('Stats view uses verified player feed and never ranks unprovable assists', () => {
   const overlay = buildOverlay({ results: { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] } });
   const html = renderStats(overlay, {
     providerState: 'ok',
     fetchedAt: '2026-07-02T02:03:56.957Z',
     goals: [{ player: 'A Player', team: 'Mexico', n: 4 }],
-    assists: [],
+    assists: [{ player: 'B Creator', team: 'Japan', n: 3 }],
   });
   assert.match(html, /A Player/);
-  assert.match(html, /Official assist data is unavailable/);
   assert.match(html, /Team goals/);
   assert.match(html, /Clean sheets/);
+  // Provider assists exist on scorer rows only — they must never surface as
+  // a leaderboard, and the page explains why in calm copy.
+  assert.doesNotMatch(html, /<h3>Assists<\/h3>/);
+  assert.doesNotMatch(html, /Goals \+ assists/);
+  assert.doesNotMatch(html, /B Creator/);
+  assert.match(html, /Complete assist leaders are unavailable from the verified provider/);
 });
