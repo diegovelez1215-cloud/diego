@@ -95,7 +95,9 @@ export function renderStats(overlay, stats) {
   return `<section class="stats-pane" aria-label="Stats">
     <div class="stats-lede">
       <div><p class="venue-kicker">Verified leaders</p><h2>Stats that have a source</h2></div>
-      ${stamp ? `<span>${esc(stamp)}</span>` : '<span>Player feed unavailable</span>'}
+      ${stamp
+    ? `<span class="stats-stamp" title="Player stats refresh on a slower clock than live scores"><i class="stats-clock" aria-hidden="true"></i>${esc(stamp)}</span>`
+    : '<span class="stats-stamp off">Player feed unavailable</span>'}
     </div>
     <article class="stats-card">
       <h3>Top scorers</h3>

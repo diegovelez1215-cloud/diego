@@ -50,11 +50,14 @@ const ASSIST_ROWS_V2 = [
   { player: 'E Engine', team: 'Brazil', n: 2, g: 0 },
 ];
 
-let scorersPayload = null; // set per phase
+let scorersPayload = null; // set per phase; 'HTTP_ERROR' -> non-OK response
 globalThis.fetch = async (url) => {
   const u = String(url);
   const ok = (json) => ({ ok: true, json: async () => json });
-  if (u.includes('/api/scorers')) return ok(scorersPayload);
+  if (u.includes('/api/scorers')) {
+    if (scorersPayload === 'HTTP_ERROR') return { ok: false, status: 500, json: async () => ({}) };
+    return ok(scorersPayload);
+  }
   if (u.includes('/api/results')) return ok({ configured: true, sourceStatus: 'fresh', isStale: false, finished: [], live: [], hold: [], scheduled: [] });
   if (u.includes('/api/live')) return ok({ configured: true, sourceStatus: 'fresh', isStale: false, response: [], finished: [], hold: [], scheduled: [] });
   return ok({});
@@ -172,4 +175,14 @@ test('next verified payload recovers normally after a degraded stretch', async (
   assert.match(card('Top scorers'), /A Player/);
   assert.match(card('Goals + assists'), /D Creator/);
   noCard('Assists');
+});
+
+test('a non-OK server response keeps verified stats and never claims offline', async () => {
+  await refreshWith('HTTP_ERROR');
+  const s = getState().real.stats;
+  assert.deepEqual(s.goals, GOALS_V1, 'verified leaders survive an HTTP error');
+  assert.match(card('Top scorers'), /A Player/);
+  const toast = document.getElementById('pwa-toast');
+  const offlineShown = !!toast && !toast.hidden && toast.dataset.kind === 'offline';
+  assert.equal(offlineShown, false, 'a server that answered is not called offline');
 });

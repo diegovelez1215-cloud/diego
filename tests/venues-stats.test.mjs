@@ -10,16 +10,25 @@ import { fullGroupFinished } from './mock-provider.mjs';
 
 const OK = { configured: true, sourceStatus: 'fresh', isStale: false };
 
-test('Venue explorer renders stadium match lists in chronological order', () => {
+test('Venue passport: one spotlight fixture face-up, full chronology in the archive', () => {
   const overlay = buildOverlay({ results: { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] } });
   const dom = new JSDOM(renderVenues(overlay));
   const firstCard = dom.window.document.querySelector('.venue-card');
   assert.ok(firstCard);
-  const ids = [...firstCard.querySelectorAll('[data-match]')].map((el) => Number(el.getAttribute('data-match')));
   const venueName = firstCard.querySelector('h3').textContent;
   assert.ok(venueName.length > 3);
-  const epochs = ids.map((id) => allFixtures().find((f) => f.id === id).epoch);
-  assert.deepEqual(epochs, [...epochs].sort((a, b) => a - b), 'venue fixtures are chronological');
+  // Spotlight is a single real fixture rendered outside the disclosure.
+  const spotlight = firstCard.querySelectorAll('.venue-spotlight [data-match]');
+  assert.equal(spotlight.length, 1, 'exactly one spotlight fixture');
+  // The archive holds every other fixture, still in chronological order.
+  const archiveIds = [...firstCard.querySelectorAll('.venue-archive [data-match]')]
+    .map((el) => Number(el.getAttribute('data-match')));
+  const epochs = archiveIds.map((id) => allFixtures().find((f) => f.id === id).epoch);
+  assert.deepEqual(epochs, [...epochs].sort((a, b) => a - b), 'archived fixtures are chronological');
+  // Nothing is lost: spotlight + archive together cover the venue's slate.
+  const total = firstCard.querySelectorAll('[data-match]').length;
+  const summary = firstCard.querySelector('.venue-archive summary').textContent;
+  assert.match(summary, new RegExp(total + ' matches'));
 });
 
 test('Stats view ranks verified goals and G+A but never a standalone assist board', () => {

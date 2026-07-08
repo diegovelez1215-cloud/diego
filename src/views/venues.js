@@ -46,6 +46,14 @@ export function renderVenues(overlay) {
       : next
         ? `<span class="venue-status next">Next · ${esc(next.dateLabel)} ${esc(next.time)}</span>`
         : '<span class="venue-status done">Hosting complete</span>';
+    // Stadium passport: one spotlight fixture face-up (what's live, what's
+    // next, or — once hosting ends — how the ground signed off), with the
+    // full canonical chronology folded behind a native disclosure. Same
+    // validated matches, no more wall of tables.
+    const lastFinal = [...v.matches].reverse().find((m) => m.final);
+    const spotlight = live || next || lastFinal || v.matches[0];
+    const rest = v.matches.filter((m) => m !== spotlight);
+    const spotLabel = live ? 'On the pitch' : next ? 'Next here' : lastFinal ? 'Final act here' : 'First up';
     return `<article class="venue-card${live ? ' hosting-live' : ''}">
         <header class="venue-head">
           <div>
@@ -61,9 +69,16 @@ export function renderVenues(overlay) {
         <div class="venue-hosts">${[...new Set(v.matches.map((m) => m.stage))]
     .map((st) => `<span class="venue-stage${['sf', 'final', 'bronze'].includes(st) ? ' marquee' : ''}">${esc(st === 'group' ? 'Groups' : STAGE_NAMES[st] || st)}</span>`).join('')}
         </div>
-        <div class="venue-matches">
-          ${v.matches.map((m) => matchRow(m, { context: `${STAGE_NAMES[m.stage] || m.stage} · Match ${m.id}` })).join('')}
+        <div class="venue-spotlight">
+          <p class="venue-spot-kicker">${spotLabel}</p>
+          ${matchRow(spotlight, { context: `${STAGE_NAMES[spotlight.stage] || spotlight.stage} · Match ${spotlight.id}` })}
         </div>
+        ${rest.length ? `<details class="venue-archive">
+          <summary>Full schedule · ${v.matches.length} matches · ${v.played} played</summary>
+          <div class="venue-matches">
+            ${rest.map((m) => matchRow(m, { context: `${STAGE_NAMES[m.stage] || m.stage} · Match ${m.id}` })).join('')}
+          </div>
+        </details>` : ''}
       </article>`;
   }).join('')}
     </div>

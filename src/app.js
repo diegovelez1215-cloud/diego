@@ -191,7 +191,11 @@ function registerPwa() {
 async function fetchJson(url) {
   try {
     const r = await fetch(url, { headers: { accept: 'application/json' } });
-    if (!r.ok) { showPwaToast('offline'); return null; }
+    // A non-OK status means the server answered — that is not "offline", so
+    // no offline claim is made; callers keep the last verified state and the
+    // honest freshness stamps say the rest. Only a failed network round-trip
+    // earns the offline notice.
+    if (!r.ok) return null;
     return await r.json();
   } catch { showPwaToast('offline'); return null; }
 }

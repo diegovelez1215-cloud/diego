@@ -722,6 +722,13 @@
 .q-mark.race { color: var(--ink-3); border: 1px dashed var(--hairline); }
 .q-mark.out { color: var(--ink-3); }
 .group-table tr.advancing td.t-team .t-name { font-weight: var(--w-bold); }
+/* Qualification reads at a glance: advancing rows carry a faint official
+   wash and a thin rail; once a group settles, eliminated names step back. */
+.group-table tr.advancing td { background: color-mix(in srgb, var(--official) 7%, transparent); }
+.group-table tr.advancing td:first-child { border-radius: 6px 0 0 6px; box-shadow: inset 2px 0 0 color-mix(in srgb, var(--official) 55%, transparent); }
+.group-table tr.advancing td:last-child { border-radius: 0 6px 6px 0; }
+.group-card.settled tr:not(.advancing) td.t-team { color: var(--ink-2); }
+.group-card.settled tr:not(.advancing) td { opacity: 0.82; }
 .group-table td.t-team { min-width: 0; }
 .group-table .t-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15ch; }
 .sr-only {
@@ -789,6 +796,20 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+/* Freshness chip: player stats deliberately move on a slower clock than the
+   live scoreboard — the chip makes that cadence visible, never apologetic. */
+.stats-stamp {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--official) 8%, transparent);
+  color: var(--official-ink);
+}
+.stats-stamp.off { background: transparent; color: var(--ink-3); }
+.stats-clock {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: color-mix(in srgb, var(--official) 70%, transparent);
+}
 .venue-list,
 .stats-pane {
   display: grid;
@@ -840,6 +861,30 @@
   margin: var(--sp-2) 0 var(--sp-3);
 }
 .venue-matches .match-row { margin-bottom: var(--sp-1); }
+/* Stadium passport: one fixture face-up, the chronology folded behind a
+   native disclosure. Calm archive, not a wall of tables. */
+.venue-spotlight { margin-top: var(--sp-1); }
+.venue-spot-kicker {
+  font-size: 0.66rem; font-weight: var(--w-bold); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--official-ink); margin-bottom: var(--sp-2);
+}
+.venue-archive { margin-top: var(--sp-2); border-top: 1px solid var(--hairline); }
+.venue-archive summary {
+  list-style: none; cursor: pointer;
+  min-height: 44px; display: flex; align-items: center; gap: var(--sp-2);
+  color: var(--ink-3); font-size: 0.72rem; font-weight: var(--w-bold);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.venue-archive summary::-webkit-details-marker { display: none; }
+.venue-archive summary::after {
+  content: ""; width: 7px; height: 7px; margin-left: auto;
+  border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(45deg); transition: transform 160ms ease;
+}
+.venue-archive[open] summary::after { transform: rotate(-135deg); }
+.venue-archive summary:focus-visible { outline: 2px solid var(--official); outline-offset: 2px; border-radius: 6px; }
+.venue-archive .venue-matches { padding-top: var(--sp-2); }
+@media (prefers-reduced-motion: reduce) { .venue-archive summary::after { transition: none; } }
 .stats-card {
   display: grid;
   gap: var(--sp-2);
@@ -1166,13 +1211,3 @@
 
 /* ---- Stats: sourcing footnotes ---- */
 .stats-foot { color: var(--ink-3); font-size: 0.66rem; margin-top: var(--sp-2); }
-/* Calm truth note: why assists are not ranked. Quiet, not an error state. */
-.stats-note {
-  color: var(--ink-3);
-  font-size: 0.72rem;
-  line-height: 1.5;
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px dashed var(--hairline);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--sp-5);
-}
