@@ -142,7 +142,7 @@ const LAB_KIT_SECONDARY_COLORS = {
   ESP: '#fcd116', UZB: '#ffffff', PAN: '#ffffff', GHA: '#1f3a93',
   ENG: '#1f3a93', SWE: '#1f3a93', TUR: '#ffffff', COD: '#ce1126',
 };
-const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'extra', 'interval', 'pens', 'final']);
+const LAB_MAJOR_TYPES = new Set(['goal', 'save', 'var', 'confirmed', 'overturned', 'card', 'red', 'extra', 'interval', 'pens', 'penalty', 'final']);
 const LAB_PACE_OPTIONS = [
   ['normal', 'Normal', 'Normal'],
   ['fast', 'Turbo', 'Turbo'],
@@ -171,6 +171,7 @@ const LAB_EVENT_MS = {
   extra: { normal: 760, fast: 620, key: 580 },
   interval: { normal: 520, fast: 420, key: 380 },
   pens: { normal: 680, fast: 580, key: 560 },
+  penalty: { normal: 700, fast: 600, key: 580 },
   final: { normal: 900, fast: 780, key: 760 },
   decision: { normal: 220, fast: 160, key: 140 },
   sub: { normal: 220, fast: 160, key: 0 },
@@ -231,6 +232,16 @@ function localDayKey(d = new Date()) {
 export function featuredShowdownForDate(dateKey = localDayKey(), shuffle = 0) {
   const idx = hashSeed(`u26-lab-${dateKey}-${shuffle}`) % FEATURED_POOL.length;
   return { dateKey, shuffle, home: FEATURED_POOL[idx][0], away: FEATURED_POOL[idx][1], seed: hashSeed(`lab-seed-${dateKey}-${shuffle}`) || 1 };
+}
+
+/* Simulation identity — a deterministic tactical flavour per team, used only
+   inside Play. It is game colour, never an official claim about a real side. */
+const SIM_STYLES = [
+  'high press', 'counter surge', 'possession weave', 'wing overloads',
+  'deep block steel', 'box-crash chaos', 'midfield strangle', 'direct running',
+];
+export function teamSimStyle(code) {
+  return SIM_STYLES[hashSeed(`u26-style-${code}`) % SIM_STYLES.length];
 }
 
 function labHexRGB(hex) {
@@ -458,6 +469,11 @@ function labVisualForEvent(run, event) {
   if (event.type === 'overturned') return [goalPoint(side, 'var'), keeperPoint(run, side, 'save')];
   if (event.type === 'extra') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'extra' }];
   if (event.type === 'interval') return [run.ball || playerPoint(run, side, 'DM', 'possession'), { x: 50, y: 50, side, from: 'whistle', kind: 'interval' }];
+  if (event.type === 'penalty') {
+    // regulation penalty award: whistle at the incident, ball to the spot
+    const spot = { x: side === 'h' ? 88 : 12, y: 50, side, from: 'spot', kind: 'penalty' };
+    return [incidentPoint(run, side, actor), spot];
+  }
   if (event.type === 'pens') {
     const taker = event.kick?.actor || 'ST';
     const spot = { x: side === 'h' ? 88 : 12, y: 50, side, from: 'spot', kind: 'penalty' };
@@ -752,7 +768,7 @@ function commitLabVisual(run, event) {
   if (!run || !event || event.committed) return;
   event.committed = true;
   if (event.type === 'shot') labSound('shot');
-  if (event.type === 'save') labSound('save');
+  if (event.type === 'save') labSound(event.fromPenalty ? 'pen-save' : 'save');
   if (event.type === 'goal' && event.scoreDelta && !event.underReview) {
     applyScoreDelta(run, event.side);
     run.goalAt = run.minute;
@@ -1148,9 +1164,10 @@ function labTick() {
         const overturned = hasVar && rng() < 0.28;
         const nextGh = run.gh + (side === 'h' && !hasVar ? 1 : 0);
         const nextGa = run.ga + (side === 'a' && !hasVar ? 1 : 0);
+        const who = (ROLE_NAMES[shooter] || 'Striker').toLowerCase();
         addLabEvent(run, 'goal', side, hasVar
           ? `Goal? ${teamName(team)} wait on the check`
-          : `GOAL — ${teamName(team)} (${nextGh}–${nextGa})`, {
+          : `GOAL — ${teamName(team)}'s ${who} finishes (${nextGh}–${nextGa})`, {
           actor: shooter,
           team,
           scoreDelta: true,
@@ -1177,6 +1194,41 @@ function labTick() {
       } else if (rng() < 0.3) {
         addLabEvent(run, 'chance', side, CHANCE_LINES[Math.floor(rng() * CHANCE_LINES.length)](teamName(team)), { actor: shooter });
       }
+    }
+  }
+  // regulation penalties — rare, loud, resolved from the spot. The award and
+  // its resolution ride the existing event pipeline, so score commits, sounds,
+  // pacing, and reduced-motion draining all behave exactly like open play.
+  if (rng() < 0.009 && run.phase !== 'pens') {
+    const side = rng() < 0.5 + (run.mo || 0) * 0.2 ? 'h' : 'a';
+    const team = side === 'h' ? run.home : run.away;
+    addLabEvent(run, 'penalty', side, `PENALTY — ${teamName(team)} win it, contact in the box`);
+    labSound('pen');
+    if (side === 'h') run.sh++; else run.sa++;
+    const roll = rng();
+    if (roll < 0.74) {
+      const nextGh = run.gh + (side === 'h' ? 1 : 0);
+      const nextGa = run.ga + (side === 'a' ? 1 : 0);
+      addLabEvent(run, 'goal', side, `GOAL — ${teamName(team)} bury the penalty (${nextGh}–${nextGa})`, {
+        actor: 'ST', team, scoreDelta: true, fromPenalty: true,
+      });
+      labSound('goal');
+      const swingTo = side === 'h' ? 0.55 : -0.55;
+      if (Math.abs(swingTo) + Math.abs(run.mo) >= (run.turnMag || 0)) {
+        run.turnMag = Math.abs(swingTo) + Math.abs(run.mo);
+        run.turn = { min: run.minute, text: `${teamName(team)}'s penalty changed the match` };
+      }
+      run.mo += swingTo;
+    } else if (roll < 0.88) {
+      addLabEvent(run, 'save', side, 'SAVED — the keeper reads the penalty', { actor: 'ST', fromPenalty: true });
+      if (run.minute > 70 && Math.abs(run.gh - run.ga) <= 1 && 1.0 >= (run.turnMag || 0)) {
+        run.turnMag = 1.0;
+        run.turn = { min: run.minute, text: `the penalty save that kept ${teamName(side === 'h' ? run.away : run.home)} alive` };
+      }
+      run.mo += side === 'h' ? -0.35 : 0.35;
+    } else {
+      addLabEvent(run, 'chance', side, 'Off the post — the penalty stays out', { actor: 'ST', fromPenalty: true });
+      run.mo += side === 'h' ? -0.2 : 0.2;
     }
   }
   // bookings — rare, real consequences on a red
@@ -1390,6 +1442,19 @@ function labResultFacts(run) {
   return { win, gap, upset, margin: Math.abs(run.gh - run.ga) };
 }
 
+/** Largest deficit the given side overcame, replayed from the committed
+    scoring events — a derived fact, never a stored claim. */
+export function labComebackDepth(events, side = 'h') {
+  let h = 0; let a = 0; let deepest = 0;
+  for (const e of events || []) {
+    if (!((e.type === 'goal' && !e.underReview) || e.type === 'confirmed')) continue;
+    if (e.side === 'h') h++; else a++;
+    const deficit = side === 'h' ? a - h : h - a;
+    if (deficit > deepest) deepest = deficit;
+  }
+  return deepest;
+}
+
 function labArcadePoints(run, facts) {
   let cp = 20; // finishing a full 90 always counts
   if (facts.win) cp += 20 + Math.min(18, facts.margin * 6);
@@ -1447,6 +1512,7 @@ function finishLab() {
     pens: run.pens, approach: run.approach, line: run.line,
     cp, win: facts.win, upset: facts.upset, story: run.story, extraStarted: !!run.extraStarted,
     seed: run.seed,
+    comeback: facts.win ? labComebackDepth(run.events, 'h') : 0,
     events: run.events.slice(-18).map((e) => ({ min: e.min, phase: e.phase || 'reg', type: e.type, side: e.side, text: e.text })),
   };
   const nextPlay = { ...play, labHistory: [entry, ...(play.labHistory || [])].slice(0, 30) };
@@ -1455,6 +1521,14 @@ function finishLab() {
 }
 
 function resetLab() { stopLabTimer(); labRun = null; repaintPlay(); }
+
+/** Replay a museum night exactly: same teams, same approach, same seed.
+    Used by the You museum — local replay only, no official data involved. */
+export function replayLabEntry(entry) {
+  if (!entry || !entry.home || !entry.away) return;
+  setPlayMode('lab');
+  beginLab(entry.home, entry.away, entry.approach || 'balanced', entry.seed);
+}
 
 /* ================= My World Cup (sealed world) ================= */
 
@@ -1654,6 +1728,217 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
   if (currentUser()) pushPick(fixtureId, picks[fixtureId]);
 }
 
+/* ================= Penalty Rush =================
+   The arcade's hands-on minigame: five kicks against a keeper who studies
+   your habits. Entirely local — a seeded, deterministic duel with nothing
+   wagered, no network, no official claims. A perfect five earns sudden death
+   that lasts until the keeper finally wins. */
+
+export const RUSH_ZONES = ['left', 'centre', 'right'];
+const RUSH_ZONE_LABELS = { left: 'low left', centre: 'down the middle', right: 'low right' };
+
+export function dailyGauntletSeed(dateKey = localDayKey(), attempt = 0) {
+  return hashSeed(`u26-rush-${dateKey}-${attempt}`) || 1;
+}
+
+export function createPenaltyRush(seed = dailyGauntletSeed()) {
+  const s = (seed >>> 0) || 1;
+  return {
+    seed: s,
+    rng: mulberry32(s),
+    kicks: [], goals: 0, sudden: false, over: false,
+    aims: { left: 0, centre: 0, right: 0 },
+  };
+}
+
+/* The keeper reads habits, never the current pick: with two or more kicks of
+   history it leans toward your most-used zone — harder in sudden death. */
+function rushKeeperPick(run) {
+  const total = run.aims.left + run.aims.centre + run.aims.right;
+  const r = run.rng();
+  if (total >= 2) {
+    const fav = RUSH_ZONES.reduce((a, b) => (run.aims[a] >= run.aims[b] ? a : b));
+    if (r < (run.sudden ? 0.62 : 0.45)) return fav;
+    const rest = RUSH_ZONES.filter((z) => z !== fav);
+    return rest[Math.min(rest.length - 1, Math.floor(run.rng() * rest.length))];
+  }
+  return RUSH_ZONES[Math.min(2, Math.floor(r * 3))];
+}
+
+/** One kick. Deterministic for a given seed and aim history; mutates only the
+    passed run. Returns the resolved kick or null when the duel is over. */
+export function rushShoot(run, aim) {
+  if (!run || run.over || !RUSH_ZONES.includes(aim)) return null;
+  const keeper = rushKeeperPick(run);
+  const r = run.rng();
+  const outcome = keeper === aim
+    ? (r < (run.sudden ? 0.14 : 0.2) ? 'goal' : 'save')
+    : (r < 0.94 ? 'goal' : 'post');
+  run.aims[aim] += 1;
+  const kick = { n: run.kicks.length + 1, aim, keeper, outcome, sudden: run.sudden };
+  run.kicks.push(kick);
+  if (outcome === 'goal') run.goals += 1;
+  if (run.sudden) {
+    if (outcome !== 'goal') run.over = true;
+  } else if (run.kicks.length >= 5) {
+    if (run.goals === 5) run.sudden = true;
+    else run.over = true;
+  }
+  return kick;
+}
+
+export function rushRating(goals) {
+  if (goals >= 8) return "the keeper's nightmare";
+  if (goals >= 5) return 'ice in the veins';
+  if (goals === 4) return 'clinical from twelve yards';
+  if (goals === 3) return 'composed under the lights';
+  if (goals === 2) return 'shaky legs tonight';
+  return 'the keeper owns tonight';
+}
+
+/** Fold a finished gauntlet into the local record — day-scoped bests plus
+    all-time bests, every number derived from runs that actually happened. */
+export function rushRecordAfter(rec, { dateKey, score, perfect }) {
+  const sameDay = !!rec && rec.dateKey === dateKey;
+  return {
+    dateKey,
+    attemptsToday: (sameDay ? rec.attemptsToday || 0 : 0) + 1,
+    bestToday: Math.max(sameDay ? rec.bestToday || 0 : 0, score),
+    bestEver: Math.max((rec && rec.bestEver) || 0, score),
+    perfects: ((rec && rec.perfects) || 0) + (perfect ? 1 : 0),
+    played: ((rec && rec.played) || 0) + 1,
+    lastScore: score,
+  };
+}
+
+// Live gauntlet — module-local, never persisted mid-run (same policy as labRun).
+let rushRun = null;
+
+function ensureRushRun() {
+  if (rushRun) return rushRun;
+  const { play } = getState();
+  const today = localDayKey();
+  const rec = play.penaltyRush;
+  const attempt = rec && rec.dateKey === today ? rec.attemptsToday || 0 : 0;
+  rushRun = createPenaltyRush(dailyGauntletSeed(today, attempt));
+  return rushRun;
+}
+
+function finishRush() {
+  const { play } = getState();
+  const next = {
+    ...play,
+    penaltyRush: rushRecordAfter(play.penaltyRush, {
+      dateKey: localDayKey(),
+      score: rushRun.goals,
+      perfect: rushRun.goals >= 5,
+    }),
+  };
+  setPlay(next);
+  savePlay(next);
+}
+
+function rushCallout(run) {
+  const last = run.kicks[run.kicks.length - 1];
+  if (!last) return 'The keeper is set. Pick your corner.';
+  const zone = RUSH_ZONE_LABELS[last.aim] || last.aim;
+  if (run.over) {
+    return last.outcome === 'save'
+      ? `The keeper read it — gauntlet over at ${run.goals}.`
+      : last.outcome === 'post'
+        ? `Off the post — gauntlet over at ${run.goals}.`
+        : `Full gauntlet — ${run.goals} buried.`;
+  }
+  if (last.outcome === 'goal') {
+    return run.sudden
+      ? `Buried ${zone}. Sudden death — keep scoring.`
+      : `Kick ${last.n} — buried ${zone}. ${run.goals} in.`;
+  }
+  if (last.outcome === 'save') return `Kick ${last.n} — the keeper read your habit.`;
+  return `Kick ${last.n} — off the post.`;
+}
+
+function rushDotsHTML(run) {
+  const cells = [];
+  for (let i = 0; i < Math.max(5, run.kicks.length); i++) {
+    const k = run.kicks[i];
+    const cls = !k ? 'pending' : k.outcome === 'goal' ? 'goal' : k.outcome === 'save' ? 'save' : 'post';
+    const label = !k ? `Kick ${i + 1} pending` : `Kick ${i + 1}: ${k.outcome}`;
+    cells.push(`<i class="rush-dot ${cls}${k && k.sudden ? ' sudden' : ''}" role="img" aria-label="${label}"></i>`);
+  }
+  return cells.join('');
+}
+
+function rushHTML(play) {
+  const run = ensureRushRun();
+  const rec = play.penaltyRush || null;
+  const today = localDayKey();
+  const sameDay = rec && rec.dateKey === today;
+  const bestToday = sameDay ? rec.bestToday || 0 : 0;
+  const last = run.kicks[run.kicks.length - 1] || null;
+  const perfect = run.over && run.goals >= 5;
+  const newBest = run.over && run.goals > 0 && run.goals >= bestToday;
+  return `<section class="play-card rush" aria-label="Penalty Rush">
+    <div class="rush-head">
+      <div><h2 class="display">Penalty Rush</h2>
+      <p class="play-sub">Daily Gauntlet · five kicks against a keeper who studies your habits. Local practice — no stakes, nothing real at risk.</p></div>
+      <span class="sim-badge">SIMULATION</span>
+    </div>
+    <div class="rush-chips" role="group" aria-label="Gauntlet record">
+      <span class="rush-chip"><b>${bestToday}</b>best today</span>
+      <span class="rush-chip"><b>${(rec && rec.bestEver) || 0}</b>best ever</span>
+      <span class="rush-chip"><b>${(rec && rec.perfects) || 0}</b>perfect fives</span>
+    </div>
+    <div class="rush-stage${last ? ' ' + last.outcome : ''}${run.sudden && !run.over ? ' sudden' : ''}">
+      <div class="rush-goalframe" aria-hidden="true">
+        <span class="rush-net"></span>
+        <span class="rush-keeper${last ? ' dive-' + last.keeper : ''}"><em></em></span>
+        ${last ? `<b class="rush-ball at-${last.aim} ${last.outcome}"></b>` : ''}
+      </div>
+      <p class="rush-callout" role="status" aria-live="polite">${esc(rushCallout(run))}</p>
+    </div>
+    <div class="rush-dots" aria-label="Kick record">${rushDotsHTML(run)}</div>
+    ${run.over ? `<div class="rush-recap${perfect ? ' perfect' : ''}">
+      <p class="rush-score"><strong class="display">${run.goals}</strong><span>${run.goals === 1 ? 'goal' : 'goals'} tonight</span></p>
+      <p class="rush-rating">${esc(rushRating(run.goals))}${perfect ? ' · perfect five' : ''}</p>
+      ${newBest ? '<p class="rush-newbest">New daily best — kept on this phone</p>' : ''}
+      <div class="play-actions">
+        <button class="play-btn gold" id="rush-again">Step up again</button>
+        <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
+      </div>
+    </div>` : `<div class="rush-aims" role="group" aria-label="Pick your corner">
+      <button class="rush-aim" data-rush-aim="left">Low left</button>
+      <button class="rush-aim" data-rush-aim="centre">Middle</button>
+      <button class="rush-aim" data-rush-aim="right">Low right</button>
+    </div>`}
+    <p class="lab-saved-note">Seeded daily on this phone · the keeper never sees your pick, only your habits.</p>
+  </section>`;
+}
+
+function wireRush(outlet) {
+  outlet.querySelectorAll('[data-rush-aim]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const run = ensureRushRun();
+      if (run.over) return;
+      unlockAudioFromGesture();
+      const kick = rushShoot(run, b.dataset.rushAim);
+      if (!kick) return;
+      labSound(kick.outcome === 'goal' ? 'pen-goal' : kick.outcome === 'save' ? 'pen-save' : 'pen-miss');
+      if (run.over) finishRush();
+      repaintPlay();
+    });
+  });
+  const again = outlet.querySelector('#rush-again');
+  if (again) {
+    again.addEventListener('click', () => {
+      rushRun = null; // next attempt draws the day's next deterministic seed
+      ensureRushRun();
+      unlockAudioFromGesture();
+      repaintPlay();
+    });
+  }
+}
+
 /* ================= personal arcade ledger ================= */
 // One player: you. Every number is derived from things that actually happened
 // in this Play space — finished Lab runs, graded predictions, saved runs.
@@ -1761,7 +2046,8 @@ function teamOptions(selected) {
     .map((c) => `<option value="${c}"${c === selected ? ' selected' : ''}>${esc(teamName(c))}</option>`).join('');
 }
 
-/* Tale of the tape — two rating bars facing off. Arcade, not a form. */
+/* Tale of the tape — two rating bars facing off, each with its simulation
+   identity. Arcade flavour, clearly sim-side; never an official claim. */
 function tapeHTML(home, away) {
   const rh = RATINGS[home] || 70; const ra = RATINGS[away] || 70;
   const lo = 60; const hi = 95;
@@ -1770,11 +2056,13 @@ function tapeHTML(home, away) {
     <div class="lab-tape-row">
       <span class="lab-tape-flag">${teamFlag(home)}</span>
       <div class="lab-tape-bar"><i style="width:${pct(rh)}%;background:${TEAM_COLORS[home] || 'var(--gold)'}"></i></div>
+      <span class="lab-tape-style">${esc(teamSimStyle(home))}</span>
       <span class="lab-tape-num">${rh}</span>
     </div>
     <div class="lab-tape-row">
       <span class="lab-tape-flag">${teamFlag(away)}</span>
       <div class="lab-tape-bar"><i style="width:${pct(ra)}%;background:${TEAM_COLORS[away] || 'var(--gold)'}"></i></div>
+      <span class="lab-tape-style">${esc(teamSimStyle(away))}</span>
       <span class="lab-tape-num">${ra}</span>
     </div>
   </div>`;
@@ -1828,7 +2116,7 @@ function labSetupHTML(play) {
 
 function labEventIcon(type) {
   return type === 'goal' ? '●'
-    : type === 'pens' ? '◐'
+    : type === 'pens' || type === 'penalty' ? '◐'
       : type === 'extra' || type === 'interval' ? 'ET'
       : type === 'var' || type === 'confirmed' || type === 'overturned' ? '◇'
       : type === 'decision' ? '▸'
@@ -1953,6 +2241,24 @@ function labRunHTML(run) {
   </section>`;
 }
 
+/* The night at a glance: every committed goal, red card, and penalty moment
+   on one 0–FT strip. Derived from the run's own events — nothing invented. */
+function labTimelineHTML(run) {
+  const span = Math.max(run.minute || 90, 90);
+  const marks = run.events.filter((e) => (e.type === 'goal' && !e.underReview)
+    || e.type === 'confirmed' || e.type === 'red' || (e.type === 'penalty'));
+  if (!marks.length) return '';
+  return `<div class="lab-timeline" aria-label="Match timeline">
+    <i class="lab-tl-track" aria-hidden="true"></i>
+    ${marks.map((e) => {
+    const kind = e.type === 'red' ? 'red' : e.type === 'penalty' ? 'pen' : 'goal';
+    const pct = Math.max(1, Math.min(99, (e.min / span) * 100));
+    return `<span class="lab-tl-mark ${kind} ${e.side === 'h' ? 'home' : 'away'}" style="left:${pct.toFixed(1)}%"
+      title="${esc(minLabel(e.min, e.phase))}' ${esc(e.text)}"><em>${minLabel(e.min, e.phase)}'</em></span>`;
+  }).join('')}
+  </div>`;
+}
+
 /* Full-time payoff: story, points, streak, and a one-tap rematch. */
 function labPayoffHTML(run) {
   const { play, real, sims } = getState();
@@ -1972,13 +2278,14 @@ function labPayoffHTML(run) {
     ${run.pens?.kicks ? `<div class="lab-shootout" aria-label="Penalty shootout sequence">
       ${run.pens.kicks.slice(-10).map((k) => `<span class="${k.scored ? 'scored' : 'miss'}">${k.side === 'h' ? teamFlag(run.home) : teamFlag(run.away)} ${k.scored ? '✓' : '×'}</span>`).join('')}
     </div>` : ''}
+    ${labTimelineHTML(run)}
     ${run.turn ? `<p class="lab-turning"><span>Turning point</span>${minLabel(run.turn.min)}&prime; — ${esc(run.turn.text)}</p>` : ''}
     ${run.potm ? `<p class="lab-potm"><span>Player of the Match</span>${esc(run.potm)}</p>` : ''}
     ${run.story ? `<p class="lab-story">${esc(run.story)}</p>` : ''}
-    <p class="lab-seed">Replay seed ${run.seed}</p>
     <p class="grug-line">${esc(run.line || '')}</p>
     <div class="play-actions">
       <button class="play-btn gold" id="lab-again">Run it back</button>
+      <button class="play-btn quiet" id="lab-replay-night">Replay this exact night</button>
       <button class="play-btn quiet" id="lab-new">New matchup</button>
     </div>
     <p class="lab-saved-note">Saved to You · Arcade Points are a private game score with no cash value.</p>
@@ -2390,6 +2697,8 @@ function lobbyHTML(overlay, play, sims) {
   const champion = play.myWorldCup && play.myWorldCup.champion;
   const bestWin = ledger.best;
   const earned = achievementState().filter((a) => a.on);
+  const rushRec = play.penaltyRush || null;
+  const rushBestToday = rushRec && rushRec.dateKey === localDayKey() ? rushRec.bestToday || 0 : 0;
   return `<section class="play-card lobby" aria-label="Arcade lobby">
     <div class="lobby-marquee" role="group" aria-label="Your arcade record">
       <div class="lm-stat cp"><strong class="display">${ledger.points}</strong><span>Arcade Points</span></div>
@@ -2404,6 +2713,13 @@ function lobbyHTML(overlay, play, sims) {
       <span class="lk-note">Daily featured simulation · not a live fixture</span>
     </button>
     ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} Run it back <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
+
+    <button class="lobby-rush" data-goto="shootout">
+      <span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
+      <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Five kicks. The keeper is reading you.'}</strong>
+      <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · step up` : 'New tonight — step up'}</small>
+      <i class="lobby-rush-ball" aria-hidden="true"></i>
+    </button>
 
     <div class="lobby-grid">
       ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
@@ -2538,6 +2854,8 @@ function wireLab(outlet) {
   });
   const again = outlet.querySelector('#lab-again');
   if (again) again.addEventListener('click', () => { const r = labRun; beginLab(r.home, r.away, r.approach); });
+  const exact = outlet.querySelector('#lab-replay-night');
+  if (exact) exact.addEventListener('click', () => { const r = labRun; beginLab(r.home, r.away, r.approach, r.seed); });
   const fresh = outlet.querySelector('#lab-new');
   if (fresh) fresh.addEventListener('click', resetLab);
 }
@@ -2630,6 +2948,7 @@ export function render(outlet) {
   if (mode === 'lab') body = labRun ? labRunHTML(labRun) : labSetupHTML(play);
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
   else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
+  else if (mode === 'shootout') body = rushHTML(play);
   else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
@@ -2640,6 +2959,7 @@ export function render(outlet) {
     options: [
       { value: 'lobby', label: 'Lobby' },
       { value: 'lab', label: 'Match Lab', short: 'Lab' },
+      { value: 'shootout', label: 'Penalty Rush', short: 'Rush' },
       { value: 'myworldcup', label: 'My World Cup', short: 'My Cup' },
       { value: 'prediction', label: 'Prediction Run', short: 'Predict' },
     ],
@@ -2668,5 +2988,6 @@ export function render(outlet) {
     startDirector();
   } else if (mode === 'myworldcup') wireMwc(outlet);
   else if (mode === 'prediction') wirePrediction(outlet);
+  else if (mode === 'shootout') wireRush(outlet);
   else wireLobby(outlet);
 }

@@ -202,13 +202,15 @@ test.describe('Match Lab', () => {
     await page.locator('[data-decide="fresh"]').click();
     await expect.poll(() => page.evaluate(() => window.__u26LabDebug.snapshot().phase)).toBe('et1');
     const score = page.locator('#lab-score');
-    const before = await score.getAttribute('data-v');
-    expect(before).toMatch(/^\d+-\d+$/);
-    const [home, away] = before.split('-').map(Number);
 
-    await page.evaluate(() => window.__u26LabDebug.force('et-goal'));
+    // force() stops the live timer and reports the pre-commit score, so the
+    // expectation is derived from the exact moment the goal was queued — the
+    // live sim can no longer race the assertion with its own late goal.
+    const forced = await page.evaluate(() => window.__u26LabDebug.force('et-goal'));
+    expect(forced.score).toHaveLength(2);
+    const [home, away] = forced.score;
     await expect(page.locator('.lab-phase-badge')).toHaveText('Extra time');
-    await expect(score).toHaveAttribute('data-v', before);
+    await expect(score).toHaveAttribute('data-v', `${home}-${away}`);
     await expect(score).toHaveAttribute('data-v', `${home + 1}-${away}`, { timeout: 4000 });
   });
 
@@ -250,12 +252,72 @@ test.describe('Match Lab', () => {
     await expect(page.locator('.lab-feed .lab-ev').first()).toBeVisible();
     await screenshot(page, testInfo, 'play-lab-fulltime');
     await expectNoHorizontalOverflow(page, expect, 'lab');
-    // saved to You
+    // saved to You — and the museum can replay the exact night
     await tapTab(page, 'you');
     await expect(page.locator('.you-lab')).toHaveCount(1);
+    await expect(page.locator('.you-replay').first()).toBeVisible();
+    await page.locator('.you-replay').first().click();
+    await expect(page.locator('.dock-tab[data-tab="play"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.lab.running')).toBeVisible();
     // real truth untouched
     await tapTab(page, 'home');
     expect(await page.locator('.score-stage').innerText()).toBe(heroBefore);
+  });
+});
+
+test.describe('Penalty Rush', () => {
+  test('five kicks against the gauntlet keeper — local record only, official truth untouched', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    const heroBefore = await page.locator('.score-stage').innerText();
+    await openPlayMode(page, 'shootout');
+    await expect(page.locator('.rush-stage')).toBeVisible();
+    await expect(page.locator('.rush-aim')).toHaveCount(3);
+    await expect(page.locator('.rush-callout')).toContainText('Pick your corner');
+    const aims = ['left', 'centre', 'right', 'left', 'right'];
+    for (const aim of aims) {
+      await page.locator(`[data-rush-aim="${aim}"]`).click();
+      await expect(page.locator('.rush-callout')).not.toContainText('Pick your corner');
+    }
+    // a perfect five earns sudden death — keep shooting until the keeper wins
+    for (let guard = 0; guard < 24; guard++) {
+      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
+      await page.locator('[data-rush-aim="centre"]').click();
+    }
+    await expect(page.locator('.rush-recap')).toBeVisible();
+    await expect(page.locator('.rush-recap .rush-score strong')).toHaveText(/^\d+$/);
+    await screenshot(page, testInfo, 'play-penalty-rush');
+    await expectNoHorizontalOverflow(page, expect, 'penalty-rush');
+    // no sportsbook language anywhere on the surface
+    const text = (await page.locator('.play-view').innerText()).toLowerCase();
+    for (const banned of ['odds', 'bet ', 'wallet', 'cashout', 'payout', 'deposit', 'stake ']) {
+      expect(text).not.toContain(banned);
+    }
+    // the record lives only in the whitelisted Play namespace
+    const keys = await page.evaluate(() => Object.keys(window.localStorage));
+    expect(keys.every((k) => ['u26v2.prefs', 'u26v2.play', 'u26v2.sims', 'u26v2.auth'].includes(k))).toBe(true);
+    const rush = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}').penaltyRush);
+    expect(rush.played).toBe(1);
+    expect(rush.bestEver).toBeGreaterThanOrEqual(0);
+    // the museum keeps the gauntlet moment
+    await tapTab(page, 'you');
+    await expect(page.locator('.you-moment.rush')).toBeVisible();
+    // official truth untouched
+    await tapTab(page, 'home');
+    expect(await page.locator('.score-stage').innerText()).toBe(heroBefore);
+  });
+
+  test('the lobby cabinet opens the gauntlet and Step up again starts a fresh seeded run', async ({ page }) => {
+    await gotoApp(page);
+    await tapTab(page, 'play');
+    await page.locator('.lobby-rush').click();
+    await expect(page.locator('.rush-stage')).toBeVisible();
+    for (let guard = 0; guard < 24; guard++) {
+      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
+      await page.locator('[data-rush-aim="left"]').click();
+    }
+    await page.locator('#rush-again').click();
+    await expect(page.locator('.rush-callout')).toContainText('Pick your corner');
+    await expect(page.locator('.rush-dot.pending')).toHaveCount(5);
   });
 });
 

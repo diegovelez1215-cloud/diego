@@ -69,7 +69,9 @@ export function init(root) {
     }
     if (tags.includes('tournament')) markStale('tournament');
     if (tags.includes('play')) markStale('play');
-    if (tags.includes('sims') || tags.includes('you') || tags.includes('prefs')) markStale('you');
+    // 'play' also invalidates You: the museum renders lab history and the
+    // Penalty Rush record, which live in the Play namespace.
+    if (tags.includes('sims') || tags.includes('you') || tags.includes('prefs') || tags.includes('play')) markStale('you');
   });
 
   paint(getState().nav.tab, true);

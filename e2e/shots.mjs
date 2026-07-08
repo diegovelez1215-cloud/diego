@@ -62,6 +62,10 @@ const browser = process.env.PW_BROWSER === 'chromium'
 async function shootAll(width, height, tag) {
   const ctx = await browser.newContext({
     viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    // Same policy as e2e: the service worker must not claim the page, or its
+    // network-only /api passthrough silently bypasses these route mocks and
+    // the screenshots lie about provider states.
+    serviceWorkers: 'block',
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
   });
   const page = await ctx.newPage();
@@ -153,6 +157,11 @@ async function shootAll(width, height, tag) {
   await page.evaluate(() => window.__u26LabDebug.force('final'));
   await page.waitForTimeout(350);
   await snap('lab-final-result', false);
+  await seg('play-mode', 'shootout');
+  await snap('penalty-rush-aim', false);
+  await page.locator('[data-rush-aim="left"]').click();
+  await page.waitForTimeout(420);
+  await snap('penalty-rush-kick', false);
   await seg('play-mode', 'myworldcup'); await snap('myworldcup');
   await seg('play-mode', 'prediction');
   // open the ritual on the first fixture so the draft step is inspectable
@@ -171,6 +180,7 @@ async function shootAll(width, height, tag) {
 
   const standalone = await browser.newContext({
     viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    serviceWorkers: 'block',
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
   });
   const sp = await standalone.newPage();

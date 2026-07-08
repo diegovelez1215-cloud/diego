@@ -13,7 +13,8 @@ import {
 } from '../core/app-state.js';
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
-import { gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff } from './play.js';
+import { gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry } from './play.js';
+import { activate } from '../navigation/router.js';
 import {
   boardConfigured, currentUser, signOut,
   requestEmailCode, verifyEmailCode,
@@ -453,6 +454,34 @@ function museumHeroHTML(state) {
   </section>`;
 }
 
+/* Hall of Moments — the nights worth keeping: best upset, deepest comeback,
+   the shootout that got away, the gauntlet record. Every chip is derived from
+   runs that actually happened on this phone. */
+function hallOfMomentsHTML(play) {
+  const lab = play.labHistory || [];
+  const chips = [];
+  const upsets = lab.filter((e) => e.win && e.upset);
+  if (upsets.length) {
+    const u = upsets.reduce((a, b) => ((b.cp || 0) > (a.cp || 0) ? b : a));
+    chips.push(`<span class="you-moment upset">🗡️ Best upset — ${teamFlag(u.home)} ${u.gh}–${u.ga} ${teamFlag(u.away)}</span>`);
+  }
+  const comebacks = lab.filter((e) => e.win && (e.comeback || 0) >= 1);
+  if (comebacks.length) {
+    const c = comebacks.reduce((a, b) => ((b.comeback || 0) > (a.comeback || 0) ? b : a));
+    chips.push(`<span class="you-moment comeback">↩ Came back from ${c.comeback} down — ${teamFlag(c.home)} ${c.gh}–${c.ga} ${teamFlag(c.away)}</span>`);
+  }
+  const heartbreak = lab.find((e) => !e.win && e.pens);
+  if (heartbreak) {
+    chips.push(`<span class="you-moment heartbreak">💔 Penalty heartbreak — ${heartbreak.pens.ph}–${heartbreak.pens.pa} on kicks</span>`);
+  }
+  const rush = play.penaltyRush;
+  if (rush && rush.played) {
+    chips.push(`<span class="you-moment rush">◐ Gauntlet best ${rush.bestEver || 0}${rush.perfects ? ` · ${rush.perfects} perfect` : ''}</span>`);
+  }
+  if (!chips.length) return '';
+  return `<div class="you-moments" aria-label="Hall of moments">${chips.join('')}</div>`;
+}
+
 function museumHTML(state) {
   const { sims, prefs, play, real } = state;
   const saved = sims.saved || [];
@@ -489,14 +518,16 @@ function museumHTML(state) {
 
     <section class="you-card" aria-label="Match Lab history">
       <h2>Match Lab${lab.length ? ` <span class="you-lab-record">${labWins}W–${lab.length - labWins}L</span>` : ''}</h2>
-      ${lab.length ? lab.slice(0, 6).map((m) => {
+      ${hallOfMomentsHTML(play)}
+      ${lab.length ? lab.slice(0, 6).map((m, i) => {
     const bestNight = (m.cp || 0) > 0 && (m.cp || 0) === bestCp;
     return `
         <div class="you-lab${bestNight ? ' best' : ''}">
           <span class="you-lab-score">${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}
-            ${m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
+            ${m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${(m.comeback || 0) >= 2 ? '<em class="you-lab-tag comeback">comeback</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
           <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}${m.cp ? ' · +' + m.cp + ' CP' : ''}</span>
           ${m.story ? `<span class="you-lab-story">${esc(m.story)}</span>` : ''}
+          ${m.seed ? `<button class="you-replay" data-replaylab="${i}" aria-label="Replay ${esc(teamName(m.home))} versus ${esc(teamName(m.away))} exactly as it happened">Replay this night</button>` : ''}
         </div>`;
   }).join('')
     : '<p class="empty-line">No lab matches yet — Tonight’s Showdown is one tap away on the Play tab.</p>'}
@@ -647,6 +678,15 @@ export function render(outlet) {
     el.addEventListener('click', () => {
       const next = { saved: (getState().sims.saved || []).filter((s) => s.id !== el.dataset.del) };
       setSims(next); saveSims(next);
+    });
+  });
+  // museum replay: same teams, same approach, same seed — the exact night
+  outlet.querySelectorAll('[data-replaylab]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const entry = (getState().play.labHistory || [])[Number(el.dataset.replaylab)];
+      if (!entry) return;
+      replayLabEntry(entry);
+      activate('play');
     });
   });
   const theme = outlet.querySelector('[data-segmented="theme"]');

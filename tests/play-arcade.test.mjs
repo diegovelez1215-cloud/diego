@@ -13,11 +13,13 @@ import {
   gradePredictions,
   isLabMajorMoment,
   labColorContrast,
+  labComebackDepth,
   labVisualDuration,
   playNextRound,
   resolveLabTeamColors,
   simulateLabForSeed,
   simulateMatch,
+  teamSimStyle,
 } from '../src/views/play.js';
 import { FIXTURES, TEAM_COLORS } from '../src/data/fixtures.js';
 import { fullResultsPayload, OK } from './mock-provider.mjs';
@@ -172,8 +174,11 @@ test('card visuals identify the dismissed marker before the count changes', () =
   assert.equal(result.players.home + result.players.away, 21);
 });
 
+/* NOTE: the pinned seeds below were re-derived (2026-07-08) after the engine
+   gained regulation penalty incidents — every seed's rng stream shifted. The
+   assertions themselves are unchanged; only the sample seeds moved. */
 test('knockout ties enter extra time before penalties', () => {
-  const result = lab(4);
+  const result = lab(2);
   assert.ok(result.pens);
   const extraIdx = result.events.findIndex((e) => e.type === 'extra');
   const pensIdx = result.events.findIndex((e) => e.type === 'pens');
@@ -186,7 +191,7 @@ test('knockout ties enter extra time before penalties', () => {
 });
 
 test('an extra-time winner never enters penalties', () => {
-  const result = lab(6);
+  const result = lab(1);
   assert.equal(result.extraStarted, true);
   assert.equal(result.pens, null);
   assert.notEqual(result.score[0], result.score[1]);
@@ -195,17 +200,17 @@ test('an extra-time winner never enters penalties', () => {
 });
 
 test('tied extra time enters a shootout with the full player scene unless cards reduced it', () => {
-  const noCards = lab(4);
+  const noCards = lab(2);
   assert.ok(noCards.pens);
   assert.deepEqual(noCards.players, { home: 11, away: 11 });
-  const reduced = lab(3);
+  const reduced = lab(20);
   assert.ok(reduced.pens);
   assert.ok(reduced.events.some((e) => e.type === 'red'), 'sample includes a real red card');
   assert.equal(reduced.players.home + reduced.players.away, 21, 'only the red card reduces the shootout scene');
 });
 
 test('penalty kicks animate taker, keeper, ball result, and update after the kick resolves', () => {
-  const result = lab(4);
+  const result = lab(2);
   const first = result.events.find((e) => e.type === 'pens');
   assert.ok(first.kick, 'kick metadata is recorded');
   assert.equal(first.committed, true, 'score is committed after the visual sequence');
@@ -215,7 +220,7 @@ test('penalty kicks animate taker, keeper, ball result, and update after the kic
 });
 
 test('penalty shootout supports sudden death', () => {
-  const result = lab(13);
+  const result = lab(20);
   assert.ok(result.pens);
   const kicks = result.events.filter((e) => e.type === 'pens');
   assert.ok(kicks.length > 10, 'shootout continued beyond the first five each');
@@ -272,6 +277,40 @@ test('major moments are never cut off before their commit', () => {
       assert.ok(e.visual.length >= 2, `${e.type} kept a complete visual path`);
     }
   }
+});
+
+test('regulation penalties resolve honestly: award then goal, save, or miss — score stays committed truth', () => {
+  const { result } = findLab((r) => r.events.some((e) => e.type === 'penalty'), 2000);
+  const events = result.events;
+  const idx = events.findIndex((e) => e.type === 'penalty');
+  assert.ok(events[idx].min <= 120 + 6, 'penalty happens inside the match');
+  const next = events[idx + 1];
+  assert.ok(next && ['goal', 'save', 'chance'].includes(next.type), 'the award resolves to a football outcome');
+  assert.equal(next.side, events[idx].side, 'the winning side takes the kick');
+  // the scoreboard invariant survives penalties: committed goals only
+  const scoring = events.filter((e) => (e.type === 'goal' && !e.underReview) || e.type === 'confirmed');
+  const h = scoring.filter((e) => e.side === 'h').length;
+  const a = scoring.filter((e) => e.side === 'a').length;
+  assert.deepEqual(result.score, [h, a], 'penalty goals commit through the same score pipeline');
+  assert.equal(isLabMajorMoment('penalty'), true, 'a penalty award is a major broadcast moment');
+});
+
+test('comeback depth is a derived fact from committed scoring events only', () => {
+  const ev = (side, extra = {}) => ({ type: 'goal', side, ...extra });
+  assert.equal(labComebackDepth([ev('a'), ev('a'), ev('h'), ev('h'), ev('h')], 'h'), 2, 'two down, won');
+  assert.equal(labComebackDepth([ev('h'), ev('a')], 'h'), 0, 'never trailed');
+  assert.equal(labComebackDepth([ev('a', { underReview: true })], 'h'), 0, 'a goal under review commits nothing');
+  assert.equal(labComebackDepth([{ type: 'confirmed', side: 'a' }], 'h'), 1, 'VAR-confirmed goals count');
+  assert.equal(labComebackDepth([], 'h'), 0, 'no events, no story');
+});
+
+test('team sim styles are deterministic Play flavour and never touch official data', () => {
+  assert.equal(teamSimStyle('BRA'), teamSimStyle('BRA'));
+  assert.equal(typeof teamSimStyle('FRA'), 'string');
+  assert.ok(teamSimStyle('FRA').length > 3);
+  const fixturesBefore = JSON.stringify(FIXTURES);
+  teamSimStyle('ARG');
+  assert.equal(JSON.stringify(FIXTURES), fixturesBefore, 'fixture registry untouched');
 });
 
 test('daily featured showdown is stable by date and changes with shuffle or date', () => {
