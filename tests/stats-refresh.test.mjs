@@ -118,7 +118,7 @@ test('verified payload: G+A is the exact merge of verified goals and assists', (
   const ga = card('Goals + assists');
   assert.match(ga, /1 C Creator 0g · 5a/);
   assert.match(ga, /2 A Player 4g · 0a/);
-  assert.match(ga, /Combined from the verified goal and assist leader lists/);
+  assert.match(ga, /Combined from the verified provider rows/);
 });
 
 test('refreshed verified payload rerenders the Assists card', async () => {

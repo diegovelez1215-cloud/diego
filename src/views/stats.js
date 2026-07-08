@@ -88,6 +88,9 @@ export function renderStats(overlay, stats) {
     <article class="stats-card">
       <h3>Assists</h3>
       ${leaderRows(assists, 'Official assist data is unavailable from the current feed.')}
+      ${assists.length ? `<p class="stats-foot">${stats && stats.truncated
+    ? 'Verified from a capped scorer feed — players outside it, including assist-only leaders, are not ranked here.'
+    : 'Verified from the official scorer feed. Players without a goal are not ranked by this provider.'}</p>` : ''}
     </article>
     <article class="stats-card">
       <h3>Goals + assists</h3>
@@ -99,7 +102,7 @@ export function renderStats(overlay, stats) {
         <span class="stats-team">${r.g}g · ${r.a}a${code ? ' · ' + teamFlag(code) : ''}</span>
         <strong>${r.n}</strong>
       </div>`;
-  }).join('') + '<p class="stats-foot">Combined from the verified goal and assist leader lists.</p>'
+  }).join('') + '<p class="stats-foot">Combined from the verified provider rows — not a complete tournament leaderboard.</p>'
     : '<p class="stats-empty">G+A needs both verified goal and assist data — one of the two is unavailable right now.</p>'}
     </article>
     <article class="stats-card">

@@ -228,6 +228,10 @@ async function refreshProviderData() {
           fetchedAt: scorerStats.fetchedAt || null,
           goals: scorerStats.goals,
           assists: scorerStats.assists,
+          // Honest scope passthrough: assists exist only on the provider's
+          // goal-ranked scorer rows, and `truncated` marks a capped row set.
+          assistScope: scorerStats.assistScope || null,
+          truncated: scorerStats.truncated === true,
         });
       } else {
         // Degraded refresh (error, stale fallback, unconfigured, malformed):
