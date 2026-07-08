@@ -23,6 +23,12 @@ test('snapshotDue: first load always due; fresh snapshot is not re-fetched on ta
   assert.equal(snapshotDue(t + IDLE_POLL_MS, t, false), true, 'idle cadence elapsed → due');
 });
 
+test('free-tier safety floors: cadences never drop below the safe minimums', () => {
+  assert.ok(LIVE_POLL_MS >= 60 * 1000, 'live polling at most once a minute');
+  assert.ok(IDLE_POLL_MS >= 5 * 60 * 1000, 'idle polling at most every five minutes');
+  assert.ok(SCORER_TTL_MS >= 15 * 60 * 1000, 'scorer fetches at most every fifteen minutes');
+});
+
 test('scorersDue: player stats use a longer TTL than live scores', () => {
   const t = 5_000_000;
   assert.ok(SCORER_TTL_MS > IDLE_POLL_MS, 'scorer TTL exceeds even the idle poll');

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import scorersHandler, { SCORER_LIMIT, normalizeScorers } from '../api/scorers.js';
-import { renderStats } from '../src/views/stats.js';
+import { renderStats, combinedGA } from '../src/views/stats.js';
 import { buildOverlay } from '../src/core/provider-overlay.js';
 
 const row = (name, team, goals, assists) => ({
@@ -83,24 +83,48 @@ test('a row set that hits the cap is flagged truncated; an uncapped one is not',
   assert.equal(open.assistScope, 'scorer-rows');
 });
 
-test('limited provider rows can never masquerade as an assist or G+A leaderboard', () => {
+test('limited provider rows can never masquerade as a standalone assist leaderboard', () => {
   const overlay = buildOverlay({ results: { configured: true, sourceStatus: 'fresh', isStale: false, finished: [] } });
   const base = {
     providerState: 'fresh', fetchedAt: '2026-07-08T15:11:36Z',
     goals: [{ player: 'A Player', team: 'Mexico', n: 4 }],
     assists: [{ player: 'B Creator', team: 'Japan', n: 3 }],
   };
-  // Even a rich-looking assist row set stays off the page: coverage is
-  // structurally unprovable (goal-ranked rows only), truncated or not.
+  // Coverage of a standalone assist board is structurally unprovable
+  // (goal-ranked rows only), truncated or not — so it never renders. G+A
+  // renders from the same verified fields and says exactly what it is.
   for (const truncated of [false, true]) {
     const html = renderStats(overlay, { ...base, truncated });
-    assert.doesNotMatch(html, /<h3>Assists<\/h3>/);
-    assert.doesNotMatch(html, /Goals \+ assists/);
-    assert.doesNotMatch(html, /B Creator/, 'scorer-row assists never render as rankings');
-    assert.match(html, /Complete assist leaders are unavailable from the verified provider, so United 2026 does not rank assists until a complete source is connected\./);
+    assert.doesNotMatch(html, /<h3>Assists<\/h3>/, 'no standalone assist leaderboard');
+    assert.match(html, /<h3>Goals \+ assists<\/h3>/, 'G+A is back');
+    assert.match(html, /B Creator/, 'verified assist fields do rank inside G+A');
+    assert.match(html, /0g · 3a/, 'row copy shows the verified components');
+    assert.match(html, /Combined from verified provider goal and assist fields\. Standalone assist leaders require a complete assist source\./);
     assert.match(html, /<h3>Top scorers<\/h3>/);
     assert.match(html, /A Player/, 'verified goals still rank');
   }
+});
+
+test('G+A sorts by verified total with goal/assist/name tiebreakers — never by goal rank alone', () => {
+  const ga = combinedGA(
+    [
+      { player: 'Goal Machine', team: 'A', n: 5 },
+      { player: 'Balanced Star', team: 'B', n: 3 },
+      { player: 'Tie Goals', team: 'D', n: 2 },
+    ],
+    [
+      { player: 'Balanced Star', team: 'B', n: 3 },
+      { player: 'Quiet Creator', team: 'C', n: 5 },
+      { player: 'Tie Assists', team: 'E', n: 2 },
+    ],
+  );
+  assert.deepEqual(ga.map((r) => [r.player, r.n, r.g, r.a]), [
+    ['Balanced Star', 6, 3, 3],
+    ['Goal Machine', 5, 5, 0],
+    ['Quiet Creator', 5, 0, 5],
+    ['Tie Goals', 2, 2, 0],
+    ['Tie Assists', 2, 0, 2],
+  ], 'total first; equal totals break by goals, then assists, then name');
 });
 
 test('Top scorers and freshness stay honest with and without a feed', () => {

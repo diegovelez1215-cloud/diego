@@ -316,6 +316,8 @@ test.describe('Prediction Run', () => {
     }
     expect(text).toContain('World Cup Leaderboard');
     await tapTab(page, 'you');
-    await expect(page.locator('.you-card').first()).toContainText('1 call');
+    await expect(page.locator('.you-card', { hasText: 'Prediction record' })).toContainText('1 call');
+    // Museum hero: local identity only, present even for a fresh player.
+    await expect(page.locator('.you-hero')).toContainText('Kept on this phone');
   });
 });

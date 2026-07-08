@@ -423,6 +423,36 @@ function boardHTML(state) {
 
 /* ================= the museum (unchanged spirit) ================= */
 
+/* The museum lede: local identity built only from what actually happened on
+   this phone — arcade tier, record, achievements. Nothing global, nothing
+   invented, and it keeps its value after the tournament ends. */
+function museumHeroHTML(state) {
+  const { play, real, sims } = state;
+  const ledger = arcadeLedger(play, real.overlay, sims);
+  const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
+  const savedCount = (sims.saved || []).length;
+  let tier = 0;
+  for (let i = 0; i < TIERS.length; i++) if (ledger.points >= TIERS[i][1]) tier = i;
+  const earned = achievementState().filter((a) => a.on);
+  const hasAnything = ledger.played || stats.total || savedCount || Object.keys(play.predictions?.picks || {}).length;
+  return `<section class="you-card you-hero" aria-label="Your tournament in numbers">
+    <p class="bd-kicker">Kept on this phone</p>
+    <h2 class="display">${esc(TIERS[tier][0])}</h2>
+    <p class="you-hero-sub">${hasAnything
+    ? 'Your World Cup, in numbers. Everything here is yours and stays replayable after the final.'
+    : 'Your World Cup scrapbook starts with one call or one showdown — everything you do is kept here.'}</p>
+    <div class="ladder-grid" role="group" aria-label="Local record">
+      <span class="ladder-cell"><b>${stats.right}/${stats.total}</b><small>calls right</small></span>
+      <span class="ladder-cell"><b>${ledger.wins}W–${ledger.played - ledger.wins}L</b><small>Match Lab</small></span>
+      <span class="ladder-cell"><b>${savedCount}</b><small>timelines saved</small></span>
+      <span class="ladder-cell"><b>${ledger.points}</b><small>Arcade Points</small></span>
+    </div>
+    ${earned.length ? `<div class="you-ach-row" aria-label="Earned achievements">
+      ${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}
+    </div>` : '<p class="you-hero-hint">Achievements land here from real play — an upset call, a five-streak, a shootout escape.</p>'}
+  </section>`;
+}
+
 function museumHTML(state) {
   const { sims, prefs, play, real } = state;
   const saved = sims.saved || [];
@@ -430,7 +460,9 @@ function museumHTML(state) {
   const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
   const pickCount = Object.keys(play.predictions?.picks || {}).length;
   const labWins = lab.filter((e) => e.win).length;
+  const bestCp = lab.length ? Math.max(...lab.map((m) => m.cp || 0)) : 0;
   return `
+    ${museumHeroHTML(state)}
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
       ${pickCount ? `<div class="pr-stats quiet" role="group" aria-label="Record">
@@ -457,12 +489,17 @@ function museumHTML(state) {
 
     <section class="you-card" aria-label="Match Lab history">
       <h2>Match Lab${lab.length ? ` <span class="you-lab-record">${labWins}W–${lab.length - labWins}L</span>` : ''}</h2>
-      ${lab.length ? lab.slice(0, 6).map((m) => `
-        <div class="you-lab">
-          <span class="you-lab-score">${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}</span>
+      ${lab.length ? lab.slice(0, 6).map((m) => {
+    const bestNight = (m.cp || 0) > 0 && (m.cp || 0) === bestCp;
+    return `
+        <div class="you-lab${bestNight ? ' best' : ''}">
+          <span class="you-lab-score">${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}
+            ${m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
           <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}${m.cp ? ' · +' + m.cp + ' CP' : ''}</span>
-        </div>`).join('')
-    : '<p class="empty-line">No lab matches yet.</p>'}
+          ${m.story ? `<span class="you-lab-story">${esc(m.story)}</span>` : ''}
+        </div>`;
+  }).join('')
+    : '<p class="empty-line">No lab matches yet — Tonight’s Showdown is one tap away on the Play tab.</p>'}
     </section>
 
     <section class="you-card" aria-label="Preferences">

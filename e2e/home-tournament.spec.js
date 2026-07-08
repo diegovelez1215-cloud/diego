@@ -112,17 +112,18 @@ test.describe('Tournament', () => {
     await screenshot(page, testInfo, 'venues');
   });
 
-  test('Stats: verified scorer leaders, no unprovable assist rankings', async ({ page }, testInfo) => {
+  test('Stats: verified scorers, honest G+A, no standalone assist board', async ({ page }, testInfo) => {
     await gotoApp(page);
     await openTournamentSection(page, 'stats');
     await expect(page.locator('.stats-card').first()).toContainText('A Player');
-    // Assist coverage cannot be proven from the goal-ranked provider rows, so
-    // no Assists or G+A leaderboard exists — only the calm truth note.
-    await expect(page.locator('.stats-card')).toHaveCount(3);
-    await expect(page.locator('.stats-pane')).not.toContainText('Goals + assists');
-    await expect(page.locator('.stats-note')).toContainText('does not rank assists until a complete source is connected');
-    await expect(page.locator('.stats-card').nth(1)).toContainText('Team goals');
-    await expect(page.locator('.stats-card').nth(2)).toContainText('Clean sheets');
+    // G+A is back; with no verified assist fields in the mock it must say so
+    // honestly rather than invent a zero. No standalone Assists board exists.
+    await expect(page.locator('.stats-card')).toHaveCount(4);
+    await expect(page.locator('.stats-card').nth(1)).toContainText('Goals + assists');
+    await expect(page.locator('.stats-card').nth(1)).toContainText('unavailable right now');
+    await expect(page.locator('.stats-pane .stats-card h3').nth(1)).not.toHaveText('Assists');
+    await expect(page.locator('.stats-card').nth(2)).toContainText('Team goals');
+    await expect(page.locator('.stats-card').nth(3)).toContainText('Clean sheets');
     await expectNoHorizontalOverflow(page, expect, 'stats');
     await screenshot(page, testInfo, 'stats');
   });

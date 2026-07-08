@@ -1306,6 +1306,18 @@
 .you-cp-row span { color: var(--ink-2); font-size: var(--fs-micro); line-height: 1.4; }
 .you-cp-row small { color: var(--ink-3); font-size: 0.66rem; }
 .you-ach-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+/* ---- You museum hero: quiet local identity, no global claims ---- */
+.you-hero .display { font-family: var(--font-display); font-stretch: var(--stretch-wide); font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
+.you-hero-sub { color: var(--ink-3); font-size: var(--fs-micro); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-3); }
+.you-hero-hint { color: var(--ink-3); font-size: 0.7rem; line-height: 1.5; margin-top: var(--sp-3); }
+.you-lab-tag {
+  font-style: normal; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid var(--hairline); border-radius: 999px; padding: 1px 8px; margin-left: var(--sp-2);
+  color: var(--ink-3); vertical-align: 2px;
+}
+.you-lab-tag.upset { color: var(--gold-ink); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+.you-lab-tag.best { color: var(--gold-ink); }
+.you-lab-story { color: var(--ink-3); font-size: 0.7rem; line-height: 1.45; }
 .you-ach {
   border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
   border-radius: 999px; color: var(--gold-ink);

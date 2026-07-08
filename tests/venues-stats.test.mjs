@@ -22,7 +22,7 @@ test('Venue explorer renders stadium match lists in chronological order', () => 
   assert.deepEqual(epochs, [...epochs].sort((a, b) => a - b), 'venue fixtures are chronological');
 });
 
-test('Stats view uses verified player feed and never ranks unprovable assists', () => {
+test('Stats view ranks verified goals and G+A but never a standalone assist board', () => {
   const overlay = buildOverlay({ results: { ...OK, finished: fullGroupFinished(), live: [], hold: [], scheduled: [] } });
   const html = renderStats(overlay, {
     providerState: 'ok',
@@ -33,10 +33,12 @@ test('Stats view uses verified player feed and never ranks unprovable assists', 
   assert.match(html, /A Player/);
   assert.match(html, /Team goals/);
   assert.match(html, /Clean sheets/);
-  // Provider assists exist on scorer rows only — they must never surface as
-  // a leaderboard, and the page explains why in calm copy.
+  // G+A is back: verified fields only, with component copy and honest sourcing.
+  assert.match(html, /Goals \+ assists/);
+  assert.match(html, /4g · 0a/);
+  assert.match(html, /0g · 3a/);
+  assert.match(html, /Combined from verified provider goal and assist fields/);
+  assert.match(html, /Standalone assist leaders require a complete assist source/);
+  // The standalone Assists leaderboard stays off the page.
   assert.doesNotMatch(html, /<h3>Assists<\/h3>/);
-  assert.doesNotMatch(html, /Goals \+ assists/);
-  assert.doesNotMatch(html, /B Creator/);
-  assert.match(html, /Complete assist leaders are unavailable from the verified provider/);
 });

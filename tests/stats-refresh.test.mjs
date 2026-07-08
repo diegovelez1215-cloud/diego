@@ -5,8 +5,8 @@
 // stale fallback and an error fallback. Proves:
 //   • verified scorer values reach the Top scorers card unchanged;
 //   • a refreshed verified payload rerenders the card;
-//   • provider assist rows are held in state untouched but are NEVER ranked
-//     on screen — assist coverage is unprovable from goal-ranked rows;
+//   • provider assist rows rank only inside Goals + assists (verified
+//     fields, honest copy) — never as a standalone assist leaderboard;
 //   • degraded payloads never erase verified leaders and never masquerade
 //     as fresh — the unavailable state appears only when nothing verified
 //     has ever arrived.
@@ -45,6 +45,9 @@ const GOALS_V2 = [
 ];
 const ASSIST_ROWS = [
   { player: 'D Creator', team: 'Japan', n: 3, g: 1 },
+];
+const ASSIST_ROWS_V2 = [
+  { player: 'E Engine', team: 'Brazil', n: 2, g: 0 },
 ];
 
 let scorersPayload = null; // set per phase
@@ -111,7 +114,7 @@ test('error payload at boot: honest unavailable, nothing invented, no fresh stam
   assert.equal(s.fetchedAt, null, 'a wiped screen is never stamped as updated');
   assert.deepEqual(s.goals, []);
   assert.match(card('Top scorers'), /Official scorer feed is unavailable/);
-  assert.match(pane(), /Complete assist leaders are unavailable from the verified provider/);
+  assert.match(card('Goals + assists'), /G\+A needs verified goal and assist fields/);
 });
 
 test('verified payload: scorer values reach the Top scorers card unchanged', async () => {
@@ -122,19 +125,23 @@ test('verified payload: scorer values reach the Top scorers card unchanged', asy
   assert.match(html, /B Player/);
 });
 
-test('provider assist rows stay in state untouched but are never ranked on screen', () => {
+test('assist rows rank inside G+A with verified components, never as a standalone board', () => {
   assert.deepEqual(getState().real.stats.assists, ASSIST_ROWS, 'no assist value altered, inferred, or fabricated');
   noCard('Assists');
-  noCard('Goals + assists');
-  assert.ok(!pane().includes('D Creator'), 'assist-row players are not ranked anywhere');
-  assert.match(pane(), /does not rank assists until a complete source is connected/);
+  const ga = card('Goals + assists');
+  assert.match(ga, /D Creator/, 'verified assist fields count toward G+A');
+  assert.match(ga, /0g · 3a/, 'components shown verbatim');
+  assert.match(ga, /A Player/);
+  assert.match(ga, /Combined from verified provider goal and assist fields/);
+  assert.match(ga, /Standalone assist leaders require a complete assist source/);
 });
 
 test('refreshed verified payload rerenders the Top scorers card', async () => {
-  await refreshWith({ configured: true, sourceStatus: 'fresh', isStale: false, fetchedAt: '2026-07-01T17:37:00Z', goals: GOALS_V2, assists: [] });
+  await refreshWith({ configured: true, sourceStatus: 'fresh', isStale: false, fetchedAt: '2026-07-01T17:37:00Z', goals: GOALS_V2, assists: ASSIST_ROWS_V2 });
   const html = card('Top scorers');
   assert.match(html, /C Newcomer/);
   assert.doesNotMatch(html, /B Player/, 'old scorer rows do not linger');
+  assert.match(card('Goals + assists'), /E Engine/, 'G+A rerenders with the refreshed assist fields');
   assert.equal(getState().real.stats.fetchedAt, '2026-07-01T17:37:00Z');
 });
 
@@ -144,7 +151,9 @@ test('stale fallback never erases verified leaders and keeps the honest stamp', 
   assert.equal(s.providerState, 'stale');
   assert.equal(s.fetchedAt, '2026-07-01T17:37:00Z', 'stamp still belongs to the data on screen');
   assert.deepEqual(s.goals, GOALS_V2, 'verified scorers survive a degraded refresh');
+  assert.deepEqual(s.assists, ASSIST_ROWS_V2, 'verified assist fields survive too');
   assert.match(card('Top scorers'), /C Newcomer/);
+  assert.match(card('Goals + assists'), /E Engine/, 'G+A survives a degraded refresh');
 });
 
 test('error fallback never erases verified leaders and never claims freshness', async () => {
@@ -153,12 +162,14 @@ test('error fallback never erases verified leaders and never claims freshness', 
   assert.equal(s.providerState, 'stale');
   assert.equal(s.fetchedAt, '2026-07-01T17:37:00Z', 'error time never becomes the update stamp');
   assert.match(card('Top scorers'), /C Newcomer/);
+  assert.match(card('Goals + assists'), /E Engine/);
 });
 
 test('next verified payload recovers normally after a degraded stretch', async () => {
-  await refreshWith({ configured: true, sourceStatus: 'fresh', isStale: false, fetchedAt: '2026-07-01T18:25:00Z', goals: GOALS_V1, assists: [] });
+  await refreshWith({ configured: true, sourceStatus: 'fresh', isStale: false, fetchedAt: '2026-07-01T18:25:00Z', goals: GOALS_V1, assists: ASSIST_ROWS });
   assert.deepEqual(getState().real.stats.goals, GOALS_V1);
   assert.equal(getState().real.stats.providerState, 'fresh');
   assert.match(card('Top scorers'), /A Player/);
+  assert.match(card('Goals + assists'), /D Creator/);
   noCard('Assists');
 });
