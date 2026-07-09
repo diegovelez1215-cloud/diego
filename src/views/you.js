@@ -9,13 +9,13 @@
 // feeds truth. Every row is a real signed-in player. Nothing is invented.
 
 import {
-  getState, setPrefs, setSims, setBoard, setYouView, setBoardTab, setBoardScope,
+  getState, setPrefs, setSims, setBoard, setYouView, setBoardTab, setBoardScope, setPlayMode,
 } from '../core/app-state.js';
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
 import {
   gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry,
-  currentSide, sideRecordFor, openSidePicker,
+  currentSide, sideRecordFor, openSidePicker, LAB_TAG_LABELS, CUP_STOPS,
 } from './play.js';
 import { TEAM_COLORS } from '../data/fixtures.js';
 import { activate } from '../navigation/router.js';
@@ -487,8 +487,49 @@ function hallOfMomentsHTML(play) {
   if (fmBest) {
     chips.push(`<span class="you-moment fm">⏱ ${fmBest.scenario === 'rescue' ? 'Turned it around' : 'Held the line'} at 90+ — ${fmBest.gYou}–${fmBest.gThem} v ${teamFlag(fmBest.opp)}</span>`);
   }
+  const cc = play.ccHistory || [];
+  const ccBest = cc.find((e) => e.result === 'W' && e.situation === 'response') || cc.find((e) => e.result === 'W');
+  if (ccBest) {
+    chips.push(`<span class="you-moment cc">📋 ${ccBest.situation === 'response' ? 'Turned it from the dugout' : 'Out-coached them'} — ${ccBest.gYou}–${ccBest.gThem} v ${teamFlag(ccBest.opp)}</span>`);
+  }
+  const goldCup = (play.cupHistory || []).find((c) => c.trophy && c.trophy.tier === 'gold');
+  if (goldCup) {
+    chips.push(`<span class="you-moment cup">🏆 Perfect Arcade Cup — ${teamFlag(goldCup.side)} four stops, four wins</span>`);
+  }
   if (!chips.length) return '';
   return `<div class="you-moments" aria-label="Hall of moments">${chips.join('')}</div>`;
+}
+
+/* The trophy shelf — every finished Arcade Cup run, kept like silverware.
+   Local game prizes only: never money, never an official claim. */
+function trophyRoomHTML(play) {
+  const cups = play.cupHistory || [];
+  const counts = { gold: 0, silver: 0, bronze: 0, finisher: 0 };
+  for (const c of cups) counts[(c.trophy && c.trophy.tier) || 'finisher'] += 1;
+  return `<section class="you-card you-trophies${cups.length ? '' : ' empty'}" aria-label="Trophy room">
+    <p class="bd-kicker">Trophy room · on this phone</p>
+    ${cups.length ? `
+    <div class="trophy-counts" role="group" aria-label="Trophy counts">
+      ${counts.gold ? `<span class="trophy-count t-gold">🏆 ${counts.gold}</span>` : ''}
+      ${counts.silver ? `<span class="trophy-count t-silver">🥈 ${counts.silver}</span>` : ''}
+      ${counts.bronze ? `<span class="trophy-count t-bronze">🥉 ${counts.bronze}</span>` : ''}
+      ${counts.finisher ? `<span class="trophy-count t-finisher">🎖️ ${counts.finisher}</span>` : ''}
+    </div>
+    <div class="trophy-shelf">
+      ${cups.slice(0, 8).map((c) => `
+      <div class="you-trophy t-${(c.trophy && c.trophy.tier) || 'finisher'}">
+        <span class="you-trophy-icon" aria-hidden="true">${c.trophy ? c.trophy.icon : '🎖️'}</span>
+        <div class="you-trophy-id">
+          <strong>${esc(c.trophy ? c.trophy.label : 'Run complete')}</strong>
+          <small>${teamFlag(c.side)} ${esc(teamName(c.side))} · ${c.wins}/4 stops · ${esc(fmtDate(c.at))}</small>
+        </div>
+        <span class="you-trophy-stops" aria-hidden="true">${CUP_STOPS.map((s) => `<i class="cup-dot ${c.stops && c.stops[s.id] ? c.stops[s.id].toLowerCase() : 'wait'}"></i>`).join('')}</span>
+      </div>`).join('')}
+    </div>` : `
+    <p class="you-side-empty">The shelf is waiting for its first cup. Run the Arcade Cup on the
+      Play tab — four stops, one trophy, all kept here.</p>
+    <button class="you-sideaction" id="you-goto-cup">Start the Arcade Cup</button>`}
+  </section>`;
 }
 
 /* Your side on this phone — the museum's identity wall. Local record only:
@@ -536,6 +577,7 @@ function museumHTML(state) {
   return `
     ${museumHeroHTML(state)}
     ${youSideHTML(play)}
+    ${trophyRoomHTML(play)}
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
       ${pickCount ? `<div class="pr-stats quiet" role="group" aria-label="Record">
@@ -568,7 +610,7 @@ function museumHTML(state) {
     return `
         <div class="you-lab${bestNight ? ' best' : ''}">
           <span class="you-lab-score">${m.result ? `<b class="you-res ${m.result === 'W' ? 'w' : 'l'}" title="${m.result === 'W' ? 'Your side won' : 'Your side lost'}">${m.result}</b> ` : ''}${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}
-            ${m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${(m.comeback || 0) >= 2 ? '<em class="you-lab-tag comeback">comeback</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
+            ${(m.tags || []).slice(0, 2).map((t) => `<em class="you-lab-tag ${t}">${esc((LAB_TAG_LABELS[t] || t).toLowerCase())}</em>`).join('')}${!(m.tags || []).length && m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${!(m.tags || []).length && (m.comeback || 0) >= 2 ? '<em class="you-lab-tag comeback">comeback</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
           <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}${m.cp ? ' · +' + m.cp + ' CP' : ''}</span>
           ${m.story ? `<span class="you-lab-story">${esc(m.story)}</span>` : ''}
           ${m.seed ? `<button class="you-replay" data-replaylab="${i}" aria-label="Replay ${esc(teamName(m.home))} versus ${esc(teamName(m.away))} exactly as it happened">Replay this night</button>` : ''}
@@ -738,6 +780,14 @@ export function render(outlet) {
   if (changeSide) {
     changeSide.addEventListener('click', () => {
       openSidePicker();
+      activate('play');
+    });
+  }
+  // trophy room: the empty shelf points straight at the Arcade Cup
+  const gotoCup = outlet.querySelector('#you-goto-cup');
+  if (gotoCup) {
+    gotoCup.addEventListener('click', () => {
+      setPlayMode('cup');
       activate('play');
     });
   }

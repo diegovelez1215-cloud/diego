@@ -413,6 +413,111 @@ test.describe('Your Side', () => {
   });
 });
 
+test.describe('Arcade Cup', () => {
+  test('the full road: claim a side, run all four stops, collect the trophy in You', async ({ page }, testInfo) => {
+    test.slow();
+    await gotoApp(page);
+    const heroBefore = await page.locator('.score-stage').innerText();
+    await tapTab(page, 'play');
+    // the lobby invites a side first; the Cup gates on it too
+    await openPlayMode(page, 'cup');
+    await page.locator('#cup-pickside').click();
+    await expect(page.locator('.side-grid')).toBeVisible();
+    await page.locator('[data-side-pick="USA"]').click();
+    await expect(page.locator('.side-hero.claimed')).toContainText('USA');
+    // the lobby now carries the run strip as the next best action
+    await expect(page.locator('.cup-strip.start')).toContainText('Four stops. One trophy.');
+    await page.locator('.cup-strip.start').click();
+    await expect(page.locator('.play-card.cup')).toBeVisible();
+    await page.locator('#cup-start').click();
+    await expect(page.locator('.cup-progress .cup-dot.now')).toHaveCount(1);
+    await screenshot(page, testInfo, 'play-cup-route');
+
+    // Stop 1 — Coach's Call: two calls resolve the dugout night
+    await page.locator('[data-cup-stop="call"]').first().click();
+    await expect(page.locator('.play-card.cc')).toBeVisible();
+    await expect(page.locator('.cc-matchup')).toBeVisible();
+    for (let i = 0; i < 2; i++) await page.locator('[data-cc-choice]').first().click();
+    await expect(page.locator('.fm-verdict strong')).toBeVisible();
+    await expect(page.locator('.cup-advance')).toBeVisible();
+    await screenshot(page, testInfo, 'play-coach-call-verdict');
+    await page.locator('.cup-advance [data-goto="cup"]').click();
+
+    // Stop 2 — Penalty Rush: the gauntlet result settles the stop
+    await expect(page.locator('[data-cup-stop="rush"]').first()).toBeVisible();
+    await page.locator('[data-cup-stop="rush"]').first().click();
+    await expect(page.locator('.rush-stage')).toBeVisible();
+    for (let guard = 0; guard < 24; guard++) {
+      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
+      await page.locator('[data-rush-aim="centre"]').click();
+    }
+    await expect(page.locator('.rush-recap .cup-advance')).toBeVisible();
+    await page.locator('.cup-advance [data-goto="cup"]').click();
+
+    // Stop 3 — Final Minute: three calls, verdict feeds the road
+    await expect(page.locator('[data-cup-stop="clutch"]').first()).toBeVisible();
+    await page.locator('[data-cup-stop="clutch"]').first().click();
+    await expect(page.locator('.fm-stage')).toBeVisible();
+    for (let i = 0; i < 3; i++) await page.locator('[data-fm-choice]').first().click();
+    await expect(page.locator('.fm-recap .cup-advance')).toBeVisible();
+    await page.locator('.cup-advance [data-goto="cup"]').click();
+
+    // Stop 4 — the Showdown: a real Match Lab night against the rival
+    await expect(page.locator('[data-cup-stop="showdown"]').first()).toBeVisible();
+    await page.locator('[data-cup-stop="showdown"]').first().click();
+    await expect(page.locator('.lab.running')).toBeVisible();
+    await expect(page.locator('.lab-you-tag')).toBeVisible();
+    await page.evaluate(() => window.__u26LabDebug.force('final'));
+    await expect(page.locator('.lab-clock')).toHaveText('FULL TIME', { timeout: 10000 });
+    await expect(page.locator('.lab-payoff .cup-advance.done')).toBeVisible();
+    await screenshot(page, testInfo, 'play-cup-showdown-final');
+    await page.locator('.cup-advance [data-goto="cup"]').click();
+
+    // the run is complete: trophy on the Cup, restart available
+    await expect(page.locator('.cup-final')).toBeVisible();
+    await expect(page.locator('#cup-restart')).toBeVisible();
+    await screenshot(page, testInfo, 'play-cup-trophy');
+    await expectNoHorizontalOverflow(page, expect, 'arcade-cup');
+
+    // the museum keeps the silverware
+    await tapTab(page, 'you');
+    await expect(page.locator('.you-trophies .you-trophy')).toHaveCount(1);
+    await expect(page.locator('.trophy-shelf')).toContainText('4/4');
+    await screenshot(page, testInfo, 'you-trophy-room');
+
+    // local-only: whitelisted namespaces, the run lives in the Play key
+    const keys = await page.evaluate(() => Object.keys(window.localStorage));
+    expect(keys.every((k) => ['u26v2.prefs', 'u26v2.play', 'u26v2.sims', 'u26v2.auth'].includes(k))).toBe(true);
+    const play = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}'));
+    expect(play.arcadeCup.done).toBe(true);
+    expect(play.cupHistory.length).toBe(1);
+    expect(play.cupHistory[0].wins).toBeGreaterThanOrEqual(0);
+    expect(play.coachCall.played).toBe(1);
+    // no sportsbook language anywhere on the surface
+    const text = (await page.locator('.you-view').innerText()).toLowerCase();
+    for (const banned of [/\bodds\b/, /\bbets?\b/, /\bwallet\b/, /\bcash\b/, /payout/, /deposit/, /\bstakes?\b/]) {
+      expect(text).not.toMatch(banned);
+    }
+    // official truth untouched
+    await tapTab(page, 'home');
+    expect(await page.locator('.score-stage').innerText()).toBe(heroBefore);
+  });
+
+  test('a run can be restarted mid-road with a fresh deterministic seed', async ({ page }) => {
+    await gotoApp(page);
+    await tapTab(page, 'play');
+    await page.locator('#side-open').click();
+    await page.locator('[data-side-pick="BRA"]').click();
+    await openPlayMode(page, 'cup');
+    await page.locator('#cup-start').click();
+    const seedA = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}').arcadeCup.seed);
+    await page.locator('#cup-restart').click();
+    const seedB = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}').arcadeCup.seed);
+    expect(seedB).not.toBe(seedA);
+    await expect(page.locator('.cup-progress .cup-dot.now')).toHaveCount(1);
+  });
+});
+
 test.describe('My World Cup', () => {
   test('tap a tie, send a team through, simulate the rest, save the timeline', async ({ page }, testInfo) => {
     await gotoApp(page);

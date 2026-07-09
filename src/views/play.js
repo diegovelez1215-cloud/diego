@@ -176,6 +176,7 @@ const LAB_EVENT_MS = {
   decision: { normal: 220, fast: 160, key: 140 },
   sub: { normal: 220, fast: 160, key: 0 },
   board: { normal: 240, fast: 170, key: 0 },
+  note: { normal: 240, fast: 160, key: 0 },
 };
 
 function normalizeLabPace(p) {
@@ -1195,6 +1196,83 @@ const CHANCE_LINES = [
   (t) => `a scramble — ${t} can't force it in`,
 ];
 
+/* ---- chance quality (deterministic flavour, zero rng consumption) ----
+   Every shot gets a football shape — tap-in, header, cutback, long shot,
+   set-piece move, solo run — picked by hashing the run's own facts so the
+   same seed always tells the same story, and a team's sim style leans the
+   mix (wing overloads cross more, direct runners let fly). Flavour only:
+   it never touches rates, scores, or the rng stream. */
+export const LAB_CHANCE_FLAVORS = [
+  { kind: 'tap-in', shot: 'square it for the tap-in', goal: 'taps it in at the far post' },
+  { kind: 'header', shot: 'hang a cross up for the header', goal: 'buries the header' },
+  { kind: 'cutback', shot: 'carve out the cutback', goal: 'sweeps in the cutback' },
+  { kind: 'long shot', shot: 'let fly from thirty yards', goal: 'arrows one in from distance' },
+  { kind: 'set piece', shot: 'work the set-piece routine', goal: 'finishes the set-piece scramble' },
+  { kind: 'solo run', shot: 'drive straight at the back line', goal: 'finishes the solo run' },
+];
+const LAB_STYLE_FLAVOR = {
+  'high press': [0, 5, 2], 'counter surge': [5, 2, 3], 'possession weave': [0, 2, 1],
+  'wing overloads': [1, 2, 0], 'deep block steel': [4, 3, 5], 'box-crash chaos': [0, 1, 4],
+  'midfield strangle': [2, 3, 0], 'direct running': [3, 5, 1],
+};
+
+export function labChanceFlavor(seed, minute, side, teamCode, n = 0) {
+  const prefs = LAB_STYLE_FLAVOR[teamSimStyle(teamCode)] || [0, 1, 2];
+  // style-preferred shapes twice as likely, all six always possible
+  const pool = [...prefs, ...prefs, 0, 1, 2, 3, 4, 5];
+  const idx = pool[hashSeed(`u26-flavor-${seed}-${minute}-${side}-${n}`) % pool.length];
+  return LAB_CHANCE_FLAVORS[idx];
+}
+
+const LAB_SAVE_LINES = [
+  'Fingertip save — tipped over the bar',
+  'Smothered at the near post',
+  'Strong wrists — beaten away',
+  'Down low — pushed around the post',
+];
+export function labSaveLine(seed, minute, side) {
+  return LAB_SAVE_LINES[hashSeed(`u26-save-${seed}-${minute}-${side}`) % LAB_SAVE_LINES.length];
+}
+
+/* ---- the night's honours (derived facts, never stored claims) ----
+   Result tags are replayed from committed events at full time: clutch wins,
+   comebacks, clean sheets, shootout nerve, heartbreak. Pure and testable. */
+export const LAB_TAG_LABELS = {
+  upset: 'Giant slain', comeback: 'Comeback', clutch: 'Clutch win',
+  nerve: 'Shootout nerve', shutout: 'Clean sheet', heartbreak: 'Heartbreak',
+  goalfest: 'Goal rush',
+};
+
+export function labResultTags(run) {
+  const tags = [];
+  const add = (id) => { if (!tags.includes(id)) tags.push(id); };
+  const winSide = run.pens ? (run.pens.ph > run.pens.pa ? 'h' : 'a') : run.gh > run.ga ? 'h' : run.gh < run.ga ? 'a' : null;
+  if (!winSide) return tags;
+  const loseSide = winSide === 'h' ? 'a' : 'h';
+  const winTeam = winSide === 'h' ? run.home : run.away;
+  const loseTeam = winSide === 'h' ? run.away : run.home;
+  const scoring = (run.events || []).filter((e) => (e.type === 'goal' && !e.underReview) || e.type === 'confirmed');
+  const lastGoal = scoring[scoring.length - 1] || null;
+  if ((RATINGS[loseTeam] || 70) - (RATINGS[winTeam] || 70) >= 6) add('upset');
+  if (labComebackDepth(run.events, winSide) >= 1) add('comeback');
+  if (!run.pens && lastGoal && lastGoal.side === winSide && lastGoal.min >= 85 && Math.abs(run.gh - run.ga) === 1) add('clutch');
+  if (run.pens) add('nerve');
+  const concededByWinner = winSide === 'h' ? run.ga : run.gh;
+  if (concededByWinner === 0) add('shutout');
+  if (run.pens || (lastGoal && lastGoal.side === loseSide && lastGoal.min >= 88)) {
+    // heartbreak belongs to the losing seat; recorded so YOUR defeats sting honestly
+    add('heartbreak');
+  }
+  if (run.gh + run.ga >= 5) add('goalfest');
+  return tags;
+}
+
+/** How many times this pairing has already been fought on this phone —
+    rivalry copy is derived from local history, never an official claim. */
+export function labRivalryCount(labHistory, home, away) {
+  return (labHistory || []).filter((e) => (e.home === home && e.away === away) || (e.home === away && e.away === home)).length;
+}
+
 function labTick() {
   const run = labRun;
   if (!run || run.paused || run.done) return;
@@ -1218,7 +1296,8 @@ function labTick() {
     if (rng() < rate) {
       const team = side === 'h' ? run.home : run.away;
       const shooter = actorFor(run, side, 'shot')?.role || 'ST';
-      addLabEvent(run, 'shot', side, `Shot — ${teamName(team)} open the angle`, { actor: shooter });
+      const flavor = labChanceFlavor(run.seed, run.minute, side, team, run.sh + run.sa);
+      addLabEvent(run, 'shot', side, `Shot — ${teamName(team)} ${flavor.shot}`, { actor: shooter, quality: flavor.kind });
       if (side === 'h') run.sh++; else run.sa++; // every chance is an attempt
       if (rng() < rates.convert) {
         const hasVar = run.minute > 14 && rng() < 0.16;
@@ -1228,7 +1307,7 @@ function labTick() {
         const who = (ROLE_NAMES[shooter] || 'Striker').toLowerCase();
         addLabEvent(run, 'goal', side, hasVar
           ? `Goal? ${teamName(team)} wait on the check`
-          : `GOAL — ${teamName(team)}'s ${who} finishes (${nextGh}–${nextGa})`, {
+          : `GOAL — ${teamName(team)}'s ${who} ${flavor.goal} (${nextGh}–${nextGa})`, {
           actor: shooter,
           team,
           scoreDelta: true,
@@ -1249,7 +1328,7 @@ function labTick() {
         if (side === 'h') run.ckh = (run.ckh || 0) + 1; else run.cka = (run.cka || 0) + 1;
         addLabEvent(run, 'corner', side, `Corner — ${teamName(team)} keep the pressure on`);
       } else if (rng() < 0.22) {
-        addLabEvent(run, 'save', side, eventText('save', side, team, run), { actor: shooter });
+        addLabEvent(run, 'save', side, `${labSaveLine(run.seed, run.minute, side)} — ${teamName(team)} denied`, { actor: shooter });
       } else if (rng() < 0.2) {
         addLabEvent(run, 'free', side, eventText('free', side, team, run), { actor: shooter });
       } else if (rng() < 0.3) {
@@ -1311,6 +1390,16 @@ function labTick() {
   if ((run.minute === 61 || run.minute === 74) && rng() < 0.7) {
     const side = rng() < 0.5 ? 'h' : 'a';
     addLabEvent(run, 'sub', side, `Substitution — fresh legs for ${teamName(side === 'h' ? run.home : run.away)}`);
+  }
+  // fatigue is already priced into the rates after 72' — at 76' the broadcast
+  // says it out loud once, so the pressure you feel on screen has a reason
+  if (run.minute === 76 && !run.fatigueNoted) {
+    run.fatigueNoted = true;
+    const a = APPROACHES[run.approach] || APPROACHES.balanced;
+    const aggressive = a.atk * (run.mods?.atk || 1) > 1.1;
+    addLabEvent(run, 'note', aggressive ? 'h' : 'a', aggressive
+      ? `Legs are heavy — ${teamName(run.home)}'s press is leaving gaps behind it`
+      : 'Legs are heavy — the tempo drops and every sprint costs more');
   }
   // running possession from the momentum trace
   run.possAcc = (run.possAcc || 0) + 0.5 + (run.mo || 0) * 0.13;
@@ -1567,6 +1656,10 @@ function finishLab() {
   const cp = labArcadePoints(run, facts);
   run.cp = cp; run.win = facts.win; run.story = labStory(run, facts);
   run.potm = labPotm(run, facts);
+  run.tags = labResultTags(run);
+  // rivalry copy: this pairing's local history gives the night a chapter number
+  const meetings = labRivalryCount(play.labHistory, run.home, run.away);
+  if (meetings >= 1) run.story += ` Chapter ${meetings + 1} of this rivalry on this phone.`;
   // perspective: if your chosen side played tonight, this night has a verdict
   const side = currentSide(play);
   run.you = labPerspective(run, side && side.code);
@@ -1578,14 +1671,21 @@ function finishLab() {
     cp, win: facts.win, upset: facts.upset, story: run.story, extraStarted: !!run.extraStarted,
     seed: run.seed,
     you: run.you, result: run.result,
+    tags: run.tags,
     comeback: facts.win ? labComebackDepth(run.events, 'h') : 0,
     events: run.events.slice(-18).map((e) => ({ min: e.min, phase: e.phase || 'reg', type: e.type, side: e.side, text: e.text })),
   };
-  const nextPlay = {
+  let nextPlay = {
     ...play,
     labHistory: [entry, ...(play.labHistory || [])].slice(0, 30),
     ...(run.result ? { sideStats: recordSideResult(play.sideStats, side.code, run.result) } : {}),
   };
+  // the Showdown stop of an active Arcade Cup settles from this real run
+  if (run.result) {
+    const prog = withCupProgress(nextPlay, 'showdown', run.result);
+    nextPlay = prog.play;
+    run.cupAdvance = prog.advanced ? prog : null;
+  }
   setPlay(nextPlay);
   savePlay(nextPlay);
 }
@@ -1896,7 +1996,7 @@ function ensureRushRun() {
 
 function finishRush() {
   const { play } = getState();
-  const next = {
+  let next = {
     ...play,
     penaltyRush: rushRecordAfter(play.penaltyRush, {
       dateKey: localDayKey(),
@@ -1904,6 +2004,10 @@ function finishRush() {
       perfect: rushRun.goals >= 5,
     }),
   };
+  // the Penalty Rush stop of an active Arcade Cup settles from this gauntlet
+  const prog = withCupProgress(next, 'rush', cupResultFromRush(rushRun.goals));
+  next = prog.play;
+  rushRun.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
 }
@@ -1978,6 +2082,7 @@ function rushHTML(play) {
       <p class="rush-rating">${esc(rushRating(run.goals))}${perfect ? ' · perfect five' : ''}</p>
       ${personalBest ? '<p class="rush-newbest">Personal best — kept on this phone</p>'
     : newBest ? '<p class="rush-newbest">New daily best — kept on this phone</p>' : ''}
+      ${cupAdvanceHTML(run.cupAdvance)}
       <div class="play-actions">
         <button class="play-btn gold" id="rush-again">${run.goals > 0 && !personalBest ? `Beat your ${(rec && rec.bestEver) || 0} — run it again` : 'Step up again'}</button>
         <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
@@ -2160,12 +2265,16 @@ function finishFm(run) {
     gYou: run.gYou, gThem: run.gThem,
     result: run.result,
   };
-  const next = {
+  let next = {
     ...play,
     finalMinute: fmRecordAfter(play.finalMinute, { dateKey: localDayKey(), result: run.result }),
     fmHistory: [entry, ...(play.fmHistory || [])].slice(0, 12),
     ...(side && side.code === run.you ? { sideStats: recordSideResult(play.sideStats, side.code, run.result) } : {}),
   };
+  // the Final Minute stop of an active Arcade Cup settles from this scenario
+  const prog = withCupProgress(next, 'clutch', run.result);
+  next = prog.play;
+  run.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
 }
@@ -2226,6 +2335,7 @@ function fmHTML(play) {
         ${step.options.map((o) => `<button class="lab-opt" data-fm-choice="${o.id}">${esc(o.label)}</button>`).join('')}
       </div>
     </div>` : `<div class="fm-recap">
+      ${cupAdvanceHTML(run.cupAdvance)}
       ${rec ? `<p class="fm-record">Final Minute record: <b>${rec.w}W–${rec.l}L–${rec.d}D</b> on this phone</p>` : ''}
       <div class="play-actions">
         <button class="play-btn gold" id="fm-again">Run it again</button>
@@ -2270,6 +2380,567 @@ function wireFm(outlet) {
       repaintPlay();
     });
   }
+}
+
+/* ================= Coach's Call =================
+   The tactical minigame: one match situation, two calls from the dugout,
+   a deterministic local sim resolves the night. Team sim styles matter —
+   your arcade identity reads (or gets read by) the opponent's. Entirely
+   local: seeded, no network, no official claims. */
+
+/* Every sim style reads exactly one other and is read by exactly one — a
+   closed cycle, so no team identity is strictly better than another. */
+export const CC_STYLE_BEATS = {
+  'high press': 'possession weave',
+  'possession weave': 'midfield strangle',
+  'midfield strangle': 'direct running',
+  'direct running': 'deep block steel',
+  'deep block steel': 'box-crash chaos',
+  'box-crash chaos': 'wing overloads',
+  'wing overloads': 'counter surge',
+  'counter surge': 'high press',
+};
+
+export function styleMatchup(yourStyle, theirStyle) {
+  if (CC_STYLE_BEATS[yourStyle] === theirStyle) {
+    return { edge: 0.06, tag: `your ${yourStyle} reads their ${theirStyle}` };
+  }
+  if (CC_STYLE_BEATS[theirStyle] === yourStyle) {
+    return { edge: -0.06, tag: `their ${theirStyle} punishes your ${yourStyle}` };
+  }
+  return { edge: 0, tag: 'the styles cancel out — the calls decide it' };
+}
+
+export const CC_SITUATIONS = [
+  { id: 'response', name: 'Find a response', gYou: 0, gThem: 1, clock: "60'", brief: 'They lead from a set piece. The bench looks at you.' },
+  { id: 'deadlock', name: 'Break the deadlock', gYou: 0, gThem: 0, clock: "62'", brief: 'Goalless and coiled. One idea wins this.' },
+  { id: 'guard', name: 'Guard the lead', gYou: 1, gThem: 0, clock: "64'", brief: 'You lead by one. Half an hour of nerve to go.' },
+];
+
+export const CC_STEPS = [
+  {
+    prompt: 'Set the plan.',
+    options: [
+      { id: 'press', label: 'Press high', you: 1.5, them: 1.35, risk: 'bold' },
+      { id: 'counter', label: 'Sit and counter', you: 1.05, them: 0.8, risk: 'measured' },
+      { id: 'control', label: 'Control midfield', you: 0.95, them: 0.9, risk: 'safe' },
+    ],
+  },
+  {
+    prompt: "75'. Last big call from the dugout.",
+    options: [
+      { id: 'chaos', label: 'Chaos run — all forward', you: 1.65, them: 1.5, risk: 'bold' },
+      { id: 'setpiece', label: 'Hunt set pieces', you: 1.2, them: 1.0, risk: 'measured' },
+      { id: 'lock', label: 'Lock it down', you: 0.5, them: 0.62, risk: 'safe' },
+    ],
+  },
+];
+
+const CC_WINDOW_MINUTES = [["66'", "70'", "74'"], ["79'", "85'", "90+3'"]];
+
+export function dailyCoachSeed(dateKey = localDayKey(), attempt = 0) {
+  return hashSeed(`u26-cc-${dateKey}-${attempt}`) || 1;
+}
+
+export function createCoachCall(seed, you, opp) {
+  const s = (seed >>> 0) || 1;
+  const situation = CC_SITUATIONS[s % CC_SITUATIONS.length];
+  return {
+    seed: s,
+    rng: mulberry32(s),
+    you, opp,
+    situation,
+    matchup: styleMatchup(teamSimStyle(you), teamSimStyle(opp)),
+    gYou: situation.gYou, gThem: situation.gThem,
+    step: 0, choices: [], events: [], over: false, result: null,
+  };
+}
+
+/** One dugout call. Deterministic for a given seed + choice history; resolves
+    a window of chances, then either asks for the last call or ends the night. */
+export function coachCallDecide(run, optionId) {
+  if (!run || run.over) return null;
+  const step = CC_STEPS[run.step];
+  const opt = step && step.options.find((o) => o.id === optionId);
+  if (!opt) return null;
+  run.choices.push(optionId);
+  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40 + (run.matchup.edge || 0);
+  const youRate = Math.max(0.04, 0.16 * (1 + edge) * opt.you);
+  const themRate = Math.max(0.04, 0.16 * (1 - edge) * opt.them);
+  const minutes = CC_WINDOW_MINUTES[run.step];
+  const resolved = [];
+  for (let w = 0; w < 3; w++) {
+    const min = minutes[w];
+    if (run.rng() < youRate) {
+      run.gYou += 1;
+      resolved.push({ min, side: 'you', type: 'goal', text: `GOAL — ${teamName(run.you)} make the call pay (${run.gYou}–${run.gThem})` });
+    } else if (run.rng() < themRate) {
+      run.gThem += 1;
+      resolved.push({ min, side: 'them', type: 'goal', text: `They punish it — ${teamName(run.opp)} (${run.gYou}–${run.gThem})` });
+    } else if (run.rng() < 0.32) {
+      const yours = run.rng() < 0.5 + edge * 0.3;
+      resolved.push({
+        min,
+        side: yours ? 'you' : 'them',
+        type: 'chance',
+        text: yours ? `${teamName(run.you)} carve a chance from the plan` : `${teamName(run.opp)} threaten — scrambled away`,
+      });
+    }
+  }
+  run.events.push(...resolved);
+  run.step += 1;
+  if (run.step >= CC_STEPS.length) {
+    run.over = true;
+    run.result = run.gYou > run.gThem ? 'W' : run.gYou < run.gThem ? 'L' : 'D';
+    run.events.push({ min: "90+5'", side: 'you', type: 'final', text: 'Full-time whistle.' });
+  }
+  return resolved;
+}
+
+/** Fold a finished Coach's Call into the local record — same honest shape as
+    the Final Minute record: day-scoped attempts plus all-time totals. */
+export function ccRecordAfter(rec, { dateKey, result }) {
+  const sameDay = !!rec && rec.dateKey === dateKey;
+  return {
+    dateKey,
+    attemptsToday: (sameDay ? rec.attemptsToday || 0 : 0) + 1,
+    w: ((rec && rec.w) || 0) + (result === 'W' ? 1 : 0),
+    l: ((rec && rec.l) || 0) + (result === 'L' ? 1 : 0),
+    d: ((rec && rec.d) || 0) + (result === 'D' ? 1 : 0),
+    played: ((rec && rec.played) || 0) + 1,
+    lastResult: result,
+  };
+}
+
+/* ================= Arcade Cup =================
+   The run layer that ties the arcade together: your side, four stops, one
+   trophy. Each stop is one of the arcade's own games — the Cup only strings
+   them into a road and keeps the medals. Entirely local: deterministic seed,
+   no network, no official claims, no global rank. */
+
+export const CUP_STOPS = [
+  { id: 'call', name: "Coach's Call", mode: 'coach', desc: 'Two calls from the dugout swing the night.' },
+  { id: 'rush', name: 'Penalty Rush', mode: 'shootout', desc: 'Five kicks. Bury four to take the stop.' },
+  { id: 'clutch', name: 'Final Minute', mode: 'finalminute', desc: 'Six minutes, three calls, hold your nerve.' },
+  { id: 'showdown', name: 'The Showdown', mode: 'lab', desc: 'A full broadcast night against your rival.' },
+];
+
+export const CUP_TROPHIES = {
+  gold: { tier: 'gold', icon: '🏆', label: 'Gold Cup — perfect run' },
+  silver: { tier: 'silver', icon: '🥈', label: 'Silver Cup' },
+  bronze: { tier: 'bronze', icon: '🥉', label: 'Bronze Cup' },
+  finisher: { tier: 'finisher', icon: '🎖️', label: 'Road Medal — run complete' },
+};
+
+export function dailyCupSeed(dateKey = localDayKey(), side = 'ANY', attempt = 0) {
+  return hashSeed(`u26-cup-${dateKey}-${side}-${attempt}`) || 1;
+}
+
+/** Four rivals for the road — drawn deterministically from the strongest
+    sides that are not yours. Sim flavour only, never an official claim. */
+export function cupRivals(seed, sideCode) {
+  const pool = Object.keys(TEAMS)
+    .filter((c) => c !== sideCode)
+    .sort((a, b) => (RATINGS[b] || 70) - (RATINGS[a] || 70))
+    .slice(0, 16);
+  const rivals = [];
+  for (let i = 0; rivals.length < 4 && i < 32; i++) {
+    const pick = pool[hashSeed(`u26-cup-rival-${seed}-${i}`) % pool.length];
+    if (!rivals.includes(pick)) rivals.push(pick);
+  }
+  return rivals;
+}
+
+export function createArcadeCup(sideCode, dateKey = localDayKey(), attempt = 0) {
+  if (!sideCode || !TEAMS[sideCode]) return null;
+  const seed = dailyCupSeed(dateKey, sideCode, attempt);
+  return {
+    seed, dateKey, attempt,
+    side: sideCode,
+    rivals: cupRivals(seed, sideCode),
+    stops: { call: null, rush: null, clutch: null, showdown: null },
+    startedAt: new Date().toISOString(),
+    done: false,
+    trophy: null,
+  };
+}
+
+export function cupNextStop(cup) {
+  if (!cup || cup.done) return null;
+  const next = CUP_STOPS.find((s) => !cup.stops[s.id]);
+  return next ? next.id : null;
+}
+
+export function cupWins(cup) {
+  return CUP_STOPS.filter((s) => cup && cup.stops[s.id] === 'W').length;
+}
+
+export function cupTrophy(cup) {
+  const w = cupWins(cup);
+  return w >= 4 ? CUP_TROPHIES.gold : w === 3 ? CUP_TROPHIES.silver : w === 2 ? CUP_TROPHIES.bronze : CUP_TROPHIES.finisher;
+}
+
+/** Record one stop result. Pure: returns the next cup, never mutates. Stops
+    resolve strictly in road order; anything else is refused unchanged. */
+export function cupRecordStop(cup, stopId, result) {
+  if (!cup || cup.done || !['W', 'L', 'D'].includes(result)) return cup;
+  if (cupNextStop(cup) !== stopId) return cup;
+  const next = { ...cup, stops: { ...cup.stops, [stopId]: result } };
+  if (!cupNextStop(next)) {
+    next.done = true;
+    next.trophy = cupTrophy(next);
+  }
+  return next;
+}
+
+/** Penalty Rush stop verdict: four or more goals takes the stop. */
+export function cupResultFromRush(goals) {
+  return goals >= 4 ? 'W' : goals === 3 ? 'D' : 'L';
+}
+
+/** Fold a finished arcade game into the active run. Pure on the play object:
+    returns { play, advanced, done, trophy }. Only the run's current stop can
+    advance, only for the side that started the run — everything else passes
+    through untouched. A completed run archives itself into cupHistory. */
+export function withCupProgress(play, stopId, result) {
+  const cup = play && play.arcadeCup;
+  const side = play && play.side && play.side.code;
+  if (!cup || cup.done || !side || cup.side !== side) return { play, advanced: false, done: false, trophy: null };
+  if (cupNextStop(cup) !== stopId || !['W', 'L', 'D'].includes(result)) {
+    return { play, advanced: false, done: false, trophy: null };
+  }
+  const nextCup = cupRecordStop(cup, stopId, result);
+  let cupHistory = play.cupHistory || [];
+  if (nextCup.done) {
+    cupHistory = [{
+      at: new Date().toISOString(),
+      side: cup.side, dateKey: cup.dateKey, seed: cup.seed,
+      stops: { ...nextCup.stops },
+      wins: cupWins(nextCup),
+      trophy: nextCup.trophy,
+    }, ...cupHistory].slice(0, 20);
+  }
+  return {
+    play: { ...play, arcadeCup: nextCup, cupHistory },
+    advanced: true,
+    done: !!nextCup.done,
+    trophy: nextCup.trophy || null,
+    stopId,
+    result,
+  };
+}
+
+function startArcadeCup({ restart = false } = {}) {
+  const { play } = getState();
+  const side = currentSide(play);
+  if (!side) return;
+  const today = localDayKey();
+  const prev = play.arcadeCup;
+  const attempt = prev && prev.dateKey === today && prev.side === side.code
+    ? (prev.attempt || 0) + (restart || prev.done ? 1 : 0)
+    : 0;
+  const cup = createArcadeCup(side.code, today, attempt);
+  const next = { ...play, arcadeCup: cup };
+  setPlay(next);
+  savePlay(next);
+}
+
+/* Live Coach's Call — module-local, never persisted mid-run (labRun policy). */
+let ccRun = null;
+
+function activeCup(play) {
+  const side = currentSide(play);
+  const cup = play.arcadeCup;
+  return side && cup && !cup.done && cup.side === side.code ? cup : null;
+}
+
+function ensureCcRun() {
+  if (ccRun) return ccRun;
+  const { play } = getState();
+  const side = currentSide(play);
+  if (!side) return null;
+  const cup = activeCup(play);
+  if (cup && cupNextStop(cup) === 'call') {
+    ccRun = createCoachCall(hashSeed(`u26-cup-call-${cup.seed}`) || 1, side.code, cup.rivals[0]);
+    return ccRun;
+  }
+  const today = localDayKey();
+  const rec = play.coachCall;
+  const attempt = rec && rec.dateKey === today ? rec.attemptsToday || 0 : 0;
+  ccRun = createCoachCall(dailyCoachSeed(today, attempt), side.code, fmOpponentFor(play, side.code));
+  return ccRun;
+}
+
+function finishCc(run) {
+  const { play } = getState();
+  const side = currentSide(play);
+  const entry = {
+    at: new Date().toISOString(),
+    seed: run.seed,
+    situation: run.situation.id,
+    you: run.you, opp: run.opp,
+    gYou: run.gYou, gThem: run.gThem,
+    result: run.result,
+  };
+  let next = {
+    ...play,
+    coachCall: ccRecordAfter(play.coachCall, { dateKey: localDayKey(), result: run.result }),
+    ccHistory: [entry, ...(play.ccHistory || [])].slice(0, 12),
+    ...(side && side.code === run.you ? { sideStats: recordSideResult(play.sideStats, side.code, run.result) } : {}),
+  };
+  const prog = withCupProgress(next, 'call', run.result);
+  next = prog.play;
+  run.cupAdvance = prog.advanced ? prog : null;
+  setPlay(next);
+  savePlay(next);
+}
+
+const CC_VERDICT = {
+  W: ['THE CALL LANDS', 'The dugout won this one.'],
+  D: ['HONOURS EVEN', 'Neither bench blinked.'],
+  L: ['OUT-COACHED', 'The plan got read tonight.'],
+};
+
+function ccVerdictCopy(run) {
+  if (run.result === 'W' && run.situation.id === 'response') return ['TURNED AROUND', 'From behind to in front — pure dugout.'];
+  if (run.result === 'L' && run.situation.id === 'guard') return ['IT SLIPPED', 'The lead died on your last call.'];
+  return CC_VERDICT[run.result] || CC_VERDICT.D;
+}
+
+/* Cup progress banner shared by every stop recap — the "one more stop" pull. */
+function cupAdvanceHTML(adv) {
+  if (!adv) return '';
+  const stop = CUP_STOPS.find((s) => s.id === adv.stopId);
+  if (adv.done) {
+    return `<div class="cup-advance done">
+      <span class="cup-adv-kicker">Arcade Cup</span>
+      <strong>${adv.trophy ? adv.trophy.icon + ' ' + esc(adv.trophy.label) : 'Run complete'}</strong>
+      <button class="play-btn gold" data-goto="cup">Collect it in the Cup</button>
+    </div>`;
+  }
+  return `<div class="cup-advance">
+    <span class="cup-adv-kicker">Arcade Cup</span>
+    <strong>${esc(stop ? stop.name : adv.stopId)} ${adv.result === 'W' ? 'cleared' : adv.result === 'D' ? 'held' : 'survived'} — the road goes on</strong>
+    <button class="play-btn gold" data-goto="cup">Next stop</button>
+  </div>`;
+}
+
+function coachHTML(play) {
+  const side = currentSide(play);
+  if (!side) {
+    return `<section class="play-card fm cc" aria-label="Coach's Call">
+      <div class="rush-head">
+        <div><h2 class="display">Coach&rsquo;s Call</h2>
+        <p class="play-sub">One situation, two calls from the dugout. This challenge needs a side to coach.</p></div>
+        <span class="sim-badge">SIMULATION</span>
+      </div>
+      <button class="play-btn gold" id="cc-pickside">Pick your side</button>
+    </section>`;
+  }
+  const run = ensureCcRun();
+  const rec = play.coachCall || null;
+  const step = run.over ? null : CC_STEPS[run.step];
+  const sideColor = TEAM_COLORS[side.code] || 'var(--gold)';
+  const verdict = run.over ? ccVerdictCopy(run) : null;
+  return `<section class="play-card fm cc${run.over ? ` over r-${run.result.toLowerCase()}` : ''}" aria-label="Coach's Call" style="--side:${sideColor}">
+    <div class="rush-head">
+      <div><h2 class="display">Coach&rsquo;s Call</h2>
+      <p class="play-sub">${esc(run.situation.name)} · ${esc(run.situation.brief)} Local scenario only — never a real result.</p></div>
+      <span class="sim-badge">SIMULATION</span>
+    </div>
+    <div class="fm-stage">
+      <div class="fm-clock" aria-live="polite">${run.over ? 'FULL TIME' : esc(run.step === 0 ? run.situation.clock : "75'")}</div>
+      <div class="fm-score-row">
+        <div class="fm-team you">${teamFlag(run.you)}<span>${esc(teamName(run.you))}</span><em class="lab-you-tag">You</em></div>
+        <div class="fm-score">${run.gYou}<span class="lab-sep">–</span>${run.gThem}</div>
+        <div class="fm-team">${teamFlag(run.opp)}<span>${esc(teamName(run.opp))}</span></div>
+      </div>
+      ${run.over ? `<div class="fm-verdict" role="status">
+        <strong class="display">${esc(verdict[0])}</strong>
+        <span>${esc(verdict[1])}</span>
+      </div>` : ''}
+    </div>
+    <p class="cc-matchup">${esc(teamSimStyle(run.you))} <em>v</em> ${esc(teamSimStyle(run.opp))} — ${esc(run.matchup.tag)}</p>
+    <ol class="lab-feed fm-feed" aria-live="polite" aria-label="Match events">
+      ${run.events.slice(-6).map((e) => `<li class="lab-ev ${e.type === 'goal' ? 'goal' : 'chance'} fm-${e.side}"><span class="lab-ev-min">${esc(e.min)}</span><span class="lab-ev-ic">${e.type === 'goal' ? '●' : '○'}</span>${esc(e.text)}</li>`).join('')}
+    </ol>
+    ${!run.over ? `<div class="fm-choice" role="group" aria-label="${esc(step.prompt)}">
+      <p class="lab-decision-prompt">${esc(step.prompt)}</p>
+      <div class="lab-decision-opts cc-opts">
+        ${step.options.map((o) => `<button class="lab-opt" data-cc-choice="${o.id}"><span>${esc(o.label)}</span><em class="cc-risk ${o.risk}">${o.risk}</em></button>`).join('')}
+      </div>
+    </div>` : `<div class="fm-recap">
+      ${cupAdvanceHTML(run.cupAdvance)}
+      ${rec ? `<p class="fm-record">Dugout record: <b>${rec.w}W–${rec.l}L–${rec.d}D</b> on this phone</p>` : ''}
+      <div class="play-actions">
+        <button class="play-btn gold" id="cc-again">Take the touchline again</button>
+        <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
+      </div>
+    </div>`}
+    <p class="lab-saved-note">Seeded on this phone · results count toward your local side record only.</p>
+  </section>`;
+}
+
+function wireCoach(outlet) {
+  const pick = outlet.querySelector('#cc-pickside');
+  if (pick) {
+    pick.addEventListener('click', () => {
+      sidePickerOpen = true;
+      setPlayMode('lobby');
+      repaintPlay();
+    });
+  }
+  outlet.querySelectorAll('[data-cc-choice]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const run = ensureCcRun();
+      if (!run || run.over) return;
+      unlockAudioFromGesture();
+      const resolved = coachCallDecide(run, b.dataset.ccChoice) || [];
+      const goal = resolved.find((e) => e.type === 'goal');
+      if (goal) labSound(goal.side === 'you' ? 'goal' : 'var-overturned');
+      else labSound('ref');
+      if (run.over) {
+        labSound('final');
+        finishCc(run);
+      }
+      repaintPlay();
+    });
+  });
+  const again = outlet.querySelector('#cc-again');
+  if (again) {
+    again.addEventListener('click', () => {
+      ccRun = null; // next attempt draws the day's next deterministic seed
+      ensureCcRun();
+      unlockAudioFromGesture();
+      repaintPlay();
+    });
+  }
+}
+
+/* ---------------- Arcade Cup surface ---------------- */
+
+function cupStopStateLabel(v, isNext) {
+  if (v === 'W') return 'won';
+  if (v === 'L') return 'lost';
+  if (v === 'D') return 'held';
+  return isNext ? 'up next' : 'locked';
+}
+
+function cupHTML(play) {
+  const side = currentSide(play);
+  if (!side) {
+    return `<section class="play-card cup" aria-label="Arcade Cup">
+      <div class="rush-head">
+        <div><h2 class="display">Arcade Cup</h2>
+        <p class="play-sub">Four stops, one trophy, all on this phone. The road needs a side to run it.</p></div>
+        <span class="sim-badge">SIMULATION</span>
+      </div>
+      <button class="play-btn gold" id="cup-pickside">Pick your side</button>
+    </section>`;
+  }
+  const sideColor = TEAM_COLORS[side.code] || 'var(--gold)';
+  const cup = play.arcadeCup && play.arcadeCup.side === side.code ? play.arcadeCup : null;
+  const history = (play.cupHistory || []).filter((c) => c.side === side.code).slice(0, 4);
+  if (!cup) {
+    return `<section class="play-card cup" aria-label="Arcade Cup" style="--side:${sideColor}">
+      <div class="rush-head">
+        <div><h2 class="display">Arcade Cup</h2>
+        <p class="play-sub">${teamFlag(side.code)} ${esc(teamName(side.code))} run a four-stop road — dugout call, penalty gauntlet, final-minute fire, then the Showdown. Win stops, take the trophy. Local run only.</p></div>
+        <span class="sim-badge">SIMULATION</span>
+      </div>
+      <div class="cup-route preview">
+        ${CUP_STOPS.map((s, i) => `<div class="cup-stop"><span class="cup-stop-n">${i + 1}</span><div><strong>${esc(s.name)}</strong><small>${esc(s.desc)}</small></div></div>`).join('')}
+      </div>
+      <div class="play-actions">
+        <button class="play-btn gold" id="cup-start">Start today&rsquo;s run</button>
+      </div>
+      ${history.length ? cupShelfHTML(history) : ''}
+      <p class="lab-saved-note">Seeded daily on this phone · trophies are a local game prize, never money.</p>
+    </section>`;
+  }
+  const next = cupNextStop(cup);
+  const wins = cupWins(cup);
+  const rivalName = (i) => teamName(cup.rivals[i] || cup.rivals[0]);
+  return `<section class="play-card cup${cup.done ? ' done' : ''}" aria-label="Arcade Cup" style="--side:${sideColor}">
+    <div class="rush-head">
+      <div><h2 class="display">Arcade Cup</h2>
+      <p class="play-sub">${teamFlag(side.code)} ${esc(teamName(side.code))} on the road · ${esc(cup.dateKey)}${cup.attempt ? ` · run ${cup.attempt + 1}` : ''} · local run only</p></div>
+      <span class="sim-badge">SIMULATION</span>
+    </div>
+    ${cup.done ? `<div class="cup-final" role="status">
+      <span class="cup-final-icon" aria-hidden="true">${cup.trophy ? cup.trophy.icon : '🎖️'}</span>
+      <strong class="display">${esc(cup.trophy ? cup.trophy.label : 'Run complete')}</strong>
+      <span>${wins} of 4 stops won · kept in your trophy room</span>
+    </div>` : `<div class="cup-progress" role="group" aria-label="Run progress">
+      ${CUP_STOPS.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}" aria-label="${esc(s.name)}: ${esc(cupStopStateLabel(cup.stops[s.id], s.id === next))}"></i>`).join('')}
+      <span class="cup-progress-label">${wins}W so far</span>
+    </div>`}
+    <div class="cup-route">
+      ${CUP_STOPS.map((s, i) => {
+    const v = cup.stops[s.id];
+    const isNext = s.id === next;
+    return `<div class="cup-stop ${v ? 'r-' + v.toLowerCase() : isNext ? 'now' : 'locked'}">
+        <span class="cup-stop-n">${v === 'W' ? '✓' : v === 'L' ? '✗' : v === 'D' ? '=' : i + 1}</span>
+        <div>
+          <strong>${esc(s.name)}</strong>
+          <small>${v ? `${cupStopStateLabel(v, false)} · v ${esc(rivalName(i))}` : isNext ? `v ${esc(rivalName(i))} — ${esc(s.desc)}` : esc(s.desc)}</small>
+        </div>
+        ${isNext && !cup.done ? `<button class="cup-play" data-cup-stop="${s.id}">Play</button>` : ''}
+      </div>`;
+  }).join('')}
+    </div>
+    <div class="play-actions">
+      ${cup.done ? '<button class="play-btn gold" id="cup-restart">Run it again</button>' : `
+      <button class="play-btn gold" data-cup-stop="${next}">Play stop ${CUP_STOPS.findIndex((s) => s.id === next) + 1} — ${esc(CUP_STOPS.find((s) => s.id === next).name)}</button>
+      <button class="play-btn quiet" id="cup-restart">Restart run</button>`}
+    </div>
+    ${history.length ? cupShelfHTML(history) : ''}
+    <p class="lab-saved-note">Stops settle from the games you actually play · on this phone only.</p>
+  </section>`;
+}
+
+function cupShelfHTML(history) {
+  return `<div class="cup-shelf" aria-label="Recent runs">
+    ${history.map((c) => `<span class="cup-medal t-${c.trophy ? c.trophy.tier : 'finisher'}" title="${esc(c.trophy ? c.trophy.label : 'Run complete')}">${c.trophy ? c.trophy.icon : '🎖️'} ${teamFlag(c.side)} ${c.wins}/4</span>`).join('')}
+  </div>`;
+}
+
+function wireCup(outlet) {
+  const pick = outlet.querySelector('#cup-pickside');
+  if (pick) {
+    pick.addEventListener('click', () => {
+      sidePickerOpen = true;
+      setPlayMode('lobby');
+      repaintPlay();
+    });
+  }
+  const start = outlet.querySelector('#cup-start');
+  if (start) start.addEventListener('click', () => { startArcadeCup(); repaintPlay(); });
+  const restart = outlet.querySelector('#cup-restart');
+  if (restart) {
+    restart.addEventListener('click', () => {
+      ccRun = null; // a fresh road re-seeds the dugout stop
+      startArcadeCup({ restart: true });
+      repaintPlay();
+    });
+  }
+  outlet.querySelectorAll('[data-cup-stop]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const { play } = getState();
+      const cup = activeCup(play);
+      const stopId = b.dataset.cupStop;
+      const stop = CUP_STOPS.find((s) => s.id === stopId);
+      if (!cup || !stop) return;
+      if (stopId === 'call') ccRun = null; // the Cup seeds the dugout stop
+      if (stopId === 'showdown') {
+        const side = currentSide(play);
+        setPlayMode('lab');
+        beginLab(side.code, cup.rivals[3], 'balanced', hashSeed(`u26-cup-showdown-${cup.seed}`) || 1);
+        return;
+      }
+      setPlayMode(stop.mode);
+    });
+  });
 }
 
 /* ================= personal arcade ledger ================= */
@@ -2464,6 +3135,7 @@ function labEventIcon(type) {
                 : type === 'board' ? '➍'
                   : type === 'save' ? '▣'
                     : type === 'free' ? '⌁'
+                      : type === 'note' ? '≈'
                   : '○';
 }
 
@@ -2613,8 +3285,13 @@ function labPayoffHTML(run) {
       <span>${teamFlag(side.code)} ${esc(teamName(side.code))} ${run.result === 'W' ? 'take the night' : 'will answer for this'}${run.pens ? ' — on kicks from the spot' : ''}</span>
       ${rec ? `<small>Local record ${rec.w}W–${rec.l}L${rec.d ? '–' + rec.d + 'D' : ''}${rec.streak >= 2 ? ` · 🔥${rec.streak} straight` : ''} · on this phone</small>` : ''}
     </div>` : '';
+  const tags = run.tags || [];
   return `<div class="lab-payoff${run.win ? ' won' : ''}">
     ${verdictHTML}
+    ${tags.length ? `<div class="lab-tags" aria-label="The night's honours">
+      ${tags.map((t) => `<span class="lab-tag t-${t}">${esc(LAB_TAG_LABELS[t] || t)}</span>`).join('')}
+    </div>` : ''}
+    ${cupAdvanceHTML(run.cupAdvance)}
     <div class="lab-payoff-head">
       <span class="lab-payoff-cp">+${run.cp || 0} <em>Arcade Points</em></span>
       <span class="lab-payoff-streak">${esc(streakLine)}</span>
@@ -3097,6 +3774,62 @@ function sideHeroHTML(play) {
   </div>`;
 }
 
+/* The run strip: the lobby's next best action. An active run says exactly
+   where you are on the road; a finished run hands over the trophy; a claimed
+   side with no run gets today's invitation. */
+function cupStripHTML(play) {
+  const side = currentSide(play);
+  if (!side) return '';
+  const cup = play.arcadeCup && play.arcadeCup.side === side.code ? play.arcadeCup : null;
+  if (cup && !cup.done) {
+    const next = cupNextStop(cup);
+    const stop = CUP_STOPS.find((s) => s.id === next);
+    const idx = CUP_STOPS.findIndex((s) => s.id === next) + 1;
+    return `<button class="cup-strip active" data-goto="cup" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+      <span class="lt-kicker">Arcade Cup · today&rsquo;s run</span>
+      <strong>Stop ${idx} of 4 — ${esc(stop.name)}</strong>
+      <span class="cup-progress" aria-hidden="true">
+        ${CUP_STOPS.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}"></i>`).join('')}
+      </span>
+      <small>Continue the run · v ${esc(teamName(cup.rivals[idx - 1] || cup.rivals[0]))}</small>
+    </button>`;
+  }
+  if (cup && cup.done && cup.dateKey === localDayKey()) {
+    return `<button class="cup-strip done" data-goto="cup" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+      <span class="lt-kicker">Arcade Cup · run complete</span>
+      <strong>${cup.trophy ? cup.trophy.icon + ' ' + esc(cup.trophy.label) : 'Run complete'}</strong>
+      <small>Run it again — a fresh road is seeded</small>
+    </button>`;
+  }
+  return `<button class="cup-strip start" data-goto="cup" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+    <span class="lt-kicker">Arcade Cup</span>
+    <strong>Four stops. One trophy.</strong>
+    <small>Dugout call → penalty gauntlet → final-minute fire → the Showdown</small>
+  </button>`;
+}
+
+/* Recent moment tape: a horizontal reel of the nights worth retelling —
+   trophies, tagged wins, gauntlet bests. All derived from local history. */
+function momentTapeHTML(play) {
+  const chips = [];
+  const cupLatest = (play.cupHistory || [])[0];
+  if (cupLatest && cupLatest.trophy) {
+    chips.push(`<span class="tape-chip t-${cupLatest.trophy.tier}">${cupLatest.trophy.icon} ${teamFlag(cupLatest.side)} ${esc(cupLatest.trophy.label)}</span>`);
+  }
+  for (const m of (play.labHistory || []).slice(0, 4)) {
+    const tag = (m.tags || [])[0];
+    chips.push(`<span class="tape-chip ${m.result === 'W' ? 'w' : m.result === 'L' ? 'l' : ''}">${teamFlag(m.home)} ${m.gh}–${m.ga} ${teamFlag(m.away)}${tag ? ` · ${esc(LAB_TAG_LABELS[tag] || tag)}` : ''}</span>`);
+  }
+  const cc = (play.ccHistory || [])[0];
+  if (cc) chips.push(`<span class="tape-chip ${cc.result === 'W' ? 'w' : cc.result === 'L' ? 'l' : ''}">📋 Dugout ${cc.result === 'W' ? 'win' : cc.result === 'L' ? 'loss' : 'draw'} v ${teamFlag(cc.opp)}</span>`);
+  const rush = play.penaltyRush;
+  if (rush && rush.bestEver) chips.push(`<span class="tape-chip">◐ Gauntlet best ${rush.bestEver}</span>`);
+  const fm = play.finalMinute;
+  if (fm && fm.played) chips.push(`<span class="tape-chip">⏱ 90&rsquo;+ record ${fm.w}–${fm.l}–${fm.d}</span>`);
+  if (!chips.length) return '';
+  return `<div class="moment-tape" aria-label="Recent arcade moments">${chips.slice(0, 7).join('')}</div>`;
+}
+
 function lobbyHTML(overlay, play, sims) {
   const ledger = arcadeLedger(play, overlay, sims);
   const predStats = gradePredictions(play.predictions?.picks || {}, overlay);
@@ -3122,6 +3855,7 @@ function lobbyHTML(overlay, play, sims) {
   if (sidePickerOpen) return sidePickerHTML(play);
   return `<section class="play-card lobby" aria-label="Arcade lobby">
     ${sideHeroHTML(play)}
+    ${cupStripHTML(play)}
     <div class="lobby-marquee" role="group" aria-label="Your arcade record">
       <div class="lm-stat cp"><strong class="display">${ledger.points}</strong><span>Arcade Points</span></div>
       <div class="lm-stat"><span class="lm-form">${formDots(ledger.form)}</span><span>Lab form</span></div>
@@ -3163,6 +3897,11 @@ function lobbyHTML(overlay, play, sims) {
         <strong>${predStats.right}/${predStats.total} correct</strong>
         <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
       </button>`}
+      <button class="lobby-tile" data-goto="coach">
+        <span class="lt-kicker">Coach&rsquo;s Call</span>
+        <strong>${(play.coachCall && play.coachCall.played) ? `${play.coachCall.w}W–${play.coachCall.l}L–${play.coachCall.d}D from the dugout` : 'One situation. Two calls.'}</strong>
+        <small>${side ? 'Your style against theirs — daily scenario' : 'Needs a side — pick yours first'}</small>
+      </button>
       <button class="lobby-tile" data-goto="lab">
         <span class="lt-kicker">Match Lab</span>
         <strong>Any two teams, full broadcast</strong>
@@ -3170,12 +3909,14 @@ function lobbyHTML(overlay, play, sims) {
       </button>
     </div>
 
+    ${momentTapeHTML(play)}
+
     <div class="lobby-season" aria-label="Season record">
       <span class="lt-kicker">Your season</span>
       <div class="season-grid">
         <span class="season-cell"><b>${bestWin ? `${teamFlag(bestWin.home)} ${bestWin.gh}–${bestWin.ga} ${teamFlag(bestWin.away)}` : '—'}</b><small>${bestWin ? 'record to beat' : 'no record yet — set one tonight'}</small></span>
         <span class="season-cell"><b>${ledger.wins}W–${ledger.played - ledger.wins}L</b><small>lab record</small></span>
-        <span class="season-cell"><b>${predStats.right}/${predStats.total}</b><small>calls right</small></span>
+        <span class="season-cell"><b>${(play.cupHistory || []).length ? (play.cupHistory || []).map((c) => (c.trophy ? c.trophy.icon : '🎖️')).slice(0, 3).join('') : predStats.right + '/' + predStats.total}</b><small>${(play.cupHistory || []).length ? 'cup shelf' : 'calls right'}</small></span>
       </div>
       ${earned.length ? `<div class="season-ach">${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}</div>`
     : '<p class="season-hint">Achievements unlock from real play — an upset call, a five-streak, a shootout escape.</p>'}
@@ -3234,6 +3975,7 @@ function wireLobby(outlet) {
     b.addEventListener('click', () => {
       chooseSide(b.dataset.sidePick);
       fmRun = null; // a new allegiance re-seeds tonight's scenario opponent
+      ccRun = null;
       sidePickerOpen = false;
       repaintPlay();
     });
@@ -3243,6 +3985,7 @@ function wireLobby(outlet) {
     clear.addEventListener('click', () => {
       chooseSide(null);
       fmRun = null;
+      ccRun = null;
       sidePickerOpen = false;
       repaintPlay();
     });
@@ -3417,6 +4160,8 @@ export function render(outlet) {
   else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
   else if (mode === 'shootout') body = rushHTML(play);
   else if (mode === 'finalminute') body = fmHTML(play);
+  else if (mode === 'cup') body = cupHTML(play);
+  else if (mode === 'coach') body = coachHTML(play);
   else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
@@ -3426,9 +4171,11 @@ export function render(outlet) {
     id: 'play-mode', label: 'Play modes', value: mode,
     options: [
       { value: 'lobby', label: 'Lobby' },
+      { value: 'cup', label: 'Arcade Cup', short: 'Cup' },
       { value: 'lab', label: 'Match Lab', short: 'Lab' },
       { value: 'shootout', label: 'Penalty Rush', short: 'Rush' },
       { value: 'finalminute', label: 'Final Minute', short: "90'+" },
+      { value: 'coach', label: "Coach's Call", short: 'Coach' },
       { value: 'myworldcup', label: 'My World Cup', short: 'My Cup' },
       { value: 'prediction', label: 'Prediction Run', short: 'Predict' },
     ],
@@ -3459,5 +4206,7 @@ export function render(outlet) {
   else if (mode === 'prediction') wirePrediction(outlet);
   else if (mode === 'shootout') wireRush(outlet);
   else if (mode === 'finalminute') wireFm(outlet);
+  else if (mode === 'cup') wireCup(outlet);
+  else if (mode === 'coach') wireCoach(outlet);
   else wireLobby(outlet);
 }
