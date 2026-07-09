@@ -13,7 +13,11 @@ import {
 } from '../core/app-state.js';
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
-import { gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry } from './play.js';
+import {
+  gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry,
+  currentSide, sideRecordFor, openSidePicker,
+} from './play.js';
+import { TEAM_COLORS } from '../data/fixtures.js';
 import { activate } from '../navigation/router.js';
 import {
   boardConfigured, currentUser, signOut,
@@ -478,8 +482,47 @@ function hallOfMomentsHTML(play) {
   if (rush && rush.played) {
     chips.push(`<span class="you-moment rush">◐ Gauntlet best ${rush.bestEver || 0}${rush.perfects ? ` · ${rush.perfects} perfect` : ''}</span>`);
   }
+  const fm = play.fmHistory || [];
+  const fmBest = fm.find((e) => e.result === 'W' && e.scenario === 'rescue') || fm.find((e) => e.result === 'W');
+  if (fmBest) {
+    chips.push(`<span class="you-moment fm">⏱ ${fmBest.scenario === 'rescue' ? 'Turned it around' : 'Held the line'} at 90+ — ${fmBest.gYou}–${fmBest.gThem} v ${teamFlag(fmBest.opp)}</span>`);
+  }
   if (!chips.length) return '';
   return `<div class="you-moments" aria-label="Hall of moments">${chips.join('')}</div>`;
+}
+
+/* Your side on this phone — the museum's identity wall. Local record only:
+   never a claim about the real tournament. */
+function youSideHTML(play) {
+  const side = currentSide(play);
+  if (!side) {
+    return `<section class="you-card you-side unclaimed" aria-label="Your side">
+      <p class="bd-kicker">Your side</p>
+      <p class="you-side-empty">No side claimed yet. Pick a team on the Play tab and every arcade
+        win, defeat, and late rescue starts counting here.</p>
+      <button class="you-sideaction" id="you-change-side">Pick your side</button>
+    </section>`;
+  }
+  const rec = sideRecordFor(play, side.code);
+  const fm = play.finalMinute || null;
+  const since = fmtDate(side.since);
+  return `<section class="you-card you-side" aria-label="Your side" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+    <p class="bd-kicker">Your side · on this phone</p>
+    <div class="you-side-row">
+      <span class="you-side-flag" aria-hidden="true">${teamFlag(side.code)}</span>
+      <div class="you-side-id">
+        <strong class="display">${esc(teamName(side.code))}</strong>
+        <span>${since ? `claimed ${esc(since)} · ` : ''}local record only</span>
+      </div>
+    </div>
+    <div class="ladder-grid" role="group" aria-label="Side record">
+      <span class="ladder-cell"><b>${rec.w}W–${rec.l}L${rec.d ? '–' + rec.d + 'D' : ''}</b><small>local record</small></span>
+      <span class="ladder-cell"><b>${rec.streak >= 2 ? '🔥' + rec.streak : rec.streak}</b><small>streak</small></span>
+      <span class="ladder-cell"><b>${rec.best}</b><small>best run</small></span>
+      <span class="ladder-cell"><b>${fm && fm.played ? `${fm.w}–${fm.l}–${fm.d}` : '—'}</b><small>final minute</small></span>
+    </div>
+    <button class="you-sideaction" id="you-change-side">Change side</button>
+  </section>`;
 }
 
 function museumHTML(state) {
@@ -492,6 +535,7 @@ function museumHTML(state) {
   const bestCp = lab.length ? Math.max(...lab.map((m) => m.cp || 0)) : 0;
   return `
     ${museumHeroHTML(state)}
+    ${youSideHTML(play)}
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
       ${pickCount ? `<div class="pr-stats quiet" role="group" aria-label="Record">
@@ -523,7 +567,7 @@ function museumHTML(state) {
     const bestNight = (m.cp || 0) > 0 && (m.cp || 0) === bestCp;
     return `
         <div class="you-lab${bestNight ? ' best' : ''}">
-          <span class="you-lab-score">${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}
+          <span class="you-lab-score">${m.result ? `<b class="you-res ${m.result === 'W' ? 'w' : 'l'}" title="${m.result === 'W' ? 'Your side won' : 'Your side lost'}">${m.result}</b> ` : ''}${teamFlag(m.home)} <strong>${m.gh}–${m.ga}</strong>${m.pens ? `<small> ${m.pens.ph}–${m.pens.pa}p</small>` : ''} ${teamFlag(m.away)}
             ${m.upset ? '<em class="you-lab-tag upset">upset</em>' : ''}${(m.comeback || 0) >= 2 ? '<em class="you-lab-tag comeback">comeback</em>' : ''}${bestNight ? '<em class="you-lab-tag best">best night</em>' : ''}</span>
           <span class="you-sim-meta">${esc(teamName(m.home))} v ${esc(teamName(m.away))} · ${esc(fmtDate(m.at))}${m.cp ? ' · +' + m.cp + ' CP' : ''}</span>
           ${m.story ? `<span class="you-lab-story">${esc(m.story)}</span>` : ''}
@@ -689,6 +733,14 @@ export function render(outlet) {
       activate('play');
     });
   });
+  // your side: pick or change from the museum — lands on the Play picker
+  const changeSide = outlet.querySelector('#you-change-side');
+  if (changeSide) {
+    changeSide.addEventListener('click', () => {
+      openSidePicker();
+      activate('play');
+    });
+  }
   const theme = outlet.querySelector('[data-segmented="theme"]');
   if (theme) {
     theme.addEventListener('click', (e) => {

@@ -327,6 +327,92 @@ test.describe('Penalty Rush', () => {
   });
 });
 
+test.describe('Your Side', () => {
+  test('claim a side, win the night, build a local record, rematch and replay honestly', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    const heroBefore = await page.locator('.score-stage').innerText();
+    await tapTab(page, 'play');
+    // claim: unclaimed hero opens the 48-team picker
+    await page.locator('#side-open').click();
+    await expect(page.locator('.side-grid')).toBeVisible();
+    await expect(page.locator('[data-side-pick]')).toHaveCount(48);
+    await screenshot(page, testInfo, 'play-side-picker');
+    await page.locator('[data-side-pick="USA"]').click();
+    await expect(page.locator('.side-hero.claimed')).toContainText('USA');
+    await expect(page.locator('.side-hero.claimed')).toContainText('0W–0L');
+    await screenshot(page, testInfo, 'play-lobby-claimed');
+    // tonight's matchup wears your side
+    await page.locator('#side-night').click();
+    await expect(page.locator('.lab.running')).toBeVisible();
+    await expect(page.locator('.lab-you-tag')).toBeVisible();
+    const seed = await page.evaluate(() => window.__u26LabDebug.snapshot().seed);
+    await page.evaluate(() => window.__u26LabDebug.force('final'));
+    await expect(page.locator('.lab-clock')).toHaveText('FULL TIME', { timeout: 10000 });
+    // the verdict moment: force('final') hands the home side (yours) the win
+    await expect(page.locator('.lab-verdict strong')).toHaveText('YOU WIN');
+    await expect(page.locator('.lab-verdict')).toContainText('1W–0L');
+    await screenshot(page, testInfo, 'play-lab-verdict-win');
+    // replay the exact night: the seed must not change
+    await page.locator('#lab-replay-night').click();
+    await expect(page.locator('.lab.running:not(.done)')).toBeVisible();
+    expect(await page.evaluate(() => window.__u26LabDebug.snapshot().seed)).toBe(seed);
+    await page.evaluate(() => window.__u26LabDebug.force('final'));
+    await expect(page.locator('.lab-clock')).toHaveText('FULL TIME', { timeout: 10000 });
+    // rematch: same teams, a fresh seed
+    await page.locator('#lab-again').click();
+    await expect(page.locator('.lab.running:not(.done)')).toBeVisible();
+    const rematch = await page.evaluate(() => window.__u26LabDebug.snapshot());
+    expect(rematch.seed).not.toBe(seed);
+    // the museum wears your side and your record
+    await tapTab(page, 'you');
+    await expect(page.locator('.you-side')).toContainText('USA');
+    await expect(page.locator('.you-side')).toContainText('2W–0L');
+    await expect(page.locator('.you-res.w').first()).toBeVisible();
+    await screenshot(page, testInfo, 'you-side-record');
+    // local only: whitelisted namespaces, and the side lives in Play state
+    const keys = await page.evaluate(() => Object.keys(window.localStorage));
+    expect(keys.every((k) => ['u26v2.prefs', 'u26v2.play', 'u26v2.sims', 'u26v2.auth'].includes(k))).toBe(true);
+    const play = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}'));
+    expect(play.side.code).toBe('USA');
+    expect(play.sideStats.USA.w).toBe(2);
+    // official truth untouched
+    await tapTab(page, 'home');
+    expect(await page.locator('.score-stage').innerText()).toBe(heroBefore);
+  });
+
+  test('Final Minute needs a side, then three calls resolve a verdict into the local record', async ({ page }, testInfo) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'finalminute');
+    // gated until you claim a team
+    await page.locator('#fm-pickside').click();
+    await expect(page.locator('.side-grid')).toBeVisible();
+    await page.locator('[data-side-pick="BRA"]').click();
+    await expect(page.locator('.side-hero.claimed')).toContainText('Brazil');
+    await openPlayMode(page, 'finalminute');
+    await expect(page.locator('.fm-stage')).toBeVisible();
+    await expect(page.locator('.fm-team.you')).toContainText('Brazil');
+    await screenshot(page, testInfo, 'play-final-minute');
+    for (let i = 0; i < 3; i++) {
+      await page.locator('[data-fm-choice]').first().click();
+    }
+    await expect(page.locator('.fm-verdict strong')).toBeVisible();
+    await expect(page.locator('.fm-record')).toContainText('on this phone');
+    await screenshot(page, testInfo, 'play-final-minute-verdict');
+    await expectNoHorizontalOverflow(page, expect, 'final-minute');
+    const play = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}'));
+    expect(play.finalMinute.played).toBe(1);
+    expect(['W', 'L', 'D']).toContain(play.finalMinute.lastResult);
+    expect(play.fmHistory.length).toBe(1);
+    // run it again draws the next deterministic attempt
+    await page.locator('#fm-again').click();
+    await expect(page.locator('.fm-choice')).toBeVisible();
+    // Penalty Rush wears the same side identity
+    await openPlayMode(page, 'shootout');
+    await expect(page.locator('.rush-side')).toContainText('Brazil');
+    await screenshot(page, testInfo, 'play-rush-side');
+  });
+});
+
 test.describe('My World Cup', () => {
   test('tap a tie, send a team through, simulate the rest, save the timeline', async ({ page }, testInfo) => {
     await gotoApp(page);

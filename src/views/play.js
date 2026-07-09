@@ -244,6 +244,67 @@ export function teamSimStyle(code) {
   return SIM_STYLES[hashSeed(`u26-style-${code}`) % SIM_STYLES.length];
 }
 
+/* ================= Your Side =================
+   A local allegiance for Play only. Choosing a side never claims anything
+   about the real tournament — it colours the arcade, points Match Lab and
+   Final Minute at your team, and gives every result a Win/Defeat verdict
+   that accumulates into a per-side record kept on this phone. */
+
+export function currentSide(play) {
+  const code = play && play.side && play.side.code;
+  return code && TEAMS[code] ? play.side : null;
+}
+
+/** Pick (or clear) your side. Records are kept per team code, so switching
+    sides never erases another side's history. */
+export function chooseSide(code) {
+  const { play } = getState();
+  const next = { ...play, side: code && TEAMS[code] ? { code, since: new Date().toISOString() } : null };
+  setPlay(next);
+  savePlay(next);
+}
+
+const EMPTY_SIDE_RECORD = Object.freeze({ w: 0, l: 0, d: 0, played: 0, streak: 0, best: 0 });
+
+export function sideRecordFor(play, code) {
+  const rec = play && play.sideStats && play.sideStats[code];
+  return rec ? { ...EMPTY_SIDE_RECORD, ...rec } : { ...EMPTY_SIDE_RECORD };
+}
+
+/** Fold one perspective result ('W' | 'L' | 'D') into the per-side records.
+    Pure: returns the next sideStats map, never mutates the old one. */
+export function recordSideResult(sideStats, code, result) {
+  if (!code || !['W', 'L', 'D'].includes(result)) return sideStats || {};
+  const prev = (sideStats && sideStats[code]) || EMPTY_SIDE_RECORD;
+  const streak = result === 'W' ? (prev.streak || 0) + 1 : 0;
+  return {
+    ...(sideStats || {}),
+    [code]: {
+      w: (prev.w || 0) + (result === 'W' ? 1 : 0),
+      l: (prev.l || 0) + (result === 'L' ? 1 : 0),
+      d: (prev.d || 0) + (result === 'D' ? 1 : 0),
+      played: (prev.played || 0) + 1,
+      streak,
+      best: Math.max(prev.best || 0, streak),
+    },
+  };
+}
+
+/** Which side of a Lab run you occupy, if your chosen team is playing. */
+export function labPerspective(run, sideCode) {
+  if (!sideCode) return null;
+  if (run.home === sideCode) return 'h';
+  if (run.away === sideCode) return 'a';
+  return null;
+}
+
+/** Win or Defeat from your seat. Lab knockouts are always decisive. */
+export function labPerspectiveResult(run, you) {
+  if (!you) return null;
+  const homeWin = run.pens ? run.pens.ph > run.pens.pa : run.gh > run.ga;
+  return (you === 'h') === homeWin ? 'W' : 'L';
+}
+
 function labHexRGB(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
   if (!m) return labHexRGB('#ffffff');
@@ -1506,16 +1567,25 @@ function finishLab() {
   const cp = labArcadePoints(run, facts);
   run.cp = cp; run.win = facts.win; run.story = labStory(run, facts);
   run.potm = labPotm(run, facts);
+  // perspective: if your chosen side played tonight, this night has a verdict
+  const side = currentSide(play);
+  run.you = labPerspective(run, side && side.code);
+  run.result = labPerspectiveResult(run, run.you);
   const entry = {
     at: new Date().toISOString(),
     home: run.home, away: run.away, gh: run.gh, ga: run.ga,
     pens: run.pens, approach: run.approach, line: run.line,
     cp, win: facts.win, upset: facts.upset, story: run.story, extraStarted: !!run.extraStarted,
     seed: run.seed,
+    you: run.you, result: run.result,
     comeback: facts.win ? labComebackDepth(run.events, 'h') : 0,
     events: run.events.slice(-18).map((e) => ({ min: e.min, phase: e.phase || 'reg', type: e.type, side: e.side, text: e.text })),
   };
-  const nextPlay = { ...play, labHistory: [entry, ...(play.labHistory || [])].slice(0, 30) };
+  const nextPlay = {
+    ...play,
+    labHistory: [entry, ...(play.labHistory || [])].slice(0, 30),
+    ...(run.result ? { sideStats: recordSideResult(play.sideStats, side.code, run.result) } : {}),
+  };
   setPlay(nextPlay);
   savePlay(nextPlay);
 }
@@ -1877,13 +1947,17 @@ function rushHTML(play) {
   const bestToday = sameDay ? rec.bestToday || 0 : 0;
   const last = run.kicks[run.kicks.length - 1] || null;
   const perfect = run.over && run.goals >= 5;
+  const personalBest = run.over && run.goals > 0 && run.goals >= ((rec && rec.bestEver) || 0);
   const newBest = run.over && run.goals > 0 && run.goals >= bestToday;
-  return `<section class="play-card rush" aria-label="Penalty Rush">
+  const side = currentSide(play);
+  const target = Math.max(bestToday, (rec && rec.bestEver) || 0);
+  return `<section class="play-card rush${side ? ' has-side' : ''}" aria-label="Penalty Rush"${side ? ` style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}"` : ''}>
     <div class="rush-head">
       <div><h2 class="display">Penalty Rush</h2>
       <p class="play-sub">Daily Gauntlet · five kicks against a keeper who studies your habits. Local practice only, nothing real at risk.</p></div>
       <span class="sim-badge">SIMULATION</span>
     </div>
+    ${side ? `<p class="rush-side">${teamFlag(side.code)} <b>${esc(teamName(side.code))}</b> step up — every strike wears your colours</p>` : ''}
     <div class="rush-chips" role="group" aria-label="Gauntlet record">
       <span class="rush-chip"><b>${bestToday}</b>best today</span>
       <span class="rush-chip"><b>${(rec && rec.bestEver) || 0}</b>best ever</span>
@@ -1898,12 +1972,14 @@ function rushHTML(play) {
       <p class="rush-callout" role="status" aria-live="polite">${esc(rushCallout(run))}</p>
     </div>
     <div class="rush-dots" aria-label="Kick record">${rushDotsHTML(run)}</div>
+    ${!run.over && target > 0 ? `<p class="rush-target">Target: beat <b>${target}</b>${run.goals >= target ? ' — you are past it, keep going' : ''}</p>` : ''}
     ${run.over ? `<div class="rush-recap${perfect ? ' perfect' : ''}">
       <p class="rush-score"><strong class="display">${run.goals}</strong><span>${run.goals === 1 ? 'goal' : 'goals'} tonight</span></p>
       <p class="rush-rating">${esc(rushRating(run.goals))}${perfect ? ' · perfect five' : ''}</p>
-      ${newBest ? '<p class="rush-newbest">New daily best — kept on this phone</p>' : ''}
+      ${personalBest ? '<p class="rush-newbest">Personal best — kept on this phone</p>'
+    : newBest ? '<p class="rush-newbest">New daily best — kept on this phone</p>' : ''}
       <div class="play-actions">
-        <button class="play-btn gold" id="rush-again">Step up again</button>
+        <button class="play-btn gold" id="rush-again">${run.goals > 0 && !personalBest ? `Beat your ${(rec && rec.bestEver) || 0} — run it again` : 'Step up again'}</button>
         <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
       </div>
     </div>` : `<div class="rush-aims" role="group" aria-label="Pick your corner">
@@ -1933,6 +2009,263 @@ function wireRush(outlet) {
     again.addEventListener('click', () => {
       rushRun = null; // next attempt draws the day's next deterministic seed
       ensureRushRun();
+      unlockAudioFromGesture();
+      repaintPlay();
+    });
+  }
+}
+
+/* ================= Final Minute =================
+   The clutch challenge: your side, six minutes left, three calls. A seeded,
+   deterministic scenario resolves Win / Draw / Defeat from your seat and
+   feeds your local side record. Entirely local — no network, no official
+   claims, nothing real at risk. */
+
+export const FM_SCENARIOS = [
+  { id: 'protect', name: 'Protect the lead', you: 1, them: 0, brief: 'You lead by one. Survive six minutes.' },
+  { id: 'edge', name: 'Find the winner', you: 1, them: 1, brief: 'Level game. One moment decides the night.' },
+  { id: 'rescue', name: 'Rescue the night', you: 0, them: 1, brief: 'One down. Chase it without dying twice.' },
+];
+
+export const FM_STEPS = [
+  {
+    clock: "88'", prompt: 'Six minutes left. Set the shape.',
+    options: [
+      { id: 'shut', label: 'Shut it down', you: 0.5, them: 0.62 },
+      { id: 'hold', label: 'Hold our shape', you: 0.9, them: 0.9 },
+      { id: 'hunt', label: 'Go hunting', you: 1.5, them: 1.4 },
+    ],
+  },
+  {
+    clock: "90+1'", prompt: 'The board says five. Next call.',
+    options: [
+      { id: 'restarts', label: 'Kill every restart', you: 0.55, them: 0.6 },
+      { id: 'fresh', label: 'Fresh legs wide', you: 1.15, them: 0.95 },
+      { id: 'overload', label: 'Overload the left', you: 1.45, them: 1.3 },
+    ],
+  },
+  {
+    clock: "90+4'", prompt: 'Last action of the night.',
+    options: [
+      { id: 'wall', label: 'Everyone behind the ball', you: 0.4, them: 0.55 },
+      { id: 'break', label: 'Spring one counter', you: 1.1, them: 0.85 },
+      { id: 'forward', label: 'Send everyone forward', you: 1.7, them: 1.6 },
+    ],
+  },
+];
+
+const FM_STEP_MINUTES = [["88'", "89'", "90'"], ["90+1'", "90+2'", "90+3'"], ["90+4'", "90+5'", "90+6'"]];
+
+export function dailyFinalMinuteSeed(dateKey = localDayKey(), attempt = 0) {
+  return hashSeed(`u26-fm-${dateKey}-${attempt}`) || 1;
+}
+
+export function createFinalMinute(seed, you, opp) {
+  const s = (seed >>> 0) || 1;
+  return {
+    seed: s,
+    rng: mulberry32(s),
+    you, opp,
+    scenario: FM_SCENARIOS[s % FM_SCENARIOS.length],
+    gYou: FM_SCENARIOS[s % FM_SCENARIOS.length].you,
+    gThem: FM_SCENARIOS[s % FM_SCENARIOS.length].them,
+    step: 0, choices: [], events: [], over: false, result: null,
+  };
+}
+
+/** One tactical call. Deterministic for a given seed + choice history;
+    resolves a window of chances, then either asks again or ends the night. */
+export function finalMinuteDecide(run, optionId) {
+  if (!run || run.over) return null;
+  const step = FM_STEPS[run.step];
+  const opt = step && step.options.find((o) => o.id === optionId);
+  if (!opt) return null;
+  run.choices.push(optionId);
+  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40;
+  const youRate = Math.max(0.03, 0.17 * (1 + edge) * opt.you);
+  const themRate = Math.max(0.03, 0.17 * (1 - edge) * opt.them);
+  const minutes = FM_STEP_MINUTES[run.step];
+  const resolved = [];
+  for (let w = 0; w < 3; w++) {
+    const min = minutes[w];
+    if (run.rng() < youRate) {
+      run.gYou += 1;
+      resolved.push({ min, side: 'you', type: 'goal', text: `GOAL — ${teamName(run.you)} strike (${run.gYou}–${run.gThem})` });
+    } else if (run.rng() < themRate) {
+      run.gThem += 1;
+      resolved.push({ min, side: 'them', type: 'goal', text: `They score — ${teamName(run.opp)} (${run.gYou}–${run.gThem})` });
+    } else if (run.rng() < 0.3) {
+      const yours = run.rng() < 0.5 + edge * 0.3;
+      resolved.push({
+        min,
+        side: yours ? 'you' : 'them',
+        type: 'chance',
+        text: yours ? `${teamName(run.you)} go close` : `${teamName(run.opp)} threaten — cleared`,
+      });
+    }
+  }
+  run.events.push(...resolved);
+  run.step += 1;
+  if (run.step >= FM_STEPS.length) {
+    run.over = true;
+    run.result = run.gYou > run.gThem ? 'W' : run.gYou < run.gThem ? 'L' : 'D';
+    run.events.push({ min: "90+6'", side: 'you', type: 'final', text: 'Full-time whistle.' });
+  }
+  return resolved;
+}
+
+/** Fold a finished Final Minute into the local record — day-scoped attempts
+    plus all-time totals, all derived from runs that actually happened. */
+export function fmRecordAfter(rec, { dateKey, result }) {
+  const sameDay = !!rec && rec.dateKey === dateKey;
+  return {
+    dateKey,
+    attemptsToday: (sameDay ? rec.attemptsToday || 0 : 0) + 1,
+    w: ((rec && rec.w) || 0) + (result === 'W' ? 1 : 0),
+    l: ((rec && rec.l) || 0) + (result === 'L' ? 1 : 0),
+    d: ((rec && rec.d) || 0) + (result === 'D' ? 1 : 0),
+    played: ((rec && rec.played) || 0) + 1,
+    lastResult: result,
+  };
+}
+
+// Live scenario — module-local, never persisted mid-run (same policy as labRun).
+let fmRun = null;
+
+function fmOpponentFor(play, sideCode) {
+  const featured = currentFeaturedShowdown(play);
+  return featured.home === sideCode ? featured.away : featured.home;
+}
+
+function ensureFmRun() {
+  if (fmRun) return fmRun;
+  const { play } = getState();
+  const side = currentSide(play);
+  if (!side) return null;
+  const today = localDayKey();
+  const rec = play.finalMinute;
+  const attempt = rec && rec.dateKey === today ? rec.attemptsToday || 0 : 0;
+  fmRun = createFinalMinute(dailyFinalMinuteSeed(today, attempt), side.code, fmOpponentFor(play, side.code));
+  return fmRun;
+}
+
+function finishFm(run) {
+  const { play } = getState();
+  const side = currentSide(play);
+  const entry = {
+    at: new Date().toISOString(),
+    seed: run.seed,
+    scenario: run.scenario.id,
+    you: run.you, opp: run.opp,
+    gYou: run.gYou, gThem: run.gThem,
+    result: run.result,
+  };
+  const next = {
+    ...play,
+    finalMinute: fmRecordAfter(play.finalMinute, { dateKey: localDayKey(), result: run.result }),
+    fmHistory: [entry, ...(play.fmHistory || [])].slice(0, 12),
+    ...(side && side.code === run.you ? { sideStats: recordSideResult(play.sideStats, side.code, run.result) } : {}),
+  };
+  setPlay(next);
+  savePlay(next);
+}
+
+const FM_VERDICT = {
+  W: ['HELD — YOU WIN', 'The night is yours.'],
+  D: ['ALL LEVEL', 'A point rescued from the fire.'],
+  L: ['IT SLIPPED', 'Six minutes can be cruel.'],
+};
+
+function fmVerdictCopy(run) {
+  if (run.result === 'W' && run.scenario.id === 'rescue') return ['TURNED AROUND', 'From one down to all three. Absurd.'];
+  if (run.result === 'D' && run.scenario.id === 'protect') return ['THEY CLAWED ONE', 'The lead slipped at the death.'];
+  return FM_VERDICT[run.result] || FM_VERDICT.D;
+}
+
+function fmHTML(play) {
+  const side = currentSide(play);
+  if (!side) {
+    return `<section class="play-card fm" aria-label="Final Minute">
+      <div class="rush-head">
+        <div><h2 class="display">Final Minute</h2>
+        <p class="play-sub">Six minutes, three calls, one verdict. This challenge needs a side to fight for.</p></div>
+        <span class="sim-badge">SIMULATION</span>
+      </div>
+      <button class="play-btn gold" id="fm-pickside">Pick your side</button>
+    </section>`;
+  }
+  const run = ensureFmRun();
+  const rec = play.finalMinute || null;
+  const step = run.over ? null : FM_STEPS[run.step];
+  const sideColor = TEAM_COLORS[side.code] || 'var(--gold)';
+  const verdict = run.over ? fmVerdictCopy(run) : null;
+  return `<section class="play-card fm${run.over ? ` over r-${run.result.toLowerCase()}` : ''}" aria-label="Final Minute" style="--side:${sideColor}">
+    <div class="rush-head">
+      <div><h2 class="display">Final Minute</h2>
+      <p class="play-sub">${esc(run.scenario.name)} · ${esc(run.scenario.brief)} Local scenario only — never a real result.</p></div>
+      <span class="sim-badge">SIMULATION</span>
+    </div>
+    <div class="fm-stage">
+      <div class="fm-clock" aria-live="polite">${run.over ? 'FULL TIME' : esc(step.clock)}</div>
+      <div class="fm-score-row">
+        <div class="fm-team you">${teamFlag(run.you)}<span>${esc(teamName(run.you))}</span><em class="lab-you-tag">You</em></div>
+        <div class="fm-score">${run.gYou}<span class="lab-sep">–</span>${run.gThem}</div>
+        <div class="fm-team">${teamFlag(run.opp)}<span>${esc(teamName(run.opp))}</span></div>
+      </div>
+      ${run.over ? `<div class="fm-verdict" role="status">
+        <strong class="display">${esc(verdict[0])}</strong>
+        <span>${esc(verdict[1])}</span>
+      </div>` : ''}
+    </div>
+    <ol class="lab-feed fm-feed" aria-live="polite" aria-label="Final minutes">
+      ${run.events.slice(-6).map((e) => `<li class="lab-ev ${e.type === 'goal' ? 'goal' : 'chance'} fm-${e.side}"><span class="lab-ev-min">${esc(e.min)}</span><span class="lab-ev-ic">${e.type === 'goal' ? '●' : '○'}</span>${esc(e.text)}</li>`).join('')}
+    </ol>
+    ${!run.over ? `<div class="fm-choice" role="group" aria-label="${esc(step.prompt)}">
+      <p class="lab-decision-prompt">${esc(step.prompt)}</p>
+      <div class="lab-decision-opts">
+        ${step.options.map((o) => `<button class="lab-opt" data-fm-choice="${o.id}">${esc(o.label)}</button>`).join('')}
+      </div>
+    </div>` : `<div class="fm-recap">
+      ${rec ? `<p class="fm-record">Final Minute record: <b>${rec.w}W–${rec.l}L–${rec.d}D</b> on this phone</p>` : ''}
+      <div class="play-actions">
+        <button class="play-btn gold" id="fm-again">Run it again</button>
+        <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
+      </div>
+    </div>`}
+    <p class="lab-saved-note">Seeded daily on this phone · results count toward your local side record only.</p>
+  </section>`;
+}
+
+function wireFm(outlet) {
+  const pick = outlet.querySelector('#fm-pickside');
+  if (pick) {
+    pick.addEventListener('click', () => {
+      sidePickerOpen = true;
+      setPlayMode('lobby');
+      repaintPlay();
+    });
+  }
+  outlet.querySelectorAll('[data-fm-choice]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const run = ensureFmRun();
+      if (!run || run.over) return;
+      unlockAudioFromGesture();
+      const resolved = finalMinuteDecide(run, b.dataset.fmChoice) || [];
+      const goal = resolved.find((e) => e.type === 'goal');
+      if (goal) labSound(goal.side === 'you' ? 'goal' : 'var-overturned');
+      else labSound('ref');
+      if (run.over) {
+        labSound('final');
+        finishFm(run);
+      }
+      repaintPlay();
+    });
+  });
+  const again = outlet.querySelector('#fm-again');
+  if (again) {
+    again.addEventListener('click', () => {
+      fmRun = null; // next attempt draws the day's next deterministic seed
+      ensureFmRun();
       unlockAudioFromGesture();
       repaintPlay();
     });
@@ -2071,13 +2404,17 @@ function tapeHTML(home, away) {
 function labSetupHTML(play) {
   const last = (play.labHistory || [])[0];
   const featured = currentFeaturedShowdown(play);
-  const home = featured.home;
-  const away = featured.away;
+  const side = currentSide(play);
+  // your side takes the home bench by default; the featured pair fills in
+  const home = side ? side.code : featured.home;
+  const away = side
+    ? (featured.home === side.code ? featured.away : featured.home)
+    : featured.away;
   const sound = labSoundButtonModel();
   return `<section class="play-card lab lab-lobby" aria-label="Match Lab">
     <div class="lab-showdown-label">
       <span>Tonight’s Showdown</span>
-      <small>Daily featured simulation · not a live fixture</small>
+      <small>${side ? 'Your side takes the stage · not a live fixture' : 'Daily featured simulation · not a live fixture'}</small>
     </div>
     <div class="lab-attract" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
       <div class="lab-attract-top"><span>Match Lab</span><strong>90'</strong></div>
@@ -2205,6 +2542,7 @@ function labRunHTML(run) {
   const late = !run.done && run.minute >= 80 && Math.abs(run.gh - run.ga) <= 1;
   const sound = labSoundButtonModel();
   const phaseBadge = labPhaseBadge(run);
+  const you = labPerspective(run, currentSide(getState().play)?.code);
   // stadium energy: tight late games and fresh goals raise the lights
   const closeness = 1 - Math.min(1, Math.abs(run.gh - run.ga) / 3);
   const energy = Math.min(1, 0.25 + (run.minute / 120) * 0.4 + closeness * 0.25 + (goalLive ? 0.35 : 0));
@@ -2214,9 +2552,9 @@ function labRunHTML(run) {
       <div class="lab-clock" aria-live="polite">${labClockHTML(run)}</div>
       ${phaseBadge ? `<div class="lab-phase-badge">${esc(phaseBadge)}</div>` : ''}
       <div class="lab-score-row">
-        <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span></div>
+        <div class="lab-team">${teamFlag(run.home)}<span>${esc(teamName(run.home))}</span>${you === 'h' ? '<em class="lab-you-tag">You</em>' : ''}</div>
         <div class="lab-score${goalLive ? ' flash' : ''}${run.done ? ' reveal' : ''}" id="lab-score" data-v="${run.gh}-${run.ga}">${run.gh}<span class="lab-sep">–</span>${run.ga}</div>
-        <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}</div>
+        <div class="lab-team away"><span>${esc(teamName(run.away))}</span>${teamFlag(run.away)}${you === 'a' ? '<em class="lab-you-tag">You</em>' : ''}</div>
       </div>
       <div class="lab-pens" data-lab-pens${run.pens || run.shootout ? '' : ' hidden'}>${esc(shootoutLabel(run))}</div>
       <div class="lab-momentum ${kits.momentumClass}" aria-hidden="true"><div class="lab-mo-fill" id="lab-mo" style="width:${moPct}%"></div></div>
@@ -2267,7 +2605,16 @@ function labPayoffHTML(run) {
     ? `${ledger.streak} lab wins in a row`
     : run.win ? 'Win streak: 1 — keep it alive' : 'Streak reset — one tap to respond';
   const possH = run.minute ? Math.round(Math.max(28, Math.min(72, ((run.possAcc || run.minute / 2) / run.minute) * 100))) : 50;
+  // the verdict moment: when your side played, the night has a name
+  const side = currentSide(play);
+  const rec = run.result && side ? sideRecordFor(play, side.code) : null;
+  const verdictHTML = run.result ? `<div class="lab-verdict ${run.result === 'W' ? 'won' : 'lost'}" role="status" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+      <strong class="display">${run.result === 'W' ? 'YOU WIN' : 'DEFEAT'}</strong>
+      <span>${teamFlag(side.code)} ${esc(teamName(side.code))} ${run.result === 'W' ? 'take the night' : 'will answer for this'}${run.pens ? ' — on kicks from the spot' : ''}</span>
+      ${rec ? `<small>Local record ${rec.w}W–${rec.l}L${rec.d ? '–' + rec.d + 'D' : ''}${rec.streak >= 2 ? ` · 🔥${rec.streak} straight` : ''} · on this phone</small>` : ''}
+    </div>` : '';
   return `<div class="lab-payoff${run.win ? ' won' : ''}">
+    ${verdictHTML}
     <div class="lab-payoff-head">
       <span class="lab-payoff-cp">+${run.cp || 0} <em>Arcade Points</em></span>
       <span class="lab-payoff-streak">${esc(streakLine)}</span>
@@ -2284,7 +2631,7 @@ function labPayoffHTML(run) {
     ${run.story ? `<p class="lab-story">${esc(run.story)}</p>` : ''}
     <p class="grug-line">${esc(run.line || '')}</p>
     <div class="play-actions">
-      <button class="play-btn gold" id="lab-again">Run it back</button>
+      <button class="play-btn gold" id="lab-again">${run.result === 'L' ? 'Rematch — answer this' : 'Rematch'}</button>
       <button class="play-btn quiet" id="lab-replay-night">Replay this exact night</button>
       <button class="play-btn quiet" id="lab-new">New matchup</button>
     </div>
@@ -2687,6 +3034,69 @@ function formDots(form) {
   return form.map((f) => `<i class="form-dot ${f === 'W' ? 'w' : 'l'}" aria-label="${f === 'W' ? 'Win' : 'Loss'}"></i>`).join('');
 }
 
+// Side picker sheet state — module-local UI state, discarded on navigation.
+let sidePickerOpen = false;
+
+/** You museum "Change side" lands here: open Play on the picker. */
+export function openSidePicker() {
+  sidePickerOpen = true;
+  setPlayMode('lobby');
+  repaintPlay();
+}
+
+function sidePickerHTML(play) {
+  const side = currentSide(play);
+  const codes = Object.keys(TEAMS).sort((a, b) => teamName(a).localeCompare(teamName(b)));
+  return `<section class="play-card side-picker" aria-label="Pick your side">
+    <div class="rush-head">
+      <div><h2 class="display">Pick your side</h2>
+      <p class="play-sub">Your team for the arcade — Match Lab, Final Minute, Penalty Rush. Local allegiance only; the real tournament never notices.</p></div>
+      <button class="side-close" id="side-close" aria-label="Close team picker">×</button>
+    </div>
+    <div class="side-grid" role="group" aria-label="All 48 teams">
+      ${codes.map((c) => `<button class="side-team${side && side.code === c ? ' on' : ''}" data-side-pick="${c}" style="--tc:${TEAM_COLORS[c] || 'var(--gold)'}">
+        <span class="side-team-flag">${teamFlag(c)}</span>
+        <span class="side-team-name">${esc(teamName(c))}</span>
+        <span class="side-team-style">${esc(teamSimStyle(c))}</span>
+      </button>`).join('')}
+    </div>
+    ${side ? '<button class="play-btn quiet" id="side-clear">Play without a side</button>' : ''}
+  </section>`;
+}
+
+/* The side hero: your crest, your record, tonight's matchup — or the call to
+   claim one. This is ownership, not officialdom: everything is local. */
+function sideHeroHTML(play) {
+  const side = currentSide(play);
+  if (!side) {
+    return `<button class="side-hero unclaimed" id="side-open" aria-label="Pick your side">
+      <span class="lk-label">Pick your side</span>
+      <span class="sh-cta">48 teams. One is yours.</span>
+      <span class="lk-note">Claim a team for the arcade — every win and defeat starts counting.</span>
+    </button>`;
+  }
+  const rec = sideRecordFor(play, side.code);
+  const featured = currentFeaturedShowdown(play);
+  const opp = featured.home === side.code ? featured.away : featured.home;
+  return `<div class="side-hero claimed" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
+    <div class="sh-top">
+      <span class="sh-flag" aria-hidden="true">${teamFlag(side.code)}</span>
+      <div class="sh-id">
+        <span class="lk-label">Your side · on this phone</span>
+        <strong class="display">${esc(teamName(side.code))}</strong>
+      </div>
+      <button class="sh-change" id="side-open">Change</button>
+    </div>
+    <div class="sh-record" role="group" aria-label="Local record">
+      <span class="sh-cell"><b>${rec.w}W–${rec.l}L${rec.d ? '–' + rec.d + 'D' : ''}</b><small>local record</small></span>
+      <span class="sh-cell"><b>${rec.streak >= 2 ? '🔥' + rec.streak : rec.streak}</b><small>streak</small></span>
+      <span class="sh-cell"><b>${rec.best}</b><small>best run</small></span>
+    </div>
+    <button class="lk-go sh-play" id="side-night">Play tonight: ${esc(teamName(side.code))} v ${esc(teamName(opp))}</button>
+    <span class="lk-note">Daily featured simulation · not a live fixture</span>
+  </div>`;
+}
+
 function lobbyHTML(overlay, play, sims) {
   const ledger = arcadeLedger(play, overlay, sims);
   const predStats = gradePredictions(play.predictions?.picks || {}, overlay);
@@ -2707,20 +3117,24 @@ function lobbyHTML(overlay, play, sims) {
   const earned = achievementState().filter((a) => a.on);
   const rushRec = play.penaltyRush || null;
   const rushBestToday = rushRec && rushRec.dateKey === localDayKey() ? rushRec.bestToday || 0 : 0;
+  const side = currentSide(play);
+  const fmRec = play.finalMinute || null;
+  if (sidePickerOpen) return sidePickerHTML(play);
   return `<section class="play-card lobby" aria-label="Arcade lobby">
+    ${sideHeroHTML(play)}
     <div class="lobby-marquee" role="group" aria-label="Your arcade record">
       <div class="lm-stat cp"><strong class="display">${ledger.points}</strong><span>Arcade Points</span></div>
       <div class="lm-stat"><span class="lm-form">${formDots(ledger.form)}</span><span>Lab form</span></div>
       <div class="lm-stat"><strong>${ledger.streak >= 2 ? '🔥' + ledger.streak : ledger.streak}</strong><span>Win streak</span></div>
     </div>
 
-    <button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
+    ${!side ? `<button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
       <span class="lk-label">Tonight’s Showdown</span>
       <span class="lk-tie">${teamFlag(home)} ${esc(teamName(home))} <em>v</em> ${esc(teamName(away))} ${teamFlag(away)}</span>
       <span class="lk-go">Start Showdown</span>
       <span class="lk-note">Daily featured simulation · not a live fixture</span>
-    </button>
-    ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} Run it back <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
+    </button>` : ''}
+    ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} ${last.result === 'W' ? 'Defend the win' : last.result === 'L' ? 'Answer the defeat' : 'Run it back'} <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
 
     <button class="lobby-rush" data-goto="shootout">
       <span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
@@ -2730,6 +3144,16 @@ function lobbyHTML(overlay, play, sims) {
     </button>
 
     <div class="lobby-grid">
+      <button class="lobby-tile fm-tile" data-goto="finalminute">
+        <span class="lt-kicker">Final Minute</span>
+        <strong>${fmRec && fmRec.played ? `${fmRec.w}W–${fmRec.l}L–${fmRec.d}D in the fire` : 'Six minutes. Three calls.'}</strong>
+        <small>${side ? 'Hold on or turn it around — daily scenario' : 'Needs a side — pick yours first'}</small>
+      </button>
+      <button class="lobby-tile" data-goto="myworldcup">
+        <span class="lt-kicker">My World Cup</span>
+        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Start a run'}</strong>
+        <small>${champion ? 'Champion crowned — save or run it again' : simNext ? 'Your parallel tournament is mid-flight' : 'Pick winners, break brackets'}</small>
+      </button>
       ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
         <span class="lt-kicker">Tonight's challenge</span>
         <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
@@ -2739,10 +3163,10 @@ function lobbyHTML(overlay, play, sims) {
         <strong>${predStats.right}/${predStats.total} correct</strong>
         <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
       </button>`}
-      <button class="lobby-tile" data-goto="myworldcup">
-        <span class="lt-kicker">My World Cup</span>
-        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Start a run'}</strong>
-        <small>${champion ? 'Champion crowned — save or run it again' : simNext ? 'Your parallel tournament is mid-flight' : 'Pick winners, break brackets'}</small>
+      <button class="lobby-tile" data-goto="lab">
+        <span class="lt-kicker">Match Lab</span>
+        <strong>Any two teams, full broadcast</strong>
+        <small>Momentum, decisions, extra time — your rules</small>
       </button>
     </div>
 
@@ -2786,6 +3210,41 @@ function wireLobby(outlet) {
       if (!last) return;
       setPlayMode('lab');
       beginLab(last.home, last.away, last.approach || 'balanced');
+    });
+  }
+  // ---- your side: hero, nightly matchup, picker sheet ----
+  const open = outlet.querySelector('#side-open');
+  if (open) open.addEventListener('click', () => { sidePickerOpen = true; repaintPlay(); });
+  const night = outlet.querySelector('#side-night');
+  if (night) {
+    night.addEventListener('click', () => {
+      const { play } = getState();
+      const side = currentSide(play);
+      if (!side) return;
+      const featured = currentFeaturedShowdown(play);
+      const opp = featured.home === side.code ? featured.away : featured.home;
+      const seed = hashSeed(`u26-side-night-${localDayKey()}-${side.code}-${opp}`) || 1;
+      setPlayMode('lab');
+      beginLab(side.code, opp, 'balanced', seed);
+    });
+  }
+  const close = outlet.querySelector('#side-close');
+  if (close) close.addEventListener('click', () => { sidePickerOpen = false; repaintPlay(); });
+  outlet.querySelectorAll('[data-side-pick]').forEach((b) => {
+    b.addEventListener('click', () => {
+      chooseSide(b.dataset.sidePick);
+      fmRun = null; // a new allegiance re-seeds tonight's scenario opponent
+      sidePickerOpen = false;
+      repaintPlay();
+    });
+  });
+  const clear = outlet.querySelector('#side-clear');
+  if (clear) {
+    clear.addEventListener('click', () => {
+      chooseSide(null);
+      fmRun = null;
+      sidePickerOpen = false;
+      repaintPlay();
     });
   }
 }
@@ -2957,6 +3416,7 @@ export function render(outlet) {
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
   else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
   else if (mode === 'shootout') body = rushHTML(play);
+  else if (mode === 'finalminute') body = fmHTML(play);
   else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
@@ -2968,6 +3428,7 @@ export function render(outlet) {
       { value: 'lobby', label: 'Lobby' },
       { value: 'lab', label: 'Match Lab', short: 'Lab' },
       { value: 'shootout', label: 'Penalty Rush', short: 'Rush' },
+      { value: 'finalminute', label: 'Final Minute', short: "90'+" },
       { value: 'myworldcup', label: 'My World Cup', short: 'My Cup' },
       { value: 'prediction', label: 'Prediction Run', short: 'Predict' },
     ],
@@ -2997,5 +3458,6 @@ export function render(outlet) {
   } else if (mode === 'myworldcup') wireMwc(outlet);
   else if (mode === 'prediction') wirePrediction(outlet);
   else if (mode === 'shootout') wireRush(outlet);
+  else if (mode === 'finalminute') wireFm(outlet);
   else wireLobby(outlet);
 }

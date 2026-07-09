@@ -8,10 +8,12 @@ export function esc(s) {
   ));
 }
 
-/** Long names scale down and wrap at word boundaries — never mid-word. */
+/** Long names scale down and wrap at word boundaries — never mid-word.
+    11-character single words (Netherlands, Switzerland) are the classic
+    tight fits at 390px, so the downscale starts AT 11, not above it. */
 export function nameSizeClass(name) {
   const n = String(name || '').length;
-  return n > 16 ? ' xl' : n > 11 ? ' lg' : '';
+  return n > 16 ? ' xl' : n >= 11 ? ' lg' : '';
 }
 
 function sideHTML(side, cls) {
