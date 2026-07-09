@@ -53,8 +53,8 @@ test.describe('Global World Cup Leaderboard', () => {
     await expect(page.locator('#board-email')).toBeVisible();
     await expect(page.locator('.lg-row')).toHaveCount(0);
     const text = (await page.locator('.you-view').innerText()).toLowerCase();
-    for (const banned of ['invite', 'room', 'league code', '$', 'bet', 'payout', 'deposit']) {
-      expect(text).not.toContain(banned);
+    for (const banned of [/\binvite\b/, /\broom\b/, /league code/, /\$/, /\bbets?\b/, /\bwallet\b/, /\bcash\b/, /\bpayout\b/, /\bdeposit\b/, /\bstakes?\b/]) {
+      expect(text).not.toMatch(banned);
     }
   });
 
@@ -106,8 +106,8 @@ test.describe('Global World Cup Leaderboard', () => {
     expect(overflow).toBe(0);
     // no money language anywhere on the global board
     const text = (await page.locator('.you-view').innerText()).toLowerCase();
-    for (const banned of ['bankroll', '$', 'odds', 'bet', 'cash out', 'payout', 'deposit', 'withdraw']) {
-      expect(text).not.toContain(banned);
+    for (const banned of [/\bbankroll\b/, /\$/, /\bodds\b/, /\bbets?\b/, /\bwallet\b/, /\bcash\b/, /cash out/, /\bpayout\b/, /\bdeposit\b/, /\bwithdraw\b/, /\bstakes?\b/]) {
+      expect(text).not.toMatch(banned);
     }
   });
 

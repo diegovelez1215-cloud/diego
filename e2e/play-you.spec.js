@@ -199,6 +199,9 @@ test.describe('Match Lab', () => {
     await expect(page.locator('.lab-decision')).toContainText('Push for it');
     await expect(page.locator('.lab-decision')).toContainText('Fresh legs');
     await expect(page.locator('.lab-decision')).toContainText('Protect and counter');
+    const optionBox = await page.locator('.lab-decision .lab-opt').last().boundingBox();
+    const dockBox = await page.locator('.dock').boundingBox();
+    expect(optionBox.y + optionBox.height, 'extra-time decision option clears fixed dock').toBeLessThan(dockBox.y - 4);
     await page.locator('[data-decide="fresh"]').click();
     await expect.poll(() => page.evaluate(() => window.__u26LabDebug.snapshot().phase)).toBe('et1');
     const score = page.locator('#lab-score');
@@ -250,6 +253,9 @@ test.describe('Match Lab', () => {
     await page.evaluate(() => window.__u26LabDebug.force('final'));
     await expect(page.locator('.lab-clock')).toHaveText('FULL TIME', { timeout: 10000 });
     await expect(page.locator('.lab-feed .lab-ev').first()).toBeVisible();
+    const finalButtonBox = await page.locator('#lab-new').boundingBox();
+    const finalDockBox = await page.locator('.dock').boundingBox();
+    expect(finalButtonBox.y + finalButtonBox.height, 'full-time recap actions clear fixed dock').toBeLessThan(finalDockBox.y - 4);
     await screenshot(page, testInfo, 'play-lab-fulltime');
     await expectNoHorizontalOverflow(page, expect, 'lab');
     // saved to You — and the museum can replay the exact night
@@ -289,8 +295,8 @@ test.describe('Penalty Rush', () => {
     await expectNoHorizontalOverflow(page, expect, 'penalty-rush');
     // no sportsbook language anywhere on the surface
     const text = (await page.locator('.play-view').innerText()).toLowerCase();
-    for (const banned of ['odds', 'bet ', 'wallet', 'cashout', 'payout', 'deposit', 'stake ']) {
-      expect(text).not.toContain(banned);
+    for (const banned of [/\bodds\b/, /\bbets?\b/, /\bwallet\b/, /\bcash\b/, /cashout/, /\bpayout\b/, /\bdeposit\b/, /\bstakes?\b/]) {
+      expect(text).not.toMatch(banned);
     }
     // the record lives only in the whitelisted Play namespace
     const keys = await page.evaluate(() => Object.keys(window.localStorage));
@@ -373,8 +379,8 @@ test.describe('Prediction Run', () => {
     await screenshot(page, testInfo, 'play-prediction');
     await expectNoHorizontalOverflow(page, expect, 'prediction');
     const text = await page.locator('.play-view').innerText();
-    for (const banned of ['odds', 'bet', 'wallet', 'cashout', 'payout', 'deposit', 'stake ', 'hunch']) {
-      expect(text.toLowerCase()).not.toContain(banned);
+    for (const banned of [/\bodds\b/, /\bbets?\b/, /\bwallet\b/, /\bcash\b/, /cashout/, /\bpayout\b/, /\bdeposit\b/, /\bstakes?\b/, /\bhunch\b/]) {
+      expect(text.toLowerCase()).not.toMatch(banned);
     }
     expect(text).toContain('World Cup Leaderboard');
     await tapTab(page, 'you');

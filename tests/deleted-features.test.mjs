@@ -22,7 +22,7 @@ async function collectShipped(dir, out = []) {
 // leaderboard is one GLOBAL authenticated competition.
 const FORBIDDEN = [
   /wallet/i, /\bbets?\b/i, /betting/i, /\bodds\b/i, /bet.?slip/i,
-  /cash.?out/i, /payout/i, /pick.?em/i, /ticket/i, /deposit/i, /withdraw/i,
+  /\bcash\b/i, /cash.?out/i, /\bstakes?\b/i, /payout/i, /pick.?em/i, /ticket/i, /deposit/i, /withdraw/i,
   /startViewTransition/, /theoddsapi/i, /open-meteo/i, /wikipedia/i,
   /bankroll/i, /invite.?only/i, /room.?code/i, /league.?code/i, /picks-league/,
 ];

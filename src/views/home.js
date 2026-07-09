@@ -119,7 +119,7 @@ function roadHTML(road) {
   </section>`;
 }
 
-/* Group races — rendered only while qualification is actually at stake. */
+/* Group races — rendered only while qualification is still alive. */
 function racesHTML(races) {
   if (!races.length) return '';
   return `<section class="races" aria-label="Qualification races">

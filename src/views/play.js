@@ -6,7 +6,7 @@
 // Gold light, tactile controls, rare weirdness. It can never modify real
 // fixtures, standings, Home, the official bracket, or Match Center —
 // everything here operates on deep copies in the Play namespace only.
-// Arcade Points are a private game score with no cash value — game
+// Arcade Points are a private game score for local progression — game
 // progression only, never money.
 
 import { getState, setPlay, setSims, setPlayMode } from '../core/app-state.js';
@@ -1731,7 +1731,7 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
 /* ================= Penalty Rush =================
    The arcade's hands-on minigame: five kicks against a keeper who studies
    your habits. Entirely local — a seeded, deterministic duel with nothing
-   wagered, no network, no official claims. A perfect five earns sudden death
+   no network, no official claims. A perfect five earns sudden death
    that lasts until the keeper finally wins. */
 
 export const RUSH_ZONES = ['left', 'centre', 'right'];
@@ -1881,7 +1881,7 @@ function rushHTML(play) {
   return `<section class="play-card rush" aria-label="Penalty Rush">
     <div class="rush-head">
       <div><h2 class="display">Penalty Rush</h2>
-      <p class="play-sub">Daily Gauntlet · five kicks against a keeper who studies your habits. Local practice — no stakes, nothing real at risk.</p></div>
+      <p class="play-sub">Daily Gauntlet · five kicks against a keeper who studies your habits. Local practice only, nothing real at risk.</p></div>
       <span class="sim-badge">SIMULATION</span>
     </div>
     <div class="rush-chips" role="group" aria-label="Gauntlet record">
@@ -1942,7 +1942,7 @@ function wireRush(outlet) {
 /* ================= personal arcade ledger ================= */
 // One player: you. Every number is derived from things that actually happened
 // in this Play space — finished Lab runs, graded predictions, saved runs.
-// Arcade Points are a private game score with no cash value — game
+// Arcade Points are a private game score for local progression — game
 // progression only, never money.
 
 /** Official leaderboard points — settled ONLY from validated official results.
@@ -2288,7 +2288,7 @@ function labPayoffHTML(run) {
       <button class="play-btn quiet" id="lab-replay-night">Replay this exact night</button>
       <button class="play-btn quiet" id="lab-new">New matchup</button>
     </div>
-    <p class="lab-saved-note">Saved to You · Arcade Points are a private game score with no cash value.</p>
+    <p class="lab-saved-note">Saved to You · Arcade Points are only a local game score.</p>
   </div>`;
 }
 
@@ -2311,6 +2311,14 @@ function paintLab() {
     wireLab(document.querySelector('.play-view'));
     bindLabScene();
     startDirector();
+    if (run.decisionAt != null || run.done) {
+      const target = run.decisionAt != null
+        ? document.querySelector('.play-view .lab-decision .lab-opt:last-child')
+        : document.querySelector('.play-view .lab-payoff .play-actions');
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+      }
+    }
     return;
   }
   updateLabDynamic(run);
@@ -2643,7 +2651,7 @@ function predictionHTML(overlay, play) {
     <div class="prediction-hero">
       <div><h2 class="display">Prediction Run</h2>
       <p class="play-sub">Make your call, confirm once. It locks at the real kickoff and settles only on the official result.</p></div>
-      <span class="prediction-chip">No stakes</span>
+      <span class="prediction-chip">Local call</span>
     </div>
     <div class="pr-stats" role="group" aria-label="Prediction record">
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>

@@ -1,5 +1,5 @@
 /* United 2026 — Play + You. Warmer, dramatic, tactile. Restrained gold light
-   for simulation reveals; museum quiet for You. Never casino energy. */
+   for simulation reveals; museum quiet for You. */
 
 .play-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 35%), var(--bg-raise);
@@ -908,7 +908,7 @@
 
 /* ================= Global World Cup Leaderboard =================
    One worldwide table. Stadium-dark, strong rank typography, restrained
-   medal metals — tournament drama, never casino. */
+   medal metals — tournament drama. */
 .bd-kicker {
   color: var(--official-ink); font-size: 0.66rem; font-weight: var(--w-bold);
   letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2px;

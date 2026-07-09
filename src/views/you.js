@@ -146,7 +146,7 @@ function signInCardHTML() {
     <p class="bd-kicker">One global competition</p>
     <h2 class="display">World Cup Leaderboard</h2>
     <p class="league-sub">Call official matches, climb the worldwide table. Every row is a real
-      signed-in player; points settle only when results are official. No stakes, no money.</p>
+      signed-in player; points settle only when results are official. Local competition only.</p>
     ${step === 'email' || step === 'busy' ? `
     <div class="league-form">
       <label for="board-email">Email</label>
@@ -396,7 +396,7 @@ function arcadeBoardHTML(state) {
     <span class="sim-badge">SIMULATION</span>
     ${tierCardHTML(state)}
     ${table}
-    <p class="ladder-note">Arcade Points are a game score with no cash value. This ladder never
+    <p class="ladder-note">Arcade Points are only a local game score. This ladder never
       touches the official Picks standings.</p>
   </section>`;
 }
