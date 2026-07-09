@@ -3750,6 +3750,7 @@ function sideHeroHTML(play) {
       <span class="lk-label">Pick your side</span>
       <span class="sh-cta">48 teams. One is yours.</span>
       <span class="lk-note">Claim a team for the arcade — every win and defeat starts counting.</span>
+      <span class="sh-go" aria-hidden="true">Claim your team <b>→</b></span>
     </button>`;
   }
   const rec = sideRecordFor(play, side.code);

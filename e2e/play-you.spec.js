@@ -328,6 +328,27 @@ test.describe('Penalty Rush', () => {
 });
 
 test.describe('Your Side', () => {
+  test('the Play rail stays one touch-scrollable row and the first action is explicit', async ({ page }) => {
+    await gotoApp(page);
+    await tapTab(page, 'play');
+    await expect(page.locator('.side-hero.unclaimed')).toContainText('Claim your team');
+    const rail = await page.locator('.mode-rail .segmented').evaluate((el) => {
+      const buttons = [...el.querySelectorAll('.seg-btn')];
+      return {
+        rows: new Set(buttons.map((button) => button.offsetTop)).size,
+        scrollable: el.scrollWidth > el.clientWidth,
+        minButtonHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+      };
+    });
+    expect(rail.rows).toBe(1);
+    expect(rail.scrollable).toBe(true);
+    expect(rail.minButtonHeight).toBeGreaterThanOrEqual(44);
+
+    await page.locator('[data-segmented="play-mode"] [data-value="prediction"]').click();
+    await expect(page.locator('.prediction')).toBeVisible();
+    await expectNoHorizontalOverflow(page, expect, 'play mode rail');
+  });
+
   test('claim a side, win the night, build a local record, rematch and replay honestly', async ({ page }, testInfo) => {
     await gotoApp(page);
     const heroBefore = await page.locator('.score-stage').innerText();

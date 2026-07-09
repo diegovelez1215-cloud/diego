@@ -1173,16 +1173,27 @@
 /* ================= mode rail ================= */
 .mode-rail { margin-bottom: var(--sp-3); }
 .mode-rail .segmented {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
   margin-bottom: 0;
+  padding: var(--sp-1);
+}
+.mode-rail .segmented::-webkit-scrollbar { display: none; }
+.mode-rail .segmented::after {
+  content: '';
+  flex: 0 0 var(--sp-1);
 }
 .mode-rail .seg-btn {
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: max-content;
   white-space: nowrap;
-  overflow: hidden;
+  scroll-snap-align: center;
   line-height: 1.15;
-  padding: 0 var(--sp-1);
+  padding: 0 var(--sp-3);
   font-size: 0.76rem;
 }
 
@@ -1576,6 +1587,13 @@
 }
 .side-hero.unclaimed:active { transform: scale(0.98); }
 .sh-cta { font-size: var(--fs-title); font-weight: var(--w-bold); letter-spacing: -0.01em; }
+.sh-go {
+  display: inline-flex; align-items: center; gap: var(--sp-2); align-self: flex-start;
+  margin-top: var(--sp-1);
+  color: var(--gold-ink); font-size: 0.7rem; font-weight: var(--w-bold);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.sh-go b { font-size: 1rem; line-height: 1; }
 .side-hero.claimed {
   border: 1px solid color-mix(in srgb, var(--side, var(--gold)) 45%, var(--hairline));
   background:
