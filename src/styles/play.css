@@ -808,36 +808,71 @@
 .private-row span { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .private-row em { color: var(--gold-ink); font-style: normal; font-weight: var(--w-bold); }
 
+/* The fixture card: a matchday stub. Draft state glows in both team
+   colours; the chosen side takes over the card's light. */
 .pr-fixture {
-  padding: var(--sp-3); margin-bottom: var(--sp-2);
+  position: relative;
+  padding: var(--sp-3); margin-bottom: var(--sp-3);
   border: 1px solid var(--hairline); border-radius: var(--radius-sm);
-  background: var(--bg);
+  background:
+    radial-gradient(120% 70% at 8% 0%, color-mix(in srgb, var(--hc, transparent) 9%, transparent) 0%, transparent 55%),
+    radial-gradient(120% 70% at 92% 0%, color-mix(in srgb, var(--ac, transparent) 9%, transparent) 0%, transparent 55%),
+    var(--bg);
+  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 .pr-fixture.picked { border-color: color-mix(in srgb, var(--gold) 35%, transparent); }
 .pr-meta { font-size: 0.72rem; color: var(--ink-3); margin-bottom: var(--sp-2); letter-spacing: 0.04em; text-transform: uppercase; }
-.pr-teams { display: flex; gap: var(--sp-2); align-items: center; }
-.pr-v { color: var(--ink-3); font-size: var(--fs-micro); }
+.pr-teams { display: flex; gap: var(--sp-2); align-items: stretch; }
+.pr-v { color: var(--ink-3); font-size: var(--fs-micro); align-self: center; }
 .pr-side {
-  appearance: none; flex: 1; min-height: 52px; min-width: 0;
-  border: 1px solid var(--hairline); border-radius: 999px;
+  appearance: none; flex: 1; min-height: 60px; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 1px solid var(--hairline); border-radius: 16px;
   background: var(--bg-raise-2); color: var(--ink-2);
   font-family: inherit; font-size: var(--fs-micro); font-weight: var(--w-bold);
-  padding: 0 var(--sp-2); cursor: pointer;
+  padding: var(--sp-2); cursor: pointer;
   white-space: normal; overflow-wrap: normal; word-break: keep-all; line-height: 1.15;
-  transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: transform 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2), border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
-.pr-side:active { transform: scale(0.96); }
+.pr-crest {
+  font-style: normal; font-size: 1.3rem; line-height: 1;
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tc2, var(--gold)) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc2, var(--gold)) 30%, transparent);
+}
+.pr-name { text-align: center; }
+.pr-side:active { transform: scale(0.95); }
 .pr-side.draw { flex: 0 0 auto; padding: 0 var(--sp-3); }
-.pr-side.on { border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--gold-ink); }
+.pr-side.on {
+  border-color: color-mix(in srgb, var(--tc2, var(--gold)) 70%, transparent);
+  color: var(--ink);
+  background:
+    radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--tc2, var(--gold)) 22%, transparent) 0%, transparent 70%),
+    var(--bg-raise-2);
+  box-shadow: 0 6px 22px -12px var(--tc2, var(--gold));
+  transform: translateY(-2px);
+}
+.pr-side.draw.on { border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--gold-ink); }
+/* confidence ladder: Cool is a whisper, Certain is a spotlight */
 .pr-conf { display: flex; gap: var(--sp-1); margin-top: var(--sp-2); }
 .pr-conf-btn {
-  appearance: none; flex: 1; min-height: 34px;
-  border: 1px solid var(--hairline); border-radius: 8px;
+  appearance: none; flex: 1; min-height: 40px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--hairline); border-radius: 10px;
   background: transparent; color: var(--ink-3);
   font-family: inherit; font-size: 0.72rem; font-weight: var(--w-bold);
   letter-spacing: 0.06em; cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
 }
+.pr-conf-btn i { font-style: normal; font-size: 0.5rem; letter-spacing: 2px; opacity: 0.75; }
 .pr-conf-btn.on { color: var(--gold-ink); border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.pr-conf-btn.c1.on { color: var(--official-ink); border-color: color-mix(in srgb, var(--official) 55%, transparent); background: color-mix(in srgb, var(--official) 10%, transparent); }
+.pr-conf-btn.c3.on {
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  box-shadow: 0 0 18px -8px var(--gold);
+}
 
 /* ---- the call ritual: draft → confirm once → sealed → locked at kickoff ---- */
 .pr-hint { margin-top: var(--sp-2); color: var(--ink-3); font-size: var(--fs-micro); }
@@ -858,17 +893,53 @@
 .pr-step:active { transform: scale(0.94); }
 .pr-step.clear { width: 34px; color: var(--ink-3); font-family: var(--font); font-weight: var(--w-bold); }
 .pr-confirm {
-  appearance: none; min-height: 48px;
+  appearance: none; min-height: 50px;
+  position: relative; overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 22%, transparent), color-mix(in srgb, var(--gold) 10%, transparent));
   color: var(--gold-ink);
   font-family: inherit; font-size: var(--fs-micro); font-weight: var(--w-bold);
   letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   transition: transform 120ms ease;
 }
+.pr-confirm::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  animation: pr-sheen 2.6s ease-in-out infinite;
+}
+@keyframes pr-sheen { 0%, 55% { left: -60%; } 85%, 100% { left: 120%; } }
 .pr-confirm:active { transform: scale(0.97); }
-.pr-fixture.sealed { border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+/* sealed: the stub takes the called side's colour and wears a stamp */
+.pr-fixture.sealed {
+  border-color: color-mix(in srgb, var(--cc, var(--gold)) 45%, transparent);
+  background:
+    radial-gradient(130% 90% at 0% 0%, color-mix(in srgb, var(--cc, var(--gold)) 13%, transparent) 0%, transparent 58%),
+    var(--bg);
+  box-shadow: 0 10px 30px -22px var(--cc, var(--gold));
+}
+.pr-fixture.sealed::before {
+  content: ""; position: absolute; left: 0; top: 10%; bottom: 10%; width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, transparent, var(--cc, var(--gold)), transparent);
+}
+.pr-stamp {
+  position: absolute; right: 12px; top: 10px;
+  transform: rotate(8deg);
+  color: color-mix(in srgb, var(--cc, var(--gold)) 80%, var(--ink));
+  border: 2px solid color-mix(in srgb, var(--cc, var(--gold)) 62%, transparent);
+  border-radius: 8px; padding: 2px 9px;
+  font-family: var(--font-display); font-stretch: var(--stretch-wide);
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
+  animation: pr-stamp-in 320ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  pointer-events: none;
+}
+@keyframes pr-stamp-in {
+  0% { transform: rotate(18deg) scale(2.1); opacity: 0; }
+  60% { transform: rotate(6deg) scale(0.94); opacity: 1; }
+  100% { transform: rotate(8deg) scale(1); }
+}
 .pr-sealed-call { display: grid; gap: 3px; }
 .pr-sealed-tie { font-weight: var(--w-bold); font-size: var(--fs-body); }
 .pr-sealed-tie em { color: var(--ink-3); font-style: normal; font-size: var(--fs-micro); }
@@ -2245,4 +2316,125 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .play-view::before,.long-grid .lab-tile::after { animation:none; }
+}
+
+/* ========================================================================
+   Step-up pass: Tournament IQ ring, the celebration engine, and the
+   Penalty Rush juice pack. All Play-side, all local, all reduced-motion
+   aware. No official surface is touched by anything below.
+   ===================================================================== */
+
+/* ---- Tournament IQ ring: accuracy as a broadcast gauge ---- */
+.pr-stats.board { grid-template-columns: 1.2fr 1fr 1fr 1fr; align-items: stretch; }
+.pr-stat.iq { justify-content: center; }
+.pr-iq-ring { width: 56px; height: 56px; margin: 0 auto; transform: rotate(-90deg); }
+.pr-iq-track { fill: none; stroke: rgba(242, 246, 255, 0.09); stroke-width: 5; }
+.pr-iq-fill {
+  fill: none; stroke: var(--official); stroke-width: 5; stroke-linecap: round;
+  transition: stroke-dashoffset 700ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.pr-iq-fill.elite { stroke: var(--gold); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gold) 60%, transparent)); }
+.pr-iq-num {
+  transform: rotate(90deg); transform-origin: 30px 30px;
+  fill: var(--ink); font-family: var(--font-display); font-weight: 800;
+  font-size: 17px; text-anchor: middle;
+}
+
+/* ---- celebration engine: one overlay, gravity-faked confetti ---- */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 80; overflow: hidden; }
+.fx-p {
+  position: absolute; display: block;
+  background: var(--fx-c, var(--gold));
+  animation: fx-fly var(--fx-d, 900ms) cubic-bezier(0.16, 0.84, 0.44, 1) forwards;
+  will-change: transform, opacity;
+}
+.fx-bit { width: 7px; height: 11px; border-radius: 2px; }
+.fx-spark { width: 5px; height: 5px; border-radius: 50%; box-shadow: 0 0 8px var(--fx-c, var(--gold)); }
+@keyframes fx-fly {
+  0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
+  70% { opacity: 1; }
+  100% {
+    transform: translate(calc(-50% + var(--fx-x, 0px)), calc(-50% + var(--fx-y, 0px) + 130px)) rotate(var(--fx-r, 180deg)) scale(0.7);
+    opacity: 0;
+  }
+}
+.fx-glow {
+  position: absolute; width: 260px; height: 260px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 26%, transparent) 0%, transparent 70%);
+  animation: fx-bloom 1.2s ease-out forwards;
+}
+@keyframes fx-bloom { 0% { opacity: 0; scale: 0.4; } 25% { opacity: 1; } 100% { opacity: 0; scale: 1.5; } }
+
+/* ---- Penalty Rush juice: flight, ripple, flash, clank ---- */
+.rush-ball {
+  background: radial-gradient(circle at 34% 30%, #ffffff 0%, #f4e9bd 46%, #c9b169 100%);
+  border-color: #0a1226;
+  animation: rush-flight 320ms cubic-bezier(0.16, 0.8, 0.3, 1);
+}
+.rush-ball.at-left, .rush-ball.at-top-left { --fx0: 60px; }
+.rush-ball.at-right, .rush-ball.at-top-right { --fx0: -60px; }
+.rush-ball.at-centre { --fx0: 0px; }
+@keyframes rush-flight {
+  0% { transform: translate(var(--fx0, 0px), 96px) scale(0.4); opacity: 0.9; }
+  62% { transform: translate(calc(var(--fx0, 0px) * 0.2), -8px) scale(1.12); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.rush-stage.goal .rush-net { animation: rush-net-ripple 520ms ease-out; }
+@keyframes rush-net-ripple {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.02, 1.06) skewX(1.2deg); }
+  60% { transform: scale(0.995, 1.015) skewX(-0.8deg); }
+  100% { transform: scale(1); }
+}
+.rush-stage { position: relative; }
+.rush-stage.goal::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(85% 70% at 50% 30%, color-mix(in srgb, var(--gold) 22%, transparent) 0%, transparent 65%);
+  animation: rush-goal-flash 700ms ease-out forwards;
+}
+@keyframes rush-goal-flash { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+.rush-stage.save .rush-goalframe { animation: rush-shake 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes rush-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+.rush-stage.save .rush-keeper em {
+  background: linear-gradient(180deg, #5c8cf0, #2c4da0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 18px -4px var(--official);
+}
+.rush-stage.post .rush-goalframe { animation: rush-clank 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes rush-clank {
+  15% { transform: translateY(-2px) rotate(0.5deg); }
+  35% { transform: translateY(1px) rotate(-0.4deg); }
+  60% { transform: translateY(-1px); }
+  100% { transform: none; }
+}
+.rush-stage.sudden { animation: rush-sudden-pulse 2.2s ease-in-out infinite; }
+@keyframes rush-sudden-pulse {
+  0%, 100% { box-shadow: 0 0 26px -14px var(--gold); }
+  50% { box-shadow: 0 0 34px -10px var(--gold); }
+}
+.rush-recap.perfect .rush-score strong {
+  background: linear-gradient(180deg, #f6e3ae, var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 14px color-mix(in srgb, var(--gold) 45%, transparent));
+}
+
+/* ---- trophy shine: the museum glints when you walk past ---- */
+.trophy-shelf { position: relative; overflow: hidden; }
+.trophy-shelf::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -70%; width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shelf-glint 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shelf-glint { 0%, 60% { left: -70%; } 90%, 100% { left: 130%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-confirm::after, .trophy-shelf::after { animation: none; display: none; }
+  .rush-stage.sudden { animation: none; }
+  .fx-layer { display: none; }
 }

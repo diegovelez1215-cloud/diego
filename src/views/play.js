@@ -20,6 +20,7 @@ import { currentUser, pushPick } from '../core/leaderboard.js';
 import { segmentedControl } from '../components/segmented-control.js';
 import { formatKickoffTime, formatDayKey, now } from '../core/time.js';
 import { esc } from '../components/match-row.js';
+import { celebrate, celebrateFrom } from '../components/celebrate.js';
 
 export const seedHTML = `<div class="view play-view">
   <header class="view-head"><h1>Play</h1><p class="view-sub">Private simulation space</p></header>
@@ -1699,6 +1700,13 @@ function finishLab() {
   }
   setPlay(nextPlay);
   savePlay(nextPlay);
+  // peak moment: the full-time whistle on YOUR night — Cup medal outranks,
+  // then a comeback win, then any win from your perspective
+  if (run.result === 'W') {
+    const labColors = TEAM_COLORS[run.you] ? [TEAM_COLORS[run.you], '#ecd7a2', '#f2f6ff'] : undefined;
+    const medal = run.cupAdvance && run.cupAdvance.done && run.cupAdvance.trophy;
+    celebrate(medal || entry.comeback >= 1 ? 'trophy' : 'win', { colors: labColors });
+  }
 }
 
 function resetLab() { stopLabTimer(); labRun = null; repaintPlay(); }
@@ -1754,6 +1762,7 @@ function ensureSim(play) {
 
 function commitSim(sim) {
   const { real, play } = getState();
+  const hadChampion = !!(play.myWorldCup && play.myWorldCup.champion);
   const after = simWorld(real.overlay, { myWorldCup: sim });
   if (!nextSimStage(after)) {
     const finalFx = allFixtures().find((f) => f.stage === 'final');
@@ -1766,6 +1775,11 @@ function commitSim(sim) {
   const nextPlay = { ...play, myWorldCup: sim };
   setPlay(nextPlay);
   savePlay(nextPlay);
+  // peak moment: a champion crowned in your universe — once per timeline
+  if (sim.champion && !hadChampion) {
+    const cc = TEAM_COLORS[sim.champion];
+    celebrate('trophy', { colors: cc ? [cc, '#ecd7a2', '#f2f6ff'] : undefined });
+  }
 }
 
 export function playNextRound() {
@@ -2043,6 +2057,7 @@ function ensureRushRun() {
 
 function finishRush() {
   const { play } = getState();
+  const prevBest = (play.penaltyRush && play.penaltyRush.bestEver) || 0;
   let next = {
     ...play,
     penaltyRush: rushRecordAfter(play.penaltyRush, {
@@ -2057,6 +2072,13 @@ function finishRush() {
   rushRun.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
+  // peak moment: a finished Cup outranks everything, then a perfect five,
+  // then a beaten record
+  const side = currentSide(next);
+  const colors = side && TEAM_COLORS[side.code] ? [TEAM_COLORS[side.code], '#ecd7a2', '#f2f6ff'] : undefined;
+  if (rushRun.cupAdvance && rushRun.cupAdvance.done && rushRun.cupAdvance.trophy) celebrate('trophy', { colors });
+  else if (rushRun.goals >= 5) celebrate('trophy', { colors });
+  else if (rushRun.goals > 0 && rushRun.goals > prevBest) celebrate('win', { colors });
 }
 
 function rushCallout(run) {
@@ -2341,6 +2363,11 @@ function finishFm(run) {
   run.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
+  // peak moment: a finished Cup outranks the night; otherwise surviving the
+  // fire — bigger when a rescue turned it around
+  const fmColors = TEAM_COLORS[run.you] ? [TEAM_COLORS[run.you], '#ecd7a2', '#f2f6ff'] : undefined;
+  if (run.cupAdvance && run.cupAdvance.done && run.cupAdvance.trophy) celebrate('trophy', { colors: fmColors });
+  else if (run.result === 'W') celebrate(run.scenario && run.scenario.id === 'rescue' ? 'trophy' : 'win', { colors: fmColors });
 }
 
 const FM_VERDICT = {
@@ -2843,6 +2870,11 @@ function finishCc(run) {
   run.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
+  // peak moment: a finished Cup outranks the dugout; otherwise the call
+  // landing from behind is the coach's biggest night
+  const ccColors = TEAM_COLORS[run.you] ? [TEAM_COLORS[run.you], '#ecd7a2', '#f2f6ff'] : undefined;
+  if (run.cupAdvance && run.cupAdvance.done && run.cupAdvance.trophy) celebrate('trophy', { colors: ccColors });
+  else if (run.result === 'W') celebrate(run.situation && run.situation.id === 'response' ? 'trophy' : 'win', { colors: ccColors });
 }
 
 const CC_VERDICT = {
@@ -3823,10 +3855,15 @@ function lockedLivePicks(overlay, picks) {
 
 function prFixtureHTML(overlay, f, pick, draft) {
   const s = overlay.slots.get(f.id);
+  const hc = TEAM_COLORS[s.home] || 'var(--gold)';
+  const ac = TEAM_COLORS[s.away] || 'var(--gold)';
   const meta = `${esc(f.stage === 'group' ? 'Group ' + f.group : STAGE_NAMES[f.stage])} · ${esc(formatDayKey(f.day))} · ${esc(formatKickoffTime(f.epoch))}`;
-  // Sealed call: confirmed, still editable until the real whistle.
+  // Sealed call: confirmed, still editable until the real whistle. A matchday
+  // stub in your called side's colours, stamped once, torn at kickoff.
   if (pick && !draft) {
-    return `<div class="pr-fixture sealed" data-prfx="${f.id}">
+    const cc = pick.side === 'home' ? hc : pick.side === 'away' ? ac : 'var(--gold)';
+    return `<div class="pr-fixture sealed conf-${pick.conf || 1}" data-prfx="${f.id}" style="--cc:${cc}">
+      <span class="pr-stamp" aria-hidden="true">Called</span>
       <div class="pr-meta">${meta}</div>
       <div class="pr-sealed-call">
         <span class="pr-sealed-tie">${teamFlag(s.home)} ${esc(teamName(s.home))} <em>v</em> ${esc(teamName(s.away))} ${teamFlag(s.away)}</span>
@@ -3838,12 +3875,12 @@ function prFixtureHTML(overlay, f, pick, draft) {
   }
   const d = draft || {};
   const step = !d.side ? 1 : 2;
-  return `<div class="pr-fixture${d.side ? ' drafting' : ''}" data-prfx="${f.id}">
+  return `<div class="pr-fixture${d.side ? ' drafting' : ''}${d.side ? ' pick-' + d.side : ''} conf-${d.conf || 1}" data-prfx="${f.id}" style="--hc:${hc};--ac:${ac}">
     <div class="pr-meta">${meta}</div>
     <div class="pr-teams">
-      <button class="pr-side${d.side === 'home' ? ' on' : ''}" data-prside="home">${teamFlag(s.home)} ${esc(teamName(s.home))}</button>
+      <button class="pr-side home${d.side === 'home' ? ' on' : ''}" data-prside="home" style="--tc2:${hc}"><i class="pr-crest" aria-hidden="true">${teamFlag(s.home)}</i><span class="pr-name">${esc(teamName(s.home))}</span></button>
       ${f.stage === 'group' ? `<button class="pr-side draw${d.side === 'draw' ? ' on' : ''}" data-prside="draw">Draw</button>` : '<span class="pr-v">v</span>'}
-      <button class="pr-side${d.side === 'away' ? ' on' : ''}" data-prside="away">${esc(teamName(s.away))} ${teamFlag(s.away)}</button>
+      <button class="pr-side away${d.side === 'away' ? ' on' : ''}" data-prside="away" style="--tc2:${ac}"><i class="pr-crest" aria-hidden="true">${teamFlag(s.away)}</i><span class="pr-name">${esc(teamName(s.away))}</span></button>
     </div>
     ${step === 1 ? '<p class="pr-hint">Make your call — pick a winner.</p>' : `
     <div class="pr-refine">
@@ -3857,11 +3894,25 @@ function prFixtureHTML(overlay, f, pick, draft) {
         </div>
       </div>
       <div class="pr-conf" role="group" aria-label="Confidence">
-        ${[1, 2, 3].map((c) => `<button class="pr-conf-btn${(d.conf || 1) === c ? ' on' : ''}" data-prconf="${c}">${CONF[c]}</button>`).join('')}
+        ${[1, 2, 3].map((c) => `<button class="pr-conf-btn c${c}${(d.conf || 1) === c ? ' on' : ''}" data-prconf="${c}"><i aria-hidden="true">${'●'.repeat(c)}</i>${CONF[c]}</button>`).join('')}
       </div>
       <button class="pr-confirm" data-prconfirm="${f.id}">Confirm call</button>
     </div>`}
   </div>`;
+}
+
+/** Tournament IQ ring — a conic gauge that fills with accuracy. Pure SVG,
+    derived live from graded picks, never stored. */
+function prIqRingHTML(iq) {
+  const pct = iq != null ? Math.max(0, Math.min(100, iq)) : 0;
+  const r = 24;
+  const c = 2 * Math.PI * r;
+  return `<svg class="pr-iq-ring" viewBox="0 0 60 60" role="img" aria-label="Tournament IQ ${iq != null ? iq : 'not yet rated'}">
+    <circle class="pr-iq-track" cx="30" cy="30" r="${r}"/>
+    <circle class="pr-iq-fill${iq != null && iq >= 70 ? ' elite' : ''}" cx="30" cy="30" r="${r}"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - pct / 100)).toFixed(1)}"/>
+    <text class="pr-iq-num" x="30" y="33">${iq != null ? iq : '—'}</text>
+  </svg>`;
 }
 
 function predictionHTML(overlay, play) {
@@ -3877,11 +3928,11 @@ function predictionHTML(overlay, play) {
       <p class="play-sub">Make your call, confirm once. It locks at the real kickoff and settles only on the official result.</p></div>
       <span class="prediction-chip">Local call</span>
     </div>
-    <div class="pr-stats" role="group" aria-label="Prediction record">
+    <div class="pr-stats board" role="group" aria-label="Prediction record">
+      <div class="pr-stat iq">${prIqRingHTML(iq)}<span>Tournament IQ</span></div>
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>
       <div class="pr-stat"><strong>${stats.insight}</strong><span>insight</span></div>
       <div class="pr-stat${stats.streak >= 3 ? ' hot' : ''}"><strong>${stats.streak >= 3 ? '🔥' + stats.streak : stats.streak}</strong><span>streak</span></div>
-      <div class="pr-stat"><strong>${iq != null ? iq : '—'}</strong><span>Tournament IQ</span></div>
     </div>
     ${recent.length ? `<div class="pr-recent" aria-label="Recent settled calls">
       ${recent.map((g) => {
@@ -4368,6 +4419,7 @@ function wirePrediction(outlet) {
         if (!d || !d.side) return;
         setPick(id, d);
         delete prDrafts[id];
+        celebrateFrom(confirm, 'seal'); // the stamp moment — overlay survives repaint
         repaintPlay();
       });
     }
