@@ -170,24 +170,26 @@
   font-size: 1rem;
 }
 
-.prediction-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: var(--sp-3);
-}
+/* stacked hero: chip is a kicker, the title owns the full width */
+.prediction-hero { display: grid; gap: var(--sp-2); justify-items: start; }
+.prediction-hero .play-sub { margin: 0; }
 .prediction-chip {
-  flex: none;
-  border: 1px solid color-mix(in srgb, var(--gold) 42%, transparent);
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--gold) 36%, transparent);
   border-radius: 999px;
   color: var(--gold-ink);
-  padding: 5px 10px;
+  background: color-mix(in srgb, var(--gold) 6%, transparent);
+  padding: 4px 10px;
   font-family: var(--font-display);
   font-stretch: var(--stretch-wide);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+.prediction-chip::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 6px var(--gold);
 }
 
 .wi-pickers {
@@ -746,20 +748,26 @@
   margin: var(--sp-4) 0;
 }
 .pr-stat {
-  text-align: center; padding: var(--sp-3) var(--sp-1);
+  text-align: center; padding: var(--sp-2) var(--sp-1);
   border: 1px solid var(--hairline); border-radius: var(--radius-sm);
   background: var(--bg);
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 88px;
 }
 .pr-stat strong {
   font-family: var(--font-display); font-stretch: var(--stretch-wide);
   font-size: 1.45rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.pr-stat span { font-size: 0.68rem; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
+.pr-stat span { font-size: 0.62rem; color: var(--ink-3); letter-spacing: 0.07em; text-transform: uppercase; line-height: 1.25; }
+/* a fresh board is quiet, not shouting zeros */
+.pr-stats.fresh .pr-stat strong { color: var(--ink-3); }
+.pr-stats.fresh .pr-iq-num { fill: var(--ink-3); }
 .pr-of { font-size: 0.8rem; color: var(--ink-3); font-weight: var(--w-reg); }
 .pr-stat.hot { border-color: color-mix(in srgb, var(--gold) 55%, transparent); box-shadow: 0 0 18px -10px var(--gold); }
 .pr-stat.hot strong { color: var(--gold-ink); }
 .pr-stats.quiet { margin: var(--sp-2) 0 var(--sp-3); }
+.pr-stats.quiet .pr-stat { min-height: 64px; }
 
 .pr-recent { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .pr-call {
@@ -815,8 +823,8 @@
   padding: var(--sp-3); margin-bottom: var(--sp-3);
   border: 1px solid var(--hairline); border-radius: var(--radius-sm);
   background:
-    radial-gradient(120% 70% at 8% 0%, color-mix(in srgb, var(--hc, transparent) 9%, transparent) 0%, transparent 55%),
-    radial-gradient(120% 70% at 92% 0%, color-mix(in srgb, var(--ac, transparent) 9%, transparent) 0%, transparent 55%),
+    radial-gradient(90% 55% at 10% 0%, color-mix(in srgb, var(--hc, transparent) 6%, transparent) 0%, transparent 60%),
+    radial-gradient(90% 55% at 90% 0%, color-mix(in srgb, var(--ac, transparent) 6%, transparent) 0%, transparent 60%),
     var(--bg);
   overflow: hidden;
   transition: border-color 180ms ease, box-shadow 180ms ease;
@@ -2083,26 +2091,30 @@
 }
 @keyframes arcade-breathe { to { transform: translateX(-50%) scale(1.06); opacity: 0.78; } }
 
-.play-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); }
+/* clean head: the type is the identity — one gold hairline, no trinkets */
+.play-head { display: block; position: relative; padding-bottom: var(--sp-3); }
 .play-head > div { min-width: 0; }
-.play-head-mark {
-  flex: 0 0 auto; width: 54px; height: 54px; display: grid; place-items: center;
-  position: relative; border: 1px solid color-mix(in srgb, var(--gold) 38%, transparent);
-  border-radius: 18px; background: color-mix(in srgb, var(--gold) 7%, var(--bg-raise));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 40px -24px var(--gold);
+.play-head::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 1px; width: 100%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 55%, transparent), color-mix(in srgb, var(--gold) 10%, transparent) 45%, transparent 80%);
 }
-.play-head-mark i { position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--gold) 14%, transparent); border-radius: 13px; transform: rotate(8deg); }
-.play-head-mark b { font-family: var(--font-display); color: var(--gold-ink); font-size: .85rem; letter-spacing: .04em; }
-.play-head-mark em { position: absolute; bottom: 7px; font-style: normal; color: var(--ink-3); font-size: .46rem; letter-spacing: .12em; text-transform: uppercase; }
 
 .mode-rail {
   position: sticky; top: max(4px, env(safe-area-inset-top)); z-index: 14;
   margin: 0 calc(-1 * var(--sp-2)) var(--sp-4); padding: var(--sp-2);
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent) 62%, transparent);
 }
+.mode-rail { position: relative; }
 .mode-rail .segmented {
   box-shadow: 0 18px 34px -26px #000, inset 0 1px 0 rgba(255,255,255,.07);
   border-color: color-mix(in srgb, var(--gold) 13%, var(--glass-line));
+}
+/* honest affordance: the rail visibly continues past the right edge */
+.mode-rail::after {
+  content: ""; position: absolute; pointer-events: none;
+  right: var(--sp-2); top: calc(var(--sp-2) + 1px); bottom: calc(var(--sp-2) + 1px);
+  width: 36px; border-radius: 0 14px 14px 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 88%, transparent));
 }
 .mode-rail .seg-btn { position: relative; }
 .mode-rail .seg-btn.active::after {
@@ -2325,9 +2337,11 @@
    ===================================================================== */
 
 /* ---- Tournament IQ ring: accuracy as a broadcast gauge ---- */
-.pr-stats.board { grid-template-columns: 1.2fr 1fr 1fr 1fr; align-items: stretch; }
+.pr-stats.board { grid-template-columns: 1.15fr 1fr 1fr 1fr; align-items: stretch; }
 .pr-stat.iq { justify-content: center; }
-.pr-iq-ring { width: 56px; height: 56px; margin: 0 auto; transform: rotate(-90deg); }
+.pr-iq-ring { width: 46px; height: 46px; margin: 0 auto; transform: rotate(-90deg); }
+/* sealed stubs: the stamp owns the top-right corner */
+.pr-fixture.sealed .pr-meta { padding-right: 84px; }
 .pr-iq-track { fill: none; stroke: rgba(242, 246, 255, 0.09); stroke-width: 5; }
 .pr-iq-fill {
   fill: none; stroke: var(--official); stroke-width: 5; stroke-linecap: round;

@@ -3924,11 +3924,11 @@ function predictionHTML(overlay, play) {
   const iq = stats.total >= 3 ? Math.round((stats.right / stats.total) * 100) : null;
   return `<section class="play-card prediction" aria-label="Prediction Run">
     <div class="prediction-hero">
-      <div><h2 class="display">Prediction Run</h2>
-      <p class="play-sub">Make your call, confirm once. It locks at the real kickoff and settles only on the official result.</p></div>
-      <span class="prediction-chip">Local call</span>
+      <span class="prediction-chip">Pick&rsquo;em · Local call</span>
+      <h2 class="display">Prediction Run</h2>
+      <p class="play-sub">Make your call, confirm once. It locks at the real kickoff and settles only on the official result.</p>
     </div>
-    <div class="pr-stats board" role="group" aria-label="Prediction record">
+    <div class="pr-stats board${stats.total === 0 ? ' fresh' : ''}" role="group" aria-label="Prediction record">
       <div class="pr-stat iq">${prIqRingHTML(iq)}<span>Tournament IQ</span></div>
       <div class="pr-stat"><strong>${stats.right}<span class="pr-of">/${stats.total}</span></strong><span>correct</span></div>
       <div class="pr-stat"><strong>${stats.insight}</strong><span>insight</span></div>
@@ -4450,8 +4450,7 @@ export function render(outlet) {
   else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head play-head"><div><p class="view-kicker gold">The Stadium Arcade</p><h1>Play</h1>
-      <p class="view-sub">Pick a side. Make the call. Build the story. Local simulations only.</p></div>
-      <span class="play-head-mark" aria-hidden="true"><i></i><b>U26</b><em>arcade</em></span></header>
+      <p class="view-sub">Pick a side. Make the call. Build the story. Local simulations only.</p></div></header>
     <div class="mode-rail">
     ${segmentedControl({
     id: 'play-mode', label: 'Play modes', value: mode,
@@ -4477,11 +4476,18 @@ export function render(outlet) {
   outlet.querySelectorAll('[data-goto]').forEach((b) => {
     b.addEventListener('click', () => setPlayMode(b.dataset.goto));
   });
-  // keep the active mode chip in view on the rail
+  // keep the active mode chip in view on the rail — after layout, so the
+  // measurement is real (a zero-width rail centred nothing on first paint)
   const railEl = outlet.querySelector('.mode-rail .segmented');
   const activeChip = railEl && railEl.querySelector('.seg-btn.active');
   if (railEl && activeChip) {
-    railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+    const center = () => {
+      railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+    };
+    center();
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(center);
+    }
   }
   if (mode === 'lab') {
     wireLab(outlet);
