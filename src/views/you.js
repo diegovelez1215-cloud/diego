@@ -1,10 +1,10 @@
 // United 2026 — You. Two surfaces, one honest wall between them:
 //   You         — the quiet museum: saved timelines, lab history, preferences.
-//   Leaderboard — THE global World Cup competition. Two boards inside:
+//   Leaderboard — THE global World Cup competition. Two sections inside:
 //     Picks  — official-pick points for every authenticated player worldwide,
 //              settled ONLY server-side from validated official finals.
-//     Arcade — the global Match Lab / My World Cup game ladder. Simulation
-//              energy, fully separate — it can never touch official points.
+//     Arcade — local progression plus an honest ranked lock until the server
+//              can validate signed seeds and replay versioned event logs.
 // Official truth never comes from the leaderboard; the leaderboard never
 // feeds truth. Every row is a real signed-in player. Nothing is invented.
 
@@ -24,8 +24,8 @@ import {
   boardConfigured, currentUser, signOut,
   requestEmailCode, verifyEmailCode,
   validDisplayName, AVATARS, fetchMyProfile, upsertMyProfile,
-  fetchPicksBoard, fetchMyBoardRow, fetchArcadeLadder,
-  pushEligiblePicks, pushArcadeScore,
+  fetchPicksBoard, fetchMyBoardRow,
+  pushEligiblePicks,
   rankMovement, ranksOf, updatedLabel, freshlySynced, boardActivity,
 } from '../core/leaderboard.js';
 import { segmentedControl } from '../components/segmented-control.js';
@@ -45,8 +45,6 @@ function fmtDate(iso) {
 
 const FETCH_TTL = 60_000;
 let fetching = false;
-let lastArcadeKey = null;
-let lastArcadeAt = 0;
 let picksSynced = false;
 
 // Sign-in / profile UI state (module-local; credentials live in one
@@ -70,23 +68,21 @@ function refreshBoard(force = false) {
   if (!boardConfigured() || fetching || !currentUser()) return;
   if (!force && Date.now() - (board.fetchedAt || 0) < FETCH_TTL) return;
   fetching = true;
-  const hasRows = board.picks.length || board.arcade.length;
+  const hasRows = board.picks.length;
   setBoard({ status: hasRows ? board.status : 'loading' });
   const uid = currentUser().id;
-  Promise.all([fetchPicksBoard(), fetchMyBoardRow(uid), fetchArcadeLadder()])
-    .then(([picks, me, arcade]) => {
+  Promise.all([fetchPicksBoard(), fetchMyBoardRow(uid)])
+    .then(([picks, me]) => {
       fetching = false;
       // movement compares against the PREVIOUS genuinely observed ranks —
       // captured before this fetch overwrites them. Never fabricated.
       const prev = getState().prefs;
       setBoard({
-        status: 'ok', picks, me, arcade, fetchedAt: Date.now(), error: null,
+        status: 'ok', picks, me, arcade: [], fetchedAt: Date.now(), error: null,
         prevRanks: prev.boardRanks || null,
-        prevArcadeRanks: prev.arcadeRanks || null,
       });
       const observed = {
         boardRanks: ranksOf(me ? picks.concat([me]) : picks),
-        arcadeRanks: ranksOf(arcade),
       };
       setPrefs(observed);
       savePrefs({ ...getState().prefs });
@@ -116,17 +112,6 @@ function syncMyPicks() {
   pushEligiblePicks(picks, (id) => !pickLockedAtKickoff(id))
     .then((n) => { if (n) refreshBoard(true); })
     .catch(() => { picksSynced = false; });
-}
-
-/** Throttled arcade-score sync — same-facts posts are no-op upserts. */
-function syncArcade() {
-  const { play, real, sims } = getState();
-  if (!currentUser() || !profile) return;
-  const ledger = arcadeLedger(play, real.overlay, sims);
-  const key = JSON.stringify([ledger.points, ledger.wins, ledger.played, ledger.streak]);
-  if (key === lastArcadeKey && Date.now() - lastArcadeAt < 55_000) return;
-  lastArcadeKey = key; lastArcadeAt = Date.now();
-  pushArcadeScore(ledger).then((ok) => { if (ok) refreshBoard(true); });
 }
 
 function logActivity(text) {
@@ -369,31 +354,18 @@ function tierCardHTML(state) {
 }
 
 function arcadeBoardHTML(state) {
-  const { board } = state;
-  const meId = currentUser()?.id || null;
-  const rows = rankMovement(board.arcade, board.prevArcadeRanks || null);
-  const stateHTML = boardStateHTML({ ...board, picks: board.arcade },
-    '<p class="lg-state">No arcade scores on the global ladder yet — Match Lab is one tab away.</p>');
-  const table = !board.arcade.length ? stateHTML : `
-    <div class="lg-rows arcade">
-      ${rows.map((m) => `
-        <div class="lg-row${m.userId === meId ? ' me' : ''}${(m.rank || 99) <= 3 ? ' top' : ''}">
-          <span class="lg-rank">${m.rank}</span>
-          ${avatarHTML(m)}
-          <span class="lg-name">${esc(m.name)}${moveTag(m)}
-            <small class="lg-arcade-sub">${m.wins}W–${Math.max(0, m.played - m.wins)}L</small></span>
-          ${m.streak >= 2 ? `<span class="lg-acc">🔥${m.streak}</span>` : '<span class="lg-acc dim">—</span>'}
-          <b class="lg-points">${m.points}</b>
-        </div>`).join('')}
-    </div>
-    ${board.status === 'error' ? '<p class="lg-state stale">Showing the last synced ladder — refresh failed.</p>' : ''}`;
-  return `<section class="you-card ladder" aria-label="Global Arcade Ladder">
-    ${boardHeadHTML(board, 'Arcade Ladder', 'Global game ladder · Match Lab & My World Cup only')}
-    <span class="sim-badge">SIMULATION</span>
+  return `<section class="you-card ladder ranked-locked" aria-label="Ranked Arcade opening after server validation">
+    <p class="bd-kicker">Arcade competition · integrity gate</p>
+    <h2 class="display">Ranked Arcade is locked</h2>
+    <p class="league-sub">Your local tier, records and trophies work now. Worldwide arcade scores stay disabled until United 2026 can issue a signed challenge and replay every submitted event on the server.</p>
+    <span class="sim-badge">NO GLOBAL SUBMISSION</span>
     ${tierCardHTML(state)}
-    ${table}
-    <p class="ladder-note">Arcade Points are only a local game score. This ladder never
-      touches the official Picks standings.</p>
+    <div class="ranked-checks" role="list" aria-label="Ranked launch requirements">
+      <span role="listitem">✓ Locked seed and game version</span>
+      <span role="listitem">✓ Deterministic event-log replay</span>
+      <span role="listitem">○ Signed challenge token and server rate limit</span>
+    </div>
+    <p class="ladder-note">No browser-computed score is trusted. No old self-reported rows are displayed.</p>
   </section>`;
 }
 
@@ -472,6 +444,11 @@ function hallOfMomentsHTML(play) {
   const rush = play.penaltyRush;
   if (rush && rush.played) {
     chips.push(`<span class="you-moment rush">◐ Gauntlet best ${rush.bestEver || 0}${rush.perfects ? ` · ${rush.perfects} perfect` : ''}</span>`);
+  }
+  const shots = play.shotLab;
+  if (shots && shots.played) {
+    const best = Math.max(shots.bestPractice || 0, shots.bestTimed || 0);
+    chips.push(`<span class="you-moment shot">◉ Shot Lab ${best.toLocaleString()} · ${shots.bestAccuracy || 0}% accuracy</span>`);
   }
   const fm = play.fmHistory || [];
   const fmBest = fm.find((e) => e.result === 'W' && e.scenario === 'rescue') || fm.find((e) => e.result === 'W');
@@ -566,6 +543,22 @@ function youSideHTML(play) {
   </section>`;
 }
 
+function shotLabMuseumHTML(play) {
+  const shots = play.shotLab || null;
+  return `<section class="you-card you-shot-lab${shots?.played ? '' : ' empty'}" aria-label="Shot Lab records">
+    <p class="bd-kicker">Shot Lab · local skill record</p>
+    <h2>${shots?.last ? esc(shots.last.grade) : 'The goal is waiting'}</h2>
+    ${shots?.played ? `<div class="ladder-grid" role="group" aria-label="Shot Lab bests">
+      <span class="ladder-cell"><b>${(shots.bestPractice || 0).toLocaleString()}</b><small>studio best</small></span>
+      <span class="ladder-cell"><b>${(shots.bestTimed || 0).toLocaleString()}</b><small>timed best</small></span>
+      <span class="ladder-cell"><b>${shots.bestAccuracy || 0}%</b><small>accuracy</small></span>
+      <span class="ladder-cell"><b>${shots.bestCombo || 0}</b><small>target combo</small></span>
+    </div><p class="you-history">${shots.played} ${shots.played === 1 ? 'run' : 'runs'} kept on this phone. Ranked submission is off until server validation is live.</p>`
+    : '<p class="empty-line">Aim, contact, power, curve and keeper reads — a complete skill game is ready in Play.</p>'}
+    <button class="you-sideaction" id="you-goto-shot">${shots?.played ? 'Beat your Shot Lab best' : 'Enter Shot Lab'}</button>
+  </section>`;
+}
+
 function museumHTML(state) {
   const { sims, prefs, play, real } = state;
   const saved = sims.saved || [];
@@ -578,6 +571,7 @@ function museumHTML(state) {
     ${museumHeroHTML(state)}
     ${youSideHTML(play)}
     ${trophyRoomHTML(play)}
+    ${shotLabMuseumHTML(play)}
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
       ${pickCount ? `<div class="pr-stats quiet" role="group" aria-label="Record">
@@ -756,7 +750,6 @@ export function render(outlet) {
       if (profile) {
         refreshBoard();
         syncMyPicks();
-        if (state.nav.boardTab === 'arcade') syncArcade();
       }
     }
   }
@@ -788,6 +781,13 @@ export function render(outlet) {
   if (gotoCup) {
     gotoCup.addEventListener('click', () => {
       setPlayMode('cup');
+      activate('play');
+    });
+  }
+  const gotoShot = outlet.querySelector('#you-goto-shot');
+  if (gotoShot) {
+    gotoShot.addEventListener('click', () => {
+      setPlayMode('shotlab');
       activate('play');
     });
   }

@@ -14,6 +14,15 @@
   .outlets { padding-top: var(--sp-6); }
 }
 
+/* Desktop/tablet earns real composition without making factual views read
+   like wall-to-wall dashboards. Play may use the stadium width; every other
+   route keeps a calm reading measure. */
+@media (min-width: 900px) {
+  .outlets { max-width: 1180px; }
+  .outlet:not([data-tab="play"]) > .view { max-width: 760px; margin-inline: auto; }
+  .outlet[data-tab="play"] > .play-view { max-width: 1080px; margin-inline: auto; }
+}
+
 /* very small screens: dock labels stay legible, never clipped */
 @media (max-width: 350px) {
   .dock-label { display: none; }

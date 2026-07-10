@@ -8,7 +8,7 @@ import { readFile } from 'node:fs/promises';
 import {
   validDisplayName, normalizeBoardRow, normalizeArcadeRow,
   rankMovement, ranksOf, updatedLabel, freshlySynced, boardActivity,
-  pickRow, arcadeRow, AVATARS,
+  pickRow, arcadeRow, pushArcadeScore, AVATARS,
 } from '../src/core/leaderboard.js';
 import { buildOverlay } from '../src/core/provider-overlay.js';
 import { gradePredictions, officialPickPoints, arcadeLedger } from '../src/views/play.js';
@@ -260,4 +260,21 @@ test('leaderboard migration is rerunnable and grants no anonymous writes', async
   assert.ok(/revoke all on public\.arcade_ladder_v2 from anon/i.test(sql), 'arcade view revoked from anon');
   const resultsBlock = sql.slice(sql.indexOf('create table if not exists public.results'), sql.indexOf('-- ---------------------------------------------------------------------------\n-- 5) Arcade'));
   assert.ok(!/for\s+(insert|update|delete)/i.test(resultsBlock), 'results table has no client write policy');
+});
+
+test('ranked Arcade fails closed in the browser', async () => {
+  assert.equal(await pushArcadeScore({ points: 999999, wins: 999, played: 1, streak: 999 }), false);
+  const src = await readFile(new URL('../src/core/leaderboard.js', import.meta.url), 'utf8');
+  const block = src.slice(src.indexOf('export async function pushArcadeScore'));
+  assert.doesNotMatch(block, /rest\(['"]arcade_scores/, 'the browser cannot submit an arcade score');
+});
+
+test('lockdown migration revokes self-reported Arcade and makes Data API grants explicit', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/0002_ranked_arcade_lockdown.sql', import.meta.url), 'utf8');
+  assert.match(sql, /drop policy if exists "insert own arcade score"/i);
+  assert.match(sql, /revoke all on table public\.arcade_scores from authenticated/i);
+  assert.match(sql, /revoke all on table public\.arcade_ladder_v2 from anon, authenticated/i);
+  assert.match(sql, /grant select on table public\.fixtures, public\.profiles, public\.results to authenticated/i);
+  assert.match(sql, /grant select, insert, update on table public\.picks, public\.profiles to authenticated/i);
+  assert.doesNotMatch(sql, /grant\s+(insert|update|delete|all)[^;]+to\s+anon/i);
 });

@@ -21,6 +21,20 @@ import { segmentedControl } from '../components/segmented-control.js';
 import { formatKickoffTime, formatDayKey, now } from '../core/time.js';
 import { esc } from '../components/match-row.js';
 import { celebrate, celebrateFrom } from '../components/celebrate.js';
+import { createSeededRng, simulateSoccerMatch } from '../core/soccer-engine.js';
+import {
+  SHOT_LAB_RULES,
+  SHOT_TYPES,
+  advanceShotLabClock,
+  createShotLab,
+  setShotLabInput,
+  shotLabFrame,
+  shotLabRecordAfter,
+  shotLabRemainingMs,
+  shotLabSummary,
+  takeShot,
+  toggleShotLabPause,
+} from '../games/shot-lab.js';
 
 export const seedHTML = `<div class="view play-view">
   <header class="view-head"><h1>Play</h1><p class="view-sub">Private simulation space</p></header>
@@ -29,41 +43,18 @@ export const seedHTML = `<div class="view play-view">
 
 /* ================= deterministic engine (Play-only) ================= */
 
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function poisson(rng, lambda) {
-  const L = Math.exp(-lambda);
-  let k = 0; let p = 1;
-  do { k++; p *= rng(); } while (p > L);
-  return k - 1;
-}
+const mulberry32 = createSeededRng;
 
 export function simulateMatch(home, away, rng, { knockout = false } = {}) {
-  const rh = RATINGS[home] || 70; const ra = RATINGS[away] || 70;
-  const edge = (rh - ra) / 24;
-  let gh = poisson(rng, Math.max(0.25, 1.35 + edge * 0.9));
-  let ga = poisson(rng, Math.max(0.25, 1.35 - edge * 0.9));
-  let pens = null; let winner = gh > ga ? 'home' : gh < ga ? 'away' : 'draw';
-  if (knockout && gh === ga) {
-    const eh = poisson(rng, Math.max(0.1, 0.42 + edge * 0.3));
-    const ea = poisson(rng, Math.max(0.1, 0.42 - edge * 0.3));
-    gh += eh; ga += ea;
-    if (gh === ga) {
-      let ph = 0; let pa = 0;
-      for (let i = 0; i < 5 || ph === pa; i++) { if (rng() < 0.76) ph++; if (rng() < 0.76) pa++; }
-      pens = { ph, pa };
-      winner = ph > pa ? 'home' : 'away';
-    } else winner = gh > ga ? 'home' : 'away';
-  }
-  return { gh, ga, pens, winner };
+  const result = simulateSoccerMatch({ home, away, rng, knockout, neutralVenue: true });
+  return {
+    gh: result.homeGoals,
+    ga: result.awayGoals,
+    pens: result.penalties ? { ph: result.penalties.home, pa: result.penalties.away } : null,
+    winner: result.winner,
+    modelVersion: result.modelVersion,
+    xg: result.expectedGoals,
+  };
 }
 
 const GRUG = [
@@ -1921,6 +1912,275 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
   // Global leaderboard sync: my own pick, pre-kickoff only (the database
   // enforces the same lock). Fire-and-forget — local play never blocks.
   if (currentUser()) pushPick(fixtureId, picks[fixtureId]);
+}
+
+/* ================= Shot Lab =================
+   The flagship touch game. The goal is the aim surface; contact, power,
+   curve and shot type shape a deterministic ball flight. Results are local
+   until a signed server challenge can replay the event log authoritatively. */
+
+let shotRun = null;
+let shotClock = null;
+let shotSoundOn = false;
+let shotAudioContext = null;
+
+function shotSeed(mode, attempt = 0) {
+  return hashSeed(`u26-shot-lab-${localDayKey()}-${mode}-${attempt}`) || 1;
+}
+
+function stopShotClock() {
+  if (shotClock) clearInterval(shotClock);
+  shotClock = null;
+}
+
+function commitShotLab() {
+  if (!shotRun || !shotRun.over || shotRun.committed) return;
+  shotRun.committed = true;
+  const { play } = getState();
+  const next = { ...play, shotLab: shotLabRecordAfter(play.shotLab, shotRun) };
+  setPlay(next);
+  savePlay(next);
+  const summary = shotLabSummary(shotRun);
+  if (summary.bullseyes >= 2 || summary.score >= 5000) celebrate('trophy');
+  else if (summary.score >= 2800) celebrate('win');
+}
+
+function finishShotClock() {
+  if (!shotRun?.over) return false;
+  stopShotClock();
+  commitShotLab();
+  repaintPlay();
+  return true;
+}
+
+function startShotClock() {
+  stopShotClock();
+  if (!shotRun || shotRun.mode !== 'timed' || shotRun.over) return;
+  shotClock = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    advanceShotLabClock(shotRun, 250);
+    if (finishShotClock()) return;
+    const timer = document.querySelector('#shot-time');
+    if (timer) timer.textContent = `${Math.ceil(shotLabRemainingMs(shotRun) / 1000)}s`;
+    const ring = document.querySelector('.sl-clock-ring');
+    if (ring) ring.style.setProperty('--left', `${Math.max(0, shotLabRemainingMs(shotRun) / SHOT_LAB_RULES.timedMs)}`);
+  }, 250);
+}
+
+function shotTone(event) {
+  if (!shotSoundOn || typeof window === 'undefined') return;
+  try {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) return;
+    shotAudioContext = shotAudioContext || new Audio();
+    if (shotAudioContext.state === 'suspended') shotAudioContext.resume();
+    const osc = shotAudioContext.createOscillator();
+    const gain = shotAudioContext.createGain();
+    osc.type = event.goal ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(event.goal ? (event.targetHit ? 780 : 520) : 170, shotAudioContext.currentTime);
+    gain.gain.setValueAtTime(0.0001, shotAudioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, shotAudioContext.currentTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, shotAudioContext.currentTime + 0.18);
+    osc.connect(gain); gain.connect(shotAudioContext.destination);
+    osc.start(); osc.stop(shotAudioContext.currentTime + 0.2);
+  } catch { /* audio is an enhancement, never a game dependency */ }
+}
+
+function shotInputLabel(run) {
+  const i = run.input;
+  const curve = i.curve < -0.08 ? `${Math.round(Math.abs(i.curve) * 100)} left` : i.curve > 0.08 ? `${Math.round(i.curve * 100)} right` : 'straight';
+  return `${SHOT_TYPES[i.shotType].label} · ${Math.round(i.power * 100)} power · ${curve}`;
+}
+
+function shotTrailHTML(run) {
+  const last = run.shots.at(-1);
+  if (!last) return '';
+  const endX = Math.max(-5, Math.min(105, last.landing.x));
+  const endY = Math.max(-8, Math.min(108, last.landing.y));
+  return `<svg class="sl-flight" viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M 50 108 Q ${last.input.aim.x} 58 ${endX} ${endY}"/>
+    <circle cx="${endX}" cy="${endY}" r="2.2" class="${last.goal ? 'goal' : 'miss'}"/>
+  </svg>`;
+}
+
+function shotMapHTML(run) {
+  if (!run.shots.length) return '';
+  return `<div class="sl-map-wrap"><div><span class="lt-kicker">Shot map</span><strong>Every finish, exactly where it landed</strong></div>
+    <svg class="sl-map" viewBox="0 0 100 100" role="img" aria-label="Shot map with ${run.shots.length} attempts">
+      <path class="sl-map-goal" d="M2 96V3H98V96"/>
+      ${run.shots.map((s) => `<circle cx="${Math.max(1, Math.min(99, s.landing.x))}" cy="${Math.max(1, Math.min(99, s.landing.y))}" r="3.1" class="${s.targetHit ? 'bull' : s.goal ? 'goal' : s.saved ? 'save' : 'miss'}"><title>Shot ${s.n}: ${s.outcome}, ${s.points} points</title></circle>`).join('')}
+    </svg></div>`;
+}
+
+function shotSetupHTML(play) {
+  const record = play.shotLab || {};
+  return `<section class="play-card shot-lab setup" aria-label="Shot Lab">
+    <div class="sl-intro-orbit" aria-hidden="true"><i></i><b></b><em></em></div>
+    <span class="sim-badge">SKILL GAME · LOCAL</span>
+    <p class="bd-kicker">New flagship game</p>
+    <h2 class="display">Shot Lab</h2>
+    <p class="sl-lede">See the target. Read the keeper. Shape the strike with your own hands.</p>
+    <div class="sl-rules" role="list" aria-label="How Shot Lab works">
+      <span role="listitem"><b>1</b> Tap the goal to aim</span>
+      <span role="listitem"><b>2</b> Shape contact, power and curve</span>
+      <span role="listitem"><b>3</b> Beat the moving target</span>
+    </div>
+    <div class="sl-best" role="group" aria-label="Shot Lab local records">
+      <span><b>${record.bestPractice || '—'}</b><small>practice best</small></span>
+      <span><b>${record.bestTimed || '—'}</b><small>45-second best</small></span>
+      <span><b>${record.bestAccuracy ? record.bestAccuracy + '%' : '—'}</b><small>accuracy best</small></span>
+    </div>
+    <div class="sl-start-grid">
+      <button class="sl-start primary" data-shot-start="practice"><span>Untimed</span><strong>Eight-shot studio</strong><small>Learn every control. No clock.</small></button>
+      <button class="sl-start" data-shot-start="timed"><span>Timed</span><strong>45-second attack</strong><small>Up to twelve shots. Pressure climbs.</small></button>
+    </div>
+    <details class="sl-details"><summary>Fair scoring & controls</summary><p>Aim, contact, power, curve and shot type determine the flight. Pressure adds the same locked seeded error for every replay. The keeper reads only your previous aims. Arrow keys move the reticle; Enter shoots.</p></details>
+    <p class="sl-ranked-lock"><b>Ranked locked for integrity.</b> Local records work now; worldwide submission stays off until the server can replay signed challenges.</p>
+  </section>`;
+}
+
+function shotResultHTML(run) {
+  const s = shotLabSummary(run);
+  return `<section class="play-card shot-lab result" aria-label="Shot Lab result">
+    <span class="sim-badge">LOCAL RESULT</span>
+    <div class="sl-result-head"><div><p class="bd-kicker">${run.mode === 'timed' ? '45-second attack' : 'Eight-shot studio'} complete</p>
+      <h2 class="display">${esc(s.grade)}</h2><p>${s.goals} goals · ${s.bullseyes} bullseyes · ${s.accuracy}% on target</p></div>
+      <strong class="sl-final-score">${s.score}<small>points</small></strong></div>
+    <div class="sl-breakdown" role="group" aria-label="Shot breakdown">
+      <span><b>${s.accuracy}%</b><small>accuracy</small></span><span><b>${s.technique}%</b><small>technique</small></span>
+      <span><b>${s.bestCombo}</b><small>best combo</small></span><span><b>${s.shots}</b><small>shots</small></span>
+    </div>
+    ${shotMapHTML(run)}
+    <div class="sl-recap" aria-label="Replay trail">${run.shots.slice(-4).reverse().map((x) => `<span class="${x.outcome}"><b>${x.points}</b><small>${esc(x.outcome.replace('-', ' '))}</small></span>`).join('')}</div>
+    <div class="play-actions sl-actions"><button class="play-btn gold" id="shot-new">Run it again</button><button class="play-btn quiet" id="shot-exact">Replay exact challenge</button><button class="play-btn quiet" id="shot-share">Share result</button><button class="play-btn quiet" id="shot-exit">Back to lobby</button></div>
+    <p class="sl-ranked-lock"><b>Not submitted globally.</b> Ranked Shot Lab remains disabled until signed server validation is live.</p>
+  </section>`;
+}
+
+function shotRunHTML(run) {
+  if (run.over) return shotResultHTML(run);
+  const frame = shotLabFrame(run);
+  const last = run.shots.at(-1);
+  const time = Math.ceil(shotLabRemainingMs(run) / 1000);
+  return `<section class="play-card shot-lab live${run.paused ? ' paused' : ''}" aria-label="Shot Lab in progress">
+    <div class="sl-topbar">
+      <button class="sl-icon" id="shot-exit" aria-label="Exit Shot Lab">×</button>
+      <div><span class="lt-kicker">Shot Lab · ${run.mode === 'timed' ? 'Timed' : 'Studio'}</span><strong>${run.score.toLocaleString()} pts</strong></div>
+      <div class="sl-top-actions"><button class="sl-icon sound" id="shot-sound" aria-label="Turn Shot Lab sound ${shotSoundOn ? 'off' : 'on'}">${shotSoundOn ? '◖))' : '◖·'}</button><button class="sl-icon" id="shot-pause" aria-label="${run.paused ? 'Resume' : 'Pause'} Shot Lab">${run.paused ? '▶' : 'Ⅱ'}</button></div>
+    </div>
+    <div class="sl-status" role="group" aria-label="Run status">
+      <span><b>${run.shots.length + 1}</b><small>shot / ${run.mode === 'timed' ? '12 max' : SHOT_LAB_RULES.practiceShots}</small></span>
+      <span><b>${run.combo}</b><small>target combo</small></span>
+      <span class="sl-clock-ring" style="--left:${shotLabRemainingMs(run) / SHOT_LAB_RULES.timedMs}"><b id="shot-time">${run.mode === 'timed' ? time + 's' : '∞'}</b><small>${run.mode === 'timed' ? 'remaining' : 'no clock'}</small></span>
+    </div>
+    <div class="sl-arena">
+      <div class="sl-crowd" aria-hidden="true"></div>
+      <div class="sl-goal" id="shot-goal" tabindex="0" role="application" aria-label="Goal aiming area. Tap or use arrow keys to move the reticle; press Enter to shoot.">
+        <i class="sl-net" aria-hidden="true"></i>
+        <span class="sl-target" style="--x:${frame.target.x}%;--y:${frame.target.y}%;--r:${frame.target.radius}px" aria-hidden="true"><i></i></span>
+        <span class="sl-keeper" style="--x:${frame.keeper.x}%" aria-hidden="true"><i></i><b></b></span>
+        <span class="sl-reticle" style="--x:${run.input.aim.x}%;--y:${run.input.aim.y}%" aria-hidden="true"><i></i></span>
+        ${shotTrailHTML(run)}
+        ${run.paused ? '<span class="sl-pause-screen"><b>Paused</b><small>Your run and clock are frozen.</small></span>' : ''}
+      </div>
+      <div class="sl-read"><span>Keeper: <b>${esc(frame.keeper.read)}</b></span><i><b style="width:${Math.round(frame.pressure * 100)}%"></b></i><span>Pressure ${Math.round(frame.pressure * 100)}</span></div>
+      <p class="sl-callout" aria-live="polite">${last ? `<b>${esc(last.outcome.replace('-', ' '))}</b> · +${last.points} · landed ${Math.round(last.landing.x)} / ${Math.round(last.landing.y)}` : 'Tap anywhere inside the goal to place the reticle.'}</p>
+    </div>
+    <div class="sl-console">
+      <div class="sl-shot-types" role="group" aria-label="Shot type">${Object.entries(SHOT_TYPES).map(([id, t]) => `<button class="${run.input.shotType === id ? 'on' : ''}" data-shot-type="${id}">${esc(t.label)}</button>`).join('')}</div>
+      <div class="sl-control-grid">
+        <fieldset class="sl-contact"><legend>Ball contact</legend><div>${[-1, 0, 1].flatMap((y) => [-1, 0, 1].map((x) => `<button aria-label="Contact ${y === -1 ? 'top' : y === 1 ? 'bottom' : 'middle'} ${x === -1 ? 'left' : x === 1 ? 'right' : 'centre'}" class="${run.input.contact.x === x && run.input.contact.y === y ? 'on' : ''}" data-contact-x="${x}" data-contact-y="${y}"></button>`)).join('')}</div><small>Hit low to lift · wide to bend</small></fieldset>
+        <div class="sl-sliders">
+          <label>Power <output id="shot-power-out">${Math.round(run.input.power * 100)}</output><input id="shot-power" type="range" min="30" max="100" value="${Math.round(run.input.power * 100)}"></label>
+          <label>Curve <output id="shot-curve-out">${Math.round(run.input.curve * 100)}</output><input id="shot-curve" type="range" min="-100" max="100" value="${Math.round(run.input.curve * 100)}"></label>
+        </div>
+      </div>
+      <button class="sl-shoot" id="shot-fire"><span>Strike</span><small id="shot-input-label">${esc(shotInputLabel(run))}</small></button>
+    </div>
+  </section>`;
+}
+
+function shotLabHTML(play) { return shotRun ? shotRunHTML(shotRun) : shotSetupHTML(play); }
+
+function frameShotLab() {
+  if (typeof window === 'undefined') return;
+  const place = () => document.querySelector('.shot-lab.live')?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+  if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(place);
+  else place();
+}
+
+function updateShotControls(outlet) {
+  if (!shotRun) return;
+  const reticle = outlet.querySelector('.sl-reticle');
+  if (reticle) { reticle.style.setProperty('--x', `${shotRun.input.aim.x}%`); reticle.style.setProperty('--y', `${shotRun.input.aim.y}%`); }
+  const label = outlet.querySelector('#shot-input-label');
+  if (label) label.textContent = shotInputLabel(shotRun);
+  const po = outlet.querySelector('#shot-power-out'); if (po) po.textContent = Math.round(shotRun.input.power * 100);
+  const co = outlet.querySelector('#shot-curve-out'); if (co) co.textContent = Math.round(shotRun.input.curve * 100);
+}
+
+function fireShot() {
+  if (!shotRun || shotRun.paused) return;
+  const event = takeShot(shotRun);
+  if (!event) return;
+  shotTone(event);
+  if (shotRun.over) commitShotLab();
+  repaintPlay();
+}
+
+function wireShotLab(outlet) {
+  outlet.querySelectorAll('[data-shot-start]').forEach((b) => b.addEventListener('click', () => {
+    const mode = b.dataset.shotStart;
+    const attempt = getState().play.shotLab?.played || 0;
+    shotRun = createShotLab(shotSeed(mode, attempt), mode);
+    window.dispatchEvent(new window.Event('u26:high-attention-start'));
+    repaintPlay();
+    frameShotLab();
+  }));
+  const goal = outlet.querySelector('#shot-goal');
+  if (goal) {
+    goal.addEventListener('pointerdown', (e) => {
+      if (shotRun.paused) return;
+      const box = goal.getBoundingClientRect();
+      setShotLabInput(shotRun, { aim: { x: (e.clientX - box.left) / box.width * 100, y: (e.clientY - box.top) / box.height * 100 } });
+      updateShotControls(outlet);
+    });
+    goal.addEventListener('keydown', (e) => {
+      const delta = e.shiftKey ? 8 : 3;
+      let { x, y } = shotRun.input.aim;
+      if (e.key === 'ArrowLeft') x -= delta; else if (e.key === 'ArrowRight') x += delta;
+      else if (e.key === 'ArrowUp') y -= delta; else if (e.key === 'ArrowDown') y += delta;
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fireShot(); return; }
+      else return;
+      e.preventDefault(); setShotLabInput(shotRun, { aim: { x, y } }); updateShotControls(outlet);
+    });
+  }
+  outlet.querySelectorAll('[data-shot-type]').forEach((b) => b.addEventListener('click', () => {
+    setShotLabInput(shotRun, { shotType: b.dataset.shotType });
+    outlet.querySelectorAll('[data-shot-type]').forEach((x) => x.classList.toggle('on', x === b));
+    updateShotControls(outlet);
+  }));
+  outlet.querySelectorAll('[data-contact-x]').forEach((b) => b.addEventListener('click', () => {
+    setShotLabInput(shotRun, { contact: { x: Number(b.dataset.contactX), y: Number(b.dataset.contactY) } });
+    outlet.querySelectorAll('[data-contact-x]').forEach((x) => x.classList.toggle('on', x === b));
+    updateShotControls(outlet);
+  }));
+  const power = outlet.querySelector('#shot-power');
+  if (power) power.addEventListener('input', () => { setShotLabInput(shotRun, { power: Number(power.value) / 100 }); updateShotControls(outlet); });
+  const curve = outlet.querySelector('#shot-curve');
+  if (curve) curve.addEventListener('input', () => { setShotLabInput(shotRun, { curve: Number(curve.value) / 100 }); updateShotControls(outlet); });
+  const fire = outlet.querySelector('#shot-fire'); if (fire) fire.addEventListener('click', fireShot);
+  const pause = outlet.querySelector('#shot-pause'); if (pause) pause.addEventListener('click', () => { toggleShotLabPause(shotRun); repaintPlay(); });
+  const sound = outlet.querySelector('#shot-sound'); if (sound) sound.addEventListener('click', () => { shotSoundOn = !shotSoundOn; repaintPlay(); });
+  const exit = outlet.querySelector('#shot-exit'); if (exit) exit.addEventListener('click', () => { stopShotClock(); shotRun = null; setPlayMode('lobby'); });
+  const exact = outlet.querySelector('#shot-exact'); if (exact) exact.addEventListener('click', () => { const { seed, mode } = shotRun; shotRun = createShotLab(seed, mode); repaintPlay(); frameShotLab(); });
+  const next = outlet.querySelector('#shot-new'); if (next) next.addEventListener('click', () => { const mode = shotRun.mode; shotRun = createShotLab(shotSeed(mode, getState().play.shotLab?.played || 0), mode); repaintPlay(); frameShotLab(); });
+  const share = outlet.querySelector('#shot-share');
+  if (share) share.addEventListener('click', async () => {
+    const s = shotLabSummary(shotRun); const text = `Shot Lab: ${s.score} points · ${s.accuracy}% accuracy · ${s.grade} — United 2026`;
+    try { if (navigator.share) await navigator.share({ title: 'United 2026 Shot Lab', text }); else await navigator.clipboard?.writeText(text); } catch { /* user cancelled */ }
+  });
+  startShotClock();
 }
 
 /* ================= Penalty Rush =================
@@ -4193,8 +4453,15 @@ function lobbyHTML(overlay, play, sims) {
     ${slateHTML(overlay, play)}
 
     <div class="arcade-section-head"><div><span>Quick play</span><strong>One tap. One decision loop.</strong></div><small>Rules and risk are shown before every call.</small></div>
+    <button class="lobby-shot" data-goto="shotlab">
+      <span class="game-number">01</span><span class="lt-kicker">Shot Lab · New flagship</span>
+      <strong>${play.shotLab?.bestPractice ? `Studio best: ${play.shotLab.bestPractice.toLocaleString()} points` : 'Aim it. Shape it. Strike it.'}</strong>
+      <small>${play.shotLab?.played ? `${play.shotLab.played} runs · best accuracy ${play.shotLab.bestAccuracy || 0}%` : 'Direct touch controls · moving targets · keeper reads'}</small>
+      <i class="lobby-shot-visual" aria-hidden="true"><b></b><em></em><span></span></i>
+      <span class="game-go">Enter Shot Lab <b>→</b></span>
+    </button>
     <button class="lobby-rush" data-goto="shootout">
-      <span class="game-number">01</span><span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
+      <span class="game-number">02</span><span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
       <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Five targets. The keeper learns.'}</strong>
       <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · 45 seconds` : 'Aim inside the goal · 45 seconds'}</small>
       <i class="lobby-rush-goal" aria-hidden="true"><b></b><em></em></i>
@@ -4203,13 +4470,13 @@ function lobbyHTML(overlay, play, sims) {
 
     <div class="lobby-grid quick-grid">
       <button class="lobby-tile fm-tile" data-goto="finalminute">
-        <span class="game-number">02</span><i class="game-glyph" aria-hidden="true">90+</i>
+        <span class="game-number">03</span><i class="game-glyph" aria-hidden="true">90+</i>
         <span class="lt-kicker">Final Minute</span>
         <strong>${fmRec && fmRec.played ? `${fmRec.w}W–${fmRec.l}L–${fmRec.d}D in the fire` : 'Six minutes. Three calls.'}</strong>
         <small>${side ? 'Read the pressure · survive or steal it' : 'Needs a side · pick yours first'}</small>
       </button>
       <button class="lobby-tile" data-goto="coach">
-        <span class="game-number">03</span><i class="game-glyph tactics" aria-hidden="true">◇</i>
+        <span class="game-number">04</span><i class="game-glyph tactics" aria-hidden="true">◇</i>
         <span class="lt-kicker">Coach&rsquo;s Call</span>
         <strong>${(play.coachCall && play.coachCall.played) ? `${play.coachCall.w}W–${play.coachCall.l}L–${play.coachCall.d}D from the dugout` : 'One situation. Two calls.'}</strong>
         <small>${side ? 'Your identity changes what works' : 'Needs a side · pick yours first'}</small>
@@ -4219,25 +4486,25 @@ function lobbyHTML(overlay, play, sims) {
     <div class="arcade-section-head"><div><span>Big nights</span><strong>Deeper worlds. Longer stories.</strong></div><small>Everything saves to You.</small></div>
     <div class="lobby-grid long-grid">
       <button class="lobby-tile lab-tile" data-goto="lab">
-        <span class="game-number">04</span><i class="game-glyph broadcast" aria-hidden="true">◉</i>
+        <span class="game-number">05</span><i class="game-glyph broadcast" aria-hidden="true">◉</i>
         <span class="lt-kicker">Match Lab</span>
         <strong>Any two teams, full broadcast</strong>
         <small>Live pitch · momentum · decisions · extra time</small>
         <span class="game-go">Enter the stadium <b>→</b></span>
       </button>
       <button class="lobby-tile" data-goto="myworldcup">
-        <span class="game-number">05</span><i class="game-glyph" aria-hidden="true">⌁</i>
+        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">⌁</i>
         <span class="lt-kicker">My World Cup</span>
         <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Build your tournament'}</strong>
         <small>${champion ? 'Champion crowned · archive the timeline' : simNext ? 'Your parallel tournament continues' : 'Pick winners · bend the bracket'}</small>
       </button>
       ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
-        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
+        <span class="game-number">07</span><i class="game-glyph" aria-hidden="true">◎</i>
         <span class="lt-kicker">Tonight's challenge</span>
         <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
         <small>Call it before ${esc(formatKickoffTime(challenge.epoch))} · earn insight</small>
       </button>` : `<button class="lobby-tile" data-goto="prediction">
-        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
+        <span class="game-number">07</span><i class="game-glyph" aria-hidden="true">◎</i>
         <span class="lt-kicker">Prediction Run</span>
         <strong>${predStats.right}/${predStats.total} correct</strong>
         <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
@@ -4505,7 +4772,8 @@ export function render(outlet) {
   const { real, play, nav, sims } = getState();
   const mode = nav.playMode;
   let body;
-  if (mode === 'lab') body = labRun ? labRunHTML(labRun) : labSetupHTML(play);
+  if (mode === 'shotlab') body = shotLabHTML(play);
+  else if (mode === 'lab') body = labRun ? labRunHTML(labRun) : labSetupHTML(play);
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
   else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
   else if (mode === 'shootout') body = rushHTML(play);
@@ -4521,6 +4789,7 @@ export function render(outlet) {
     id: 'play-mode', label: 'Play modes', value: mode,
     options: [
       { value: 'lobby', label: 'Lobby' },
+      { value: 'shotlab', label: 'Shot Lab', short: 'Shots' },
       { value: 'cup', label: 'Arcade Cup', short: 'Cup' },
       { value: 'lab', label: 'Match Lab', short: 'Lab' },
       { value: 'shootout', label: 'Penalty Rush', short: 'Rush' },
@@ -4533,9 +4802,17 @@ export function render(outlet) {
     </div>
     ${body}
   </div>`;
+  if (typeof document !== 'undefined') {
+    document.body.classList.toggle('shot-lab-active', mode === 'shotlab' && !!shotRun && !shotRun.over);
+  }
   outlet.querySelector('[data-segmented="play-mode"]').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-value]');
-    if (btn) { stopLabTimer(); if (labRun && !labRun.done) labRun = null; setPlayMode(btn.dataset.value); }
+    if (btn) {
+      stopLabTimer(); stopShotClock();
+      if (labRun && !labRun.done) labRun = null;
+      if (shotRun && !shotRun.over) shotRun = null;
+      setPlayMode(btn.dataset.value);
+    }
   });
   // Any surface can hand off to another mode (lobby tiles, prediction CTA).
   outlet.querySelectorAll('[data-goto]').forEach((b) => {
@@ -4565,7 +4842,8 @@ export function render(outlet) {
       window.requestAnimationFrame(center);
     }
   }
-  if (mode === 'lab') {
+  if (mode === 'shotlab') wireShotLab(outlet);
+  else if (mode === 'lab') {
     wireLab(outlet);
     // (re)bind the persistent pitch scene after any full render
     bindLabScene();

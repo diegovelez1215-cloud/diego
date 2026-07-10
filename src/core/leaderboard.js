@@ -381,14 +381,10 @@ export async function pushEligiblePicks(picks, isPreKickoff) {
 }
 
 export async function pushArcadeScore(ledger) {
-  const user = currentUser();
-  if (!user) return false;
-  try {
-    await rest('arcade_scores?on_conflict=user_id', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ ...arcadeRow(user.id, ledger), updated_at: new Date().toISOString() }),
-    });
-    return true;
-  } catch { return false; }
+  // Ranked Arcade is deliberately fail-closed. A browser-derived ledger is
+  // not authoritative enough for a worldwide table, even behind RLS. Keep
+  // this stable export for older callers, but never send the score. A future
+  // server route must own a signed seed and replay a versioned event log.
+  void ledger;
+  return false;
 }

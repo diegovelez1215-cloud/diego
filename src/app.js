@@ -42,7 +42,7 @@ function isAppleTouchSafari() {
 }
 
 function highAttentionPlay() {
-  return Boolean(document.querySelector('.lab.running:not(.done) .lab-stage'));
+  return Boolean(document.querySelector('.lab.running:not(.done) .lab-stage, .shot-lab.live'));
 }
 
 function pwaDismissed() {

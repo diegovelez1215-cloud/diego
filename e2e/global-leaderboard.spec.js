@@ -138,20 +138,19 @@ test.describe('Global World Cup Leaderboard', () => {
     await expect(page.locator('.lg-row')).toHaveCount(0);
   });
 
-  test('Arcade Ladder is global but separate: simulation-tagged, no official points', async ({ page }, testInfo) => {
+  test('Ranked Arcade fails closed until server replay validation exists', async ({ page }, testInfo) => {
     await gotoApp(page, {
       signedIn: true, board: BOARD, me: ME_OUTSIDE_TOP, arcade: ARCADE, profile: MY_PROFILE,
     });
     await openBoard(page, 'arcade');
-    await expect(page.locator('.ladder .sim-badge')).toHaveText('SIMULATION');
-    await expect(page.locator('.ladder')).toContainText('never');
-    await expect(page.locator('.ladder .lg-row')).toHaveCount(2);
-    await expect(page.locator('.ladder .lg-row').first()).toContainText('Ana');
-    await expect(page.locator('.ladder .lg-row').first()).toContainText('900');
+    await expect(page.locator('.ladder .sim-badge')).toHaveText('NO GLOBAL SUBMISSION');
+    await expect(page.locator('.ladder')).toContainText('Ranked Arcade is locked');
+    await expect(page.locator('.ladder')).toContainText('signed challenge');
+    await expect(page.locator('.ladder .lg-row')).toHaveCount(0);
     const text = await page.locator('.ladder').innerText();
-    expect(text).not.toContain('insight');      // official pick scoring never leaks in
-    expect(text.toLowerCase()).not.toContain('accuracy');
-    await screenshot(page, testInfo, 'global-arcade-ladder');
-    await expectNoHorizontalOverflow(page, expect, 'arcade ladder');
+    expect(text).not.toContain('Ana');
+    expect(text).not.toContain('900');
+    await screenshot(page, testInfo, 'ranked-arcade-locked');
+    await expectNoHorizontalOverflow(page, expect, 'ranked arcade lock');
   });
 });
