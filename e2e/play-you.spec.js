@@ -423,6 +423,7 @@ test.describe('Your Side', () => {
     await expect(page.locator('.fm-stage')).toBeVisible();
     await expect(page.locator('.fm-team.you')).toContainText('Brazil');
     await expect(page.locator('.fm-time-ribbon i')).toHaveCount(3);
+    await expect(page.locator('.fm-state span')).toHaveCount(4);
     await expect(page.locator('.fm-opt')).toHaveCount(3);
     await expect(page.locator('.fm-nerve')).toContainText(/All square|In control|On the edge/);
     await screenshot(page, testInfo, 'play-final-minute');
@@ -443,6 +444,7 @@ test.describe('Your Side', () => {
     // Penalty Rush wears the same side identity
     await openPlayMode(page, 'shootout');
     await expect(page.locator('.rush-side')).toContainText('Brazil');
+    await expect(page.locator('.rush-runup')).toHaveCount(3);
     await screenshot(page, testInfo, 'play-rush-side');
   });
 });

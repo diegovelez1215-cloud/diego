@@ -5,8 +5,17 @@ import {
   SOCCER_MODEL_VERSION,
   calibrateMatchup,
   expectedGoals,
+  soccerRatingEdge,
   simulateSoccerMatch,
 } from '../src/core/soccer-engine.js';
+
+test('short match windows share one bounded symmetric rating edge', () => {
+  const favorite = soccerRatingEdge('FRA', 'CUW');
+  assert.ok(favorite > 0 && favorite <= 0.75);
+  assert.equal(soccerRatingEdge('CUW', 'FRA'), -favorite);
+  assert.equal(soccerRatingEdge('SUI', 'SUI'), 0);
+  assert.ok(Math.abs(soccerRatingEdge({ code: 'A', baseStrength: 100 }, { code: 'B', baseStrength: 40 })) <= 0.75);
+});
 
 test('shared engine is replayable from one seed and exposes its rule version', () => {
   const input = { home: 'FRA', away: 'CUW', seed: 260711, matchImportance: 0.8 };

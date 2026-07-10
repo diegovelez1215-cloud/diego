@@ -184,6 +184,19 @@ test('Final Minute composure is bounded, deterministic, and reacts to the calls 
   assert.equal(calm.lastChoice.risk, 'calm');
 });
 
+test('Final Minute carries territory, fatigue, substitutes and cards across decisions', () => {
+  const run = createFinalMinute(19, 'USA', 'BRA');
+  const before = structuredClone(run.state);
+  finalMinuteDecide(run, 'hunt');
+  assert.ok(run.state.field > before.field);
+  assert.ok(run.state.fatigue > before.fatigue);
+  const subsBefore = run.state.subs;
+  finalMinuteDecide(run, 'fresh');
+  assert.equal(run.state.subs, Math.max(0, subsBefore - 1));
+  assert.ok(run.state.fatigue < 0.9);
+  assert.deepEqual(run.lastChoice.state, run.state);
+});
+
 test('invalid Final Minute calls are refused without burning the step', () => {
   const run = createFinalMinute(5, 'USA', 'BRA');
   assert.equal(finalMinuteDecide(run, 'nonsense'), null);

@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  RUSH_RUNUPS,
   RUSH_ZONES,
   createPenaltyRush,
   dailyGauntletSeed,
@@ -99,6 +100,18 @@ test('five target zones carry real risk and the read signal exposes only past ha
   assert.match(read.label, /leaning left/i);
   assert.ok(['full', 'side', 'wrong'].includes(run.kicks[0].read));
   assert.ok(['high reward', 'composed', 'brave'].includes(run.kicks[0].risk));
+});
+
+test('run-up rhythm changes a replayable duel without exposing the current target', () => {
+  assert.deepEqual(Object.keys(RUSH_RUNUPS), ['stutter', 'composed', 'power']);
+  const a = createPenaltyRush(81);
+  const b = createPenaltyRush(81);
+  a.runUp = 'stutter';
+  b.runUp = 'stutter';
+  assert.deepEqual(rushShoot(a, 'right'), rushShoot(b, 'right'));
+  assert.equal(a.kicks[0].runUp, 'stutter');
+  assert.ok(['left', 'hold', 'right'].includes(a.keeperTendency));
+  assert.ok(a.pressure > a.kicks[0].pressure, 'pressure carries into the next kick');
 });
 
 test('outcomes stay football-plausible across many seeds', () => {

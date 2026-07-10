@@ -56,13 +56,35 @@ function sanitize(obj) {
   return clean;
 }
 
+const PLAY_CATALOG_VERSION = 2;
+export function migratePlayState(value) {
+  const play = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const version = Number(play.catalogVersion) || 1;
+  if (version >= PLAY_CATALOG_VERSION) return play;
+  return {
+    ...play,
+    catalogVersion: PLAY_CATALOG_VERSION,
+    legacy: {
+      ...(play.legacy || {}),
+      catalogV1: {
+        migratedAt: new Date().toISOString(),
+        modeAliases: { shots: 'shotlab', rush: 'shootout', lab: 'lab', coach: 'coach', mycup: 'myworldcup', predict: 'prediction' },
+      },
+    },
+  };
+}
+
 // Sanitize on save AND on load: even a hand-crafted storage blob cannot carry
 // real-truth field names into memory.
 export function loadPrefs() { return sanitize(read(PREFS_KEY, {})); }
 export function savePrefs(prefs) { write(PREFS_KEY, sanitize(prefs)); }
 
-export function loadPlay() { return sanitize(read(PLAY_KEY, {})); }
-export function savePlay(play) { write(PLAY_KEY, sanitize(play)); }
+export function loadPlay() {
+  const migrated = migratePlayState(sanitize(read(PLAY_KEY, {})));
+  write(PLAY_KEY, migrated);
+  return migrated;
+}
+export function savePlay(play) { write(PLAY_KEY, sanitize(migratePlayState(play))); }
 
 export function loadSims() { const v = read(SIMS_KEY, { saved: [] }); return Array.isArray(v.saved) ? v : { saved: [] }; }
 export function saveSims(sims) { write(SIMS_KEY, { saved: Array.isArray(sims.saved) ? sims.saved.slice(0, 50) : [] }); }

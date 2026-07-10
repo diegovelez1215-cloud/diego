@@ -85,6 +85,17 @@ export function resolveTeamProfile(team, overrides = {}) {
   });
 }
 
+/** Shared relative-strength contract for short fictional match windows.
+ * Bounded and symmetric: tactical games may add explicit state modifiers,
+ * but cannot invent a separate team-quality scale or a user/AI advantage. */
+export function soccerRatingEdge(home, away, { scale = 40, limit = 0.75 } = {}) {
+  const homeStrength = resolveTeamProfile(home).baseStrength;
+  const awayStrength = resolveTeamProfile(away).baseStrength;
+  const safeScale = Math.max(1, Number(scale) || 40);
+  const bound = Math.max(0, Number(limit) || 0.75);
+  return round(clamp((homeStrength - awayStrength) / safeScale, -bound, bound));
+}
+
 function sideContext(raw = {}) {
   const tactic = TACTICS[raw.tactic] || TACTICS.balanced;
   const formation = FORMATIONS[raw.formation] || FORMATIONS['4-2-3-1'];

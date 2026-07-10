@@ -116,7 +116,12 @@ export async function openTournamentSection(page, section) {
 
 export async function openPlayMode(page, mode) {
   await tapTab(page, 'play');
-  await page.locator(`[data-segmented="play-mode"] [data-value="${mode}"]`).click();
+  const rail = page.locator(`[data-segmented="play-mode"] [data-value="${mode}"]`);
+  if (await rail.count()) await rail.click();
+  else {
+    await page.locator('[data-segmented="play-mode"] [data-value="lobby"]').click();
+    await page.locator(`[data-goto="${mode}"]:visible`).first().click();
+  }
 }
 
 export async function expectNoHorizontalOverflow(page, expect, label) {

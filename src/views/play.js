@@ -21,7 +21,8 @@ import { segmentedControl } from '../components/segmented-control.js';
 import { formatKickoffTime, formatDayKey, now } from '../core/time.js';
 import { esc } from '../components/match-row.js';
 import { celebrate, celebrateFrom } from '../components/celebrate.js';
-import { createSeededRng, simulateSoccerMatch } from '../core/soccer-engine.js';
+import { createSeededRng, simulateSoccerMatch, soccerRatingEdge } from '../core/soccer-engine.js';
+import { playRailModes } from '../core/play-catalog.js';
 import {
   SHOT_LAB_RULES,
   SHOT_TYPES,
@@ -2190,6 +2191,11 @@ function wireShotLab(outlet) {
    that lasts until the keeper finally wins. */
 
 export const RUSH_ZONES = ['top-left', 'left', 'centre', 'right', 'top-right'];
+export const RUSH_RUNUPS = Object.freeze({
+  stutter: { label: 'Stutter', accuracy: 0.96, deception: 0.15, pressure: -0.02, note: 'Late cue · smaller margin' },
+  composed: { label: 'Composed', accuracy: 1, deception: 0, pressure: 0.04, note: 'Clean contact · readable rhythm' },
+  power: { label: 'Power', accuracy: 0.9, deception: -0.03, pressure: -0.08, note: 'Less readable · more miss risk' },
+});
 const RUSH_ZONE_LABELS = {
   'top-left': 'top left', left: 'low left', centre: 'down the middle', right: 'low right', 'top-right': 'top right',
 };
@@ -2210,11 +2216,13 @@ export function dailyGauntletSeed(dateKey = localDayKey(), attempt = 0) {
 
 export function createPenaltyRush(seed = dailyGauntletSeed()) {
   const s = (seed >>> 0) || 1;
+  const keeperTendency = ['left', 'hold', 'right'][s % 3];
   return {
     seed: s,
     rng: mulberry32(s),
     kicks: [], goals: 0, sudden: false, over: false,
     aims: Object.fromEntries(RUSH_ZONES.map((zone) => [zone, 0])),
+    runUp: 'composed', keeperTendency, pressure: 0.18,
   };
 }
 
@@ -2223,12 +2231,15 @@ export function createPenaltyRush(seed = dailyGauntletSeed()) {
 function rushKeeperPick(run) {
   const total = RUSH_ZONES.reduce((sum, zone) => sum + (run.aims[zone] || 0), 0);
   const r = run.rng();
+  const tendencyZone = run.keeperTendency === 'left' ? 'left' : run.keeperTendency === 'right' ? 'right' : 'centre';
   if (total >= 2) {
     const fav = RUSH_ZONES.reduce((a, b) => ((run.aims[a] || 0) >= (run.aims[b] || 0) ? a : b));
-    if (r < (run.sudden ? 0.64 : 0.48)) return fav;
+    const deception = RUSH_RUNUPS[run.runUp]?.deception || 0;
+    if (r < (run.sudden ? 0.64 : 0.48) - deception) return fav;
     const rest = RUSH_ZONES.filter((z) => z !== fav);
     return rest[Math.min(rest.length - 1, Math.floor(run.rng() * rest.length))];
   }
+  if (r < 0.34) return tendencyZone;
   return RUSH_ZONES[Math.min(RUSH_ZONES.length - 1, Math.floor(r * RUSH_ZONES.length))];
 }
 
@@ -2255,17 +2266,21 @@ export function rushShoot(run, aim) {
   if (!run || run.over || !RUSH_ZONES.includes(aim)) return null;
   const keeper = rushKeeperPick(run);
   const profile = RUSH_ZONE_PROFILE[aim];
-  const onTarget = run.rng() < profile.accuracy;
+  const runUp = RUSH_RUNUPS[run.runUp] || RUSH_RUNUPS.composed;
+  const pressurePenalty = Math.max(0, (run.pressure || 0) - 0.55) * 0.16;
+  const onTarget = run.rng() < Math.max(0.55, profile.accuracy * runUp.accuracy - pressurePenalty);
   const exactRead = keeper === aim;
   const sameWing = RUSH_ZONE_WING[keeper] === RUSH_ZONE_WING[aim];
   const goalChance = exactRead
     ? Math.max(0.1, profile.readGoal - (run.sudden ? 0.06 : 0))
     : sameWing ? profile.wingGoal : 0.98;
-  const outcome = !onTarget ? 'post' : run.rng() < goalChance ? 'goal' : 'save';
+  const composure = Math.max(-0.08, Math.min(0.08, runUp.pressure - pressurePenalty));
+  const outcome = !onTarget ? 'post' : run.rng() < Math.max(0.08, Math.min(0.99, goalChance + composure)) ? 'goal' : 'save';
   run.aims[aim] += 1;
   const kick = {
     n: run.kicks.length + 1, aim, keeper, outcome, sudden: run.sudden,
     read: exactRead ? 'full' : sameWing ? 'side' : 'wrong', risk: profile.risk,
+    runUp: run.runUp, pressure: +(run.pressure || 0).toFixed(2),
   };
   run.kicks.push(kick);
   if (outcome === 'goal') run.goals += 1;
@@ -2275,6 +2290,7 @@ export function rushShoot(run, aim) {
     if (run.goals === 5) run.sudden = true;
     else run.over = true;
   }
+  run.pressure = Math.min(1, (run.pressure || 0.18) + (outcome === 'goal' ? 0.11 : 0.18) + (run.sudden ? 0.08 : 0));
   return kick;
 }
 
@@ -2385,6 +2401,7 @@ function rushHTML(play) {
   const side = currentSide(play);
   const target = Math.max(bestToday, (rec && rec.bestEver) || 0);
   const read = rushReadSignal(run);
+  const pressure = Math.round((run.pressure || 0) * 100);
   return `<section class="play-card rush${side ? ' has-side' : ''}" aria-label="Penalty Rush"${side ? ` style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}"` : ''}>
     <div class="rush-head">
       <div><h2 class="display">Penalty Rush</h2>
@@ -2397,6 +2414,13 @@ function rushHTML(play) {
       <span class="rush-chip"><b>${(rec && rec.bestEver) || 0}</b>best ever</span>
       <span class="rush-chip"><b>${(rec && rec.perfects) || 0}</b>perfect fives</span>
     </div>
+    ${!run.over ? `<div class="rush-duel" role="group" aria-label="Penalty psychology">
+      <span><small>Keeper tendency</small><b>${run.keeperTendency === 'hold' ? 'Holds the line' : `Favours ${run.keeperTendency}`}</b></span>
+      <span><small>Pressure</small><b>${pressure < 45 ? 'Settled' : pressure < 75 ? 'Building' : 'Sudden-death heat'}</b></span>
+    </div>
+    <div class="rush-runups" role="group" aria-label="Choose run-up rhythm">
+      ${Object.entries(RUSH_RUNUPS).map(([id, item]) => `<button class="rush-runup${run.runUp === id ? ' on' : ''}" data-rush-runup="${id}" aria-pressed="${run.runUp === id}"><strong>${item.label}</strong><small>${item.note}</small></button>`).join('')}
+    </div>` : ''}
     <div class="rush-stage${last ? ' ' + last.outcome : ''}${run.sudden && !run.over ? ' sudden' : ''}">
       <div class="rush-goalframe">
         <span class="rush-net" aria-hidden="true"></span>
@@ -2429,6 +2453,15 @@ function rushHTML(play) {
 }
 
 function wireRush(outlet) {
+  outlet.querySelectorAll('[data-rush-runup]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const run = ensureRushRun();
+      if (!run.over && RUSH_RUNUPS[b.dataset.rushRunup]) {
+        run.runUp = b.dataset.rushRunup;
+        repaintPlay();
+      }
+    });
+  });
   outlet.querySelectorAll('[data-rush-aim]').forEach((b) => {
     b.addEventListener('click', () => {
       const run = ensureRushRun();
@@ -2459,34 +2492,34 @@ function wireRush(outlet) {
    claims, nothing real at risk. */
 
 export const FM_SCENARIOS = [
-  { id: 'protect', name: 'Protect the lead', you: 1, them: 0, brief: 'You lead by one. Survive six minutes.' },
-  { id: 'edge', name: 'Find the winner', you: 1, them: 1, brief: 'Level game. One moment decides the night.' },
-  { id: 'rescue', name: 'Rescue the night', you: 0, them: 1, brief: 'One down. Chase it without dying twice.' },
+  { id: 'protect', name: 'Protect the lead', you: 1, them: 0, brief: 'You lead by one. Survive six minutes.', field: 38, fatigue: 0.62, cards: 2, subs: 1 },
+  { id: 'edge', name: 'Find the winner', you: 1, them: 1, brief: 'Level game. One moment decides the night.', field: 52, fatigue: 0.55, cards: 1, subs: 2 },
+  { id: 'rescue', name: 'Rescue the night', you: 0, them: 1, brief: 'One down. Chase it without dying twice.', field: 64, fatigue: 0.7, cards: 2, subs: 1 },
 ];
 
 export const FM_STEPS = [
   {
     clock: "88'", prompt: 'Six minutes left. Set the shape.',
     options: [
-      { id: 'shut', label: 'Shut it down', you: 0.5, them: 0.62, nerve: 0.1, risk: 'calm', icon: '▦', note: 'Pack the box · little counter threat' },
-      { id: 'hold', label: 'Hold our shape', you: 0.9, them: 0.9, nerve: 0.04, risk: 'balanced', icon: '◇', note: 'Stay connected · trust the structure' },
-      { id: 'hunt', label: 'Go hunting', you: 1.5, them: 1.4, nerve: -0.08, risk: 'bold', icon: '↑', note: 'Win it high · space behind' },
+      { id: 'shut', label: 'Shut it down', you: 0.5, them: 0.62, nerve: 0.1, field: -9, fatigue: 0.05, risk: 'calm', icon: '▦', note: 'Pack the box · little counter threat' },
+      { id: 'hold', label: 'Hold our shape', you: 0.9, them: 0.9, nerve: 0.04, field: 1, fatigue: 0.02, risk: 'balanced', icon: '◇', note: 'Stay connected · trust the structure' },
+      { id: 'hunt', label: 'Go hunting', you: 1.5, them: 1.4, nerve: -0.08, field: 11, fatigue: 0.08, cardRisk: 0.12, risk: 'bold', icon: '↑', note: 'Win it high · space behind' },
     ],
   },
   {
     clock: "90+1'", prompt: 'The board says five. Next call.',
     options: [
-      { id: 'restarts', label: 'Kill every restart', you: 0.55, them: 0.6, nerve: 0.1, risk: 'calm', icon: '◷', note: 'Slow the night · defend the next ball' },
-      { id: 'fresh', label: 'Fresh legs wide', you: 1.15, them: 0.95, nerve: 0.04, risk: 'balanced', icon: '↗', note: 'Attack tired legs · keep your rest defence' },
-      { id: 'overload', label: 'Overload the left', you: 1.45, them: 1.3, nerve: -0.08, risk: 'bold', icon: '≋', note: 'Create a 3v2 · expose the far side' },
+      { id: 'restarts', label: 'Kill every restart', you: 0.55, them: 0.6, nerve: 0.1, field: -5, fatigue: 0.01, risk: 'calm', icon: '◷', note: 'Slow the night · defend the next ball' },
+      { id: 'fresh', label: 'Fresh legs wide', you: 1.15, them: 0.95, nerve: 0.04, field: 8, fatigue: -0.16, useSub: true, risk: 'balanced', icon: '↗', note: 'Use a sub · attack tired legs' },
+      { id: 'overload', label: 'Overload the left', you: 1.45, them: 1.3, nerve: -0.08, field: 13, fatigue: 0.09, cardRisk: 0.08, risk: 'bold', icon: '≋', note: 'Create a 3v2 · expose the far side' },
     ],
   },
   {
     clock: "90+4'", prompt: 'Last action of the night.',
     options: [
-      { id: 'wall', label: 'Everyone behind the ball', you: 0.4, them: 0.55, nerve: 0.12, risk: 'calm', icon: '▰', note: 'One last block · no outlet' },
-      { id: 'break', label: 'Spring one counter', you: 1.1, them: 0.85, nerve: 0.02, risk: 'balanced', icon: '➜', note: 'Keep one runner alive · choose the pass' },
-      { id: 'forward', label: 'Send everyone forward', you: 1.7, them: 1.6, nerve: -0.1, risk: 'bold', icon: '⚡', note: 'Maximum bodies · one clearance can end it' },
+      { id: 'wall', label: 'Everyone behind the ball', you: 0.4, them: 0.55, nerve: 0.12, field: -12, fatigue: 0.04, risk: 'calm', icon: '▰', note: 'One last block · no outlet' },
+      { id: 'break', label: 'Spring one counter', you: 1.1, them: 0.85, nerve: 0.02, field: 7, fatigue: 0.04, risk: 'balanced', icon: '➜', note: 'Keep one runner alive · choose the pass' },
+      { id: 'forward', label: 'Send everyone forward', you: 1.7, them: 1.6, nerve: -0.1, field: 16, fatigue: 0.12, cardRisk: 0.1, risk: 'bold', icon: '⚡', note: 'Maximum bodies · one clearance can end it' },
     ],
   },
 ];
@@ -2499,15 +2532,17 @@ export function dailyFinalMinuteSeed(dateKey = localDayKey(), attempt = 0) {
 
 export function createFinalMinute(seed, you, opp) {
   const s = (seed >>> 0) || 1;
+  const scenario = FM_SCENARIOS[s % FM_SCENARIOS.length];
   return {
     seed: s,
     rng: mulberry32(s),
     you, opp,
-    scenario: FM_SCENARIOS[s % FM_SCENARIOS.length],
-    gYou: FM_SCENARIOS[s % FM_SCENARIOS.length].you,
-    gThem: FM_SCENARIOS[s % FM_SCENARIOS.length].them,
+    scenario,
+    gYou: scenario.you,
+    gThem: scenario.them,
     step: 0, choices: [], events: [], over: false, result: null,
     nerve: 0, lastChoice: null,
+    state: { field: scenario.field, fatigue: scenario.fatigue, cards: scenario.cards, subs: scenario.subs, possession: 50 },
   };
 }
 
@@ -2528,10 +2563,19 @@ export function finalMinuteDecide(run, optionId) {
   const opt = step && step.options.find((o) => o.id === optionId);
   if (!opt) return null;
   run.choices.push(optionId);
-  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40;
+  const state = run.state || { field: 50, fatigue: 0.55, cards: 1, subs: 1, possession: 50 };
+  if (opt.useSub && state.subs > 0) state.subs -= 1;
+  state.field = Math.max(8, Math.min(92, state.field + (opt.field || 0)));
+  state.fatigue = Math.max(0.2, Math.min(0.98, state.fatigue + (opt.fatigue || 0)));
+  if (opt.cardRisk && run.rng() < opt.cardRisk) state.cards += 1;
+  state.possession = Math.max(28, Math.min(72, 46 + (state.field - 50) * 0.28 - state.fatigue * 8));
+  const edge = soccerRatingEdge(run.you, run.opp);
   const nerveEdge = (run.nerve || 0) * 0.1;
-  const youRate = Math.max(0.03, 0.17 * (1 + edge + nerveEdge) * opt.you);
-  const themRate = Math.max(0.03, 0.17 * (1 - edge - nerveEdge) * opt.them);
+  const fieldEdge = (state.field - 50) / 190;
+  const fatigueDrag = Math.max(0, state.fatigue - 0.5) * 0.22;
+  const cardDrag = Math.max(0, state.cards - 2) * 0.025;
+  const youRate = Math.max(0.03, 0.17 * (1 + edge + nerveEdge + fieldEdge - fatigueDrag - cardDrag) * opt.you);
+  const themRate = Math.max(0.03, 0.17 * (1 - edge - nerveEdge - fieldEdge + fatigueDrag + cardDrag) * opt.them);
   const minutes = FM_STEP_MINUTES[run.step];
   const resolved = [];
   for (let w = 0; w < 3; w++) {
@@ -2554,7 +2598,7 @@ export function finalMinuteDecide(run, optionId) {
   }
   const swing = resolved.reduce((sum, event) => sum + (event.side === 'you' ? 1 : -1) * (event.type === 'goal' ? 0.28 : 0.06), 0);
   run.nerve = Math.max(-1, Math.min(1, (run.nerve || 0) + (opt.nerve || 0) + swing));
-  run.lastChoice = { id: opt.id, label: opt.label, risk: opt.risk, note: opt.note };
+  run.lastChoice = { id: opt.id, label: opt.label, risk: opt.risk, note: opt.note, state: { ...state } };
   run.events.push(...resolved);
   run.step += 1;
   if (run.step >= FM_STEPS.length) {
@@ -2661,11 +2705,18 @@ function fmHTML(play) {
   const verdict = run.over ? fmVerdictCopy(run) : null;
   const nerve = fmNerveModel(run);
   const shape = run.lastChoice ? run.lastChoice.id : 'hold';
+  const matchState = run.state || { field: 50, fatigue: 0, cards: 0, subs: 0, possession: 50 };
   return `<section class="play-card fm${run.over ? ` over r-${run.result.toLowerCase()}` : ''}" aria-label="Final Minute" style="--side:${sideColor}">
     <div class="rush-head">
       <div><h2 class="display">Final Minute</h2>
       <p class="play-sub">${esc(run.scenario.name)} · ${esc(run.scenario.brief)} Local scenario only — never a real result.</p></div>
       <span class="sim-badge">SIMULATION</span>
+    </div>
+    <div class="fm-state" role="group" aria-label="Carried match state">
+      <span><small>Territory</small><b>${Math.round(matchState.field)}m</b></span>
+      <span><small>Fatigue</small><b>${Math.round(matchState.fatigue * 100)}%</b></span>
+      <span><small>Subs</small><b>${matchState.subs}</b></span>
+      <span><small>Cards</small><b>${matchState.cards}</b></span>
     </div>
     <div class="fm-stage">
       <div class="fm-time-ribbon" aria-label="Scenario progress">
@@ -2850,7 +2901,7 @@ export function coachCallDecide(run, optionId) {
   if (!opt) return null;
   run.choices.push(optionId);
   const plan = coachPlanFit(run.you, optionId);
-  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40 + (run.matchup.edge || 0) + plan.edge;
+  const edge = soccerRatingEdge(run.you, run.opp) + (run.matchup.edge || 0) + plan.edge;
   const youRate = Math.max(0.04, 0.16 * (1 + edge) * opt.you);
   const themRate = Math.max(0.04, 0.16 * (1 - edge) * opt.them);
   const minutes = CC_WINDOW_MINUTES[run.step];
@@ -3215,6 +3266,13 @@ function coachHTML(play) {
       <b class="cc-route"></b>
       <em>${run.lastChoice ? `${run.lastChoice.planFit ? 'Identity fit' : 'Tactical pivot'} · ${esc(run.lastChoice.label)}` : 'The shape responds to your call'}</em>
     </div>` : ''}
+    ${run.lastChoice && run.lastImpact ? `<aside class="cc-explanation" role="status" aria-label="Tactical explanation">
+      <span>${run.lastChoice.planFit ? 'Why it fit' : 'Tradeoff accepted'}</span>
+      <strong>${esc(run.lastChoice.label)}</strong>
+      <p>${run.lastChoice.planFit ? `The plan matched ${esc(teamSimStyle(run.you))}, so movements arrived in familiar lanes.` : `The plan moved away from ${esc(teamSimStyle(run.you))} to answer this score state.`}
+      ${run.lastImpact.goalsFor ? ` It produced ${run.lastImpact.goalsFor} goal${run.lastImpact.goalsFor === 1 ? '' : 's'}.` : run.lastImpact.chancesFor ? ` It created ${run.lastImpact.chancesFor} clear opening${run.lastImpact.chancesFor === 1 ? '' : 's'}.` : ' It created no clean opening in that window.'}
+      ${run.lastImpact.goalsAgainst ? ` The exposed space cost ${run.lastImpact.goalsAgainst} goal${run.lastImpact.goalsAgainst === 1 ? '' : 's'}.` : ' The defensive tradeoff held.'}</p>
+    </aside>` : ''}
     <ol class="lab-feed fm-feed" aria-live="polite" aria-label="Match events">
       ${run.events.slice(-6).map((e) => `<li class="lab-ev ${e.type === 'goal' ? 'goal' : 'chance'} fm-${e.side}"><span class="lab-ev-min">${esc(e.min)}</span><span class="lab-ev-ic">${e.type === 'goal' ? '●' : '○'}</span>${esc(e.text)}</li>`).join('')}
     </ol>
@@ -4348,7 +4406,11 @@ function sideHeroHTML(play) {
    side with no run gets today's invitation. */
 function cupStripHTML(play) {
   const side = currentSide(play);
-  if (!side) return '';
+  if (!side) return `<button class="cup-strip start unclaimed" data-goto="cup">
+    <span class="lt-kicker">Arcade Cup · Campaign</span>
+    <strong>Four stops. One trophy.</strong>
+    <small>Choose your side, then run the road</small>
+  </button>`;
   const cup = play.arcadeCup && play.arcadeCup.side === side.code ? play.arcadeCup : null;
   if (cup && !cup.done) {
     const next = cupNextStop(cup);
@@ -4784,20 +4846,10 @@ export function render(outlet) {
   outlet.innerHTML = `<div class="view play-view">
     <header class="view-head play-head"><div><p class="view-kicker gold">The Stadium Arcade</p><h1>Play</h1>
       <p class="view-sub">Pick a side. Make the call. Build the story. Local simulations only.</p></div></header>
-    <div class="mode-rail">
+    <div class="mode-rail" aria-label="Play modes">
     ${segmentedControl({
     id: 'play-mode', label: 'Play modes', value: mode,
-    options: [
-      { value: 'lobby', label: 'Lobby' },
-      { value: 'shotlab', label: 'Shot Lab', short: 'Shots' },
-      { value: 'cup', label: 'Arcade Cup', short: 'Cup' },
-      { value: 'lab', label: 'Match Lab', short: 'Lab' },
-      { value: 'shootout', label: 'Penalty Rush', short: 'Rush' },
-      { value: 'finalminute', label: 'Final Minute', short: "90'+" },
-      { value: 'coach', label: "Coach's Call", short: 'Coach' },
-      { value: 'myworldcup', label: 'My World Cup', short: 'My Cup' },
-      { value: 'prediction', label: 'Prediction Run', short: 'Predict' },
-    ],
+    options: playRailModes(mode).map(({ id, label }) => ({ value: id, label })),
   })}
     </div>
     ${body}
@@ -4805,7 +4857,8 @@ export function render(outlet) {
   if (typeof document !== 'undefined') {
     document.body.classList.toggle('shot-lab-active', mode === 'shotlab' && !!shotRun && !shotRun.over);
   }
-  outlet.querySelector('[data-segmented="play-mode"]').addEventListener('click', (e) => {
+  const modeTabs = outlet.querySelector('[data-segmented="play-mode"]');
+  modeTabs.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-value]');
     if (btn) {
       stopLabTimer(); stopShotClock();
@@ -4813,6 +4866,17 @@ export function render(outlet) {
       if (shotRun && !shotRun.over) shotRun = null;
       setPlayMode(btn.dataset.value);
     }
+  });
+  modeTabs.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const tabs = [...modeTabs.querySelectorAll('[data-value]')];
+    const current = Math.max(0, tabs.indexOf(document.activeElement));
+    const next = e.key === 'Home' ? 0
+      : e.key === 'End' ? tabs.length - 1
+        : (current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    e.preventDefault();
+    tabs[next].focus();
+    tabs[next].click();
   });
   // Any surface can hand off to another mode (lobby tiles, prediction CTA).
   outlet.querySelectorAll('[data-goto]').forEach((b) => {
@@ -4833,7 +4897,13 @@ export function render(outlet) {
     railEl.addEventListener('scroll', hints, { passive: true });
     const center = () => {
       if (activeChip) {
-        railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+        const pad = 10;
+        const left = activeChip.offsetLeft;
+        const right = left + activeChip.offsetWidth;
+        const viewLeft = railEl.scrollLeft + pad;
+        const viewRight = railEl.scrollLeft + railEl.clientWidth - pad;
+        if (left < viewLeft) railEl.scrollLeft = Math.max(0, left - pad);
+        else if (right > viewRight) railEl.scrollLeft = Math.max(0, right - railEl.clientWidth + pad);
       }
       hints();
     };

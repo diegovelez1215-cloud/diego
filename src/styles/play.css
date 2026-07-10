@@ -2640,3 +2640,64 @@ body.shot-lab-active .outlets { padding-bottom:max(var(--sp-5),env(safe-area-ins
 .slate-card small { color: var(--ink-3); font-size: 0.64rem; }
 .slate-card.called { border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
 .slate-card.called small { color: var(--gold-ink); font-weight: var(--w-bold); }
+.rush-duel,
+.fm-state {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 12px 0;
+  border-block: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.12);
+}
+.rush-duel span,
+.fm-state span {
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgba(5,16,23,.88);
+}
+.rush-duel small,
+.fm-state small {
+  display: block;
+  color: rgba(242,246,255,.66);
+  font-size: 10px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.rush-duel b,
+.fm-state b { display: block; margin-top: 3px; color: #fff5c6; font-size: 13px; }
+.rush-runups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 7px;
+  margin: 10px 0 14px;
+}
+.rush-runup {
+  min-height: 54px;
+  padding: 9px 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 5px;
+  color: #f2f6ff;
+  background: rgba(5,16,23,.72);
+  text-align: left;
+}
+.rush-runup strong,
+.rush-runup small { display: block; }
+.rush-runup small { margin-top: 3px; color: rgba(242,246,255,.62); font-size: 9px; line-height: 1.25; }
+.rush-runup.on { border-color: #ecd7a2; background: rgba(236,215,162,.12); box-shadow: inset 0 -2px #ecd7a2; }
+.rush-runup:focus-visible { outline: 3px solid #fff5c6; outline-offset: 2px; }
+.fm-state { grid-template-columns: repeat(4, minmax(0,1fr)); margin-top: 0; }
+.fm-state span { text-align: center; padding-inline: 6px; }
+.cc-explanation {
+  margin: 12px 0;
+  padding: 14px;
+  border-left: 3px solid var(--side, #ecd7a2);
+  background: rgba(5,16,23,.72);
+}
+.cc-explanation > span { color: #ecd7a2; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.cc-explanation strong { display: block; margin-top: 3px; color: #f2f6ff; }
+.cc-explanation p { margin: 7px 0 0; color: rgba(242,246,255,.78); font-size: 12px; line-height: 1.45; }
+
+@media (max-width: 350px) {
+  .rush-runups { grid-template-columns: 1fr; }
+  .rush-runup { min-height: 46px; }
+}
