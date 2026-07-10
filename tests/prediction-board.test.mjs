@@ -77,5 +77,18 @@ test('the pick lands only in the whitelisted Play namespace', () => {
   for (const key of ['fixtures', 'standings', 'results', 'scores']) {
     assert.ok(!(key in stored), `no official truth smuggled: ${key}`);
   }
+});
+
+test('the lobby carries the rank strip and Tonight\'s Slate, and the slate knows the call', () => {
+  setPlayMode('lobby');
+  play.render(outlet);
+  assert.ok(outlet.querySelector('.rank-strip'), 'terrace ladder in the lobby');
+  assert.match(outlet.querySelector('.rank-strip').textContent, /Sunday League/, 'fresh rank shows the first rung');
+  const rail = outlet.querySelector('.slate-rail');
+  assert.ok(rail, 'Tonight\'s Slate renders when real fixtures are callable');
+  const cards = rail.querySelectorAll('.slate-card');
+  assert.ok(cards.length >= 1, 'slate has fixture cards');
+  for (const c of cards) assert.equal(c.dataset.goto, 'prediction', 'every card deep-links into the board');
+  assert.ok(rail.querySelector('.slate-card.called'), 'the sealed call from earlier is marked on the slate');
   setClock(null);
 });

@@ -3172,6 +3172,34 @@ function wireCup(outlet) {
 // Arcade Points are a private game score for local progression — game
 // progression only, never money.
 
+/* The terrace ladder: a rank derived live from Arcade Points. Pure game
+   progression — no money, no purchases, nothing stored beyond the points
+   that already exist. Climbing it is the whole reward. */
+export const ARCADE_RANKS = [
+  { at: 0, name: 'Sunday League' },
+  { at: 120, name: 'Casual' },
+  { at: 300, name: 'Contender' },
+  { at: 600, name: 'Manager Material' },
+  { at: 1000, name: 'Tactician' },
+  { at: 1600, name: 'Arcade Legend' },
+];
+
+export function arcadeRank(points) {
+  const p = Math.max(0, Number(points) || 0);
+  let tier = 0;
+  for (let i = 0; i < ARCADE_RANKS.length; i++) if (p >= ARCADE_RANKS[i].at) tier = i;
+  const cur = ARCADE_RANKS[tier];
+  const next = ARCADE_RANKS[tier + 1] || null;
+  const progress = next ? Math.min(1, Math.max(0, (p - cur.at) / (next.at - cur.at))) : 1;
+  return {
+    tier,
+    name: cur.name,
+    points: p,
+    progress,
+    next: next ? { name: next.name, at: next.at, need: next.at - p } : null,
+  };
+}
+
 /** Official leaderboard points — settled ONLY from validated official results.
     Derived live, never stored, idempotent: the same official truth always
     yields the same total, so duplicate settlement cannot duplicate points. */
@@ -3962,6 +3990,30 @@ function formDots(form) {
   return form.map((f) => `<i class="form-dot ${f === 'W' ? 'w' : 'l'}" aria-label="${f === 'W' ? 'Win' : 'Loss'}"></i>`).join('');
 }
 
+/* Tonight's Slate: the real fixtures you can still call, right in the lobby.
+   Reads the same validated overlay Prediction Run uses — display only, one
+   tap deep-links into the board. Nothing here mutates official state. */
+function slateHTML(overlay, play) {
+  const picks = play.predictions?.picks || {};
+  const fx = predictableFixtures(overlay).slice(0, 6);
+  if (!fx.length) return '';
+  const called = fx.filter((f) => picks[f.id]).length;
+  return `<div class="slate" aria-label="Tonight's slate — real fixtures to call">
+    <div class="arcade-section-head"><div><span>Tonight&rsquo;s slate</span><strong>Real fixtures. Your calls.</strong></div><small>${called ? `${called}/${fx.length} called` : 'Settled only by official results.'}</small></div>
+    <div class="slate-rail" tabindex="0" aria-label="Upcoming fixtures. Scroll horizontally.">
+      ${fx.map((f) => {
+    const s = overlay.slots.get(f.id);
+    const p = picks[f.id];
+    return `<button class="slate-card${p ? ' called' : ''}" data-goto="prediction" style="--hc:${TEAM_COLORS[s.home] || 'var(--gold)'};--ac:${TEAM_COLORS[s.away] || 'var(--gold)'}">
+        <span class="slate-flags" aria-hidden="true"><i>${teamFlag(s.home)}</i><em>v</em><i>${teamFlag(s.away)}</i></span>
+        <strong class="slate-tie">${esc(teamName(s.home))} v ${esc(teamName(s.away))}</strong>
+        <small>${p ? '✓ Called — see your stub' : esc(formatKickoffTime(f.epoch)) + ' · call it'}</small>
+      </button>`;
+  }).join('')}
+    </div>
+  </div>`;
+}
+
 // Side picker sheet state — module-local UI state, discarded on navigation.
 let sidePickerOpen = false;
 
@@ -4118,6 +4170,17 @@ function lobbyHTML(overlay, play, sims) {
       <div class="lm-stat"><span class="lm-form">${formDots(ledger.form)}</span><span>Lab form</span></div>
       <div class="lm-stat"><strong>${ledger.streak >= 2 ? '🔥' + ledger.streak : ledger.streak}</strong><span>Win streak</span></div>
     </div>
+    ${(() => {
+    const rank = arcadeRank(ledger.points);
+    return `<div class="rank-strip${rank.next ? '' : ' topped'}" role="group" aria-label="Arcade rank">
+      <div class="rank-row">
+        <span class="rank-kicker">Arcade rank</span>
+        <strong class="display rank-name">${esc(rank.name)}</strong>
+      </div>
+      <div class="rank-bar" aria-hidden="true"><b style="width:${Math.round(rank.progress * 100)}%"></b></div>
+      <small>${rank.next ? `${rank.next.need} points to ${esc(rank.next.name)}` : 'Top of the terraces — defend it'}</small>
+    </div>`;
+  })()}
 
     ${!side ? `<button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
       <span class="lk-label">Tonight’s Showdown</span>
@@ -4126,6 +4189,8 @@ function lobbyHTML(overlay, play, sims) {
       <span class="lk-note">Daily featured simulation · not a live fixture</span>
     </button>` : ''}
     ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} ${last.result === 'W' ? 'Defend the win' : last.result === 'L' ? 'Answer the defeat' : 'Run it back'} <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
+
+    ${slateHTML(overlay, play)}
 
     <div class="arcade-section-head"><div><span>Quick play</span><strong>One tap. One decision loop.</strong></div><small>Rules and risk are shown before every call.</small></div>
     <button class="lobby-rush" data-goto="shootout">
@@ -4477,12 +4542,23 @@ export function render(outlet) {
     b.addEventListener('click', () => setPlayMode(b.dataset.goto));
   });
   // keep the active mode chip in view on the rail — after layout, so the
-  // measurement is real (a zero-width rail centred nothing on first paint)
+  // measurement is real (a zero-width rail centred nothing on first paint) —
+  // and keep the edge chevrons honest about where the rail actually is
+  const rail = outlet.querySelector('.mode-rail');
   const railEl = outlet.querySelector('.mode-rail .segmented');
   const activeChip = railEl && railEl.querySelector('.seg-btn.active');
-  if (railEl && activeChip) {
+  if (rail && railEl) {
+    const hints = () => {
+      const max = railEl.scrollWidth - railEl.clientWidth;
+      rail.dataset.start = railEl.scrollLeft <= 4 ? '1' : '0';
+      rail.dataset.end = railEl.scrollLeft >= max - 4 ? '1' : '0';
+    };
+    railEl.addEventListener('scroll', hints, { passive: true });
     const center = () => {
-      railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+      if (activeChip) {
+        railEl.scrollLeft = Math.max(0, activeChip.offsetLeft - railEl.clientWidth / 2 + activeChip.offsetWidth / 2);
+      }
+      hints();
     };
     center();
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {

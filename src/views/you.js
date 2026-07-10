@@ -14,7 +14,7 @@ import {
 import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
 import {
-  gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry,
+  gradePredictions, arcadeLedger, arcadeRank, achievementState, pickLockedAtKickoff, replayLabEntry,
   currentSide, sideRecordFor, openSidePicker, LAB_TAG_LABELS, CUP_STOPS,
   cupRunStory, cupSeasonSummary,
 } from './play.js';
@@ -343,28 +343,19 @@ function picksBoardHTML(state) {
 
 /* ================= Arcade board rendering ================= */
 
-const TIERS = [
-  ['Sunday League', 0], ['Casual', 120], ['Contender', 300],
-  ['Manager Material', 600], ['Tactician', 1000], ['Arcade Legend', 1600],
-];
-
 function tierCardHTML(state) {
   const { play, real, sims } = state;
   const ledger = arcadeLedger(play, real.overlay, sims);
-  let tier = 0;
-  for (let i = 0; i < TIERS.length; i++) if (ledger.points >= TIERS[i][1]) tier = i;
-  const next = TIERS[tier + 1] || null;
-  const prevFloor = TIERS[tier][1];
-  const pct = next ? Math.min(100, Math.round(((ledger.points - prevFloor) / (next[1] - prevFloor)) * 100)) : 100;
+  const rank = arcadeRank(ledger.points);
   const ARCADE_ACH = new Set(['extra-time-merchant', 'road-builder', 'lab-upsetter']);
   const ach = achievementState().filter((a) => a.on && ARCADE_ACH.has(a.id));
   return `<div class="ladder-tier">
       <div class="ladder-now">
-        <strong class="display">${esc(TIERS[tier][0])}</strong>
+        <strong class="display">${esc(rank.name)}</strong>
         <span>${ledger.points} Arcade Points</span>
       </div>
-      <div class="ladder-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
-      <span class="ladder-next">${next ? `${next[1] - ledger.points} points to ${esc(next[0])}` : 'Top of the ladder'}</span>
+      <div class="ladder-bar" aria-hidden="true"><i style="width:${Math.round(rank.progress * 100)}%"></i></div>
+      <span class="ladder-next">${rank.next ? `${rank.next.need} points to ${esc(rank.next.name)}` : 'Top of the ladder'}</span>
     </div>
     <div class="ladder-grid" role="group" aria-label="Arcade record">
       <span class="ladder-cell"><b>${ledger.wins}W–${ledger.played - ledger.wins}L</b><small>Match Lab</small></span>
@@ -437,13 +428,12 @@ function museumHeroHTML(state) {
   const ledger = arcadeLedger(play, real.overlay, sims);
   const stats = gradePredictions(play.predictions?.picks || {}, real.overlay);
   const savedCount = (sims.saved || []).length;
-  let tier = 0;
-  for (let i = 0; i < TIERS.length; i++) if (ledger.points >= TIERS[i][1]) tier = i;
+  const rank = arcadeRank(ledger.points);
   const earned = achievementState().filter((a) => a.on);
   const hasAnything = ledger.played || stats.total || savedCount || Object.keys(play.predictions?.picks || {}).length;
   return `<section class="you-card you-hero" aria-label="Your tournament in numbers">
     <p class="bd-kicker">Kept on this phone</p>
-    <h2 class="display">${esc(TIERS[tier][0])}</h2>
+    <h2 class="display">${esc(rank.name)}</h2>
     <p class="you-hero-sub">${hasAnything
     ? 'Your World Cup, in numbers. Everything here is yours and stays replayable after the final.'
     : 'Your World Cup scrapbook starts with one call or one showdown — everything you do is kept here.'}</p>
