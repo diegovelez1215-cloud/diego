@@ -15,6 +15,7 @@ import {
   currentSide,
   dailyFinalMinuteSeed,
   finalMinuteDecide,
+  fmNerveModel,
   fmRecordAfter,
   labPerspective,
   labPerspectiveResult,
@@ -167,6 +168,20 @@ test('Final Minute calls genuinely matter: calm and chaos diverge across seeds',
     if (calm.result !== chaos.result || calm.gYou + calm.gThem !== chaos.gYou + chaos.gThem) diverged++;
   }
   assert.ok(diverged >= 30, `tactics changed the night in ${diverged}/120 seeds`);
+});
+
+test('Final Minute composure is bounded, deterministic, and reacts to the calls and events', () => {
+  const calm = createFinalMinute(19, 'USA', 'BRA');
+  finalMinuteDecide(calm, 'shut');
+  const a = fmNerveModel(calm);
+  assert.ok(a.nerve >= -1 && a.nerve <= 1);
+  assert.ok(a.pct >= 0 && a.pct <= 100);
+  assert.equal(typeof a.label, 'string');
+  const replay = createFinalMinute(19, 'USA', 'BRA');
+  finalMinuteDecide(replay, 'shut');
+  assert.deepEqual(fmNerveModel(replay), a);
+  assert.equal(calm.lastChoice.id, 'shut');
+  assert.equal(calm.lastChoice.risk, 'calm');
 });
 
 test('invalid Final Minute calls are refused without burning the step', () => {

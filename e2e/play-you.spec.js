@@ -247,6 +247,9 @@ test.describe('Match Lab', () => {
     await gotoApp(page);
     const heroBefore = await page.locator('.score-stage').innerText();
     await openPlayMode(page, 'lab');
+    await expect(page.locator('.lab-dna-row')).toHaveCount(3);
+    await expect(page.locator('.lab-approach')).toHaveCount(4);
+    await expect(page.locator('.lab-dna')).toContainText('never an official rating');
     await screenshot(page, testInfo, 'play-lab-setup');
     await page.locator('.lab-approach[data-approach="press"]').click();
     await page.locator('#lab-kickoff').click();
@@ -277,8 +280,12 @@ test.describe('Penalty Rush', () => {
     const heroBefore = await page.locator('.score-stage').innerText();
     await openPlayMode(page, 'shootout');
     await expect(page.locator('.rush-stage')).toBeVisible();
-    await expect(page.locator('.rush-aim')).toHaveCount(3);
+    await expect(page.locator('.rush-aim')).toHaveCount(5);
+    await expect(page.locator('.rush-goalframe .rush-aim')).toHaveCount(5);
+    await expect(page.locator('[data-rush-aim="top-left"]')).toContainText('high reward');
+    await expect(page.locator('.rush-readout')).toContainText('No pattern yet');
     await expect(page.locator('.rush-callout')).toContainText('Pick your corner');
+    await screenshot(page, testInfo, 'play-penalty-rush-targets');
     const aims = ['left', 'centre', 'right', 'left', 'right'];
     for (const aim of aims) {
       await page.locator(`[data-rush-aim="${aim}"]`).click();
@@ -357,6 +364,9 @@ test.describe('Your Side', () => {
     await page.locator('#side-open').click();
     await expect(page.locator('.side-grid')).toBeVisible();
     await expect(page.locator('[data-side-pick]')).toHaveCount(48);
+    await page.locator('#side-search').fill('usa');
+    await expect(page.locator('#side-search-status')).toHaveText('1 team found');
+    await expect(page.locator('.side-team:visible')).toHaveCount(1);
     await screenshot(page, testInfo, 'play-side-picker');
     await page.locator('[data-side-pick="USA"]').click();
     await expect(page.locator('.side-hero.claimed')).toContainText('USA');
@@ -412,6 +422,9 @@ test.describe('Your Side', () => {
     await openPlayMode(page, 'finalminute');
     await expect(page.locator('.fm-stage')).toBeVisible();
     await expect(page.locator('.fm-team.you')).toContainText('Brazil');
+    await expect(page.locator('.fm-time-ribbon i')).toHaveCount(3);
+    await expect(page.locator('.fm-opt')).toHaveCount(3);
+    await expect(page.locator('.fm-nerve')).toContainText(/All square|In control|On the edge/);
     await screenshot(page, testInfo, 'play-final-minute');
     for (let i = 0; i < 3; i++) {
       await page.locator('[data-fm-choice]').first().click();
@@ -458,6 +471,10 @@ test.describe('Arcade Cup', () => {
     await page.locator('[data-cup-stop="call"]').first().click();
     await expect(page.locator('.play-card.cc')).toBeVisible();
     await expect(page.locator('.cc-matchup')).toBeVisible();
+    await expect(page.locator('.cc-board')).toBeVisible();
+    await expect(page.locator('.cc-opt')).toHaveCount(3);
+    await expect(page.locator('.cc-opt.identity-fit')).not.toHaveCount(0);
+    await screenshot(page, testInfo, 'play-coach-call-board');
     for (let i = 0; i < 2; i++) await page.locator('[data-cc-choice]').first().click();
     await expect(page.locator('.fm-verdict strong')).toBeVisible();
     await expect(page.locator('.cup-advance')).toBeVisible();

@@ -77,10 +77,10 @@ function grugLine(rng) { return GRUG[Math.floor(rng() * GRUG.length)]; }
 /* ================= Match Lab ================= */
 
 const APPROACHES = {
-  balanced: { label: 'Balanced', atk: 1.0, def: 1.0, blurb: 'trust the plan' },
-  press: { label: 'All-out press', atk: 1.3, def: 0.78, blurb: 'chaos, invited' },
-  counter: { label: 'Counter', atk: 0.92, def: 1.15, blurb: 'spring the trap' },
-  fortress: { label: 'Fortress', atk: 0.72, def: 1.35, blurb: 'nothing gets through' },
+  balanced: { label: 'Balanced', atk: 1.0, def: 1.0, blurb: 'trust the plan', icon: '◇', effect: 'Control + transition' },
+  press: { label: 'All-out press', atk: 1.3, def: 0.78, blurb: 'chaos, invited', icon: '↑', effect: 'More chances · more danger' },
+  counter: { label: 'Counter', atk: 0.92, def: 1.15, blurb: 'spring the trap', icon: '↯', effect: 'Absorb + break' },
+  fortress: { label: 'Fortress', atk: 0.72, def: 1.35, blurb: 'nothing gets through', icon: '▦', effect: 'Protect first · attack less' },
 };
 
 const DECISIONS = {
@@ -243,6 +243,17 @@ const SIM_STYLES = [
 ];
 export function teamSimStyle(code) {
   return SIM_STYLES[hashSeed(`u26-style-${code}`) % SIM_STYLES.length];
+}
+
+export function teamSimDNA(code) {
+  const base = RATINGS[code] || 70;
+  const pulse = (key) => (hashSeed(`u26-dna-${code}-${key}`) % 19) - 9;
+  const clamp = (n) => Math.max(52, Math.min(96, Math.round(n)));
+  return {
+    attack: clamp(base + pulse('attack')),
+    control: clamp(base + pulse('control')),
+    chaos: clamp(76 + pulse('chaos')),
+  };
 }
 
 /* ================= Your Side =================
@@ -1904,8 +1915,20 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
    no network, no official claims. A perfect five earns sudden death
    that lasts until the keeper finally wins. */
 
-export const RUSH_ZONES = ['left', 'centre', 'right'];
-const RUSH_ZONE_LABELS = { left: 'low left', centre: 'down the middle', right: 'low right' };
+export const RUSH_ZONES = ['top-left', 'left', 'centre', 'right', 'top-right'];
+const RUSH_ZONE_LABELS = {
+  'top-left': 'top left', left: 'low left', centre: 'down the middle', right: 'low right', 'top-right': 'top right',
+};
+const RUSH_ZONE_WING = {
+  'top-left': 'left', left: 'left', centre: 'centre', right: 'right', 'top-right': 'right',
+};
+const RUSH_ZONE_PROFILE = {
+  'top-left': { accuracy: 0.84, readGoal: 0.28, wingGoal: 0.72, risk: 'high reward' },
+  left: { accuracy: 0.97, readGoal: 0.18, wingGoal: 0.62, risk: 'composed' },
+  centre: { accuracy: 0.98, readGoal: 0.16, wingGoal: 0.84, risk: 'brave' },
+  right: { accuracy: 0.97, readGoal: 0.18, wingGoal: 0.62, risk: 'composed' },
+  'top-right': { accuracy: 0.84, readGoal: 0.28, wingGoal: 0.72, risk: 'high reward' },
+};
 
 export function dailyGauntletSeed(dateKey = localDayKey(), attempt = 0) {
   return hashSeed(`u26-rush-${dateKey}-${attempt}`) || 1;
@@ -1917,22 +1940,39 @@ export function createPenaltyRush(seed = dailyGauntletSeed()) {
     seed: s,
     rng: mulberry32(s),
     kicks: [], goals: 0, sudden: false, over: false,
-    aims: { left: 0, centre: 0, right: 0 },
+    aims: Object.fromEntries(RUSH_ZONES.map((zone) => [zone, 0])),
   };
 }
 
 /* The keeper reads habits, never the current pick: with two or more kicks of
    history it leans toward your most-used zone — harder in sudden death. */
 function rushKeeperPick(run) {
-  const total = run.aims.left + run.aims.centre + run.aims.right;
+  const total = RUSH_ZONES.reduce((sum, zone) => sum + (run.aims[zone] || 0), 0);
   const r = run.rng();
   if (total >= 2) {
-    const fav = RUSH_ZONES.reduce((a, b) => (run.aims[a] >= run.aims[b] ? a : b));
-    if (r < (run.sudden ? 0.62 : 0.45)) return fav;
+    const fav = RUSH_ZONES.reduce((a, b) => ((run.aims[a] || 0) >= (run.aims[b] || 0) ? a : b));
+    if (r < (run.sudden ? 0.64 : 0.48)) return fav;
     const rest = RUSH_ZONES.filter((z) => z !== fav);
     return rest[Math.min(rest.length - 1, Math.floor(run.rng() * rest.length))];
   }
-  return RUSH_ZONES[Math.min(2, Math.floor(r * 3))];
+  return RUSH_ZONES[Math.min(RUSH_ZONES.length - 1, Math.floor(r * RUSH_ZONES.length))];
+}
+
+/** Honest read of the pattern already shown to the keeper. It never exposes
+    the current dive and never consumes RNG. */
+export function rushReadSignal(run) {
+  const aims = run && run.aims ? run.aims : {};
+  const wings = {
+    left: (aims['top-left'] || 0) + (aims.left || 0),
+    centre: aims.centre || 0,
+    right: (aims.right || 0) + (aims['top-right'] || 0),
+  };
+  const total = wings.left + wings.centre + wings.right;
+  if (total < 2) return { side: null, level: 0, label: 'No pattern yet' };
+  const side = ['left', 'centre', 'right'].reduce((a, b) => (wings[a] >= wings[b] ? a : b));
+  const level = wings[side] / total;
+  if (level <= 0.5) return { side: null, level, label: 'Your run-up is balanced' };
+  return { side, level, label: `Keeper leaning ${side === 'centre' ? 'middle' : side}` };
 }
 
 /** One kick. Deterministic for a given seed and aim history; mutates only the
@@ -1940,12 +1980,19 @@ function rushKeeperPick(run) {
 export function rushShoot(run, aim) {
   if (!run || run.over || !RUSH_ZONES.includes(aim)) return null;
   const keeper = rushKeeperPick(run);
-  const r = run.rng();
-  const outcome = keeper === aim
-    ? (r < (run.sudden ? 0.14 : 0.2) ? 'goal' : 'save')
-    : (r < 0.94 ? 'goal' : 'post');
+  const profile = RUSH_ZONE_PROFILE[aim];
+  const onTarget = run.rng() < profile.accuracy;
+  const exactRead = keeper === aim;
+  const sameWing = RUSH_ZONE_WING[keeper] === RUSH_ZONE_WING[aim];
+  const goalChance = exactRead
+    ? Math.max(0.1, profile.readGoal - (run.sudden ? 0.06 : 0))
+    : sameWing ? profile.wingGoal : 0.98;
+  const outcome = !onTarget ? 'post' : run.rng() < goalChance ? 'goal' : 'save';
   run.aims[aim] += 1;
-  const kick = { n: run.kicks.length + 1, aim, keeper, outcome, sudden: run.sudden };
+  const kick = {
+    n: run.kicks.length + 1, aim, keeper, outcome, sudden: run.sudden,
+    read: exactRead ? 'full' : sameWing ? 'side' : 'wrong', risk: profile.risk,
+  };
   run.kicks.push(kick);
   if (outcome === 'goal') run.goals += 1;
   if (run.sudden) {
@@ -2055,6 +2102,7 @@ function rushHTML(play) {
   const newBest = run.over && run.goals > 0 && run.goals >= bestToday;
   const side = currentSide(play);
   const target = Math.max(bestToday, (rec && rec.bestEver) || 0);
+  const read = rushReadSignal(run);
   return `<section class="play-card rush${side ? ' has-side' : ''}" aria-label="Penalty Rush"${side ? ` style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}"` : ''}>
     <div class="rush-head">
       <div><h2 class="display">Penalty Rush</h2>
@@ -2068,14 +2116,20 @@ function rushHTML(play) {
       <span class="rush-chip"><b>${(rec && rec.perfects) || 0}</b>perfect fives</span>
     </div>
     <div class="rush-stage${last ? ' ' + last.outcome : ''}${run.sudden && !run.over ? ' sudden' : ''}">
-      <div class="rush-goalframe" aria-hidden="true">
-        <span class="rush-net"></span>
-        <span class="rush-keeper${last ? ' dive-' + last.keeper : ''}"><em></em></span>
-        ${last ? `<b class="rush-ball at-${last.aim} ${last.outcome}"></b>` : ''}
+      <div class="rush-goalframe">
+        <span class="rush-net" aria-hidden="true"></span>
+        <span class="rush-keeper${last ? ' dive-' + last.keeper : ''}" aria-hidden="true"><em></em></span>
+        ${last ? `<b class="rush-ball at-${last.aim} ${last.outcome}" aria-hidden="true"></b>` : ''}
+        ${!run.over ? `<div class="rush-hotspots" role="group" aria-label="Pick a target">
+          ${RUSH_ZONES.map((zone) => `<button class="rush-aim zone-${zone}" data-rush-aim="${zone}" aria-label="Aim ${RUSH_ZONE_LABELS[zone]}"><i></i><span>${RUSH_ZONE_LABELS[zone]}</span><small>${RUSH_ZONE_PROFILE[zone].risk}</small></button>`).join('')}
+        </div>` : ''}
       </div>
       <p class="rush-callout" role="status" aria-live="polite">${esc(rushCallout(run))}</p>
     </div>
     <div class="rush-dots" aria-label="Kick record">${rushDotsHTML(run)}</div>
+    ${!run.over ? `<div class="rush-readout${read.side ? ' reading' : ''}" role="status">
+      <span>Keeper read</span><i><b style="width:${Math.round(read.level * 100)}%"></b></i><strong>${esc(read.label)}</strong>
+    </div>` : ''}
     ${!run.over && target > 0 ? `<p class="rush-target">Target: beat <b>${target}</b>${run.goals >= target ? ' — you are past it, keep going' : ''}</p>` : ''}
     ${run.over ? `<div class="rush-recap${perfect ? ' perfect' : ''}">
       <p class="rush-score"><strong class="display">${run.goals}</strong><span>${run.goals === 1 ? 'goal' : 'goals'} tonight</span></p>
@@ -2087,11 +2141,7 @@ function rushHTML(play) {
         <button class="play-btn gold" id="rush-again">${run.goals > 0 && !personalBest ? `Beat your ${(rec && rec.bestEver) || 0} — run it again` : 'Step up again'}</button>
         <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
       </div>
-    </div>` : `<div class="rush-aims" role="group" aria-label="Pick your corner">
-      <button class="rush-aim" data-rush-aim="left">Low left</button>
-      <button class="rush-aim" data-rush-aim="centre">Middle</button>
-      <button class="rush-aim" data-rush-aim="right">Low right</button>
-    </div>`}
+    </div>` : ''}
     <p class="lab-saved-note">Seeded daily on this phone · the keeper never sees your pick, only your habits.</p>
   </section>`;
 }
@@ -2136,25 +2186,25 @@ export const FM_STEPS = [
   {
     clock: "88'", prompt: 'Six minutes left. Set the shape.',
     options: [
-      { id: 'shut', label: 'Shut it down', you: 0.5, them: 0.62 },
-      { id: 'hold', label: 'Hold our shape', you: 0.9, them: 0.9 },
-      { id: 'hunt', label: 'Go hunting', you: 1.5, them: 1.4 },
+      { id: 'shut', label: 'Shut it down', you: 0.5, them: 0.62, nerve: 0.1, risk: 'calm', icon: '▦', note: 'Pack the box · little counter threat' },
+      { id: 'hold', label: 'Hold our shape', you: 0.9, them: 0.9, nerve: 0.04, risk: 'balanced', icon: '◇', note: 'Stay connected · trust the structure' },
+      { id: 'hunt', label: 'Go hunting', you: 1.5, them: 1.4, nerve: -0.08, risk: 'bold', icon: '↑', note: 'Win it high · space behind' },
     ],
   },
   {
     clock: "90+1'", prompt: 'The board says five. Next call.',
     options: [
-      { id: 'restarts', label: 'Kill every restart', you: 0.55, them: 0.6 },
-      { id: 'fresh', label: 'Fresh legs wide', you: 1.15, them: 0.95 },
-      { id: 'overload', label: 'Overload the left', you: 1.45, them: 1.3 },
+      { id: 'restarts', label: 'Kill every restart', you: 0.55, them: 0.6, nerve: 0.1, risk: 'calm', icon: '◷', note: 'Slow the night · defend the next ball' },
+      { id: 'fresh', label: 'Fresh legs wide', you: 1.15, them: 0.95, nerve: 0.04, risk: 'balanced', icon: '↗', note: 'Attack tired legs · keep your rest defence' },
+      { id: 'overload', label: 'Overload the left', you: 1.45, them: 1.3, nerve: -0.08, risk: 'bold', icon: '≋', note: 'Create a 3v2 · expose the far side' },
     ],
   },
   {
     clock: "90+4'", prompt: 'Last action of the night.',
     options: [
-      { id: 'wall', label: 'Everyone behind the ball', you: 0.4, them: 0.55 },
-      { id: 'break', label: 'Spring one counter', you: 1.1, them: 0.85 },
-      { id: 'forward', label: 'Send everyone forward', you: 1.7, them: 1.6 },
+      { id: 'wall', label: 'Everyone behind the ball', you: 0.4, them: 0.55, nerve: 0.12, risk: 'calm', icon: '▰', note: 'One last block · no outlet' },
+      { id: 'break', label: 'Spring one counter', you: 1.1, them: 0.85, nerve: 0.02, risk: 'balanced', icon: '➜', note: 'Keep one runner alive · choose the pass' },
+      { id: 'forward', label: 'Send everyone forward', you: 1.7, them: 1.6, nerve: -0.1, risk: 'bold', icon: '⚡', note: 'Maximum bodies · one clearance can end it' },
     ],
   },
 ];
@@ -2175,6 +2225,16 @@ export function createFinalMinute(seed, you, opp) {
     gYou: FM_SCENARIOS[s % FM_SCENARIOS.length].you,
     gThem: FM_SCENARIOS[s % FM_SCENARIOS.length].them,
     step: 0, choices: [], events: [], over: false, result: null,
+    nerve: 0, lastChoice: null,
+  };
+}
+
+export function fmNerveModel(run) {
+  const nerve = Math.max(-1, Math.min(1, Number(run && run.nerve) || 0));
+  return {
+    nerve,
+    pct: Math.round((nerve + 1) * 50),
+    label: nerve >= 0.45 ? 'Ice cold' : nerve >= 0.12 ? 'In control' : nerve <= -0.45 ? 'Red alert' : nerve <= -0.12 ? 'On the edge' : 'All square',
   };
 }
 
@@ -2187,8 +2247,9 @@ export function finalMinuteDecide(run, optionId) {
   if (!opt) return null;
   run.choices.push(optionId);
   const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40;
-  const youRate = Math.max(0.03, 0.17 * (1 + edge) * opt.you);
-  const themRate = Math.max(0.03, 0.17 * (1 - edge) * opt.them);
+  const nerveEdge = (run.nerve || 0) * 0.1;
+  const youRate = Math.max(0.03, 0.17 * (1 + edge + nerveEdge) * opt.you);
+  const themRate = Math.max(0.03, 0.17 * (1 - edge - nerveEdge) * opt.them);
   const minutes = FM_STEP_MINUTES[run.step];
   const resolved = [];
   for (let w = 0; w < 3; w++) {
@@ -2209,6 +2270,9 @@ export function finalMinuteDecide(run, optionId) {
       });
     }
   }
+  const swing = resolved.reduce((sum, event) => sum + (event.side === 'you' ? 1 : -1) * (event.type === 'goal' ? 0.28 : 0.06), 0);
+  run.nerve = Math.max(-1, Math.min(1, (run.nerve || 0) + (opt.nerve || 0) + swing));
+  run.lastChoice = { id: opt.id, label: opt.label, risk: opt.risk, note: opt.note };
   run.events.push(...resolved);
   run.step += 1;
   if (run.step >= FM_STEPS.length) {
@@ -2308,6 +2372,8 @@ function fmHTML(play) {
   const step = run.over ? null : FM_STEPS[run.step];
   const sideColor = TEAM_COLORS[side.code] || 'var(--gold)';
   const verdict = run.over ? fmVerdictCopy(run) : null;
+  const nerve = fmNerveModel(run);
+  const shape = run.lastChoice ? run.lastChoice.id : 'hold';
   return `<section class="play-card fm${run.over ? ` over r-${run.result.toLowerCase()}` : ''}" aria-label="Final Minute" style="--side:${sideColor}">
     <div class="rush-head">
       <div><h2 class="display">Final Minute</h2>
@@ -2315,6 +2381,9 @@ function fmHTML(play) {
       <span class="sim-badge">SIMULATION</span>
     </div>
     <div class="fm-stage">
+      <div class="fm-time-ribbon" aria-label="Scenario progress">
+        ${FM_STEPS.map((item, i) => `<i class="${i < run.step ? 'done' : i === run.step && !run.over ? 'now' : ''}"><span>${esc(item.clock)}</span></i>`).join('')}
+      </div>
       <div class="fm-clock" aria-live="polite">${run.over ? 'FULL TIME' : esc(step.clock)}</div>
       <div class="fm-score-row">
         <div class="fm-team you">${teamFlag(run.you)}<span>${esc(teamName(run.you))}</span><em class="lab-you-tag">You</em></div>
@@ -2325,14 +2394,24 @@ function fmHTML(play) {
         <strong class="display">${esc(verdict[0])}</strong>
         <span>${esc(verdict[1])}</span>
       </div>` : ''}
+      ${!run.over ? `<div class="fm-live-board" data-shape="${shape}" aria-hidden="true">
+        <span class="fm-box"></span><span class="fm-ball"></span>
+        ${Array.from({ length: 8 }, (_, i) => `<i class="fm-player p${i + 1}"></i>`).join('')}
+        <b class="fm-arrow"></b>
+      </div>` : ''}
+    </div>
+    <div class="fm-nerve" role="group" aria-label="Composure: ${esc(nerve.label)}">
+      <span>Composure</span><i><b style="width:${nerve.pct}%"></b></i><strong>${esc(nerve.label)}</strong>
     </div>
     <ol class="lab-feed fm-feed" aria-live="polite" aria-label="Final minutes">
       ${run.events.slice(-6).map((e) => `<li class="lab-ev ${e.type === 'goal' ? 'goal' : 'chance'} fm-${e.side}"><span class="lab-ev-min">${esc(e.min)}</span><span class="lab-ev-ic">${e.type === 'goal' ? '●' : '○'}</span>${esc(e.text)}</li>`).join('')}
     </ol>
     ${!run.over ? `<div class="fm-choice" role="group" aria-label="${esc(step.prompt)}">
       <p class="lab-decision-prompt">${esc(step.prompt)}</p>
-      <div class="lab-decision-opts">
-        ${step.options.map((o) => `<button class="lab-opt" data-fm-choice="${o.id}">${esc(o.label)}</button>`).join('')}
+      <div class="lab-decision-opts fm-opts">
+        ${step.options.map((o) => `<button class="lab-opt fm-opt risk-${o.risk}" data-fm-choice="${o.id}">
+          <i aria-hidden="true">${o.icon}</i><span><strong>${esc(o.label)}</strong><small>${esc(o.note)}</small></span><em>${o.risk}</em>
+        </button>`).join('')}
       </div>
     </div>` : `<div class="fm-recap">
       ${cupAdvanceHTML(run.cupAdvance)}
@@ -2421,20 +2500,38 @@ export const CC_STEPS = [
   {
     prompt: 'Set the plan.',
     options: [
-      { id: 'press', label: 'Press high', you: 1.5, them: 1.35, risk: 'bold' },
-      { id: 'counter', label: 'Sit and counter', you: 1.05, them: 0.8, risk: 'measured' },
-      { id: 'control', label: 'Control midfield', you: 0.95, them: 0.9, risk: 'safe' },
+      { id: 'press', label: 'Press high', you: 1.5, them: 1.35, risk: 'bold', icon: '↑', note: 'Trap the first pass · space behind' },
+      { id: 'counter', label: 'Sit and counter', you: 1.05, them: 0.8, risk: 'measured', icon: '↯', note: 'Invite them in · release the runners' },
+      { id: 'control', label: 'Control midfield', you: 0.95, them: 0.9, risk: 'safe', icon: '◇', note: 'Own the centre · slow their rhythm' },
     ],
   },
   {
     prompt: "75'. Last big call from the dugout.",
     options: [
-      { id: 'chaos', label: 'Chaos run — all forward', you: 1.65, them: 1.5, risk: 'bold' },
-      { id: 'setpiece', label: 'Hunt set pieces', you: 1.2, them: 1.0, risk: 'measured' },
-      { id: 'lock', label: 'Lock it down', you: 0.5, them: 0.62, risk: 'safe' },
+      { id: 'chaos', label: 'Chaos run — all forward', you: 1.65, them: 1.5, risk: 'bold', icon: '⚡', note: 'Flood the box · accept the break' },
+      { id: 'setpiece', label: 'Hunt set pieces', you: 1.2, them: 1.0, risk: 'measured', icon: '⌁', note: 'Win territory · load the far post' },
+      { id: 'lock', label: 'Lock it down', you: 0.5, them: 0.62, risk: 'safe', icon: '▦', note: 'Close the middle · protect the score' },
     ],
   },
 ];
+
+export const CC_STYLE_PLANS = {
+  'high press': ['press', 'chaos'],
+  'counter surge': ['counter', 'chaos'],
+  'possession weave': ['control', 'setpiece'],
+  'wing overloads': ['press', 'setpiece'],
+  'deep block steel': ['counter', 'lock'],
+  'box-crash chaos': ['press', 'chaos'],
+  'midfield strangle': ['control', 'lock'],
+  'direct running': ['counter', 'setpiece'],
+};
+
+export function coachPlanFit(teamCode, optionId) {
+  const style = teamSimStyle(teamCode);
+  const plans = CC_STYLE_PLANS[style] || [];
+  const fit = plans.includes(optionId);
+  return { style, fit, edge: fit ? 0.07 : -0.02 };
+}
 
 const CC_WINDOW_MINUTES = [["66'", "70'", "74'"], ["79'", "85'", "90+3'"]];
 
@@ -2453,6 +2550,7 @@ export function createCoachCall(seed, you, opp) {
     matchup: styleMatchup(teamSimStyle(you), teamSimStyle(opp)),
     gYou: situation.gYou, gThem: situation.gThem,
     step: 0, choices: [], events: [], over: false, result: null,
+    lastChoice: null, lastImpact: null,
   };
 }
 
@@ -2464,7 +2562,8 @@ export function coachCallDecide(run, optionId) {
   const opt = step && step.options.find((o) => o.id === optionId);
   if (!opt) return null;
   run.choices.push(optionId);
-  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40 + (run.matchup.edge || 0);
+  const plan = coachPlanFit(run.you, optionId);
+  const edge = ((RATINGS[run.you] || 70) - (RATINGS[run.opp] || 70)) / 40 + (run.matchup.edge || 0) + plan.edge;
   const youRate = Math.max(0.04, 0.16 * (1 + edge) * opt.you);
   const themRate = Math.max(0.04, 0.16 * (1 - edge) * opt.them);
   const minutes = CC_WINDOW_MINUTES[run.step];
@@ -2487,6 +2586,11 @@ export function coachCallDecide(run, optionId) {
       });
     }
   }
+  const goalsFor = resolved.filter((event) => event.type === 'goal' && event.side === 'you').length;
+  const goalsAgainst = resolved.filter((event) => event.type === 'goal' && event.side === 'them').length;
+  const chancesFor = resolved.filter((event) => event.type === 'chance' && event.side === 'you').length;
+  run.lastChoice = { id: opt.id, label: opt.label, risk: opt.risk, note: opt.note, planFit: plan.fit };
+  run.lastImpact = { goalsFor, goalsAgainst, chancesFor };
   run.events.push(...resolved);
   run.step += 1;
   if (run.step >= CC_STEPS.length) {
@@ -2788,6 +2892,7 @@ function coachHTML(play) {
   const step = run.over ? null : CC_STEPS[run.step];
   const sideColor = TEAM_COLORS[side.code] || 'var(--gold)';
   const verdict = run.over ? ccVerdictCopy(run) : null;
+  const boardPlan = run.lastChoice ? run.lastChoice.id : 'control';
   return `<section class="play-card fm cc${run.over ? ` over r-${run.result.toLowerCase()}` : ''}" aria-label="Coach's Call" style="--side:${sideColor}">
     <div class="rush-head">
       <div><h2 class="display">Coach&rsquo;s Call</h2>
@@ -2806,14 +2911,31 @@ function coachHTML(play) {
         <span>${esc(verdict[1])}</span>
       </div>` : ''}
     </div>
-    <p class="cc-matchup">${esc(teamSimStyle(run.you))} <em>v</em> ${esc(teamSimStyle(run.opp))} — ${esc(run.matchup.tag)}</p>
+    <div class="cc-style-duel" aria-label="Tactical style matchup">
+      <span><small>Your identity</small><b>${esc(teamSimStyle(run.you))}</b></span>
+      <i aria-hidden="true"></i>
+      <span><small>Their identity</small><b>${esc(teamSimStyle(run.opp))}</b></span>
+    </div>
+    <p class="cc-matchup">${esc(run.matchup.tag)}</p>
+    ${!run.over ? `<div class="cc-board" data-plan="${boardPlan}" aria-hidden="true">
+      <span class="cc-half"></span><span class="cc-box left"></span><span class="cc-box right"></span>
+      ${Array.from({ length: 10 }, (_, i) => `<i class="cc-player p${i + 1}"></i>`).join('')}
+      <b class="cc-route"></b>
+      <em>${run.lastChoice ? `${run.lastChoice.planFit ? 'Identity fit' : 'Tactical pivot'} · ${esc(run.lastChoice.label)}` : 'The shape responds to your call'}</em>
+    </div>` : ''}
     <ol class="lab-feed fm-feed" aria-live="polite" aria-label="Match events">
       ${run.events.slice(-6).map((e) => `<li class="lab-ev ${e.type === 'goal' ? 'goal' : 'chance'} fm-${e.side}"><span class="lab-ev-min">${esc(e.min)}</span><span class="lab-ev-ic">${e.type === 'goal' ? '●' : '○'}</span>${esc(e.text)}</li>`).join('')}
     </ol>
     ${!run.over ? `<div class="fm-choice" role="group" aria-label="${esc(step.prompt)}">
       <p class="lab-decision-prompt">${esc(step.prompt)}</p>
       <div class="lab-decision-opts cc-opts">
-        ${step.options.map((o) => `<button class="lab-opt" data-cc-choice="${o.id}"><span>${esc(o.label)}</span><em class="cc-risk ${o.risk}">${o.risk}</em></button>`).join('')}
+        ${step.options.map((o) => {
+    const fit = coachPlanFit(run.you, o.id);
+    return `<button class="lab-opt cc-opt ${fit.fit ? 'identity-fit' : ''}" data-cc-choice="${o.id}">
+          <i aria-hidden="true">${o.icon}</i><span><strong>${esc(o.label)}</strong><small>${esc(o.note)}</small></span>
+          <em class="cc-risk ${o.risk}">${fit.fit ? 'identity fit' : o.risk}</em>
+        </button>`;
+  }).join('')}
       </div>
     </div>` : `<div class="fm-recap">
       ${cupAdvanceHTML(run.cupAdvance)}
@@ -3151,12 +3273,15 @@ function labSetupHTML(play) {
     ? (featured.home === side.code ? featured.away : featured.home)
     : featured.away;
   const sound = labSoundButtonModel();
+  const homeDNA = teamSimDNA(home);
+  const awayDNA = teamSimDNA(away);
   return `<section class="play-card lab lab-lobby" aria-label="Match Lab">
     <div class="lab-showdown-label">
       <span>Tonight’s Showdown</span>
       <small>${side ? 'Your side takes the stage · not a live fixture' : 'Daily featured simulation · not a live fixture'}</small>
     </div>
     <div class="lab-attract" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
+      <span class="lab-orbit o1" aria-hidden="true"></span><span class="lab-orbit o2" aria-hidden="true"></span>
       <div class="lab-attract-top"><span>Match Lab</span><strong>90'</strong></div>
       <div class="lab-attract-score">
         <span>${teamFlag(home)} ${esc(teamName(home))}</span>
@@ -3177,10 +3302,16 @@ function labSetupHTML(play) {
       <select id="lab-away" aria-label="Away team">${teamOptions(away)}</select>
     </div>
     ${tapeHTML(home, away)}
+    <div class="lab-dna" aria-label="Simulation matchup DNA">
+      ${['attack', 'control', 'chaos'].map((key) => `<div class="lab-dna-row">
+        <b>${homeDNA[key]}</b><i><span class="home" style="width:${homeDNA[key]}%"></span><span class="away" style="width:${awayDNA[key]}%"></span></i><em>${key}</em><b>${awayDNA[key]}</b>
+      </div>`).join('')}
+      <p>Play identity only · a flavour model, never an official rating.</p>
+    </div>
     <div class="lab-approaches" role="group" aria-label="Match approach">
       ${Object.entries(APPROACHES).map(([id, a], i) => `
         <button class="lab-approach${i === 0 ? ' active' : ''}" data-approach="${id}">
-          <span class="la-name">${a.label}</span><span class="la-blurb">${a.blurb}</span>
+          <i aria-hidden="true">${a.icon}</i><span class="la-name">${a.label}</span><span class="la-blurb">${a.blurb}</span><small>${a.effect}</small>
         </button>`).join('')}
     </div>
     <div class="lab-start-row">
@@ -3799,8 +3930,13 @@ function sidePickerHTML(play) {
       <p class="play-sub">Your team for the arcade — Match Lab, Final Minute, Penalty Rush. Local allegiance only; the real tournament never notices.</p></div>
       <button class="side-close" id="side-close" aria-label="Close team picker">×</button>
     </div>
+    <label class="side-search" for="side-search"><span>Find a team</span>
+      <input id="side-search" type="search" inputmode="search" autocomplete="off" placeholder="Search all 48 teams">
+      <i aria-hidden="true">⌕</i>
+    </label>
+    <p class="side-search-status" id="side-search-status" aria-live="polite">All 48 teams</p>
     <div class="side-grid" role="group" aria-label="All 48 teams">
-      ${codes.map((c) => `<button class="side-team${side && side.code === c ? ' on' : ''}" data-side-pick="${c}" style="--tc:${TEAM_COLORS[c] || 'var(--gold)'}">
+      ${codes.map((c) => `<button class="side-team${side && side.code === c ? ' on' : ''}" data-side-pick="${c}" data-side-name="${esc(teamName(c).toLowerCase())}" style="--tc:${TEAM_COLORS[c] || 'var(--gold)'}">
         <span class="side-team-flag">${teamFlag(c)}</span>
         <span class="side-team-name">${esc(teamName(c))}</span>
         <span class="side-team-style">${esc(teamSimStyle(c))}</span>
@@ -3940,43 +4076,56 @@ function lobbyHTML(overlay, play, sims) {
     </button>` : ''}
     ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} ${last.result === 'W' ? 'Defend the win' : last.result === 'L' ? 'Answer the defeat' : 'Run it back'} <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
 
+    <div class="arcade-section-head"><div><span>Quick play</span><strong>One tap. One decision loop.</strong></div><small>Rules and risk are shown before every call.</small></div>
     <button class="lobby-rush" data-goto="shootout">
-      <span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
-      <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Five kicks. The keeper is reading you.'}</strong>
-      <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · step up` : 'New tonight — step up'}</small>
-      <i class="lobby-rush-ball" aria-hidden="true"></i>
+      <span class="game-number">01</span><span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
+      <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Five targets. The keeper learns.'}</strong>
+      <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · 45 seconds` : 'Aim inside the goal · 45 seconds'}</small>
+      <i class="lobby-rush-goal" aria-hidden="true"><b></b><em></em></i>
+      <span class="game-go">Play now <b>→</b></span>
     </button>
 
-    <div class="lobby-grid">
+    <div class="lobby-grid quick-grid">
       <button class="lobby-tile fm-tile" data-goto="finalminute">
+        <span class="game-number">02</span><i class="game-glyph" aria-hidden="true">90+</i>
         <span class="lt-kicker">Final Minute</span>
         <strong>${fmRec && fmRec.played ? `${fmRec.w}W–${fmRec.l}L–${fmRec.d}D in the fire` : 'Six minutes. Three calls.'}</strong>
-        <small>${side ? 'Hold on or turn it around — daily scenario' : 'Needs a side — pick yours first'}</small>
+        <small>${side ? 'Read the pressure · survive or steal it' : 'Needs a side · pick yours first'}</small>
+      </button>
+      <button class="lobby-tile" data-goto="coach">
+        <span class="game-number">03</span><i class="game-glyph tactics" aria-hidden="true">◇</i>
+        <span class="lt-kicker">Coach&rsquo;s Call</span>
+        <strong>${(play.coachCall && play.coachCall.played) ? `${play.coachCall.w}W–${play.coachCall.l}L–${play.coachCall.d}D from the dugout` : 'One situation. Two calls.'}</strong>
+        <small>${side ? 'Your identity changes what works' : 'Needs a side · pick yours first'}</small>
+      </button>
+    </div>
+
+    <div class="arcade-section-head"><div><span>Big nights</span><strong>Deeper worlds. Longer stories.</strong></div><small>Everything saves to You.</small></div>
+    <div class="lobby-grid long-grid">
+      <button class="lobby-tile lab-tile" data-goto="lab">
+        <span class="game-number">04</span><i class="game-glyph broadcast" aria-hidden="true">◉</i>
+        <span class="lt-kicker">Match Lab</span>
+        <strong>Any two teams, full broadcast</strong>
+        <small>Live pitch · momentum · decisions · extra time</small>
+        <span class="game-go">Enter the stadium <b>→</b></span>
       </button>
       <button class="lobby-tile" data-goto="myworldcup">
+        <span class="game-number">05</span><i class="game-glyph" aria-hidden="true">⌁</i>
         <span class="lt-kicker">My World Cup</span>
-        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Start a run'}</strong>
-        <small>${champion ? 'Champion crowned — save or run it again' : simNext ? 'Your parallel tournament is mid-flight' : 'Pick winners, break brackets'}</small>
+        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Build your tournament'}</strong>
+        <small>${champion ? 'Champion crowned · archive the timeline' : simNext ? 'Your parallel tournament continues' : 'Pick winners · bend the bracket'}</small>
       </button>
       ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
+        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
         <span class="lt-kicker">Tonight's challenge</span>
         <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
         <small>Call it before ${esc(formatKickoffTime(challenge.epoch))} · earn insight</small>
       </button>` : `<button class="lobby-tile" data-goto="prediction">
+        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
         <span class="lt-kicker">Prediction Run</span>
         <strong>${predStats.right}/${predStats.total} correct</strong>
         <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
       </button>`}
-      <button class="lobby-tile" data-goto="coach">
-        <span class="lt-kicker">Coach&rsquo;s Call</span>
-        <strong>${(play.coachCall && play.coachCall.played) ? `${play.coachCall.w}W–${play.coachCall.l}L–${play.coachCall.d}D from the dugout` : 'One situation. Two calls.'}</strong>
-        <small>${side ? 'Your style against theirs — daily scenario' : 'Needs a side — pick yours first'}</small>
-      </button>
-      <button class="lobby-tile" data-goto="lab">
-        <span class="lt-kicker">Match Lab</span>
-        <strong>Any two teams, full broadcast</strong>
-        <small>Momentum, decisions, extra time — your rules</small>
-      </button>
     </div>
 
     ${momentTapeHTML(play)}
@@ -4041,6 +4190,20 @@ function wireLobby(outlet) {
   }
   const close = outlet.querySelector('#side-close');
   if (close) close.addEventListener('click', () => { sidePickerOpen = false; repaintPlay(); });
+  const search = outlet.querySelector('#side-search');
+  if (search) {
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLowerCase();
+      let shown = 0;
+      outlet.querySelectorAll('.side-team').forEach((button) => {
+        const match = !query || button.dataset.sideName.includes(query) || button.dataset.sidePick.toLowerCase().includes(query);
+        button.hidden = !match;
+        if (match) shown++;
+      });
+      const status = outlet.querySelector('#side-search-status');
+      if (status) status.textContent = query ? `${shown} ${shown === 1 ? 'team' : 'teams'} found` : 'All 48 teams';
+    });
+  }
   outlet.querySelectorAll('[data-side-pick]').forEach((b) => {
     b.addEventListener('click', () => {
       chooseSide(b.dataset.sidePick);
@@ -4234,8 +4397,9 @@ export function render(outlet) {
   else if (mode === 'coach') body = coachHTML(play);
   else body = lobbyHTML(real.overlay, play, sims);
   outlet.innerHTML = `<div class="view play-view">
-    <header class="view-head"><p class="view-kicker gold">The Arcade</p><h1>Play</h1>
-      <p class="view-sub">Private simulations · nothing here touches the real tournament</p></header>
+    <header class="view-head play-head"><div><p class="view-kicker gold">The Stadium Arcade</p><h1>Play</h1>
+      <p class="view-sub">Pick a side. Make the call. Build the story. Local simulations only.</p></div>
+      <span class="play-head-mark" aria-hidden="true"><i></i><b>U26</b><em>arcade</em></span></header>
     <div class="mode-rail">
     ${segmentedControl({
     id: 'play-mode', label: 'Play modes', value: mode,

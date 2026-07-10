@@ -95,6 +95,12 @@ body::after {
   border: 1px solid var(--glass-line);
   box-shadow: var(--shadow-stage), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   z-index: 40;
+  overflow: hidden;
+}
+.dock::before {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  pointer-events: none;
 }
 
 .dock-tab {
@@ -114,6 +120,7 @@ body::after {
   font-weight: var(--w-reg);
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease, transform 140ms ease;
+  position: relative;
 }
 .dock-tab:active { transform: scale(0.96); }
 .dock-tab[aria-selected="true"] {
@@ -121,10 +128,16 @@ body::after {
   background: color-mix(in srgb, var(--official) 17%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+.dock-tab[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 30%; right: 30%; top: 5px; height: 2px;
+  border-radius: 99px; background: var(--official); box-shadow: 0 0 9px var(--official);
+}
 .dock-tab[data-tab="play"][aria-selected="true"],
 .dock-tab[data-tab="you"][aria-selected="true"] {
   background: color-mix(in srgb, var(--gold) 15%, transparent);
 }
+.dock-tab[data-tab="play"][aria-selected="true"]::after,
+.dock-tab[data-tab="you"][aria-selected="true"]::after { background: var(--gold); box-shadow: 0 0 9px var(--gold); }
 .dock-icon { font-size: 1.05rem; line-height: 1; }
 .dock-label { letter-spacing: 0.02em; white-space: nowrap; }
 
@@ -160,6 +173,7 @@ body::after {
   background: color-mix(in srgb, var(--official) 22%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
+.seg-btn:active { transform: scale(.97); }
 .segmented.small .seg-btn { min-height: 40px; }
 .play-view .seg-btn.active { background: color-mix(in srgb, var(--gold) 18%, transparent); }
 

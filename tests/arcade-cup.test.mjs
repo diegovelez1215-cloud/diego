@@ -14,6 +14,7 @@ import {
   CUP_STOPS,
   ccRecordAfter,
   coachCallDecide,
+  coachPlanFit,
   createArcadeCup,
   createCoachCall,
   cupNextStop,
@@ -34,6 +35,7 @@ import {
   simulateLabForSeed,
   styleMatchup,
   teamSimStyle,
+  teamSimDNA,
   withCupProgress,
 } from '../src/views/play.js';
 import { TEAMS } from '../src/data/fixtures.js';
@@ -258,6 +260,19 @@ test('sim style matchups form a closed cycle — every style reads exactly one a
   // the matchup used in a run comes from the deterministic team styles
   const run = createCoachCall(9, 'USA', 'BRA');
   assert.deepEqual(run.matchup, styleMatchup(teamSimStyle('USA'), teamSimStyle('BRA')));
+});
+
+test("Coach's Call rewards plans that fit the side's deterministic Play identity", () => {
+  const style = teamSimStyle('USA');
+  const fits = ['press', 'counter', 'control', 'chaos', 'setpiece', 'lock']
+    .map((id) => coachPlanFit('USA', id));
+  assert.ok(fits.some((plan) => plan.fit));
+  assert.ok(fits.some((plan) => !plan.fit));
+  assert.ok(fits.filter((plan) => plan.fit).every((plan) => plan.style === style && plan.edge > 0));
+  assert.ok(fits.filter((plan) => !plan.fit).every((plan) => plan.edge < 0));
+  const dna = teamSimDNA('USA');
+  assert.deepEqual(dna, teamSimDNA('USA'));
+  for (const value of Object.values(dna)) assert.ok(value >= 52 && value <= 96);
 });
 
 test("the Coach's Call record keeps only derived play facts and resets day attempts honestly", () => {

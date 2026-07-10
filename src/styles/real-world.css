@@ -23,6 +23,13 @@
     radial-gradient(70% 90% at 92% -10%, color-mix(in srgb, var(--ac, transparent) 22%, transparent) 0%, transparent 58%);
   pointer-events: none;
 }
+.score-stage > * { position: relative; z-index: 1; }
+.score-stage .ss-stage-row::before {
+  content: ""; position: absolute; width: 112px; height: 112px; left: 50%; top: 50%;
+  transform: translate(-50%,-50%); border: 1px solid color-mix(in srgb, var(--official) 10%, transparent);
+  border-radius: 50%; box-shadow: 0 0 0 16px color-mix(in srgb, var(--official) 2%, transparent);
+  pointer-events: none;
+}
 /* stadium horizon — one thin lit line under the score */
 .score-stage::after {
   content: "";
@@ -183,6 +190,10 @@
   transition: transform 120ms ease;
 }
 .match-row:active { transform: scale(0.985); }
+@media (hover:hover) {
+  .match-row:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--official) 28%, var(--hairline)); }
+  .ss-open:hover { background: color-mix(in srgb, var(--official) 16%, var(--glass-bg)); }
+}
 .match-row.is-live {
   border-color: color-mix(in srgb, var(--live) 35%, transparent);
   box-shadow: inset 3px 0 0 var(--live), var(--shadow-row);

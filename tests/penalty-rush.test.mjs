@@ -9,6 +9,7 @@ import {
   RUSH_ZONES,
   createPenaltyRush,
   dailyGauntletSeed,
+  rushReadSignal,
   rushRating,
   rushRecordAfter,
   rushShoot,
@@ -26,7 +27,7 @@ function playThrough(seed, aims) {
   return { run, kicks };
 }
 
-const SPREAD = ['left', 'right', 'centre', 'left', 'right'];
+const SPREAD = ['top-left', 'right', 'centre', 'left', 'top-right'];
 
 test('a gauntlet is deterministic: same seed and aims replay identically', () => {
   const a = playThrough(77, SPREAD);
@@ -84,6 +85,20 @@ test('the keeper reads habits: an always-left shooter gets caught more than a sp
   // for perfect runs, which are rarer for the habitual shooter by design).
   // Deterministic across these fixed seeds: habitual ≈ 40% caught, spread ≈ 35%.
   assert.ok(habitual > spread * 1.1, `keeper punishes habits (habitual ${habitual} vs spread ${spread})`);
+});
+
+test('five target zones carry real risk and the read signal exposes only past habits', () => {
+  assert.deepEqual(RUSH_ZONES, ['top-left', 'left', 'centre', 'right', 'top-right']);
+  const run = createPenaltyRush(44);
+  assert.deepEqual(rushReadSignal(run), { side: null, level: 0, label: 'No pattern yet' });
+  rushShoot(run, 'top-left');
+  rushShoot(run, 'left');
+  const read = rushReadSignal(run);
+  assert.equal(read.side, 'left');
+  assert.equal(read.level, 1);
+  assert.match(read.label, /leaning left/i);
+  assert.ok(['full', 'side', 'wrong'].includes(run.kicks[0].read));
+  assert.ok(['high reward', 'composed', 'brave'].includes(run.kicks[0].risk));
 });
 
 test('outcomes stay football-plausible across many seeds', () => {
