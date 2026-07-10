@@ -2580,6 +2580,50 @@ export function cupTrophy(cup) {
   return w >= 4 ? CUP_TROPHIES.gold : w === 3 ? CUP_TROPHIES.silver : w === 2 ? CUP_TROPHIES.bronze : CUP_TROPHIES.finisher;
 }
 
+/** A finished road gets a short, fact-derived memory line. No result or
+    opponent is invented: every branch reads only the four settled stops. */
+export function cupRunStory(cup) {
+  const stops = cup && cup.stops ? cup.stops : {};
+  const results = CUP_STOPS.map((s) => stops[s.id]).filter((v) => ['W', 'L', 'D'].includes(v));
+  const wins = Number.isFinite(cup?.wins) ? cup.wins : results.filter((v) => v === 'W').length;
+  if (results.length < CUP_STOPS.length) return 'Road still in progress.';
+  if (wins === 4) return 'Perfect road — four stops, four wins.';
+  if (stops.showdown === 'L' && stops.call === 'W' && stops.rush === 'W' && stops.clutch === 'W') {
+    return 'Gold slipped away at the final stop.';
+  }
+  if (stops.call !== 'W' && stops.showdown === 'W') return 'Recovered from the opening stumble and closed under the lights.';
+  if (stops.showdown === 'W') return 'Finished strong — the Showdown belongs to you.';
+  if (wins >= 3) return 'One stop short of a perfect road.';
+  if (wins >= 2) return 'A hard road, a trophy, and a story to answer.';
+  return 'Finished the road. The next run starts fresh.';
+}
+
+/** All-time local Cup facts, optionally scoped to one side. History is already
+    capped by persistence, so the summary stays small and deterministic. */
+export function cupSeasonSummary(history = [], sideCode = null) {
+  const runs = (Array.isArray(history) ? history : []).filter((c) => c && (!sideCode || c.side === sideCode));
+  const totals = { W: 0, L: 0, D: 0 };
+  let bestWins = 0;
+  for (const run of runs) {
+    const results = CUP_STOPS.map((s) => run.stops && run.stops[s.id]).filter((v) => v in totals);
+    for (const result of results) totals[result] += 1;
+    const wins = Number.isFinite(run.wins) ? run.wins : results.filter((v) => v === 'W').length;
+    bestWins = Math.max(bestWins, wins);
+  }
+  return {
+    runs: runs.length,
+    perfect: runs.filter((c) => (c.trophy && c.trophy.tier === 'gold') || c.wins === 4).length,
+    bestWins,
+    stopWins: totals.W,
+    stopLosses: totals.L,
+    stopDraws: totals.D,
+    form: runs.slice(0, 5).map((c) => Number.isFinite(c.wins)
+      ? c.wins
+      : CUP_STOPS.filter((s) => c.stops && c.stops[s.id] === 'W').length),
+    latest: runs[0] || null,
+  };
+}
+
 /** Record one stop result. Pure: returns the next cup, never mutates. Stops
     resolve strictly in road order; anything else is refused unchanged. */
 export function cupRecordStop(cup, stopId, result) {
@@ -2615,6 +2659,8 @@ export function withCupProgress(play, stopId, result) {
     cupHistory = [{
       at: new Date().toISOString(),
       side: cup.side, dateKey: cup.dateKey, seed: cup.seed,
+      attempt: cup.attempt || 0,
+      rivals: Array.isArray(cup.rivals) ? [...cup.rivals] : [],
       stops: { ...nextCup.stops },
       wins: cupWins(nextCup),
       trophy: nextCup.trophy,
@@ -2826,6 +2872,27 @@ function cupStopStateLabel(v, isNext) {
   return isNext ? 'up next' : 'locked';
 }
 
+function cupSeasonHTML(history, sideCode = null, className = '') {
+  const season = cupSeasonSummary(history, sideCode);
+  if (!season.runs) return '';
+  const latestStory = season.latest ? cupRunStory(season.latest) : '';
+  return `<section class="cup-season ${className}" aria-label="Arcade season">
+    <div class="cup-season-head">
+      <div><span class="cup-season-kicker">Arcade season · on this phone</span>
+      <strong>${season.bestWins}/4 best road</strong></div>
+      <span class="cup-season-form" aria-label="Last ${season.form.length} runs">
+        ${season.form.map((wins) => `<i class="f-${wins}" title="${wins} of 4 stops won">${wins}</i>`).join('')}
+      </span>
+    </div>
+    <div class="cup-season-stats" role="group" aria-label="Season record">
+      <span><b>${season.runs}</b><small>${season.runs === 1 ? 'run' : 'runs'}</small></span>
+      <span><b>${season.perfect}</b><small>perfect</small></span>
+      <span><b>${season.stopWins}W–${season.stopLosses}L${season.stopDraws ? `–${season.stopDraws}D` : ''}</b><small>road record</small></span>
+    </div>
+    <p class="cup-season-story">${esc(latestStory)}</p>
+  </section>`;
+}
+
 function cupHTML(play) {
   const side = currentSide(play);
   if (!side) {
@@ -2854,6 +2921,7 @@ function cupHTML(play) {
       <div class="play-actions">
         <button class="play-btn gold" id="cup-start">Start today&rsquo;s run</button>
       </div>
+      ${cupSeasonHTML(history, side.code)}
       ${history.length ? cupShelfHTML(history) : ''}
       <p class="lab-saved-note">Seeded daily on this phone · trophies are a local game prize, never money.</p>
     </section>`;
@@ -2894,6 +2962,7 @@ function cupHTML(play) {
       <button class="play-btn gold" data-cup-stop="${next}">Play stop ${CUP_STOPS.findIndex((s) => s.id === next) + 1} — ${esc(CUP_STOPS.find((s) => s.id === next).name)}</button>
       <button class="play-btn quiet" id="cup-restart">Restart run</button>`}
     </div>
+    ${cupSeasonHTML(history, side.code)}
     ${history.length ? cupShelfHTML(history) : ''}
     <p class="lab-saved-note">Stops settle from the games you actually play · on this phone only.</p>
   </section>`;

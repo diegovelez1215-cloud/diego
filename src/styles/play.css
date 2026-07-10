@@ -1843,6 +1843,37 @@
 .cup-medal.t-gold { border-color: color-mix(in srgb, var(--gold) 45%, transparent); color: var(--gold-ink); }
 .cup-medal.t-silver { border-color: rgba(242, 246, 255, 0.28); }
 
+/* Completed runs become a local season instead of disappearing into a count. */
+.cup-season {
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--hairline));
+  border-radius: var(--radius-sm);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 7%, transparent), transparent 62%), var(--bg);
+  padding: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.cup-season-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.cup-season-head > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cup-season-kicker { color: var(--gold-ink); font-size: 0.64rem; font-weight: var(--w-bold); letter-spacing: 0.1em; text-transform: uppercase; }
+.cup-season-head strong { font-size: var(--fs-body); }
+.cup-season-form,
+.you-cup-form { display: flex; flex: 0 0 auto; gap: 4px; }
+.cup-season-form i,
+.you-cup-form i {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 999px;
+  border: 1px solid var(--hairline); background: rgba(242, 246, 255, 0.04);
+  color: var(--ink-3); font-style: normal; font-size: 0.66rem; font-weight: var(--w-bold);
+}
+.cup-season-form i.f-4,
+.you-cup-form i.f-4 { border-color: color-mix(in srgb, var(--gold) 60%, transparent); background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold-ink); }
+.cup-season-form i.f-3,
+.you-cup-form i.f-3 { border-color: color-mix(in srgb, var(--gold) 34%, transparent); color: var(--gold-ink); }
+.cup-season-stats { display: grid; grid-template-columns: 0.7fr 0.8fr 1.5fr; gap: var(--sp-2); margin-top: var(--sp-3); }
+.cup-season-stats span { display: flex; flex-direction: column; min-width: 0; }
+.cup-season-stats b { color: var(--ink-2); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cup-season-stats small { color: var(--ink-3); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.cup-season-story { color: var(--ink-3); font-size: 0.7rem; line-height: 1.45; margin-top: var(--sp-3); }
+
 /* stop recap banner: the "one more stop" pull, shared by every game */
 .cup-advance {
   display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start;
@@ -1927,10 +1958,21 @@
 .you-trophy-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .you-trophy-id strong { font-size: var(--fs-micro); font-weight: var(--w-bold); }
 .you-trophy-id small { color: var(--ink-3); font-size: 0.7rem; }
+.you-trophy-story { color: var(--ink-2); font-size: 0.68rem; line-height: 1.35; }
 .you-trophy-stops { display: flex; gap: 4px; flex: 0 0 auto; }
 .you-trophy-stops .cup-dot { width: 9px; height: 9px; }
 .you-moment.cup { border-color: color-mix(in srgb, var(--gold) 45%, transparent); color: var(--gold-ink); }
 .you-moment.cc { border-color: color-mix(in srgb, var(--gold) 26%, var(--hairline)); }
+.you-cup-season {
+  display: grid; grid-template-columns: 0.8fr 0.9fr 1.4fr; gap: var(--sp-2);
+  border: 1px solid color-mix(in srgb, var(--gold) 25%, var(--hairline));
+  border-radius: var(--radius-sm); padding: var(--sp-3); margin-bottom: var(--sp-3);
+  background: color-mix(in srgb, var(--gold) 5%, transparent);
+}
+.you-cup-season > div:not(.you-cup-form) { display: flex; flex-direction: column; min-width: 0; }
+.you-cup-season strong { font-size: var(--fs-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.you-cup-season span { color: var(--ink-3); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.you-cup-form { grid-column: 1 / -1; padding-top: var(--sp-1); }
 
 @media (prefers-reduced-motion: reduce) {
   .cup-strip, .cup-play { transition: none; }

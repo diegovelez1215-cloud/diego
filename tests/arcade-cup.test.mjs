@@ -20,6 +20,8 @@ import {
   cupRecordStop,
   cupResultFromRush,
   cupRivals,
+  cupRunStory,
+  cupSeasonSummary,
   cupTrophy,
   cupWins,
   dailyCoachSeed,
@@ -99,6 +101,28 @@ test('a full run finishes with a trophy tier derived only from stop wins', () =>
   assert.equal(cupNextStop(done), null);
 });
 
+test('finished roads create an honest local season summary and memory line', () => {
+  const run = (side, results, at) => {
+    let cup = createArcadeCup(side, '2026-07-09', 0);
+    for (let i = 0; i < CUP_STOPS.length; i++) cup = cupRecordStop(cup, CUP_STOPS[i].id, results[i]);
+    return { ...cup, at, wins: cupWins(cup) };
+  };
+  const gold = run('USA', ['W', 'W', 'W', 'W'], '2026-07-09T12:00:00Z');
+  const heartbreak = run('USA', ['W', 'W', 'W', 'L'], '2026-07-08T12:00:00Z');
+  const other = run('BRA', ['L', 'W', 'D', 'W'], '2026-07-07T12:00:00Z');
+  const all = cupSeasonSummary([gold, heartbreak, other]);
+  assert.deepEqual(all.form, [4, 3, 2]);
+  assert.equal(all.runs, 3);
+  assert.equal(all.perfect, 1);
+  assert.equal(all.bestWins, 4);
+  assert.deepEqual([all.stopWins, all.stopLosses, all.stopDraws], [9, 2, 1]);
+  const usa = cupSeasonSummary([gold, heartbreak, other], 'USA');
+  assert.deepEqual([usa.runs, usa.stopWins, usa.stopLosses, usa.stopDraws], [2, 7, 1, 0]);
+  assert.equal(cupRunStory(gold), 'Perfect road — four stops, four wins.');
+  assert.equal(cupRunStory(heartbreak), 'Gold slipped away at the final stop.');
+  assert.equal(cupRunStory(createArcadeCup('USA')), 'Road still in progress.');
+});
+
 test('the Penalty Rush stop verdict maps goals honestly', () => {
   assert.equal(cupResultFromRush(5), 'W');
   assert.equal(cupResultFromRush(4), 'W');
@@ -145,6 +169,8 @@ test('completing the last stop archives the run into cupHistory with its trophy'
   assert.equal(archived.side, 'USA');
   assert.equal(archived.wins, 4);
   assert.equal(archived.trophy.tier, 'gold');
+  assert.equal(archived.rivals.length, 4);
+  assert.equal(archived.attempt, 0);
   assert.deepEqual(archived.stops, { call: 'W', rush: 'W', clutch: 'W', showdown: 'W' });
   // a finished run takes no more results through the door either
   assert.equal(withCupProgress(finale.play, 'call', 'W').advanced, false);

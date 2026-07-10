@@ -16,6 +16,7 @@ import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
 import {
   gradePredictions, arcadeLedger, achievementState, pickLockedAtKickoff, replayLabEntry,
   currentSide, sideRecordFor, openSidePicker, LAB_TAG_LABELS, CUP_STOPS,
+  cupRunStory, cupSeasonSummary,
 } from './play.js';
 import { TEAM_COLORS } from '../data/fixtures.js';
 import { activate } from '../navigation/router.js';
@@ -504,6 +505,7 @@ function hallOfMomentsHTML(play) {
    Local game prizes only: never money, never an official claim. */
 function trophyRoomHTML(play) {
   const cups = play.cupHistory || [];
+  const season = cupSeasonSummary(cups);
   const counts = { gold: 0, silver: 0, bronze: 0, finisher: 0 };
   for (const c of cups) counts[(c.trophy && c.trophy.tier) || 'finisher'] += 1;
   return `<section class="you-card you-trophies${cups.length ? '' : ' empty'}" aria-label="Trophy room">
@@ -515,6 +517,12 @@ function trophyRoomHTML(play) {
       ${counts.bronze ? `<span class="trophy-count t-bronze">🥉 ${counts.bronze}</span>` : ''}
       ${counts.finisher ? `<span class="trophy-count t-finisher">🎖️ ${counts.finisher}</span>` : ''}
     </div>
+    <div class="you-cup-season" aria-label="Arcade season record">
+      <div><strong>${season.bestWins}/4</strong><span>best road</span></div>
+      <div><strong>${season.perfect}</strong><span>perfect cups</span></div>
+      <div><strong>${season.stopWins}W–${season.stopLosses}L${season.stopDraws ? `–${season.stopDraws}D` : ''}</strong><span>all stops</span></div>
+      <div class="you-cup-form" aria-label="Recent Cup form">${season.form.map((wins) => `<i class="f-${wins}">${wins}</i>`).join('')}</div>
+    </div>
     <div class="trophy-shelf">
       ${cups.slice(0, 8).map((c) => `
       <div class="you-trophy t-${(c.trophy && c.trophy.tier) || 'finisher'}">
@@ -522,10 +530,12 @@ function trophyRoomHTML(play) {
         <div class="you-trophy-id">
           <strong>${esc(c.trophy ? c.trophy.label : 'Run complete')}</strong>
           <small>${teamFlag(c.side)} ${esc(teamName(c.side))} · ${c.wins}/4 stops · ${esc(fmtDate(c.at))}</small>
+          <span class="you-trophy-story">${esc(cupRunStory(c))}</span>
         </div>
         <span class="you-trophy-stops" aria-hidden="true">${CUP_STOPS.map((s) => `<i class="cup-dot ${c.stops && c.stops[s.id] ? c.stops[s.id].toLowerCase() : 'wait'}"></i>`).join('')}</span>
       </div>`).join('')}
-    </div>` : `
+    </div>
+    <button class="you-sideaction" id="you-goto-cup">Run the Arcade Cup again</button>` : `
     <p class="you-side-empty">The shelf is waiting for its first cup. Run the Arcade Cup on the
       Play tab — four stops, one trophy, all kept here.</p>
     <button class="you-sideaction" id="you-goto-cup">Start the Arcade Cup</button>`}

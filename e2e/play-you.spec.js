@@ -496,6 +496,8 @@ test.describe('Arcade Cup', () => {
 
     // the run is complete: trophy on the Cup, restart available
     await expect(page.locator('.cup-final')).toBeVisible();
+    await expect(page.locator('.cup-season')).toContainText('4/4 best road');
+    await expect(page.locator('.cup-season')).toContainText('Perfect road');
     await expect(page.locator('#cup-restart')).toBeVisible();
     await screenshot(page, testInfo, 'play-cup-trophy');
     await expectNoHorizontalOverflow(page, expect, 'arcade-cup');
@@ -504,6 +506,8 @@ test.describe('Arcade Cup', () => {
     await tapTab(page, 'you');
     await expect(page.locator('.you-trophies .you-trophy')).toHaveCount(1);
     await expect(page.locator('.trophy-shelf')).toContainText('4/4');
+    await expect(page.locator('.you-cup-season')).toContainText('perfect cups');
+    await expect(page.locator('.you-trophy-story')).toContainText('Perfect road');
     await screenshot(page, testInfo, 'you-trophy-room');
 
     // local-only: whitelisted namespaces, the run lives in the Play key
