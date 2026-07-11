@@ -3,7 +3,7 @@
 // stale fixtures, scores, scorers, or provider responses cannot masquerade as
 // current World Cup truth.
 
-const STATIC_CACHE = 'u26-static-v4';
+const STATIC_CACHE = 'u26-static-v5';
 const STATIC_SHELL = [
   '/',
   '/index.html',

@@ -19,8 +19,10 @@ import {
   createCoachCall,
   cupNextStop,
   cupRecordStop,
+  cupResultFromRondo,
   cupResultFromRush,
   cupRivals,
+  cupRoad,
   cupRunStory,
   cupSeasonSummary,
   cupTrophy,
@@ -65,24 +67,38 @@ test('createArcadeCup is deterministic and refuses unknown sides', () => {
   const b = createArcadeCup('USA', '2026-07-09', 0);
   assert.deepEqual(a.rivals, b.rivals);
   assert.equal(a.seed, b.seed);
-  assert.deepEqual(a.stops, { call: null, rush: null, clutch: null, showdown: null });
+  assert.deepEqual(a.stops, { carousel: null, call: null, rush: null, clutch: null, showdown: null });
   assert.equal(a.done, false);
   assert.equal(createArcadeCup('NOT-A-TEAM'), null);
   assert.equal(createArcadeCup(null), null);
+});
+
+test('a legacy four-stop run keeps its original road to the end — no mid-run rule change', () => {
+  const legacy = {
+    seed: 1, dateKey: '2026-07-01', side: 'USA', rivals: ['BRA', 'FRA', 'ARG', 'GER'],
+    stops: { call: 'W', rush: 'W', clutch: null, showdown: null }, done: false, trophy: null,
+  };
+  assert.equal(cupRoad(legacy).length, 4, 'the carousel is never inserted into an old run');
+  assert.equal(cupNextStop(legacy), 'clutch');
+  let cup = cupRecordStop(legacy, 'clutch', 'W');
+  cup = cupRecordStop(cup, 'showdown', 'W');
+  assert.equal(cup.done, true);
+  assert.equal(cup.trophy.tier, 'gold', 'four wins on a four-stop road is still gold');
+  assert.equal(cupWins(cup), 4);
 });
 
 /* ---------------- road order and trophies ---------------- */
 
 test('stops resolve strictly in road order; out-of-order and invalid results are refused', () => {
   let cup = createArcadeCup('USA', '2026-07-09', 0);
-  assert.equal(cupNextStop(cup), 'call');
+  assert.equal(cupNextStop(cup), 'carousel', 'a fresh road opens on the Carousel');
   assert.equal(cupRecordStop(cup, 'rush', 'W'), cup, 'skipping ahead changes nothing');
-  assert.equal(cupRecordStop(cup, 'call', 'X'), cup, 'invalid results change nothing');
-  const after = cupRecordStop(cup, 'call', 'W');
+  assert.equal(cupRecordStop(cup, 'carousel', 'X'), cup, 'invalid results change nothing');
+  const after = cupRecordStop(cup, 'carousel', 'W');
   assert.notEqual(after, cup, 'a legal stop returns a new cup');
-  assert.equal(cup.stops.call, null, 'the original cup is never mutated');
-  assert.equal(after.stops.call, 'W');
-  assert.equal(cupNextStop(after), 'rush');
+  assert.equal(cup.stops.carousel, null, 'the original cup is never mutated');
+  assert.equal(after.stops.carousel, 'W');
+  assert.equal(cupNextStop(after), 'call');
 });
 
 test('a full run finishes with a trophy tier derived only from stop wins', () => {
@@ -91,15 +107,15 @@ test('a full run finishes with a trophy tier derived only from stop wins', () =>
     for (let i = 0; i < CUP_STOPS.length; i++) cup = cupRecordStop(cup, CUP_STOPS[i].id, results[i]);
     return cup;
   };
-  const gold = play(['W', 'W', 'W', 'W']);
+  const gold = play(['W', 'W', 'W', 'W', 'W']);
   assert.equal(gold.done, true);
   assert.equal(gold.trophy.tier, 'gold');
-  assert.equal(cupWins(gold), 4);
-  assert.equal(play(['W', 'W', 'W', 'L']).trophy.tier, 'silver');
-  assert.equal(play(['W', 'L', 'W', 'D']).trophy.tier, 'bronze');
-  assert.equal(play(['L', 'D', 'L', 'W']).trophy.tier, 'finisher');
-  const done = play(['W', 'W', 'W', 'W']);
-  assert.equal(cupRecordStop(done, 'call', 'W'), done, 'a finished run takes no more results');
+  assert.equal(cupWins(gold), 5);
+  assert.equal(play(['W', 'W', 'W', 'W', 'L']).trophy.tier, 'silver');
+  assert.equal(play(['W', 'L', 'W', 'D', 'W']).trophy.tier, 'bronze');
+  assert.equal(play(['L', 'D', 'L', 'W', 'D']).trophy.tier, 'finisher');
+  const done = play(['W', 'W', 'W', 'W', 'W']);
+  assert.equal(cupRecordStop(done, 'carousel', 'W'), done, 'a finished run takes no more results');
   assert.equal(cupNextStop(done), null);
 });
 
@@ -109,18 +125,18 @@ test('finished roads create an honest local season summary and memory line', () 
     for (let i = 0; i < CUP_STOPS.length; i++) cup = cupRecordStop(cup, CUP_STOPS[i].id, results[i]);
     return { ...cup, at, wins: cupWins(cup) };
   };
-  const gold = run('USA', ['W', 'W', 'W', 'W'], '2026-07-09T12:00:00Z');
-  const heartbreak = run('USA', ['W', 'W', 'W', 'L'], '2026-07-08T12:00:00Z');
-  const other = run('BRA', ['L', 'W', 'D', 'W'], '2026-07-07T12:00:00Z');
+  const gold = run('USA', ['W', 'W', 'W', 'W', 'W'], '2026-07-09T12:00:00Z');
+  const heartbreak = run('USA', ['W', 'W', 'W', 'W', 'L'], '2026-07-08T12:00:00Z');
+  const other = run('BRA', ['L', 'W', 'W', 'D', 'W'], '2026-07-07T12:00:00Z');
   const all = cupSeasonSummary([gold, heartbreak, other]);
-  assert.deepEqual(all.form, [4, 3, 2]);
+  assert.deepEqual(all.form, [5, 4, 3]);
   assert.equal(all.runs, 3);
   assert.equal(all.perfect, 1);
-  assert.equal(all.bestWins, 4);
-  assert.deepEqual([all.stopWins, all.stopLosses, all.stopDraws], [9, 2, 1]);
+  assert.equal(all.bestWins, 5);
+  assert.deepEqual([all.stopWins, all.stopLosses, all.stopDraws], [12, 2, 1]);
   const usa = cupSeasonSummary([gold, heartbreak, other], 'USA');
-  assert.deepEqual([usa.runs, usa.stopWins, usa.stopLosses, usa.stopDraws], [2, 7, 1, 0]);
-  assert.equal(cupRunStory(gold), 'Perfect road — four stops, four wins.');
+  assert.deepEqual([usa.runs, usa.stopWins, usa.stopLosses, usa.stopDraws], [2, 9, 1, 0]);
+  assert.equal(cupRunStory(gold), 'Perfect road — five stops, five wins.');
   assert.equal(cupRunStory(heartbreak), 'Gold slipped away at the final stop.');
   assert.equal(cupRunStory(createArcadeCup('USA')), 'Road still in progress.');
 });
@@ -131,6 +147,14 @@ test('the Penalty Rush stop verdict maps goals honestly', () => {
   assert.equal(cupResultFromRush(3), 'D');
   assert.equal(cupResultFromRush(2), 'L');
   assert.equal(cupResultFromRush(0), 'L');
+});
+
+test('the Carousel stop verdict maps waves honestly and is readable in advance', () => {
+  assert.equal(cupResultFromRondo({ wave: 3 }), 'W');
+  assert.equal(cupResultFromRondo({ wave: 5 }), 'W');
+  assert.equal(cupResultFromRondo({ wave: 2 }), 'D');
+  assert.equal(cupResultFromRondo({ wave: 1 }), 'L');
+  assert.equal(cupResultFromRondo(null), 'L');
 });
 
 /* ---------------- withCupProgress: the only door into the run ---------------- */
@@ -147,18 +171,18 @@ test('withCupProgress advances only the current stop for the side that started t
   assert.equal(wrongStop.play, play, 'wrong stop passes through untouched');
   const noCup = withCupProgress({ side: { code: 'USA' } }, 'call', 'W');
   assert.equal(noCup.advanced, false);
-  const wrongSide = withCupProgress({ ...play, side: { code: 'BRA' } }, 'call', 'W');
+  const wrongSide = withCupProgress({ ...play, side: { code: 'BRA' } }, 'carousel', 'W');
   assert.equal(wrongSide.advanced, false, 'switching sides freezes the old run');
-  const ok = withCupProgress(play, 'call', 'W');
+  const ok = withCupProgress(play, 'carousel', 'W');
   assert.equal(ok.advanced, true);
   assert.equal(ok.done, false);
-  assert.equal(ok.play.arcadeCup.stops.call, 'W');
-  assert.equal(play.arcadeCup.stops.call, null, 'pure: the input play object is untouched');
+  assert.equal(ok.play.arcadeCup.stops.carousel, 'W');
+  assert.equal(play.arcadeCup.stops.carousel, null, 'pure: the input play object is untouched');
 });
 
 test('completing the last stop archives the run into cupHistory with its trophy', () => {
   let play = playWithCup();
-  for (const stop of ['call', 'rush', 'clutch']) {
+  for (const stop of ['carousel', 'call', 'rush', 'clutch']) {
     play = withCupProgress(play, stop, 'W').play;
   }
   const finale = withCupProgress(play, 'showdown', 'W');
@@ -169,13 +193,13 @@ test('completing the last stop archives the run into cupHistory with its trophy'
   assert.equal(finale.play.cupHistory.length, 1);
   const archived = finale.play.cupHistory[0];
   assert.equal(archived.side, 'USA');
-  assert.equal(archived.wins, 4);
+  assert.equal(archived.wins, 5);
   assert.equal(archived.trophy.tier, 'gold');
   assert.equal(archived.rivals.length, 4);
   assert.equal(archived.attempt, 0);
-  assert.deepEqual(archived.stops, { call: 'W', rush: 'W', clutch: 'W', showdown: 'W' });
+  assert.deepEqual(archived.stops, { carousel: 'W', call: 'W', rush: 'W', clutch: 'W', showdown: 'W' });
   // a finished run takes no more results through the door either
-  assert.equal(withCupProgress(finale.play, 'call', 'W').advanced, false);
+  assert.equal(withCupProgress(finale.play, 'carousel', 'W').advanced, false);
 });
 
 test('cup progress never touches official truth', () => {
@@ -184,7 +208,7 @@ test('cup progress never touches official truth', () => {
   const version = getState().real.overlay.version;
   const size = getState().real.overlay.byFixture.size;
   let play = playWithCup();
-  for (const stop of ['call', 'rush', 'clutch', 'showdown']) {
+  for (const stop of ['carousel', 'call', 'rush', 'clutch', 'showdown']) {
     play = withCupProgress(play, stop, 'W').play;
   }
   assert.equal(getState().real.overlay.version, version, 'overlay version untouched');

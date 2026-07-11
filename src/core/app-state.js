@@ -14,7 +14,7 @@ const state = {
     matchCenterId: null,    // open match-center fixture id or null
     bracketMode: 'full',    // full | follow
     followTeam: null,       // team code illuminated in follow mode
-    playMode: 'lobby',      // lobby | shotlab | lab | shootout | finalminute | coach | cup | myworldcup | prediction
+    playMode: 'lobby',      // lobby | rondo | lab | shootout | finalminute | coach | cup | myworldcup | prediction (retired ids fall back to lobby)
     youView: 'you',         // you | board
     boardTab: 'picks',      // picks | arcade
     boardScope: 'tournament', // tournament | round

@@ -15,8 +15,8 @@ import { savePrefs, saveSims } from '../core/persistence.js';
 import { teamFlag, teamName, STAGE_NAMES } from '../core/canonical-truth.js';
 import {
   gradePredictions, arcadeLedger, arcadeRank, achievementState, pickLockedAtKickoff, replayLabEntry,
-  currentSide, sideRecordFor, openSidePicker, LAB_TAG_LABELS, CUP_STOPS,
-  cupRunStory, cupSeasonSummary,
+  currentSide, sideRecordFor, openSidePicker, LAB_TAG_LABELS,
+  cupRoad, cupRunStory, cupSeasonSummary,
 } from './play.js';
 import { TEAM_COLORS } from '../data/fixtures.js';
 import { activate } from '../navigation/router.js';
@@ -445,10 +445,14 @@ function hallOfMomentsHTML(play) {
   if (rush && rush.played) {
     chips.push(`<span class="you-moment rush">◐ Gauntlet best ${rush.bestEver || 0}${rush.perfects ? ` · ${rush.perfects} perfect` : ''}</span>`);
   }
-  const shots = play.shotLab;
-  if (shots && shots.played) {
-    const best = Math.max(shots.bestPractice || 0, shots.bestTimed || 0);
-    chips.push(`<span class="you-moment shot">◉ Shot Lab ${best.toLocaleString()} · ${shots.bestAccuracy || 0}% accuracy</span>`);
+  const rondo = play.rondo;
+  if (rondo && rondo.played) {
+    chips.push(`<span class="you-moment rondo">◍ Rondo ${((rondo.bestScore || rondo.bestPractice) || 0).toLocaleString()}${rondo.bestChain ? ` · chain ×${rondo.bestChain}` : ''}</span>`);
+  }
+  const legacyShots = play.legacy && play.legacy.shotLab && play.legacy.shotLab.record;
+  if (legacyShots && legacyShots.played) {
+    const best = Math.max(legacyShots.bestPractice || 0, legacyShots.bestTimed || 0);
+    chips.push(`<span class="you-moment shot">◉ Shot Lab (retired) ${best.toLocaleString()} · ${legacyShots.bestAccuracy || 0}% accuracy</span>`);
   }
   const fm = play.fmHistory || [];
   const fmBest = fm.find((e) => e.result === 'W' && e.scenario === 'rescue') || fm.find((e) => e.result === 'W');
@@ -462,7 +466,7 @@ function hallOfMomentsHTML(play) {
   }
   const goldCup = (play.cupHistory || []).find((c) => c.trophy && c.trophy.tier === 'gold');
   if (goldCup) {
-    chips.push(`<span class="you-moment cup">🏆 Perfect Arcade Cup — ${teamFlag(goldCup.side)} four stops, four wins</span>`);
+    chips.push(`<span class="you-moment cup">🏆 Perfect Arcade Cup — ${teamFlag(goldCup.side)} every stop won</span>`);
   }
   if (!chips.length) return '';
   return `<div class="you-moments" aria-label="Hall of moments">${chips.join('')}</div>`;
@@ -485,7 +489,7 @@ function trophyRoomHTML(play) {
       ${counts.finisher ? `<span class="trophy-count t-finisher">🎖️ ${counts.finisher}</span>` : ''}
     </div>
     <div class="you-cup-season" aria-label="Arcade season record">
-      <div><strong>${season.bestWins}/4</strong><span>best road</span></div>
+      <div><strong>${season.bestWins}/${season.bestRoad}</strong><span>best road</span></div>
       <div><strong>${season.perfect}</strong><span>perfect cups</span></div>
       <div><strong>${season.stopWins}W–${season.stopLosses}L${season.stopDraws ? `–${season.stopDraws}D` : ''}</strong><span>all stops</span></div>
       <div class="you-cup-form" aria-label="Recent Cup form">${season.form.map((wins) => `<i class="f-${wins}">${wins}</i>`).join('')}</div>
@@ -496,10 +500,10 @@ function trophyRoomHTML(play) {
         <span class="you-trophy-icon" aria-hidden="true">${c.trophy ? c.trophy.icon : '🎖️'}</span>
         <div class="you-trophy-id">
           <strong>${esc(c.trophy ? c.trophy.label : 'Run complete')}</strong>
-          <small>${teamFlag(c.side)} ${esc(teamName(c.side))} · ${c.wins}/4 stops · ${esc(fmtDate(c.at))}</small>
+          <small>${teamFlag(c.side)} ${esc(teamName(c.side))} · ${c.wins}/${cupRoad(c).length} stops · ${esc(fmtDate(c.at))}</small>
           <span class="you-trophy-story">${esc(cupRunStory(c))}</span>
         </div>
-        <span class="you-trophy-stops" aria-hidden="true">${CUP_STOPS.map((s) => `<i class="cup-dot ${c.stops && c.stops[s.id] ? c.stops[s.id].toLowerCase() : 'wait'}"></i>`).join('')}</span>
+        <span class="you-trophy-stops" aria-hidden="true">${cupRoad(c).map((s) => `<i class="cup-dot ${c.stops && c.stops[s.id] ? c.stops[s.id].toLowerCase() : 'wait'}"></i>`).join('')}</span>
       </div>`).join('')}
     </div>
     <button class="you-sideaction" id="you-goto-cup">Run the Arcade Cup again</button>` : `
@@ -543,19 +547,36 @@ function youSideHTML(play) {
   </section>`;
 }
 
-function shotLabMuseumHTML(play) {
-  const shots = play.shotLab || null;
-  return `<section class="you-card you-shot-lab${shots?.played ? '' : ' empty'}" aria-label="Shot Lab records">
-    <p class="bd-kicker">Shot Lab · local skill record</p>
-    <h2>${shots?.last ? esc(shots.last.grade) : 'The goal is waiting'}</h2>
-    ${shots?.played ? `<div class="ladder-grid" role="group" aria-label="Shot Lab bests">
+function rondoMuseumHTML(play) {
+  const rondo = play.rondo || null;
+  return `<section class="you-card you-rondo${rondo?.played ? '' : ' empty'}" aria-label="Rondo records">
+    <p class="bd-kicker">Rondo · local skill record</p>
+    <h2>${rondo?.last ? esc(rondo.last.grade) : 'The carousel is waiting'}</h2>
+    ${rondo?.played ? `<div class="ladder-grid" role="group" aria-label="Rondo bests">
+      <span class="ladder-cell"><b>${(rondo.bestScore || 0).toLocaleString()}</b><small>challenge best</small></span>
+      <span class="ladder-cell"><b>${rondo.bestChain ? '×' + rondo.bestChain : '—'}</b><small>longest chain</small></span>
+      <span class="ladder-cell"><b>${rondo.bestWave || '—'}</b><small>deepest wave</small></span>
+      <span class="ladder-cell"><b>${(rondo.bestPractice || 0).toLocaleString()}</b><small>practice best</small></span>
+    </div><p class="you-history">${rondo.played} ${rondo.played === 1 ? 'run' : 'runs'} kept on this phone. Ranked submission is off until server validation is live.</p>`
+    : '<p class="empty-line">Keep the ball alive under a live press — the flagship skill game is ready in Play.</p>'}
+    <button class="you-sideaction" id="you-goto-rondo">${rondo?.played ? 'Beat your Rondo best' : 'Enter Rondo'}</button>
+  </section>`;
+}
+
+/* Retired games keep their shelf: real records from a real game, clearly
+   labelled, never rebadged as anything else. Read-only by design. */
+function legacyShelfHTML(play) {
+  const shots = play.legacy && play.legacy.shotLab && play.legacy.shotLab.record;
+  if (!shots || !shots.played) return '';
+  return `<section class="you-card you-legacy" aria-label="Retired game records">
+    <p class="bd-kicker">Legacy shelf · Shot Lab (retired)</p>
+    <div class="ladder-grid" role="group" aria-label="Shot Lab bests">
       <span class="ladder-cell"><b>${(shots.bestPractice || 0).toLocaleString()}</b><small>studio best</small></span>
       <span class="ladder-cell"><b>${(shots.bestTimed || 0).toLocaleString()}</b><small>timed best</small></span>
       <span class="ladder-cell"><b>${shots.bestAccuracy || 0}%</b><small>accuracy</small></span>
-      <span class="ladder-cell"><b>${shots.bestCombo || 0}</b><small>target combo</small></span>
-    </div><p class="you-history">${shots.played} ${shots.played === 1 ? 'run' : 'runs'} kept on this phone. Ranked submission is off until server validation is live.</p>`
-    : '<p class="empty-line">Aim, contact, power, curve and keeper reads — a complete skill game is ready in Play.</p>'}
-    <button class="you-sideaction" id="you-goto-shot">${shots?.played ? 'Beat your Shot Lab best' : 'Enter Shot Lab'}</button>
+      <span class="ladder-cell"><b>${shots.played}</b><small>runs</small></span>
+    </div>
+    <p class="you-history">Shot Lab was retired from the catalog. These records were earned there and stay here — they never merge into Rondo.</p>
   </section>`;
 }
 
@@ -571,7 +592,8 @@ function museumHTML(state) {
     ${museumHeroHTML(state)}
     ${youSideHTML(play)}
     ${trophyRoomHTML(play)}
-    ${shotLabMuseumHTML(play)}
+    ${rondoMuseumHTML(play)}
+    ${legacyShelfHTML(play)}
     <section class="you-card" aria-label="Prediction record">
       <h2>Prediction record</h2>
       ${pickCount ? `<div class="pr-stats quiet" role="group" aria-label="Record">
@@ -784,10 +806,10 @@ export function render(outlet) {
       activate('play');
     });
   }
-  const gotoShot = outlet.querySelector('#you-goto-shot');
-  if (gotoShot) {
-    gotoShot.addEventListener('click', () => {
-      setPlayMode('shotlab');
+  const gotoRondo = outlet.querySelector('#you-goto-rondo');
+  if (gotoRondo) {
+    gotoRondo.addEventListener('click', () => {
+      setPlayMode('rondo');
       activate('play');
     });
   }

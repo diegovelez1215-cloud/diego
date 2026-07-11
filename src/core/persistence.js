@@ -56,22 +56,50 @@ function sanitize(obj) {
   return clean;
 }
 
-const PLAY_CATALOG_VERSION = 2;
+// Single source of truth for the catalog version — imported, never copied.
+import { PLAY_CATALOG_VERSION } from './play-catalog.js';
+
+/* Staged, versioned Play migrations. Each step is additive-or-relocating,
+   never destructive: retired game records move to a readable legacy shelf,
+   tagged with what they were, and no trophy, best, history or side is lost.
+   Every step must stay idempotent (running twice changes nothing). */
 export function migratePlayState(value) {
-  const play = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  let play = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const version = Number(play.catalogVersion) || 1;
   if (version >= PLAY_CATALOG_VERSION) return play;
-  return {
-    ...play,
-    catalogVersion: PLAY_CATALOG_VERSION,
-    legacy: {
-      ...(play.legacy || {}),
-      catalogV1: {
-        migratedAt: new Date().toISOString(),
-        modeAliases: { shots: 'shotlab', rush: 'shootout', lab: 'lab', coach: 'coach', mycup: 'myworldcup', predict: 'prediction' },
+  if (version < 2) {
+    play = {
+      ...play,
+      catalogVersion: 2,
+      legacy: {
+        ...(play.legacy || {}),
+        catalogV1: {
+          migratedAt: new Date().toISOString(),
+          modeAliases: { shots: 'shotlab', rush: 'shootout', lab: 'lab', coach: 'coach', mycup: 'myworldcup', predict: 'prediction' },
+        },
       },
-    },
-  };
+    };
+  }
+  if (Number(play.catalogVersion) < 3) {
+    // v3: Shot Lab is retired. Its record moves — losslessly and labelled —
+    // to the legacy shelf. It is never merged into Rondo: old scores belong
+    // to the old game.
+    const { shotLab, ...rest } = play;
+    const hadShotLab = shotLab && typeof shotLab === 'object' && !Array.isArray(shotLab);
+    play = {
+      ...rest,
+      catalogVersion: 3,
+      legacy: {
+        ...(rest.legacy || {}),
+        catalogV2: {
+          migratedAt: new Date().toISOString(),
+          retiredModes: ['shotlab'],
+        },
+        ...(hadShotLab ? { shotLab: { game: 'Shot Lab', retired: true, record: shotLab } } : {}),
+      },
+    };
+  }
+  return play;
 }
 
 // Sanitize on save AND on load: even a hand-crafted storage blob cannot carry

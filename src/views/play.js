@@ -1,5 +1,7 @@
-// United 2026 — Play. The arcade: a lobby plus three connected modes, all
-// sealed off from real tournament truth. Match Lab runs an interactive
+// United 2026 — Play. The arcade: a lobby plus a small catalog of finished
+// games, all sealed off from real tournament truth. Rondo is the flagship
+// skill game — keep the ball alive under a live press. Penalty Rush is a
+// timing-and-psychology shootout duel. Match Lab runs an interactive
 // 90-minute simulation with momentum, cards, stoppage time, and decisions.
 // My World Cup is a private, tappable bracket journey. Prediction Run is
 // non-monetary tournament intelligence — picks, confidence, streaks.
@@ -24,18 +26,32 @@ import { celebrate, celebrateFrom } from '../components/celebrate.js';
 import { createSeededRng, simulateSoccerMatch, soccerRatingEdge } from '../core/soccer-engine.js';
 import { playRailModes } from '../core/play-catalog.js';
 import {
-  SHOT_LAB_RULES,
-  SHOT_TYPES,
-  advanceShotLabClock,
-  createShotLab,
-  setShotLabInput,
-  shotLabFrame,
-  shotLabRecordAfter,
-  shotLabRemainingMs,
-  shotLabSummary,
-  takeShot,
-  toggleShotLabPause,
-} from '../games/shot-lab.js';
+  RONDO_RULES,
+  bestOpenLane,
+  createRondo,
+  endRondoRun,
+  laneOpenness,
+  rondoFrame,
+  rondoPass,
+  rondoRecordAfter,
+  rondoSummary,
+  rondoTick,
+  togglePauseRondo,
+  waveProfile,
+} from '../games/rondo.js';
+import {
+  DUEL_RULES,
+  DUEL_ZONES,
+  DUEL_ZONE_INFO,
+  createPenaltyDuel,
+  duelKeeper,
+  duelRating,
+  duelReadSignal,
+  duelRecordAfter,
+  pulseOffsetAt,
+  sweetWindow,
+  takeKick,
+} from '../games/penalty-duel.js';
 
 export const seedHTML = `<div class="view play-view">
   <header class="view-head"><h1>Play</h1><p class="view-sub">Private simulation space</p></header>
@@ -1915,411 +1931,358 @@ function setPick(fixtureId, { side, conf, gh = null, ga = null }) {
   if (currentUser()) pushPick(fixtureId, picks[fixtureId]);
 }
 
-/* ================= Shot Lab =================
-   The flagship touch game. The goal is the aim surface; contact, power,
-   curve and shot type shape a deterministic ball flight. Results are local
-   until a signed server challenge can replay the event log authoritatively. */
+/* ================= Rondo =================
+   The flagship skill game. Keep the ball alive on the possession carousel:
+   tap a teammate (or press 1–6) to pass before the press arrives. Every
+   presser moves on a fixed deterministic tick, every lane is honest
+   geometry, and the whole run replays from seed + the pass log — local
+   records now, server-validated ranked later. */
 
-let shotRun = null;
-let shotClock = null;
-let shotSoundOn = false;
-let shotAudioContext = null;
+let rondoRun = null;
+let rondoTimer = null;
 
-function shotSeed(mode, attempt = 0) {
-  return hashSeed(`u26-shot-lab-${localDayKey()}-${mode}-${attempt}`) || 1;
+function rondoSeed(mode, attempt = 0) {
+  return hashSeed(`u26-rondo-${localDayKey()}-${mode}-${attempt}`) || 1;
 }
 
-function stopShotClock() {
-  if (shotClock) clearInterval(shotClock);
-  shotClock = null;
+function stopRondoLoop() {
+  if (rondoTimer) clearInterval(rondoTimer);
+  rondoTimer = null;
 }
 
-function commitShotLab() {
-  if (!shotRun || !shotRun.over || shotRun.committed) return;
-  shotRun.committed = true;
+/** Cup verdict for the Carousel stop: reach the third wave to take it. */
+export function cupResultFromRondo(summary) {
+  const wave = (summary && summary.wave) || 1;
+  return wave >= 3 ? 'W' : wave === 2 ? 'D' : 'L';
+}
+
+function commitRondo() {
+  if (!rondoRun || !rondoRun.over || rondoRun.committed) return;
+  rondoRun.committed = true;
   const { play } = getState();
-  const next = { ...play, shotLab: shotLabRecordAfter(play.shotLab, shotRun) };
+  const summary = rondoSummary(rondoRun);
+  const prevBest = (play.rondo && play.rondo.bestScore) || 0;
+  let next = { ...play, rondo: rondoRecordAfter(play.rondo, rondoRun, localDayKey()) };
+  let prog = null;
+  if (rondoRun.mode === 'challenge') {
+    // the Carousel stop of an active Arcade Cup settles from this run
+    prog = withCupProgress(next, 'carousel', cupResultFromRondo(summary));
+    next = prog.play;
+  }
+  rondoRun.cupAdvance = prog && prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
-  const summary = shotLabSummary(shotRun);
-  if (summary.bullseyes >= 2 || summary.score >= 5000) celebrate('trophy');
-  else if (summary.score >= 2800) celebrate('win');
+  if (typeof window !== 'undefined') window.dispatchEvent(new window.Event('u26:high-attention-end'));
+  const side = currentSide(next);
+  const colors = side && TEAM_COLORS[side.code] ? [TEAM_COLORS[side.code], '#ecd7a2', '#f2f6ff'] : undefined;
+  if (rondoRun.cupAdvance && rondoRun.cupAdvance.done && rondoRun.cupAdvance.trophy) celebrate('trophy', { colors });
+  else if (rondoRun.mode === 'challenge' && summary.score >= 600) celebrate('trophy', { colors });
+  else if (rondoRun.mode === 'challenge' && summary.score > prevBest && summary.score > 0) celebrate('win', { colors });
 }
 
-function finishShotClock() {
-  if (!shotRun?.over) return false;
-  stopShotClock();
-  commitShotLab();
-  repaintPlay();
-  return true;
+function startRondoLoop() {
+  stopRondoLoop();
+  if (!rondoRun || rondoRun.over || typeof document === 'undefined') return;
+  rondoTimer = setInterval(() => {
+    if (!rondoRun || rondoRun.over) { stopRondoLoop(); return; }
+    if (document.hidden || rondoRun.paused) return; // the carousel waits with you
+    const before = { passes: rondoRun.passes, turnovers: rondoRun.turnovers, wave: rondoRun.wave };
+    rondoTick(rondoRun);
+    if (rondoRun.over) {
+      stopRondoLoop();
+      commitRondo();
+      repaintPlay();
+      return;
+    }
+    if (rondoRun.turnovers > before.turnovers) { labSound('pen-save'); repaintPlay(); return; }
+    if (rondoRun.wave > before.wave) { labSound('kickoff'); repaintPlay(); return; }
+    if (rondoRun.passes > before.passes) {
+      const o = rondoRun.lastOutcome;
+      labSound(o && (o.split || o.chain >= 3) ? 'pen-goal' : 'shot');
+    }
+    paintRondo();
+  }, RONDO_RULES.tickMs);
 }
 
-function startShotClock() {
-  stopShotClock();
-  if (!shotRun || shotRun.mode !== 'timed' || shotRun.over) return;
-  shotClock = setInterval(() => {
-    if (typeof document !== 'undefined' && document.hidden) return;
-    advanceShotLabClock(shotRun, 250);
-    if (finishShotClock()) return;
-    const timer = document.querySelector('#shot-time');
-    if (timer) timer.textContent = `${Math.ceil(shotLabRemainingMs(shotRun) / 1000)}s`;
-    const ring = document.querySelector('.sl-clock-ring');
-    if (ring) ring.style.setProperty('--left', `${Math.max(0, shotLabRemainingMs(shotRun) / SHOT_LAB_RULES.timedMs)}`);
-  }, 250);
+function rondoLaneHintClass(run, i) {
+  if (run.mode !== 'practice' || run.ball || i === run.carrier) return '';
+  const margin = laneOpenness(run, i);
+  return margin > RONDO_RULES.interceptRadius + 2 ? ' lane-open' : margin > 0 ? ' lane-tight' : ' lane-closed';
 }
 
-function shotTone(event) {
-  if (!shotSoundOn || typeof window === 'undefined') return;
-  try {
-    const Audio = window.AudioContext || window.webkitAudioContext;
-    if (!Audio) return;
-    shotAudioContext = shotAudioContext || new Audio();
-    if (shotAudioContext.state === 'suspended') shotAudioContext.resume();
-    const osc = shotAudioContext.createOscillator();
-    const gain = shotAudioContext.createGain();
-    osc.type = event.goal ? 'sine' : 'triangle';
-    osc.frequency.setValueAtTime(event.goal ? (event.targetHit ? 780 : 520) : 170, shotAudioContext.currentTime);
-    gain.gain.setValueAtTime(0.0001, shotAudioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08, shotAudioContext.currentTime + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, shotAudioContext.currentTime + 0.18);
-    osc.connect(gain); gain.connect(shotAudioContext.destination);
-    osc.start(); osc.stop(shotAudioContext.currentTime + 0.2);
-  } catch { /* audio is an enhancement, never a game dependency */ }
+function rondoCalloutText(run) {
+  const o = run.lastOutcome;
+  if (!o) return 'Tap a teammate — or press 1–6 — before the press arrives.';
+  if (o.kind === 'pass') {
+    if (o.split) return `Split pass through the press · +${o.points}`;
+    if (o.switch) return `Big switch across the carousel · +${o.points}`;
+    if (o.chain > 1) return `One-touch chain ×${o.chain} · +${o.points}`;
+    return `Kept alive · +${o.points}`;
+  }
+  if (o.kind === 'cut') {
+    return `Cut out by presser ${o.by} — the lane closed in flight. #${(o.openTeammate ?? 0) + 1} was the open ball.`;
+  }
+  if (o.kind === 'tackled') {
+    return `Tackled after ${Math.round((o.heldTicks || 0) * RONDO_RULES.tickMs / 100) / 10}s on the ball. Release earlier — #${(o.openTeammate ?? 0) + 1} was free.`;
+  }
+  return '';
 }
 
-function shotInputLabel(run) {
-  const i = run.input;
-  const curve = i.curve < -0.08 ? `${Math.round(Math.abs(i.curve) * 100)} left` : i.curve > 0.08 ? `${Math.round(i.curve * 100)} right` : 'straight';
-  return `${SHOT_TYPES[i.shotType].label} · ${Math.round(i.power * 100)} power · ${curve}`;
+function rondoStageHTML(run) {
+  const frame = rondoFrame(run);
+  return `<div class="rondo-pitch" id="rondo-pitch" tabindex="0" role="application"
+    aria-label="Rondo carousel. Tap a numbered teammate or press keys 1 to 6 to pass. P pauses.">
+    <i class="rondo-zone" aria-hidden="true"></i>
+    ${frame.positions.map((p, i) => `<button class="rondo-mate${i === run.carrier ? ' carrier' : ''}${rondoLaneHintClass(run, i)}"
+      data-mate="${i}" style="--x:${p.x}%;--y:${p.y}%;--press:${i === run.carrier ? frame.pressure : 0}"
+      aria-label="${i === run.carrier ? `Teammate ${i + 1} has the ball` : `Pass to teammate ${i + 1}`}"><b>${i + 1}</b></button>`).join('')}
+    ${frame.defenders.map((d) => `<span class="rondo-def${d.closing ? ' closing' : ''}" data-def="${d.id}"
+      style="--x:${d.x}%;--y:${d.y}%" aria-hidden="true"><i></i></span>`).join('')}
+    <span class="rondo-ball${run.ball ? ' flight' : ''}" aria-hidden="true"
+      style="--x:${run.ball ? run.ball.x : frame.positions[run.carrier].x}%;--y:${run.ball ? run.ball.y : frame.positions[run.carrier].y}%"></span>
+    ${run.paused ? '<span class="rondo-pause-screen"><b>Paused</b><small>The press is frozen with you.</small></span>' : ''}
+  </div>`;
 }
 
-function shotTrailHTML(run) {
-  const last = run.shots.at(-1);
-  if (!last) return '';
-  const endX = Math.max(-5, Math.min(105, last.landing.x));
-  const endY = Math.max(-8, Math.min(108, last.landing.y));
-  return `<svg class="sl-flight" viewBox="0 0 100 100" aria-hidden="true">
-    <path d="M 50 108 Q ${last.input.aim.x} 58 ${endX} ${endY}"/>
-    <circle cx="${endX}" cy="${endY}" r="2.2" class="${last.goal ? 'goal' : 'miss'}"/>
-  </svg>`;
-}
-
-function shotMapHTML(run) {
-  if (!run.shots.length) return '';
-  return `<div class="sl-map-wrap"><div><span class="lt-kicker">Shot map</span><strong>Every finish, exactly where it landed</strong></div>
-    <svg class="sl-map" viewBox="0 0 100 100" role="img" aria-label="Shot map with ${run.shots.length} attempts">
-      <path class="sl-map-goal" d="M2 96V3H98V96"/>
-      ${run.shots.map((s) => `<circle cx="${Math.max(1, Math.min(99, s.landing.x))}" cy="${Math.max(1, Math.min(99, s.landing.y))}" r="3.1" class="${s.targetHit ? 'bull' : s.goal ? 'goal' : s.saved ? 'save' : 'miss'}"><title>Shot ${s.n}: ${s.outcome}, ${s.points} points</title></circle>`).join('')}
-    </svg></div>`;
-}
-
-function shotSetupHTML(play) {
-  const record = play.shotLab || {};
-  return `<section class="play-card shot-lab setup" aria-label="Shot Lab">
-    <div class="sl-intro-orbit" aria-hidden="true"><i></i><b></b><em></em></div>
-    <span class="sim-badge">SKILL GAME · LOCAL</span>
-    <p class="bd-kicker">New flagship game</p>
-    <h2 class="display">Shot Lab</h2>
-    <p class="sl-lede">See the target. Read the keeper. Shape the strike with your own hands.</p>
-    <div class="sl-rules" role="list" aria-label="How Shot Lab works">
-      <span role="listitem"><b>1</b> Tap the goal to aim</span>
-      <span role="listitem"><b>2</b> Shape contact, power and curve</span>
-      <span role="listitem"><b>3</b> Beat the moving target</span>
+function rondoResultHTML(run) {
+  const s = rondoSummary(run);
+  const { play } = getState();
+  const rec = play.rondo || {};
+  const isBest = run.mode === 'challenge' && s.score > 0 && s.score >= (rec.bestScore || 0);
+  const why = run.lastOutcome && run.lastOutcome.kind !== 'pass' ? rondoCalloutText(run) : '';
+  return `<section class="play-card rondo result" aria-label="Rondo result">
+    <span class="sim-badge">LOCAL RESULT</span>
+    <div class="rondo-result-head"><div><p class="bd-kicker">${run.mode === 'challenge' ? 'Daily challenge' : 'Practice session'} complete</p>
+      <h2 class="display">${esc(s.grade)}</h2>
+      <p>${s.passes} ${s.passes === 1 ? 'pass' : 'passes'} · wave ${s.wave} · best chain ×${s.bestChain}</p></div>
+      <strong class="rondo-final-score">${s.score.toLocaleString()}<small>points</small></strong></div>
+    <div class="rondo-breakdown" role="group" aria-label="Run breakdown">
+      <span><b>${s.passes}</b><small>passes</small></span>
+      <span><b>×${s.bestChain}</b><small>best chain</small></span>
+      <span><b>${s.splits}</b><small>splits</small></span>
+      <span><b>${s.wave}</b><small>waves</small></span>
     </div>
-    <div class="sl-best" role="group" aria-label="Shot Lab local records">
-      <span><b>${record.bestPractice || '—'}</b><small>practice best</small></span>
-      <span><b>${record.bestTimed || '—'}</b><small>45-second best</small></span>
-      <span><b>${record.bestAccuracy ? record.bestAccuracy + '%' : '—'}</b><small>accuracy best</small></span>
+    ${why ? `<p class="rondo-why" role="status"><b>How it ended:</b> ${esc(why)}</p>` : ''}
+    ${isBest ? '<p class="rondo-newbest">New personal best — kept on this phone</p>' : ''}
+    ${cupAdvanceHTML(run.cupAdvance)}
+    <div class="play-actions rondo-actions">
+      <button class="play-btn gold" id="rondo-new">Run it again</button>
+      <button class="play-btn quiet" id="rondo-exact">Replay exact run</button>
+      <button class="play-btn quiet" id="rondo-swap">${run.mode === 'challenge' ? 'Practice lane reads' : 'Take the daily challenge'}</button>
+      <button class="play-btn quiet" id="rondo-exit">Back to lobby</button>
+    </div>
+    <p class="sl-ranked-lock"><b>Not submitted globally.</b> Ranked Rondo stays off until the server can replay signed challenges.</p>
+  </section>`;
+}
+
+function rondoRunHTML(run) {
+  if (run.over) return rondoResultHTML(run);
+  const s = rondoSummary(run);
+  const sound = labSoundButtonModel();
+  const lives = run.mode === 'challenge'
+    ? Array.from({ length: RONDO_RULES.lives }, (_, i) => `<i class="rondo-life${i < run.lives ? ' on' : ''}" aria-hidden="true"></i>`).join('')
+    : '<b class="rondo-inf">∞</b>';
+  return `<section class="play-card rondo live${run.paused ? ' paused' : ''}" aria-label="Rondo in progress">
+    <div class="rondo-topbar">
+      <button class="rondo-icon" id="rondo-exit" aria-label="Exit Rondo">×</button>
+      <div><span class="lt-kicker">Rondo · ${run.mode === 'challenge' ? 'Daily challenge' : 'Practice'}</span>
+        <strong id="rondo-score">${run.score.toLocaleString()} pts</strong></div>
+      <div class="rondo-top-actions">
+        <button class="rondo-icon sound" id="lab-sound" data-sound="${sound.data}" aria-pressed="${sound.pressed}"${sound.disabled ? ' disabled' : ''} aria-label="${esc(sound.label)}">♪</button>
+        <button class="rondo-icon" id="rondo-pause" aria-label="${run.paused ? 'Resume' : 'Pause'} Rondo">${run.paused ? '▶' : 'Ⅱ'}</button>
+      </div>
+    </div>
+    <div class="rondo-status" role="group" aria-label="Run status">
+      <span><b id="rondo-wave">${run.wave}</b><small>wave</small></span>
+      <span><b id="rondo-passes">${run.passes}</b><small>passes</small></span>
+      <span><b id="rondo-chain">×${run.chain}</b><small>chain</small></span>
+      <span class="rondo-lives" aria-label="${run.mode === 'challenge' ? `${run.lives} turnovers left` : 'Practice — unlimited turnovers'}">${lives}<small>${run.mode === 'challenge' ? 'balls left' : 'practice'}</small></span>
+    </div>
+    ${rondoStageHTML(run)}
+    <p class="rondo-callout" id="rondo-callout" role="status" aria-live="polite">${esc(rondoCalloutText(run))}</p>
+    ${run.mode === 'practice' ? `<div class="rondo-legend" aria-hidden="true">
+      <span class="lane-open">open lane</span><span class="lane-tight">tight</span><span class="lane-closed">closed</span>
+      <button class="play-btn quiet" id="rondo-finish">Finish session</button>
+    </div>` : ''}
+  </section>`;
+}
+
+function rondoSetupHTML(play) {
+  const rec = play.rondo || {};
+  const today = localDayKey();
+  const bestToday = rec.dateKey === today ? rec.bestToday || 0 : 0;
+  return `<section class="play-card rondo setup" aria-label="Rondo">
+    <span class="sim-badge">SKILL GAME · LOCAL</span>
+    <p class="bd-kicker">Flagship game</p>
+    <h2 class="display">Rondo</h2>
+    <p class="rondo-lede">The possession carousel. Six of you, a hungry press, one ball to keep alive.</p>
+    <div class="sl-rules" role="list" aria-label="How Rondo works">
+      <span role="listitem"><b>1</b> Tap a teammate to pass — or press 1–6</span>
+      <span role="listitem"><b>2</b> Release before the press closes you down</span>
+      <span role="listitem"><b>3</b> One-touch chains and split passes score big</span>
+    </div>
+    <div class="sl-best" role="group" aria-label="Rondo local records">
+      <span><b>${rec.bestScore ? rec.bestScore.toLocaleString() : '—'}</b><small>challenge best</small></span>
+      <span><b>${bestToday || '—'}</b><small>best today</small></span>
+      <span><b>${rec.bestChain ? '×' + rec.bestChain : '—'}</b><small>longest chain</small></span>
+      <span><b>${rec.bestWave || '—'}</b><small>deepest wave</small></span>
     </div>
     <div class="sl-start-grid">
-      <button class="sl-start primary" data-shot-start="practice"><span>Untimed</span><strong>Eight-shot studio</strong><small>Learn every control. No clock.</small></button>
-      <button class="sl-start" data-shot-start="timed"><span>Timed</span><strong>45-second attack</strong><small>Up to twelve shots. Pressure climbs.</small></button>
+      <button class="sl-start primary" data-rondo-start="challenge"><span>Daily challenge</span><strong>Three balls. Rising press.</strong><small>Seeded fresh today — every attempt is replayable.</small></button>
+      <button class="sl-start" data-rondo-start="practice"><span>Practice</span><strong>Open lane reads</strong><small>No lives lost. Lanes show open, tight, closed.</small></button>
     </div>
-    <details class="sl-details"><summary>Fair scoring & controls</summary><p>Aim, contact, power, curve and shot type determine the flight. Pressure adds the same locked seeded error for every replay. The keeper reads only your previous aims. Arrow keys move the reticle; Enter shoots.</p></details>
-    <p class="sl-ranked-lock"><b>Ranked locked for integrity.</b> Local records work now; worldwide submission stays off until the server can replay signed challenges.</p>
+    <details class="sl-details"><summary>Fair play & controls</summary><p>Every presser moves on a fixed tick and can never outrun the ball. Passes are cut only when a presser genuinely reaches the lane; tackles need ${RONDO_RULES.tackleTicks * RONDO_RULES.tickMs / 1000}s of contact, so there is always time to release. Waves add pressers and shrink space — your controls never get worse. Keyboard: 1–6 pass, P pauses.</p></details>
+    <p class="sl-ranked-lock"><b>Ranked locked for integrity.</b> Local records work now; worldwide submission stays off until the server can replay signed runs.</p>
   </section>`;
 }
 
-function shotResultHTML(run) {
-  const s = shotLabSummary(run);
-  return `<section class="play-card shot-lab result" aria-label="Shot Lab result">
-    <span class="sim-badge">LOCAL RESULT</span>
-    <div class="sl-result-head"><div><p class="bd-kicker">${run.mode === 'timed' ? '45-second attack' : 'Eight-shot studio'} complete</p>
-      <h2 class="display">${esc(s.grade)}</h2><p>${s.goals} goals · ${s.bullseyes} bullseyes · ${s.accuracy}% on target</p></div>
-      <strong class="sl-final-score">${s.score}<small>points</small></strong></div>
-    <div class="sl-breakdown" role="group" aria-label="Shot breakdown">
-      <span><b>${s.accuracy}%</b><small>accuracy</small></span><span><b>${s.technique}%</b><small>technique</small></span>
-      <span><b>${s.bestCombo}</b><small>best combo</small></span><span><b>${s.shots}</b><small>shots</small></span>
-    </div>
-    ${shotMapHTML(run)}
-    <div class="sl-recap" aria-label="Replay trail">${run.shots.slice(-4).reverse().map((x) => `<span class="${x.outcome}"><b>${x.points}</b><small>${esc(x.outcome.replace('-', ' '))}</small></span>`).join('')}</div>
-    <div class="play-actions sl-actions"><button class="play-btn gold" id="shot-new">Run it again</button><button class="play-btn quiet" id="shot-exact">Replay exact challenge</button><button class="play-btn quiet" id="shot-share">Share result</button><button class="play-btn quiet" id="shot-exit">Back to lobby</button></div>
-    <p class="sl-ranked-lock"><b>Not submitted globally.</b> Ranked Shot Lab remains disabled until signed server validation is live.</p>
-  </section>`;
-}
+function rondoHTML(play) { return rondoRun ? rondoRunHTML(rondoRun) : rondoSetupHTML(play); }
 
-function shotRunHTML(run) {
-  if (run.over) return shotResultHTML(run);
-  const frame = shotLabFrame(run);
-  const last = run.shots.at(-1);
-  const time = Math.ceil(shotLabRemainingMs(run) / 1000);
-  return `<section class="play-card shot-lab live${run.paused ? ' paused' : ''}" aria-label="Shot Lab in progress">
-    <div class="sl-topbar">
-      <button class="sl-icon" id="shot-exit" aria-label="Exit Shot Lab">×</button>
-      <div><span class="lt-kicker">Shot Lab · ${run.mode === 'timed' ? 'Timed' : 'Studio'}</span><strong>${run.score.toLocaleString()} pts</strong></div>
-      <div class="sl-top-actions"><button class="sl-icon sound" id="shot-sound" aria-label="Turn Shot Lab sound ${shotSoundOn ? 'off' : 'on'}">${shotSoundOn ? '◖))' : '◖·'}</button><button class="sl-icon" id="shot-pause" aria-label="${run.paused ? 'Resume' : 'Pause'} Shot Lab">${run.paused ? '▶' : 'Ⅱ'}</button></div>
-    </div>
-    <div class="sl-status" role="group" aria-label="Run status">
-      <span><b>${run.shots.length + 1}</b><small>shot / ${run.mode === 'timed' ? '12 max' : SHOT_LAB_RULES.practiceShots}</small></span>
-      <span><b>${run.combo}</b><small>target combo</small></span>
-      <span class="sl-clock-ring" style="--left:${shotLabRemainingMs(run) / SHOT_LAB_RULES.timedMs}"><b id="shot-time">${run.mode === 'timed' ? time + 's' : '∞'}</b><small>${run.mode === 'timed' ? 'remaining' : 'no clock'}</small></span>
-    </div>
-    <div class="sl-arena">
-      <div class="sl-crowd" aria-hidden="true"></div>
-      <div class="sl-goal" id="shot-goal" tabindex="0" role="application" aria-label="Goal aiming area. Tap or use arrow keys to move the reticle; press Enter to shoot.">
-        <i class="sl-net" aria-hidden="true"></i>
-        <span class="sl-target" style="--x:${frame.target.x}%;--y:${frame.target.y}%;--r:${frame.target.radius}px" aria-hidden="true"><i></i></span>
-        <span class="sl-keeper" style="--x:${frame.keeper.x}%" aria-hidden="true"><i></i><b></b></span>
-        <span class="sl-reticle" style="--x:${run.input.aim.x}%;--y:${run.input.aim.y}%" aria-hidden="true"><i></i></span>
-        ${shotTrailHTML(run)}
-        ${run.paused ? '<span class="sl-pause-screen"><b>Paused</b><small>Your run and clock are frozen.</small></span>' : ''}
-      </div>
-      <div class="sl-read"><span>Keeper: <b>${esc(frame.keeper.read)}</b></span><i><b style="width:${Math.round(frame.pressure * 100)}%"></b></i><span>Pressure ${Math.round(frame.pressure * 100)}</span></div>
-      <p class="sl-callout" aria-live="polite">${last ? `<b>${esc(last.outcome.replace('-', ' '))}</b> · +${last.points} · landed ${Math.round(last.landing.x)} / ${Math.round(last.landing.y)}` : 'Tap anywhere inside the goal to place the reticle.'}</p>
-    </div>
-    <div class="sl-console">
-      <div class="sl-shot-types" role="group" aria-label="Shot type">${Object.entries(SHOT_TYPES).map(([id, t]) => `<button class="${run.input.shotType === id ? 'on' : ''}" data-shot-type="${id}">${esc(t.label)}</button>`).join('')}</div>
-      <div class="sl-control-grid">
-        <fieldset class="sl-contact"><legend>Ball contact</legend><div>${[-1, 0, 1].flatMap((y) => [-1, 0, 1].map((x) => `<button aria-label="Contact ${y === -1 ? 'top' : y === 1 ? 'bottom' : 'middle'} ${x === -1 ? 'left' : x === 1 ? 'right' : 'centre'}" class="${run.input.contact.x === x && run.input.contact.y === y ? 'on' : ''}" data-contact-x="${x}" data-contact-y="${y}"></button>`)).join('')}</div><small>Hit low to lift · wide to bend</small></fieldset>
-        <div class="sl-sliders">
-          <label>Power <output id="shot-power-out">${Math.round(run.input.power * 100)}</output><input id="shot-power" type="range" min="30" max="100" value="${Math.round(run.input.power * 100)}"></label>
-          <label>Curve <output id="shot-curve-out">${Math.round(run.input.curve * 100)}</output><input id="shot-curve" type="range" min="-100" max="100" value="${Math.round(run.input.curve * 100)}"></label>
-        </div>
-      </div>
-      <button class="sl-shoot" id="shot-fire"><span>Strike</span><small id="shot-input-label">${esc(shotInputLabel(run))}</small></button>
-    </div>
-  </section>`;
-}
-
-function shotLabHTML(play) { return shotRun ? shotRunHTML(shotRun) : shotSetupHTML(play); }
-
-function frameShotLab() {
+function frameRondo() {
   if (typeof window === 'undefined') return;
-  const place = () => document.querySelector('.shot-lab.live')?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+  const place = () => document.querySelector('.rondo.live')?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
   if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(place);
   else place();
 }
 
-function updateShotControls(outlet) {
-  if (!shotRun) return;
-  const reticle = outlet.querySelector('.sl-reticle');
-  if (reticle) { reticle.style.setProperty('--x', `${shotRun.input.aim.x}%`); reticle.style.setProperty('--y', `${shotRun.input.aim.y}%`); }
-  const label = outlet.querySelector('#shot-input-label');
-  if (label) label.textContent = shotInputLabel(shotRun);
-  const po = outlet.querySelector('#shot-power-out'); if (po) po.textContent = Math.round(shotRun.input.power * 100);
-  const co = outlet.querySelector('#shot-curve-out'); if (co) co.textContent = Math.round(shotRun.input.curve * 100);
+/* Per-tick paint: move discs and the ball, refresh score and callout. The
+   run screen structure is only rebuilt on waves, turnovers and results. */
+function paintRondo() {
+  if (typeof document === 'undefined' || !rondoRun) return;
+  const pitch = document.querySelector('#rondo-pitch');
+  if (!pitch) return;
+  const run = rondoRun;
+  const frame = rondoFrame(run);
+  pitch.querySelectorAll('.rondo-mate').forEach((el, i) => {
+    const p = frame.positions[i];
+    if (p) { el.style.setProperty('--x', `${p.x}%`); el.style.setProperty('--y', `${p.y}%`); }
+    el.classList.toggle('carrier', i === run.carrier);
+    el.style.setProperty('--press', i === run.carrier ? frame.pressure : 0);
+    if (run.mode === 'practice') {
+      el.classList.remove('lane-open', 'lane-tight', 'lane-closed');
+      const hint = rondoLaneHintClass(run, i).trim();
+      if (hint) el.classList.add(hint);
+    }
+  });
+  frame.defenders.forEach((d) => {
+    const el = pitch.querySelector(`[data-def="${d.id}"]`);
+    if (el) {
+      el.style.setProperty('--x', `${d.x}%`);
+      el.style.setProperty('--y', `${d.y}%`);
+      el.classList.toggle('closing', d.closing);
+    }
+  });
+  const ball = pitch.querySelector('.rondo-ball');
+  if (ball) {
+    const bx = run.ball ? run.ball.x : frame.positions[run.carrier].x;
+    const by = run.ball ? run.ball.y : frame.positions[run.carrier].y;
+    ball.style.setProperty('--x', `${bx}%`);
+    ball.style.setProperty('--y', `${by}%`);
+    ball.classList.toggle('flight', !!run.ball);
+  }
+  const score = document.querySelector('#rondo-score');
+  if (score) score.textContent = `${run.score.toLocaleString()} pts`;
+  const chain = document.querySelector('#rondo-chain');
+  if (chain) chain.textContent = `×${run.chain}`;
+  const passes = document.querySelector('#rondo-passes');
+  if (passes) passes.textContent = run.passes;
+  const callout = document.querySelector('#rondo-callout');
+  if (callout) {
+    const text = rondoCalloutText(run);
+    if (callout.textContent !== text) callout.textContent = text;
+  }
 }
 
-function fireShot() {
-  if (!shotRun || shotRun.paused) return;
-  const event = takeShot(shotRun);
-  if (!event) return;
-  shotTone(event);
-  if (shotRun.over) commitShotLab();
+function rondoAttemptPass(i) {
+  if (!rondoRun || rondoRun.over || rondoRun.paused) return;
+  const ev = rondoPass(rondoRun, i);
+  if (ev) paintRondo();
+}
+
+function beginRondo(mode, seed) {
+  const attempt = mode === 'challenge'
+    ? (getState().play.rondo?.dateKey === localDayKey() ? getState().play.rondo?.attemptsToday || 0 : 0)
+    : 0;
+  rondoRun = createRondo(seed || rondoSeed(mode, attempt), mode);
+  if (typeof window !== 'undefined') window.dispatchEvent(new window.Event('u26:high-attention-start'));
   repaintPlay();
+  frameRondo();
+  startRondoLoop();
 }
 
-function wireShotLab(outlet) {
-  outlet.querySelectorAll('[data-shot-start]').forEach((b) => b.addEventListener('click', () => {
-    const mode = b.dataset.shotStart;
-    const attempt = getState().play.shotLab?.played || 0;
-    shotRun = createShotLab(shotSeed(mode, attempt), mode);
-    window.dispatchEvent(new window.Event('u26:high-attention-start'));
-    repaintPlay();
-    frameShotLab();
+function exitRondo() {
+  stopRondoLoop();
+  if (rondoRun && !rondoRun.over && typeof window !== 'undefined') {
+    window.dispatchEvent(new window.Event('u26:high-attention-end'));
+  }
+  rondoRun = null;
+  setPlayMode('lobby');
+}
+
+function wireRondo(outlet) {
+  outlet.querySelectorAll('[data-rondo-start]').forEach((b) => b.addEventListener('click', () => {
+    unlockAudioFromGesture();
+    beginRondo(b.dataset.rondoStart);
   }));
-  const goal = outlet.querySelector('#shot-goal');
-  if (goal) {
-    goal.addEventListener('pointerdown', (e) => {
-      if (shotRun.paused) return;
-      const box = goal.getBoundingClientRect();
-      setShotLabInput(shotRun, { aim: { x: (e.clientX - box.left) / box.width * 100, y: (e.clientY - box.top) / box.height * 100 } });
-      updateShotControls(outlet);
-    });
-    goal.addEventListener('keydown', (e) => {
-      const delta = e.shiftKey ? 8 : 3;
-      let { x, y } = shotRun.input.aim;
-      if (e.key === 'ArrowLeft') x -= delta; else if (e.key === 'ArrowRight') x += delta;
-      else if (e.key === 'ArrowUp') y -= delta; else if (e.key === 'ArrowDown') y += delta;
-      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fireShot(); return; }
-      else return;
-      e.preventDefault(); setShotLabInput(shotRun, { aim: { x, y } }); updateShotControls(outlet);
+  outlet.querySelectorAll('.rondo-mate').forEach((b) => b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    rondoAttemptPass(Number(b.dataset.mate));
+  }));
+  const pitch = outlet.querySelector('#rondo-pitch');
+  if (pitch) {
+    pitch.addEventListener('keydown', (e) => {
+      if (/^[1-6]$/.test(e.key)) { e.preventDefault(); rondoAttemptPass(Number(e.key) - 1); }
+      else if (e.key === 'p' || e.key === 'P' || e.key === ' ') { e.preventDefault(); togglePauseRondo(rondoRun); repaintPlay(); }
     });
   }
-  outlet.querySelectorAll('[data-shot-type]').forEach((b) => b.addEventListener('click', () => {
-    setShotLabInput(shotRun, { shotType: b.dataset.shotType });
-    outlet.querySelectorAll('[data-shot-type]').forEach((x) => x.classList.toggle('on', x === b));
-    updateShotControls(outlet);
-  }));
-  outlet.querySelectorAll('[data-contact-x]').forEach((b) => b.addEventListener('click', () => {
-    setShotLabInput(shotRun, { contact: { x: Number(b.dataset.contactX), y: Number(b.dataset.contactY) } });
-    outlet.querySelectorAll('[data-contact-x]').forEach((x) => x.classList.toggle('on', x === b));
-    updateShotControls(outlet);
-  }));
-  const power = outlet.querySelector('#shot-power');
-  if (power) power.addEventListener('input', () => { setShotLabInput(shotRun, { power: Number(power.value) / 100 }); updateShotControls(outlet); });
-  const curve = outlet.querySelector('#shot-curve');
-  if (curve) curve.addEventListener('input', () => { setShotLabInput(shotRun, { curve: Number(curve.value) / 100 }); updateShotControls(outlet); });
-  const fire = outlet.querySelector('#shot-fire'); if (fire) fire.addEventListener('click', fireShot);
-  const pause = outlet.querySelector('#shot-pause'); if (pause) pause.addEventListener('click', () => { toggleShotLabPause(shotRun); repaintPlay(); });
-  const sound = outlet.querySelector('#shot-sound'); if (sound) sound.addEventListener('click', () => { shotSoundOn = !shotSoundOn; repaintPlay(); });
-  const exit = outlet.querySelector('#shot-exit'); if (exit) exit.addEventListener('click', () => { stopShotClock(); shotRun = null; setPlayMode('lobby'); });
-  const exact = outlet.querySelector('#shot-exact'); if (exact) exact.addEventListener('click', () => { const { seed, mode } = shotRun; shotRun = createShotLab(seed, mode); repaintPlay(); frameShotLab(); });
-  const next = outlet.querySelector('#shot-new'); if (next) next.addEventListener('click', () => { const mode = shotRun.mode; shotRun = createShotLab(shotSeed(mode, getState().play.shotLab?.played || 0), mode); repaintPlay(); frameShotLab(); });
-  const share = outlet.querySelector('#shot-share');
-  if (share) share.addEventListener('click', async () => {
-    const s = shotLabSummary(shotRun); const text = `Shot Lab: ${s.score} points · ${s.accuracy}% accuracy · ${s.grade} — United 2026`;
-    try { if (navigator.share) await navigator.share({ title: 'United 2026 Shot Lab', text }); else await navigator.clipboard?.writeText(text); } catch { /* user cancelled */ }
+  const pause = outlet.querySelector('#rondo-pause');
+  if (pause) pause.addEventListener('click', () => { togglePauseRondo(rondoRun); repaintPlay(); });
+  const sound = outlet.querySelector('#lab-sound');
+  if (sound) sound.addEventListener('click', () => {
+    if (!soundEnabled()) { persistLabSound(true); unlockAudioFromGesture(); }
+    else persistLabSound(false);
   });
-  startShotClock();
+  const finish = outlet.querySelector('#rondo-finish');
+  if (finish) finish.addEventListener('click', () => {
+    endRondoRun(rondoRun, 'exit');
+    stopRondoLoop();
+    commitRondo();
+    repaintPlay();
+  });
+  const exit = outlet.querySelector('#rondo-exit');
+  if (exit) exit.addEventListener('click', exitRondo);
+  const again = outlet.querySelector('#rondo-new');
+  if (again) again.addEventListener('click', () => { const mode = rondoRun.mode; rondoRun = null; beginRondo(mode); });
+  const exact = outlet.querySelector('#rondo-exact');
+  if (exact) exact.addEventListener('click', () => { const { seed, mode } = rondoRun; rondoRun = null; beginRondo(mode, seed); });
+  const swap = outlet.querySelector('#rondo-swap');
+  if (swap) swap.addEventListener('click', () => { const mode = rondoRun.mode === 'challenge' ? 'practice' : 'challenge'; rondoRun = null; beginRondo(mode); });
+  if (rondoRun && !rondoRun.over) startRondoLoop();
 }
 
 /* ================= Penalty Rush =================
-   The arcade's hands-on minigame: five kicks against a keeper who studies
-   your habits. Entirely local — a seeded, deterministic duel with nothing
-   no network, no official claims. A perfect five earns sudden death
-   that lasts until the keeper finally wins. */
-
-export const RUSH_ZONES = ['top-left', 'left', 'centre', 'right', 'top-right'];
-export const RUSH_RUNUPS = Object.freeze({
-  stutter: { label: 'Stutter', accuracy: 0.96, deception: 0.15, pressure: -0.02, note: 'Late cue · smaller margin' },
-  composed: { label: 'Composed', accuracy: 1, deception: 0, pressure: 0.04, note: 'Clean contact · readable rhythm' },
-  power: { label: 'Power', accuracy: 0.9, deception: -0.03, pressure: -0.08, note: 'Less readable · more miss risk' },
-});
-const RUSH_ZONE_LABELS = {
-  'top-left': 'top left', left: 'low left', centre: 'down the middle', right: 'low right', 'top-right': 'top right',
-};
-const RUSH_ZONE_WING = {
-  'top-left': 'left', left: 'left', centre: 'centre', right: 'right', 'top-right': 'right',
-};
-const RUSH_ZONE_PROFILE = {
-  'top-left': { accuracy: 0.84, readGoal: 0.28, wingGoal: 0.72, risk: 'high reward' },
-  left: { accuracy: 0.97, readGoal: 0.18, wingGoal: 0.62, risk: 'composed' },
-  centre: { accuracy: 0.98, readGoal: 0.16, wingGoal: 0.84, risk: 'brave' },
-  right: { accuracy: 0.97, readGoal: 0.18, wingGoal: 0.62, risk: 'composed' },
-  'top-right': { accuracy: 0.84, readGoal: 0.28, wingGoal: 0.72, risk: 'high reward' },
-};
+   The psychological duel, rebuilt on direct control: scout the keeper, pick
+   your spot, time the run-up pulse, and decide when to sell a feint. The
+   keeper model reads tendencies and your habit history — never your current
+   pick. Entirely local, seeded, deterministic; a perfect five earns sudden
+   death that lasts until the keeper finally wins. */
 
 export function dailyGauntletSeed(dateKey = localDayKey(), attempt = 0) {
   return hashSeed(`u26-rush-${dateKey}-${attempt}`) || 1;
 }
 
-export function createPenaltyRush(seed = dailyGauntletSeed()) {
-  const s = (seed >>> 0) || 1;
-  const keeperTendency = ['left', 'hold', 'right'][s % 3];
-  return {
-    seed: s,
-    rng: mulberry32(s),
-    kicks: [], goals: 0, sudden: false, over: false,
-    aims: Object.fromEntries(RUSH_ZONES.map((zone) => [zone, 0])),
-    runUp: 'composed', keeperTendency, pressure: 0.18,
-  };
-}
-
-/* The keeper reads habits, never the current pick: with two or more kicks of
-   history it leans toward your most-used zone — harder in sudden death. */
-function rushKeeperPick(run) {
-  const total = RUSH_ZONES.reduce((sum, zone) => sum + (run.aims[zone] || 0), 0);
-  const r = run.rng();
-  const tendencyZone = run.keeperTendency === 'left' ? 'left' : run.keeperTendency === 'right' ? 'right' : 'centre';
-  if (total >= 2) {
-    const fav = RUSH_ZONES.reduce((a, b) => ((run.aims[a] || 0) >= (run.aims[b] || 0) ? a : b));
-    const deception = RUSH_RUNUPS[run.runUp]?.deception || 0;
-    if (r < (run.sudden ? 0.64 : 0.48) - deception) return fav;
-    const rest = RUSH_ZONES.filter((z) => z !== fav);
-    return rest[Math.min(rest.length - 1, Math.floor(run.rng() * rest.length))];
-  }
-  if (r < 0.34) return tendencyZone;
-  return RUSH_ZONES[Math.min(RUSH_ZONES.length - 1, Math.floor(r * RUSH_ZONES.length))];
-}
-
-/** Honest read of the pattern already shown to the keeper. It never exposes
-    the current dive and never consumes RNG. */
-export function rushReadSignal(run) {
-  const aims = run && run.aims ? run.aims : {};
-  const wings = {
-    left: (aims['top-left'] || 0) + (aims.left || 0),
-    centre: aims.centre || 0,
-    right: (aims.right || 0) + (aims['top-right'] || 0),
-  };
-  const total = wings.left + wings.centre + wings.right;
-  if (total < 2) return { side: null, level: 0, label: 'No pattern yet' };
-  const side = ['left', 'centre', 'right'].reduce((a, b) => (wings[a] >= wings[b] ? a : b));
-  const level = wings[side] / total;
-  if (level <= 0.5) return { side: null, level, label: 'Your run-up is balanced' };
-  return { side, level, label: `Keeper leaning ${side === 'centre' ? 'middle' : side}` };
-}
-
-/** One kick. Deterministic for a given seed and aim history; mutates only the
-    passed run. Returns the resolved kick or null when the duel is over. */
-export function rushShoot(run, aim) {
-  if (!run || run.over || !RUSH_ZONES.includes(aim)) return null;
-  const keeper = rushKeeperPick(run);
-  const profile = RUSH_ZONE_PROFILE[aim];
-  const runUp = RUSH_RUNUPS[run.runUp] || RUSH_RUNUPS.composed;
-  const pressurePenalty = Math.max(0, (run.pressure || 0) - 0.55) * 0.16;
-  const onTarget = run.rng() < Math.max(0.55, profile.accuracy * runUp.accuracy - pressurePenalty);
-  const exactRead = keeper === aim;
-  const sameWing = RUSH_ZONE_WING[keeper] === RUSH_ZONE_WING[aim];
-  const goalChance = exactRead
-    ? Math.max(0.1, profile.readGoal - (run.sudden ? 0.06 : 0))
-    : sameWing ? profile.wingGoal : 0.98;
-  const composure = Math.max(-0.08, Math.min(0.08, runUp.pressure - pressurePenalty));
-  const outcome = !onTarget ? 'post' : run.rng() < Math.max(0.08, Math.min(0.99, goalChance + composure)) ? 'goal' : 'save';
-  run.aims[aim] += 1;
-  const kick = {
-    n: run.kicks.length + 1, aim, keeper, outcome, sudden: run.sudden,
-    read: exactRead ? 'full' : sameWing ? 'side' : 'wrong', risk: profile.risk,
-    runUp: run.runUp, pressure: +(run.pressure || 0).toFixed(2),
-  };
-  run.kicks.push(kick);
-  if (outcome === 'goal') run.goals += 1;
-  if (run.sudden) {
-    if (outcome !== 'goal') run.over = true;
-  } else if (run.kicks.length >= 5) {
-    if (run.goals === 5) run.sudden = true;
-    else run.over = true;
-  }
-  run.pressure = Math.min(1, (run.pressure || 0.18) + (outcome === 'goal' ? 0.11 : 0.18) + (run.sudden ? 0.08 : 0));
-  return kick;
-}
-
-export function rushRating(goals) {
-  if (goals >= 8) return "the keeper's nightmare";
-  if (goals >= 5) return 'ice in the veins';
-  if (goals === 4) return 'clinical from twelve yards';
-  if (goals === 3) return 'composed under the lights';
-  if (goals === 2) return 'shaky legs tonight';
-  return 'the keeper owns tonight';
-}
-
-/** Fold a finished gauntlet into the local record — day-scoped bests plus
-    all-time bests, every number derived from runs that actually happened. */
-export function rushRecordAfter(rec, { dateKey, score, perfect }) {
-  const sameDay = !!rec && rec.dateKey === dateKey;
-  return {
-    dateKey,
-    attemptsToday: (sameDay ? rec.attemptsToday || 0 : 0) + 1,
-    bestToday: Math.max(sameDay ? rec.bestToday || 0 : 0, score),
-    bestEver: Math.max((rec && rec.bestEver) || 0, score),
-    perfects: ((rec && rec.perfects) || 0) + (perfect ? 1 : 0),
-    played: ((rec && rec.played) || 0) + 1,
-    lastScore: score,
-  };
-}
-
-// Live gauntlet — module-local, never persisted mid-run (same policy as labRun).
+// Live duel — module-local, never persisted mid-run (same policy as labRun).
 let rushRun = null;
+// Per-kick UI state: chosen zone, feint, and the run-up pulse phase.
+let rushKick = null;
+let rushRaf = null;
+
+function ensureRushKick() {
+  if (!rushKick) {
+    rushKick = { zone: null, feint: false, phase: 'read', startStamp: 0, pausedAccum: 0, pausedStamp: 0, paused: false };
+  }
+  return rushKick;
+}
 
 function ensureRushRun() {
   if (rushRun) return rushRun;
@@ -2327,8 +2290,38 @@ function ensureRushRun() {
   const today = localDayKey();
   const rec = play.penaltyRush;
   const attempt = rec && rec.dateKey === today ? rec.attemptsToday || 0 : 0;
-  rushRun = createPenaltyRush(dailyGauntletSeed(today, attempt));
+  rushRun = createPenaltyDuel(dailyGauntletSeed(today, attempt));
+  rushKick = null;
   return rushRun;
+}
+
+function stopRushPulse() {
+  if (rushRaf && typeof window !== 'undefined') window.cancelAnimationFrame(rushRaf);
+  rushRaf = null;
+}
+
+function rushElapsedMs() {
+  const k = ensureRushKick();
+  if (!k.startStamp) return 0;
+  const nowMs = performance.now();
+  return Math.max(0, (k.paused ? k.pausedStamp : nowMs) - k.startStamp - k.pausedAccum);
+}
+
+function startRushPulse(outlet) {
+  stopRushPulse();
+  if (typeof window === 'undefined') return;
+  const marker = outlet.querySelector('#duel-marker');
+  if (!marker) return;
+  const step = () => {
+    const k = rushKick;
+    if (!k || k.phase !== 'runup') { stopRushPulse(); return; }
+    if (!k.paused) {
+      const offset = pulseOffsetAt(rushElapsedMs());
+      marker.style.setProperty('--pos', `${((offset + 1) / 2) * 100}%`);
+    }
+    rushRaf = window.requestAnimationFrame(step);
+  };
+  rushRaf = window.requestAnimationFrame(step);
 }
 
 function finishRush() {
@@ -2336,20 +2329,18 @@ function finishRush() {
   const prevBest = (play.penaltyRush && play.penaltyRush.bestEver) || 0;
   let next = {
     ...play,
-    penaltyRush: rushRecordAfter(play.penaltyRush, {
+    penaltyRush: duelRecordAfter(play.penaltyRush, {
       dateKey: localDayKey(),
       score: rushRun.goals,
       perfect: rushRun.goals >= 5,
     }),
   };
-  // the Penalty Rush stop of an active Arcade Cup settles from this gauntlet
+  // the Penalty Rush stop of an active Arcade Cup settles from this duel
   const prog = withCupProgress(next, 'rush', cupResultFromRush(rushRun.goals));
   next = prog.play;
   rushRun.cupAdvance = prog.advanced ? prog : null;
   setPlay(next);
   savePlay(next);
-  // peak moment: a finished Cup outranks everything, then a perfect five,
-  // then a beaten record
   const side = currentSide(next);
   const colors = side && TEAM_COLORS[side.code] ? [TEAM_COLORS[side.code], '#ecd7a2', '#f2f6ff'] : undefined;
   if (rushRun.cupAdvance && rushRun.cupAdvance.done && rushRun.cupAdvance.trophy) celebrate('trophy', { colors });
@@ -2357,24 +2348,28 @@ function finishRush() {
   else if (rushRun.goals > 0 && rushRun.goals > prevBest) celebrate('win', { colors });
 }
 
+function rushKickExplain(kick) {
+  if (!kick) return '';
+  const zone = DUEL_ZONE_INFO[kick.zone].label;
+  const strike = kick.quality >= 0.85 ? 'Pure contact' : kick.quality >= 0.45 ? 'Decent strike' : 'Rushed strike';
+  const read = kick.read === 'full' ? 'the keeper read it fully'
+    : kick.read === 'wing' ? 'the keeper guessed the side' : 'the keeper went the wrong way';
+  if (kick.outcome === 'off') return `Off target ${zone} — timing ${Math.round(kick.quality * 100)}% inside the window. Hit the pulse centre.`;
+  if (kick.outcome === 'save') return `Saved ${zone} — ${strike.toLowerCase()}, and ${read}${kick.committed ? ' despite diving early' : ''}.`;
+  return `Buried ${zone} — ${strike.toLowerCase()}, ${read}${kick.committed ? ' after biting on the feint' : ''}.`;
+}
+
 function rushCallout(run) {
   const last = run.kicks[run.kicks.length - 1];
-  if (!last) return 'The keeper is set. Pick your corner.';
-  const zone = RUSH_ZONE_LABELS[last.aim] || last.aim;
+  if (!last) return 'Scout the keeper. Pick a spot. Time the pulse.';
   if (run.over) {
     return last.outcome === 'save'
-      ? `The keeper read it — gauntlet over at ${run.goals}.`
-      : last.outcome === 'post'
-        ? `Off the post — gauntlet over at ${run.goals}.`
-        : `Full gauntlet — ${run.goals} buried.`;
+      ? `The keeper wins it at ${run.goals}. ${rushKickExplain(last)}`
+      : last.outcome === 'off'
+        ? `Wide at the last — duel over at ${run.goals}.`
+        : `Full duel — ${run.goals} buried.`;
   }
-  if (last.outcome === 'goal') {
-    return run.sudden
-      ? `Buried ${zone}. Sudden death — keep scoring.`
-      : `Kick ${last.n} — buried ${zone}. ${run.goals} in.`;
-  }
-  if (last.outcome === 'save') return `Kick ${last.n} — the keeper read your habit.`;
-  return `Kick ${last.n} — off the post.`;
+  return `Kick ${last.n}: ${rushKickExplain(last)}${run.sudden ? ' Sudden death — keep scoring.' : ''}`;
 }
 
 function rushDotsHTML(run) {
@@ -2382,14 +2377,45 @@ function rushDotsHTML(run) {
   for (let i = 0; i < Math.max(5, run.kicks.length); i++) {
     const k = run.kicks[i];
     const cls = !k ? 'pending' : k.outcome === 'goal' ? 'goal' : k.outcome === 'save' ? 'save' : 'post';
-    const label = !k ? `Kick ${i + 1} pending` : `Kick ${i + 1}: ${k.outcome}`;
+    const label = !k ? `Kick ${i + 1} pending` : `Kick ${i + 1}: ${k.outcome === 'off' ? 'off target' : k.outcome}`;
     cells.push(`<i class="rush-dot ${cls}${k && k.sudden ? ' sudden' : ''}" role="img" aria-label="${label}"></i>`);
   }
   return cells.join('');
 }
 
+function rushControlsHTML(run, kick) {
+  if (run.over) return '';
+  if (kick.phase === 'runup') {
+    const window = sweetWindow(run, kick.feint);
+    return `<div class="duel-runup" role="group" aria-label="Run-up in progress">
+      <div class="duel-pulse" aria-hidden="true">
+        <i class="duel-band" style="--w:${window * 100}%"></i>
+        <b class="duel-marker" id="duel-marker" style="--pos:0%"></b>
+      </div>
+      <p class="duel-pulse-hint">Strike when the marker crosses the gold band${kick.feint ? ' — the feint narrowed it' : ''}.</p>
+      <div class="duel-runup-actions">
+        <button class="duel-strike" id="duel-strike"><span>Strike</span><small>${esc(DUEL_ZONE_INFO[kick.zone].label)}${kick.feint ? ' · feint armed' : ''}</small></button>
+        <button class="rondo-icon" id="rush-pause" aria-label="${kick.paused ? 'Resume' : 'Pause'} run-up">${kick.paused ? '▶' : 'Ⅱ'}</button>
+        <button class="play-btn quiet" id="duel-cancel">Reset</button>
+      </div>
+    </div>`;
+  }
+  const window = sweetWindow(run, kick.feint);
+  return `<div class="duel-setup" role="group" aria-label="Prepare the kick">
+    <button class="duel-feint${kick.feint ? ' on' : ''}" id="duel-feint" aria-pressed="${kick.feint}">
+      <strong>${kick.feint ? 'Feint armed' : 'Arm the feint'}</strong>
+      <small>${kick.feint ? `Sells the early diver · timing window −${Math.round((1 - DUEL_RULES.feintWindowScale) * 100)}%` : 'A stutter that punishes keepers who dive early'}</small>
+    </button>
+    <button class="duel-go" id="duel-go" ${kick.zone ? '' : 'disabled'}>
+      <span>${kick.zone ? 'Begin run-up' : 'Pick a spot first'}</span>
+      <small>${kick.zone ? `${esc(DUEL_ZONE_INFO[kick.zone].label)} · window ${Math.round(window * 100)}` : 'Tap the goal or use arrow keys'}</small>
+    </button>
+  </div>`;
+}
+
 function rushHTML(play) {
   const run = ensureRushRun();
+  const kick = ensureRushKick();
   const rec = play.penaltyRush || null;
   const today = localDayKey();
   const sameDay = rec && rec.dateKey === today;
@@ -2399,35 +2425,34 @@ function rushHTML(play) {
   const personalBest = run.over && run.goals > 0 && run.goals >= ((rec && rec.bestEver) || 0);
   const newBest = run.over && run.goals > 0 && run.goals >= bestToday;
   const side = currentSide(play);
-  const target = Math.max(bestToday, (rec && rec.bestEver) || 0);
-  const read = rushReadSignal(run);
+  const keeper = duelKeeper(run);
+  const read = duelReadSignal(run);
   const pressure = Math.round((run.pressure || 0) * 100);
-  return `<section class="play-card rush${side ? ' has-side' : ''}" aria-label="Penalty Rush"${side ? ` style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}"` : ''}>
+  const target = Math.max(bestToday, (rec && rec.bestEver) || 0);
+  return `<section class="play-card rush duel${side ? ' has-side' : ''}${kick.phase === 'runup' ? ' running' : ''}" aria-label="Penalty Rush"${side ? ` style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}"` : ''}>
     <div class="rush-head">
       <div><h2 class="display">Penalty Rush</h2>
-      <p class="play-sub">Daily Gauntlet · five kicks against a keeper who studies your habits. Local practice only, nothing real at risk.</p></div>
+      <p class="play-sub">Daily duel · read the keeper, time the pulse, place the ball. Local practice only, nothing real at risk.</p></div>
       <span class="sim-badge">SIMULATION</span>
     </div>
     ${side ? `<p class="rush-side">${teamFlag(side.code)} <b>${esc(teamName(side.code))}</b> step up — every strike wears your colours</p>` : ''}
-    <div class="rush-chips" role="group" aria-label="Gauntlet record">
+    <div class="rush-chips" role="group" aria-label="Duel record">
       <span class="rush-chip"><b>${bestToday}</b>best today</span>
       <span class="rush-chip"><b>${(rec && rec.bestEver) || 0}</b>best ever</span>
       <span class="rush-chip"><b>${(rec && rec.perfects) || 0}</b>perfect fives</span>
     </div>
-    ${!run.over ? `<div class="rush-duel" role="group" aria-label="Penalty psychology">
-      <span><small>Keeper tendency</small><b>${run.keeperTendency === 'hold' ? 'Holds the line' : `Favours ${run.keeperTendency}`}</b></span>
-      <span><small>Pressure</small><b>${pressure < 45 ? 'Settled' : pressure < 75 ? 'Building' : 'Sudden-death heat'}</b></span>
-    </div>
-    <div class="rush-runups" role="group" aria-label="Choose run-up rhythm">
-      ${Object.entries(RUSH_RUNUPS).map(([id, item]) => `<button class="rush-runup${run.runUp === id ? ' on' : ''}" data-rush-runup="${id}" aria-pressed="${run.runUp === id}"><strong>${item.label}</strong><small>${item.note}</small></button>`).join('')}
+    ${!run.over ? `<div class="duel-scout" role="group" aria-label="Keeper scouting report">
+      <span class="duel-keeper-name"><small>In goal</small><b>${esc(keeper.name)}</b></span>
+      <p class="duel-tell">${esc(keeper.tell)}</p>
+      <span class="duel-pressure"><small>Pressure</small><b>${pressure < 45 ? 'Settled' : pressure < 75 ? 'Building' : 'Sudden-death heat'}</b></span>
     </div>` : ''}
-    <div class="rush-stage${last ? ' ' + last.outcome : ''}${run.sudden && !run.over ? ' sudden' : ''}">
-      <div class="rush-goalframe">
+    <div class="rush-stage${last ? ' ' + (last.outcome === 'off' ? 'post' : last.outcome) : ''}${run.sudden && !run.over ? ' sudden' : ''}">
+      <div class="rush-goalframe duel-frame">
         <span class="rush-net" aria-hidden="true"></span>
-        <span class="rush-keeper${last ? ' dive-' + last.keeper : ''}" aria-hidden="true"><em></em></span>
-        ${last ? `<b class="rush-ball at-${last.aim} ${last.outcome}" aria-hidden="true"></b>` : ''}
-        ${!run.over ? `<div class="rush-hotspots" role="group" aria-label="Pick a target">
-          ${RUSH_ZONES.map((zone) => `<button class="rush-aim zone-${zone}" data-rush-aim="${zone}" aria-label="Aim ${RUSH_ZONE_LABELS[zone]}"><i></i><span>${RUSH_ZONE_LABELS[zone]}</span><small>${RUSH_ZONE_PROFILE[zone].risk}</small></button>`).join('')}
+        <span class="rush-keeper duel-keeper${last && kick.phase === 'read' ? ' dive-' + last.keeperCol + last.keeperRow : ''}" aria-hidden="true"><em></em></span>
+        ${last && kick.phase === 'read' ? `<b class="rush-ball at-${last.zone} ${last.outcome === 'off' ? 'post' : last.outcome}" aria-hidden="true"></b>` : ''}
+        ${!run.over ? `<div class="duel-zones" role="group" aria-label="Pick a target zone">
+          ${DUEL_ZONES.map((z) => `<button class="duel-zone z-${z}${kick.zone === z ? ' on' : ''}" data-duel-zone="${z}" aria-pressed="${kick.zone === z}" aria-label="Aim ${DUEL_ZONE_INFO[z].label}"><i></i><span>${esc(DUEL_ZONE_INFO[z].label)}</span><small>${esc(DUEL_ZONE_INFO[z].risk)}</small></button>`).join('')}
         </div>` : ''}
       </div>
       <p class="rush-callout" role="status" aria-live="polite">${esc(rushCallout(run))}</p>
@@ -2436,15 +2461,16 @@ function rushHTML(play) {
     ${!run.over ? `<div class="rush-readout${read.side ? ' reading' : ''}" role="status">
       <span>Keeper read</span><i><b style="width:${Math.round(read.level * 100)}%"></b></i><strong>${esc(read.label)}</strong>
     </div>` : ''}
+    ${rushControlsHTML(run, kick)}
     ${!run.over && target > 0 ? `<p class="rush-target">Target: beat <b>${target}</b>${run.goals >= target ? ' — you are past it, keep going' : ''}</p>` : ''}
     ${run.over ? `<div class="rush-recap${perfect ? ' perfect' : ''}">
       <p class="rush-score"><strong class="display">${run.goals}</strong><span>${run.goals === 1 ? 'goal' : 'goals'} tonight</span></p>
-      <p class="rush-rating">${esc(rushRating(run.goals))}${perfect ? ' · perfect five' : ''}</p>
+      <p class="rush-rating">${esc(duelRating(run.goals))}${perfect ? ' · perfect five' : ''}</p>
       ${personalBest ? '<p class="rush-newbest">Personal best — kept on this phone</p>'
     : newBest ? '<p class="rush-newbest">New daily best — kept on this phone</p>' : ''}
       ${cupAdvanceHTML(run.cupAdvance)}
       <div class="play-actions">
-        <button class="play-btn gold" id="rush-again">${run.goals > 0 && !personalBest ? `Beat your ${(rec && rec.bestEver) || 0} — run it again` : 'Step up again'}</button>
+        <button class="play-btn gold" id="rush-again">${run.goals > 0 && !personalBest ? `Beat your ${(rec && rec.bestEver) || 0} — step up again` : 'Step up again'}</button>
         <button class="play-btn quiet" data-goto="lobby">Back to Lobby</button>
       </div>
     </div>` : ''}
@@ -2452,37 +2478,108 @@ function rushHTML(play) {
   </section>`;
 }
 
+function rushStrike(outlet) {
+  const run = rushRun;
+  const k = rushKick;
+  if (!run || run.over || !k || k.phase !== 'runup' || k.paused) return;
+  const atMs = rushElapsedMs();
+  stopRushPulse();
+  const kick = takeKick(run, { zone: k.zone, feint: k.feint, atMs });
+  if (!kick) return;
+  labSound(kick.outcome === 'goal' ? 'pen-goal' : kick.outcome === 'save' ? 'pen-save' : 'pen-miss');
+  rushKick = null; // next kick starts back at the read phase
+  if (run.over) finishRush();
+  repaintPlay();
+}
+
 function wireRush(outlet) {
-  outlet.querySelectorAll('[data-rush-runup]').forEach((b) => {
+  outlet.querySelectorAll('[data-duel-zone]').forEach((b) => {
     b.addEventListener('click', () => {
-      const run = ensureRushRun();
-      if (!run.over && RUSH_RUNUPS[b.dataset.rushRunup]) {
-        run.runUp = b.dataset.rushRunup;
-        repaintPlay();
-      }
-    });
-  });
-  outlet.querySelectorAll('[data-rush-aim]').forEach((b) => {
-    b.addEventListener('click', () => {
-      const run = ensureRushRun();
-      if (run.over) return;
+      const k = ensureRushKick();
+      if (rushRun?.over || k.phase === 'runup') return;
+      k.zone = b.dataset.duelZone;
       unlockAudioFromGesture();
-      const kick = rushShoot(run, b.dataset.rushAim);
-      if (!kick) return;
-      labSound(kick.outcome === 'goal' ? 'pen-goal' : kick.outcome === 'save' ? 'pen-save' : 'pen-miss');
-      if (run.over) finishRush();
       repaintPlay();
     });
   });
+  const feint = outlet.querySelector('#duel-feint');
+  if (feint) feint.addEventListener('click', () => {
+    const k = ensureRushKick();
+    if (k.phase === 'runup') return;
+    k.feint = !k.feint;
+    repaintPlay();
+  });
+  const go = outlet.querySelector('#duel-go');
+  if (go) go.addEventListener('click', () => {
+    const k = ensureRushKick();
+    if (!k.zone || k.phase === 'runup' || rushRun?.over) return;
+    unlockAudioFromGesture();
+    k.phase = 'runup';
+    k.paused = false;
+    k.pausedAccum = 0;
+    k.startStamp = performance.now();
+    labSound('pen');
+    repaintPlay();
+  });
+  const strike = outlet.querySelector('#duel-strike');
+  if (strike) strike.addEventListener('click', () => rushStrike(outlet));
+  const cancel = outlet.querySelector('#duel-cancel');
+  if (cancel) cancel.addEventListener('click', () => {
+    stopRushPulse();
+    const k = ensureRushKick();
+    k.phase = 'read'; k.startStamp = 0; k.paused = false; k.pausedAccum = 0;
+    repaintPlay();
+  });
+  const pause = outlet.querySelector('#rush-pause');
+  if (pause) pause.addEventListener('click', () => {
+    const k = ensureRushKick();
+    if (k.phase !== 'runup') return;
+    if (k.paused) { k.pausedAccum += performance.now() - k.pausedStamp; k.paused = false; }
+    else { k.paused = true; k.pausedStamp = performance.now(); }
+    pause.textContent = k.paused ? '▶' : 'Ⅱ';
+    pause.setAttribute('aria-label', `${k.paused ? 'Resume' : 'Pause'} run-up`);
+  });
+  const card = outlet.querySelector('.play-card.rush');
+  if (card) {
+    card.addEventListener('keydown', (e) => {
+      const k = ensureRushKick();
+      if (rushRun?.over) return;
+      if (k.phase === 'runup') {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rushStrike(outlet); }
+        return;
+      }
+      const zones = DUEL_ZONES;
+      const idx = k.zone ? zones.indexOf(k.zone) : -1;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.key === 'ArrowRight' ? 1 : -1;
+        k.zone = zones[((idx < 0 ? 0 : idx) + step + zones.length) % zones.length];
+        repaintPlay();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        k.zone = zones[((idx < 0 ? 0 : idx) + 3) % zones.length];
+        repaintPlay();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        k.feint = !k.feint;
+        repaintPlay();
+      } else if ((e.key === 'Enter' || e.key === ' ') && k.zone) {
+        e.preventDefault();
+        outlet.querySelector('#duel-go')?.click();
+      }
+    });
+  }
   const again = outlet.querySelector('#rush-again');
   if (again) {
     again.addEventListener('click', () => {
       rushRun = null; // next attempt draws the day's next deterministic seed
+      rushKick = null;
       ensureRushRun();
       unlockAudioFromGesture();
       repaintPlay();
     });
   }
+  if (rushKick && rushKick.phase === 'runup') startRushPulse(outlet);
 }
 
 /* ================= Final Minute =================
@@ -2961,11 +3058,20 @@ export function ccRecordAfter(rec, { dateKey, result }) {
    no network, no official claims, no global rank. */
 
 export const CUP_STOPS = [
+  { id: 'carousel', name: 'The Carousel', mode: 'rondo', desc: 'Keep the rondo alive into the third wave.' },
   { id: 'call', name: "Coach's Call", mode: 'coach', desc: 'Two calls from the dugout swing the night.' },
   { id: 'rush', name: 'Penalty Rush', mode: 'shootout', desc: 'Five kicks. Bury four to take the stop.' },
   { id: 'clutch', name: 'Final Minute', mode: 'finalminute', desc: 'Six minutes, three calls, hold your nerve.' },
   { id: 'showdown', name: 'The Showdown', mode: 'lab', desc: 'A full broadcast night against your rival.' },
 ];
+
+/** The road a given run actually started with. Runs created before the
+    Carousel stop existed keep their original four-stop road to the end —
+    the rules of an active run never change underneath the player. */
+export function cupRoad(cup) {
+  if (!cup || !cup.stops) return CUP_STOPS;
+  return CUP_STOPS.filter((s) => s.id in cup.stops);
+}
 
 export const CUP_TROPHIES = {
   gold: { tier: 'gold', icon: '🏆', label: 'Gold Cup — perfect run' },
@@ -3000,7 +3106,7 @@ export function createArcadeCup(sideCode, dateKey = localDayKey(), attempt = 0) 
     seed, dateKey, attempt,
     side: sideCode,
     rivals: cupRivals(seed, sideCode),
-    stops: { call: null, rush: null, clutch: null, showdown: null },
+    stops: { carousel: null, call: null, rush: null, clutch: null, showdown: null },
     startedAt: new Date().toISOString(),
     done: false,
     trophy: null,
@@ -3009,27 +3115,32 @@ export function createArcadeCup(sideCode, dateKey = localDayKey(), attempt = 0) 
 
 export function cupNextStop(cup) {
   if (!cup || cup.done) return null;
-  const next = CUP_STOPS.find((s) => !cup.stops[s.id]);
+  const next = cupRoad(cup).find((s) => !cup.stops[s.id]);
   return next ? next.id : null;
 }
 
 export function cupWins(cup) {
-  return CUP_STOPS.filter((s) => cup && cup.stops[s.id] === 'W').length;
+  return cupRoad(cup).filter((s) => cup && cup.stops[s.id] === 'W').length;
 }
 
+/** Medal thresholds scale with the road the run was created on: gold is a
+    perfect road, silver one short, bronze two short. A legacy four-stop run
+    keeps exactly its old thresholds. */
 export function cupTrophy(cup) {
+  const n = cupRoad(cup).length;
   const w = cupWins(cup);
-  return w >= 4 ? CUP_TROPHIES.gold : w === 3 ? CUP_TROPHIES.silver : w === 2 ? CUP_TROPHIES.bronze : CUP_TROPHIES.finisher;
+  return w >= n ? CUP_TROPHIES.gold : w === n - 1 ? CUP_TROPHIES.silver : w === n - 2 ? CUP_TROPHIES.bronze : CUP_TROPHIES.finisher;
 }
 
 /** A finished road gets a short, fact-derived memory line. No result or
     opponent is invented: every branch reads only the four settled stops. */
 export function cupRunStory(cup) {
   const stops = cup && cup.stops ? cup.stops : {};
-  const results = CUP_STOPS.map((s) => stops[s.id]).filter((v) => ['W', 'L', 'D'].includes(v));
+  const road = cupRoad(cup);
+  const results = road.map((s) => stops[s.id]).filter((v) => ['W', 'L', 'D'].includes(v));
   const wins = Number.isFinite(cup?.wins) ? cup.wins : results.filter((v) => v === 'W').length;
-  if (results.length < CUP_STOPS.length) return 'Road still in progress.';
-  if (wins === 4) return 'Perfect road — four stops, four wins.';
+  if (results.length < road.length) return 'Road still in progress.';
+  if (wins === road.length) return `Perfect road — ${road.length === 5 ? 'five' : 'four'} stops, ${road.length === 5 ? 'five' : 'four'} wins.`;
   if (stops.showdown === 'L' && stops.call === 'W' && stops.rush === 'W' && stops.clutch === 'W') {
     return 'Gold slipped away at the final stop.';
   }
@@ -3046,22 +3157,25 @@ export function cupSeasonSummary(history = [], sideCode = null) {
   const runs = (Array.isArray(history) ? history : []).filter((c) => c && (!sideCode || c.side === sideCode));
   const totals = { W: 0, L: 0, D: 0 };
   let bestWins = 0;
+  let bestRoad = 4;
   for (const run of runs) {
-    const results = CUP_STOPS.map((s) => run.stops && run.stops[s.id]).filter((v) => v in totals);
+    const road = cupRoad(run);
+    const results = road.map((s) => run.stops && run.stops[s.id]).filter((v) => v in totals);
     for (const result of results) totals[result] += 1;
     const wins = Number.isFinite(run.wins) ? run.wins : results.filter((v) => v === 'W').length;
-    bestWins = Math.max(bestWins, wins);
+    if (wins >= bestWins) { bestWins = wins; bestRoad = road.length; }
   }
   return {
     runs: runs.length,
-    perfect: runs.filter((c) => (c.trophy && c.trophy.tier === 'gold') || c.wins === 4).length,
+    perfect: runs.filter((c) => (c.trophy && c.trophy.tier === 'gold') || c.wins === cupRoad(c).length).length,
     bestWins,
+    bestRoad,
     stopWins: totals.W,
     stopLosses: totals.L,
     stopDraws: totals.D,
     form: runs.slice(0, 5).map((c) => Number.isFinite(c.wins)
       ? c.wins
-      : CUP_STOPS.filter((s) => c.stops && c.stops[s.id] === 'W').length),
+      : cupRoad(c).filter((s) => c.stops && c.stops[s.id] === 'W').length),
     latest: runs[0] || null,
   };
 }
@@ -3351,9 +3465,9 @@ function cupSeasonHTML(history, sideCode = null, className = '') {
   return `<section class="cup-season ${className}" aria-label="Arcade season">
     <div class="cup-season-head">
       <div><span class="cup-season-kicker">Arcade season · on this phone</span>
-      <strong>${season.bestWins}/4 best road</strong></div>
+      <strong>${season.bestWins}/${season.bestRoad} best road</strong></div>
       <span class="cup-season-form" aria-label="Last ${season.form.length} runs">
-        ${season.form.map((wins) => `<i class="f-${wins}" title="${wins} of 4 stops won">${wins}</i>`).join('')}
+        ${season.form.map((wins) => `<i class="f-${wins}" title="${wins} stops won">${wins}</i>`).join('')}
       </span>
     </div>
     <div class="cup-season-stats" role="group" aria-label="Season record">
@@ -3371,7 +3485,7 @@ function cupHTML(play) {
     return `<section class="play-card cup" aria-label="Arcade Cup">
       <div class="rush-head">
         <div><h2 class="display">Arcade Cup</h2>
-        <p class="play-sub">Four stops, one trophy, all on this phone. The road needs a side to run it.</p></div>
+        <p class="play-sub">Five stops, one trophy, all on this phone. The road needs a side to run it.</p></div>
         <span class="sim-badge">SIMULATION</span>
       </div>
       <button class="play-btn gold" id="cup-pickside">Pick your side</button>
@@ -3384,7 +3498,7 @@ function cupHTML(play) {
     return `<section class="play-card cup" aria-label="Arcade Cup" style="--side:${sideColor}">
       <div class="rush-head">
         <div><h2 class="display">Arcade Cup</h2>
-        <p class="play-sub">${teamFlag(side.code)} ${esc(teamName(side.code))} run a four-stop road — dugout call, penalty gauntlet, final-minute fire, then the Showdown. Win stops, take the trophy. Local run only.</p></div>
+        <p class="play-sub">${teamFlag(side.code)} ${esc(teamName(side.code))} run a five-stop road — carousel drill, dugout call, penalty duel, final-minute fire, then the Showdown. Win stops, take the trophy. Local run only.</p></div>
         <span class="sim-badge">SIMULATION</span>
       </div>
       <div class="cup-route preview">
@@ -3400,7 +3514,11 @@ function cupHTML(play) {
   }
   const next = cupNextStop(cup);
   const wins = cupWins(cup);
-  const rivalName = (i) => teamName(cup.rivals[i] || cup.rivals[0]);
+  const road = cupRoad(cup);
+  // Rivals attach to the match-like stops by id; the Carousel is a drill
+  // against the press, not a named rival.
+  const RIVAL_FOR = { call: 0, rush: 1, clutch: 2, showdown: 3 };
+  const stopOpponent = (id) => (id in RIVAL_FOR ? teamName(cup.rivals[RIVAL_FOR[id]] || cup.rivals[0]) : 'the press');
   return `<section class="play-card cup${cup.done ? ' done' : ''}" aria-label="Arcade Cup" style="--side:${sideColor}">
     <div class="rush-head">
       <div><h2 class="display">Arcade Cup</h2>
@@ -3410,20 +3528,20 @@ function cupHTML(play) {
     ${cup.done ? `<div class="cup-final" role="status">
       <span class="cup-final-icon" aria-hidden="true">${cup.trophy ? cup.trophy.icon : '🎖️'}</span>
       <strong class="display">${esc(cup.trophy ? cup.trophy.label : 'Run complete')}</strong>
-      <span>${wins} of 4 stops won · kept in your trophy room</span>
+      <span>${wins} of ${road.length} stops won · kept in your trophy room</span>
     </div>` : `<div class="cup-progress" role="group" aria-label="Run progress">
-      ${CUP_STOPS.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}" aria-label="${esc(s.name)}: ${esc(cupStopStateLabel(cup.stops[s.id], s.id === next))}"></i>`).join('')}
+      ${road.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}" aria-label="${esc(s.name)}: ${esc(cupStopStateLabel(cup.stops[s.id], s.id === next))}"></i>`).join('')}
       <span class="cup-progress-label">${wins}W so far</span>
     </div>`}
     <div class="cup-route">
-      ${CUP_STOPS.map((s, i) => {
+      ${road.map((s, i) => {
     const v = cup.stops[s.id];
     const isNext = s.id === next;
     return `<div class="cup-stop ${v ? 'r-' + v.toLowerCase() : isNext ? 'now' : 'locked'}">
         <span class="cup-stop-n">${v === 'W' ? '✓' : v === 'L' ? '✗' : v === 'D' ? '=' : i + 1}</span>
         <div>
           <strong>${esc(s.name)}</strong>
-          <small>${v ? `${cupStopStateLabel(v, false)} · v ${esc(rivalName(i))}` : isNext ? `v ${esc(rivalName(i))} — ${esc(s.desc)}` : esc(s.desc)}</small>
+          <small>${v ? `${cupStopStateLabel(v, false)} · v ${esc(stopOpponent(s.id))}` : isNext ? `v ${esc(stopOpponent(s.id))} — ${esc(s.desc)}` : esc(s.desc)}</small>
         </div>
         ${isNext && !cup.done ? `<button class="cup-play" data-cup-stop="${s.id}">Play</button>` : ''}
       </div>`;
@@ -3431,7 +3549,7 @@ function cupHTML(play) {
     </div>
     <div class="play-actions">
       ${cup.done ? '<button class="play-btn gold" id="cup-restart">Run it again</button>' : `
-      <button class="play-btn gold" data-cup-stop="${next}">Play stop ${CUP_STOPS.findIndex((s) => s.id === next) + 1} — ${esc(CUP_STOPS.find((s) => s.id === next).name)}</button>
+      <button class="play-btn gold" data-cup-stop="${next}">Play stop ${road.findIndex((s) => s.id === next) + 1} — ${esc(road.find((s) => s.id === next).name)}</button>
       <button class="play-btn quiet" id="cup-restart">Restart run</button>`}
     </div>
     ${cupSeasonHTML(history, side.code)}
@@ -3442,7 +3560,7 @@ function cupHTML(play) {
 
 function cupShelfHTML(history) {
   return `<div class="cup-shelf" aria-label="Recent runs">
-    ${history.map((c) => `<span class="cup-medal t-${c.trophy ? c.trophy.tier : 'finisher'}" title="${esc(c.trophy ? c.trophy.label : 'Run complete')}">${c.trophy ? c.trophy.icon : '🎖️'} ${teamFlag(c.side)} ${c.wins}/4</span>`).join('')}
+    ${history.map((c) => `<span class="cup-medal t-${c.trophy ? c.trophy.tier : 'finisher'}" title="${esc(c.trophy ? c.trophy.label : 'Run complete')}">${c.trophy ? c.trophy.icon : '🎖️'} ${teamFlag(c.side)} ${c.wins}/${cupRoad(c).length}</span>`).join('')}
   </div>`;
 }
 
@@ -3473,6 +3591,12 @@ function wireCup(outlet) {
       const stop = CUP_STOPS.find((s) => s.id === stopId);
       if (!cup || !stop) return;
       if (stopId === 'call') ccRun = null; // the Cup seeds the dugout stop
+      if (stopId === 'carousel') {
+        // the Cup seeds the Carousel stop deterministically from the run
+        setPlayMode('rondo');
+        beginRondo('challenge', hashSeed(`u26-cup-carousel-${cup.seed}`) || 1);
+        return;
+      }
       if (stopId === 'showdown') {
         const side = currentSide(play);
         setPlayMode('lab');
@@ -4408,21 +4532,24 @@ function cupStripHTML(play) {
   const side = currentSide(play);
   if (!side) return `<button class="cup-strip start unclaimed" data-goto="cup">
     <span class="lt-kicker">Arcade Cup · Campaign</span>
-    <strong>Four stops. One trophy.</strong>
+    <strong>Five stops. One trophy.</strong>
     <small>Choose your side, then run the road</small>
   </button>`;
   const cup = play.arcadeCup && play.arcadeCup.side === side.code ? play.arcadeCup : null;
   if (cup && !cup.done) {
+    const road = cupRoad(cup);
     const next = cupNextStop(cup);
-    const stop = CUP_STOPS.find((s) => s.id === next);
-    const idx = CUP_STOPS.findIndex((s) => s.id === next) + 1;
+    const stop = road.find((s) => s.id === next);
+    const idx = road.findIndex((s) => s.id === next) + 1;
+    const rivalFor = { call: 0, rush: 1, clutch: 2, showdown: 3 };
+    const versus = next in rivalFor ? `v ${teamName(cup.rivals[rivalFor[next]] || cup.rivals[0])}` : 'v the press';
     return `<button class="cup-strip active" data-goto="cup" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
       <span class="lt-kicker">Arcade Cup · today&rsquo;s run</span>
-      <strong>Stop ${idx} of 4 — ${esc(stop.name)}</strong>
+      <strong>Stop ${idx} of ${road.length} — ${esc(stop.name)}</strong>
       <span class="cup-progress" aria-hidden="true">
-        ${CUP_STOPS.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}"></i>`).join('')}
+        ${road.map((s) => `<i class="cup-dot ${cup.stops[s.id] ? cup.stops[s.id].toLowerCase() : s.id === next ? 'now' : 'wait'}"></i>`).join('')}
       </span>
-      <small>Continue the run · v ${esc(teamName(cup.rivals[idx - 1] || cup.rivals[0]))}</small>
+      <small>Continue the run · ${esc(versus)}</small>
     </button>`;
   }
   if (cup && cup.done && cup.dateKey === localDayKey()) {
@@ -4434,8 +4561,8 @@ function cupStripHTML(play) {
   }
   return `<button class="cup-strip start" data-goto="cup" style="--side:${TEAM_COLORS[side.code] || 'var(--gold)'}">
     <span class="lt-kicker">Arcade Cup</span>
-    <strong>Four stops. One trophy.</strong>
-    <small>Dugout call → penalty gauntlet → final-minute fire → the Showdown</small>
+    <strong>Five stops. One trophy.</strong>
+    <small>Carousel → dugout → penalty duel → final-minute fire → the Showdown</small>
   </button>`;
 }
 
@@ -4462,31 +4589,123 @@ function momentTapeHTML(play) {
 }
 
 function lobbyHTML(overlay, play, sims) {
+  if (sidePickerOpen) return sidePickerHTML(play);
   const ledger = arcadeLedger(play, overlay, sims);
+  const achievements = achievementState();
+  const earned = achievements.filter((a) => a.on);
+  const nextAch = achievements.find((a) => !a.on) || null;
   const predStats = gradePredictions(play.predictions?.picks || {}, overlay);
+  const picks = play.predictions?.picks || {};
+  const today = localDayKey();
+  const side = currentSide(play);
   const lab = play.labHistory || [];
   const last = lab[0];
   const featured = currentFeaturedShowdown(play);
-  const home = featured.home;
-  const away = featured.away;
-  // Tonight's Challenge: the next real fixture you haven't called yet.
-  const picks = play.predictions?.picks || {};
-  const challenge = predictableFixtures(overlay).find((f) => !picks[f.id]) || null;
-  const chSlots = challenge ? overlay.slots.get(challenge.id) : null;
-  // Current run: an unfinished My World Cup or a champion waiting to be saved.
+  // Play now: the flagship daily challenge, with the record to beat.
+  const rondoRec = play.rondo || {};
+  const rondoToday = rondoRec.dateKey === today ? rondoRec.bestToday || 0 : 0;
+  const rondoTarget = Math.max(rondoToday, rondoRec.bestScore || 0);
+  // Continue: any unfinished long-form run.
   const world = simWorld(overlay, play);
   const simNext = play.myWorldCup ? nextSimStage(world) : null;
   const champion = play.myWorldCup && play.myWorldCup.champion;
-  const bestWin = ledger.best;
-  const earned = achievementState().filter((a) => a.on);
   const rushRec = play.penaltyRush || null;
-  const rushBestToday = rushRec && rushRec.dateKey === localDayKey() ? rushRec.bestToday || 0 : 0;
-  const side = currentSide(play);
+  const rushBestToday = rushRec && rushRec.dateKey === today ? rushRec.bestToday || 0 : 0;
   const fmRec = play.finalMinute || null;
-  if (sidePickerOpen) return sidePickerHTML(play);
-  return `<section class="play-card lobby" aria-label="Arcade lobby">
-    ${sideHeroHTML(play)}
+  const ccRec = play.coachCall || null;
+  const challenge = predictableFixtures(overlay).find((f) => !picks[f.id]) || null;
+  const chSlots = challenge ? overlay.slots.get(challenge.id) : null;
+  const bestWin = ledger.best;
+  return `<section class="play-card lobby" aria-label="Play lobby">
+
+    <button class="lobby-rondo" data-goto="rondo" aria-label="Play Rondo, the flagship game">
+      <i class="lobby-rondo-pitch" aria-hidden="true"><b></b><b></b><b></b><em></em><em></em><span></span></i>
+      <span class="lt-kicker">Play now · Flagship</span>
+      <strong class="display">Rondo</strong>
+      <span class="lr-line">${rondoTarget ? `Record to beat: <b>${rondoTarget.toLocaleString()}</b>${rondoToday ? ` · today ${rondoToday.toLocaleString()}` : ''}` : 'Keep the ball alive under the press'}</span>
+      <span class="lr-meta"><em class="time-chip">~2 min</em><em class="time-chip quiet">${rondoRec.bestWave ? `wave ${rondoRec.bestWave} best` : 'tap or keys 1–6'}</em></span>
+      <span class="game-go">Take the daily challenge <b>→</b></span>
+    </button>
+
     ${cupStripHTML(play)}
+    ${simNext && !champion ? `<button class="lobby-continue" data-goto="myworldcup">
+      <span class="lt-kicker">Continue run · My World Cup</span>
+      <strong>${esc(STAGE_NAMES[simNext.stage])} is next</strong>
+      <small>Your parallel tournament is waiting</small>
+    </button>` : ''}
+    ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} ${last.result === 'W' ? 'Defend the win' : last.result === 'L' ? 'Answer the defeat' : 'Run it back'} <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
+
+    <div class="arcade-section-head"><div><span>Skill</span><strong>Your touch. Your timing.</strong></div><small>Short runs · local records</small></div>
+    <button class="lobby-rush" data-goto="shootout">
+      <span class="game-number">01</span><span class="lt-kicker">Penalty Rush · Daily duel</span>
+      <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Read the keeper. Time the pulse.'}</strong>
+      <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · scouted keepers · sudden death` : 'Scouted keepers · feints · sudden death'}</small>
+      <i class="lobby-rush-goal" aria-hidden="true"><b></b><em></em></i>
+      <span class="lr-meta"><em class="time-chip">~2 min</em></span>
+      <span class="game-go">Step up <b>→</b></span>
+    </button>
+
+    <div class="arcade-section-head"><div><span>Tactics</span><strong>Read the game. Make the call.</strong></div><small>Needs a side to coach.</small></div>
+    <div class="lobby-grid quick-grid">
+      <button class="lobby-tile fm-tile" data-goto="finalminute">
+        <span class="game-number">02</span><i class="game-glyph" aria-hidden="true">90+</i>
+        <span class="lt-kicker">Final Minute</span>
+        <strong>${fmRec && fmRec.played ? `${fmRec.w}W–${fmRec.l}L–${fmRec.d}D in the fire` : 'Six minutes. Three calls.'}</strong>
+        <small>${side ? 'Territory, legs and cards carry between calls' : 'Needs a side · pick yours first'}</small>
+        <em class="time-chip">~3 min</em>
+      </button>
+      <button class="lobby-tile" data-goto="coach">
+        <span class="game-number">03</span><i class="game-glyph tactics" aria-hidden="true">◇</i>
+        <span class="lt-kicker">Coach&rsquo;s Call</span>
+        <strong>${ccRec && ccRec.played ? `${ccRec.w}W–${ccRec.l}L–${ccRec.d}D from the dugout` : 'One situation. Two calls.'}</strong>
+        <small>${side ? 'Your identity changes what works' : 'Needs a side · pick yours first'}</small>
+        <em class="time-chip">~2 min</em>
+      </button>
+    </div>
+
+    <div class="arcade-section-head"><div><span>Big nights</span><strong>Deeper worlds. Longer stories.</strong></div><small>Everything saves to You.</small></div>
+    <div class="lobby-grid long-grid">
+      <button class="lobby-tile lab-tile" data-goto="lab">
+        <span class="game-number">04</span><i class="game-glyph broadcast" aria-hidden="true">◉</i>
+        <span class="lt-kicker">Match Lab</span>
+        <strong>Any two teams, full broadcast</strong>
+        <small>Live pitch · momentum · decisions · extra time</small>
+        <em class="time-chip">5–15 min</em>
+        <span class="game-go">Enter the stadium <b>→</b></span>
+      </button>
+      <button class="lobby-tile" data-goto="myworldcup">
+        <span class="game-number">05</span><i class="game-glyph" aria-hidden="true">⌁</i>
+        <span class="lt-kicker">My World Cup</span>
+        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Build your tournament'}</strong>
+        <small>${champion ? 'Champion crowned · archive the timeline' : simNext ? 'Your parallel tournament continues' : 'Pick winners · bend the bracket'}</small>
+        <em class="time-chip">10–30 min</em>
+      </button>
+    </div>
+    ${!side ? `<button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[featured.home] || 'var(--gold)'};--ac:${TEAM_COLORS[featured.away] || 'var(--gold)'}">
+      <span class="lk-label">Tonight’s Showdown</span>
+      <span class="lk-tie">${teamFlag(featured.home)} ${esc(teamName(featured.home))} <em>v</em> ${esc(teamName(featured.away))} ${teamFlag(featured.away)}</span>
+      <span class="lk-go">Start Showdown</span>
+      <span class="lk-note">Daily featured simulation · not a live fixture</span>
+    </button>` : ''}
+
+    <div class="arcade-section-head"><div><span>Real calls</span><strong>The only global game.</strong></div><small>Settled only by official results.</small></div>
+    ${slateHTML(overlay, play)}
+    ${challenge && chSlots ? `<button class="lobby-tile pr-tile" data-goto="prediction">
+      <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
+      <span class="lt-kicker">Tonight's challenge</span>
+      <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
+      <small>Call it before ${esc(formatKickoffTime(challenge.epoch))} · earn insight</small>
+      <em class="time-chip">1–5 min</em>
+    </button>` : `<button class="lobby-tile pr-tile" data-goto="prediction">
+      <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">◎</i>
+      <span class="lt-kicker">Prediction Run</span>
+      <strong>${predStats.right}/${predStats.total} correct</strong>
+      <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
+      <em class="time-chip">1–5 min</em>
+    </button>`}
+
+    <div class="arcade-section-head"><div><span>You &amp; records</span><strong>The story so far.</strong></div><small>All local, all earned.</small></div>
+    ${sideHeroHTML(play)}
     <div class="lobby-marquee" role="group" aria-label="Your arcade record">
       <div class="lm-stat cp"><strong class="display">${ledger.points}</strong><span>Arcade Points</span></div>
       <div class="lm-stat"><span class="lm-form">${formDots(ledger.form)}</span><span>Lab form</span></div>
@@ -4503,78 +4722,7 @@ function lobbyHTML(overlay, play, sims) {
       <small>${rank.next ? `${rank.next.need} points to ${esc(rank.next.name)}` : 'Top of the terraces — defend it'}</small>
     </div>`;
   })()}
-
-    ${!side ? `<button class="lobby-kick" id="lobby-kick" style="--hc:${TEAM_COLORS[home] || 'var(--gold)'};--ac:${TEAM_COLORS[away] || 'var(--gold)'}">
-      <span class="lk-label">Tonight’s Showdown</span>
-      <span class="lk-tie">${teamFlag(home)} ${esc(teamName(home))} <em>v</em> ${esc(teamName(away))} ${teamFlag(away)}</span>
-      <span class="lk-go">Start Showdown</span>
-      <span class="lk-note">Daily featured simulation · not a live fixture</span>
-    </button>` : ''}
-    ${last ? `<button class="lobby-runback" id="lobby-runback">${teamFlag(last.home)} ${last.result === 'W' ? 'Defend the win' : last.result === 'L' ? 'Answer the defeat' : 'Run it back'} <b>${last.gh}–${last.ga}</b> ${teamFlag(last.away)}</button>` : ''}
-
-    ${slateHTML(overlay, play)}
-
-    <div class="arcade-section-head"><div><span>Quick play</span><strong>One tap. One decision loop.</strong></div><small>Rules and risk are shown before every call.</small></div>
-    <button class="lobby-shot" data-goto="shotlab">
-      <span class="game-number">01</span><span class="lt-kicker">Shot Lab · New flagship</span>
-      <strong>${play.shotLab?.bestPractice ? `Studio best: ${play.shotLab.bestPractice.toLocaleString()} points` : 'Aim it. Shape it. Strike it.'}</strong>
-      <small>${play.shotLab?.played ? `${play.shotLab.played} runs · best accuracy ${play.shotLab.bestAccuracy || 0}%` : 'Direct touch controls · moving targets · keeper reads'}</small>
-      <i class="lobby-shot-visual" aria-hidden="true"><b></b><em></em><span></span></i>
-      <span class="game-go">Enter Shot Lab <b>→</b></span>
-    </button>
-    <button class="lobby-rush" data-goto="shootout">
-      <span class="game-number">02</span><span class="lt-kicker">Penalty Rush · Daily Gauntlet</span>
-      <strong>${rushBestToday ? `Best today: ${rushBestToday} ${rushBestToday === 1 ? 'goal' : 'goals'}` : 'Five targets. The keeper learns.'}</strong>
-      <small>${rushRec && rushRec.bestEver ? `Best ever ${rushRec.bestEver} · 45 seconds` : 'Aim inside the goal · 45 seconds'}</small>
-      <i class="lobby-rush-goal" aria-hidden="true"><b></b><em></em></i>
-      <span class="game-go">Play now <b>→</b></span>
-    </button>
-
-    <div class="lobby-grid quick-grid">
-      <button class="lobby-tile fm-tile" data-goto="finalminute">
-        <span class="game-number">03</span><i class="game-glyph" aria-hidden="true">90+</i>
-        <span class="lt-kicker">Final Minute</span>
-        <strong>${fmRec && fmRec.played ? `${fmRec.w}W–${fmRec.l}L–${fmRec.d}D in the fire` : 'Six minutes. Three calls.'}</strong>
-        <small>${side ? 'Read the pressure · survive or steal it' : 'Needs a side · pick yours first'}</small>
-      </button>
-      <button class="lobby-tile" data-goto="coach">
-        <span class="game-number">04</span><i class="game-glyph tactics" aria-hidden="true">◇</i>
-        <span class="lt-kicker">Coach&rsquo;s Call</span>
-        <strong>${(play.coachCall && play.coachCall.played) ? `${play.coachCall.w}W–${play.coachCall.l}L–${play.coachCall.d}D from the dugout` : 'One situation. Two calls.'}</strong>
-        <small>${side ? 'Your identity changes what works' : 'Needs a side · pick yours first'}</small>
-      </button>
-    </div>
-
-    <div class="arcade-section-head"><div><span>Big nights</span><strong>Deeper worlds. Longer stories.</strong></div><small>Everything saves to You.</small></div>
-    <div class="lobby-grid long-grid">
-      <button class="lobby-tile lab-tile" data-goto="lab">
-        <span class="game-number">05</span><i class="game-glyph broadcast" aria-hidden="true">◉</i>
-        <span class="lt-kicker">Match Lab</span>
-        <strong>Any two teams, full broadcast</strong>
-        <small>Live pitch · momentum · decisions · extra time</small>
-        <span class="game-go">Enter the stadium <b>→</b></span>
-      </button>
-      <button class="lobby-tile" data-goto="myworldcup">
-        <span class="game-number">06</span><i class="game-glyph" aria-hidden="true">⌁</i>
-        <span class="lt-kicker">My World Cup</span>
-        <strong>${champion ? teamFlag(champion) + ' ' + esc(teamName(champion)) + ' reign' : simNext ? esc(STAGE_NAMES[simNext.stage]) + ' next' : 'Build your tournament'}</strong>
-        <small>${champion ? 'Champion crowned · archive the timeline' : simNext ? 'Your parallel tournament continues' : 'Pick winners · bend the bracket'}</small>
-      </button>
-      ${challenge && chSlots ? `<button class="lobby-tile" data-goto="prediction">
-        <span class="game-number">07</span><i class="game-glyph" aria-hidden="true">◎</i>
-        <span class="lt-kicker">Tonight's challenge</span>
-        <strong>${teamFlag(chSlots.home)} ${esc(teamName(chSlots.home))} v ${esc(teamName(chSlots.away))} ${teamFlag(chSlots.away)}</strong>
-        <small>Call it before ${esc(formatKickoffTime(challenge.epoch))} · earn insight</small>
-      </button>` : `<button class="lobby-tile" data-goto="prediction">
-        <span class="game-number">07</span><i class="game-glyph" aria-hidden="true">◎</i>
-        <span class="lt-kicker">Prediction Run</span>
-        <strong>${predStats.right}/${predStats.total} correct</strong>
-        <small>${Object.keys(picks).length ? 'Review your calls' : 'Make your first call'}</small>
-      </button>`}
-    </div>
-
     ${momentTapeHTML(play)}
-
     <div class="lobby-season" aria-label="Season record">
       <span class="lt-kicker">Your season</span>
       <div class="season-grid">
@@ -4582,8 +4730,9 @@ function lobbyHTML(overlay, play, sims) {
         <span class="season-cell"><b>${ledger.wins}W–${ledger.played - ledger.wins}L</b><small>lab record</small></span>
         <span class="season-cell"><b>${(play.cupHistory || []).length ? (play.cupHistory || []).map((c) => (c.trophy ? c.trophy.icon : '🎖️')).slice(0, 3).join('') : predStats.right + '/' + predStats.total}</b><small>${(play.cupHistory || []).length ? 'cup shelf' : 'calls right'}</small></span>
       </div>
-      ${earned.length ? `<div class="season-ach">${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}</div>`
-    : '<p class="season-hint">Achievements unlock from real play — an upset call, a five-streak, a shootout escape.</p>'}
+      ${earned.length ? `<div class="season-ach">${earned.map((a) => `<span class="you-ach" title="${esc(a.desc)}">${a.icon} ${esc(a.name)}</span>`).join('')}</div>` : ''}
+      ${nextAch ? `<p class="season-hint next-ach">Next up: ${nextAch.icon} <b>${esc(nextAch.name)}</b> — ${esc(nextAch.desc)}</p>`
+    : '<p class="season-hint">Every achievement earned. The terraces salute you.</p>'}
     </div>
   </section>`;
 }
@@ -4834,7 +4983,7 @@ export function render(outlet) {
   const { real, play, nav, sims } = getState();
   const mode = nav.playMode;
   let body;
-  if (mode === 'shotlab') body = shotLabHTML(play);
+  if (mode === 'rondo') body = rondoHTML(play);
   else if (mode === 'lab') body = labRun ? labRunHTML(labRun) : labSetupHTML(play);
   else if (mode === 'myworldcup') body = myWorldCupHTML(real.overlay, play, pendingPick);
   else if (mode === 'prediction') body = predictionHTML(real.overlay, play);
@@ -4855,15 +5004,15 @@ export function render(outlet) {
     ${body}
   </div>`;
   if (typeof document !== 'undefined') {
-    document.body.classList.toggle('shot-lab-active', mode === 'shotlab' && !!shotRun && !shotRun.over);
+    document.body.classList.toggle('rondo-active', mode === 'rondo' && !!rondoRun && !rondoRun.over);
   }
   const modeTabs = outlet.querySelector('[data-segmented="play-mode"]');
   modeTabs.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-value]');
     if (btn) {
-      stopLabTimer(); stopShotClock();
+      stopLabTimer(); stopRondoLoop(); stopRushPulse();
       if (labRun && !labRun.done) labRun = null;
-      if (shotRun && !shotRun.over) shotRun = null;
+      if (rondoRun && !rondoRun.over) rondoRun = null;
       setPlayMode(btn.dataset.value);
     }
   });
@@ -4912,7 +5061,7 @@ export function render(outlet) {
       window.requestAnimationFrame(center);
     }
   }
-  if (mode === 'shotlab') wireShotLab(outlet);
+  if (mode === 'rondo') wireRondo(outlet);
   else if (mode === 'lab') {
     wireLab(outlet);
     // (re)bind the persistent pitch scene after any full render

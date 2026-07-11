@@ -60,5 +60,12 @@ test('nothing in the persistence module can feed the real overlay: no imports fr
   const src = await readFile(new URL('../src/core/persistence.js', import.meta.url), 'utf8');
   assert.ok(!src.includes('provider-overlay'), 'persistence never touches overlay code');
   assert.ok(!src.includes('canonical-truth'), 'persistence never touches truth code');
-  assert.ok(!src.includes("import"), 'persistence has zero imports — it cannot reach real state');
+  // The single allowed import is the static Play catalog (the shared version
+  // constant). It must itself import nothing, so persistence transitively
+  // still cannot reach provider, network, or real-truth state.
+  const imports = [...src.matchAll(/^import .*$/gm)].map((m) => m[0]);
+  assert.deepEqual(imports, ["import { PLAY_CATALOG_VERSION } from './play-catalog.js';"],
+    'persistence imports exactly the catalog version constant and nothing else');
+  const catalog = await readFile(new URL('../src/core/play-catalog.js', import.meta.url), 'utf8');
+  assert.ok(!/^import /m.test(catalog), 'the catalog module is a leaf: zero imports');
 });

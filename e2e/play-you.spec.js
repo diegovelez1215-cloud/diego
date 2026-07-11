@@ -274,31 +274,52 @@ test.describe('Match Lab', () => {
   });
 });
 
+/** One duel kick through the rebuilt loop: pick a spot, begin the run-up,
+    strike on the pulse. Timing is real; outcomes come from the seeded model. */
+async function takeDuelKick(page, zone = 'bc') {
+  await page.locator(`[data-duel-zone="${zone}"]`).click();
+  await page.locator('#duel-go').click();
+  await page.locator('#duel-strike').click();
+}
+
+async function finishDuel(page, zone = 'bc') {
+  for (let guard = 0; guard < 24; guard++) {
+    if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
+    await takeDuelKick(page, zone);
+  }
+  await expect(page.locator('.rush-recap')).toBeVisible();
+}
+
 test.describe('Penalty Rush', () => {
-  test('five kicks against the gauntlet keeper — local record only, official truth untouched', async ({ page }, testInfo) => {
+  test('the duel: scout the keeper, pick a spot, time the pulse — local record only', async ({ page }, testInfo) => {
     await gotoApp(page);
     const heroBefore = await page.locator('.score-stage').innerText();
     await openPlayMode(page, 'shootout');
     await expect(page.locator('.rush-stage')).toBeVisible();
-    await expect(page.locator('.rush-aim')).toHaveCount(5);
-    await expect(page.locator('.rush-goalframe .rush-aim')).toHaveCount(5);
-    await expect(page.locator('[data-rush-aim="top-left"]')).toContainText('high reward');
+    // the scouting layer is honest and present before the first kick
+    await expect(page.locator('.duel-scout')).toBeVisible();
+    await expect(page.locator('.duel-tell')).not.toBeEmpty();
+    await expect(page.locator('[data-duel-zone]')).toHaveCount(6);
     await expect(page.locator('.rush-readout')).toContainText('No pattern yet');
-    await expect(page.locator('.rush-callout')).toContainText('Pick your corner');
-    await screenshot(page, testInfo, 'play-penalty-rush-targets');
-    const aims = ['left', 'centre', 'right', 'left', 'right'];
-    for (const aim of aims) {
-      await page.locator(`[data-rush-aim="${aim}"]`).click();
-      await expect(page.locator('.rush-callout')).not.toContainText('Pick your corner');
-    }
-    // a perfect five earns sudden death — keep shooting until the keeper wins
-    for (let guard = 0; guard < 24; guard++) {
-      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
-      await page.locator('[data-rush-aim="centre"]').click();
-    }
-    await expect(page.locator('.rush-recap')).toBeVisible();
+    await expect(page.locator('.rush-callout')).toContainText('Scout the keeper');
+    await screenshot(page, testInfo, 'play-penalty-duel-read');
+    // the run-up gate: no strike without a spot
+    await expect(page.locator('#duel-go')).toBeDisabled();
+    await page.locator('[data-duel-zone="bl"]').click();
+    await expect(page.locator('#duel-go')).toBeEnabled();
+    // feint is a real, visible tradeoff
+    await page.locator('#duel-feint').click();
+    await expect(page.locator('#duel-feint')).toContainText('Feint armed');
+    await page.locator('#duel-go').click();
+    await expect(page.locator('.duel-band')).toBeVisible();
+    await screenshot(page, testInfo, 'play-penalty-duel-pulse');
+    await page.locator('#duel-strike').click();
+    await expect(page.locator('.rush-callout')).toContainText(/Kick 1|duel over|Full duel/);
+    await expect(page.locator('.rush-dots .rush-dot:not(.pending)')).toHaveCount(1);
+    // play the duel out to its complete result screen
+    await finishDuel(page);
     await expect(page.locator('.rush-recap .rush-score strong')).toHaveText(/^\d+$/);
-    await screenshot(page, testInfo, 'play-penalty-rush');
+    await screenshot(page, testInfo, 'play-penalty-duel-result');
     await expectNoHorizontalOverflow(page, expect, 'penalty-rush');
     // no sportsbook language anywhere on the surface
     const text = (await page.locator('.play-view').innerText()).toLowerCase();
@@ -311,7 +332,7 @@ test.describe('Penalty Rush', () => {
     const rush = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play') || '{}').penaltyRush);
     expect(rush.played).toBe(1);
     expect(rush.bestEver).toBeGreaterThanOrEqual(0);
-    // the museum keeps the gauntlet moment
+    // the museum keeps the duel moment
     await tapTab(page, 'you');
     await expect(page.locator('.you-moment.rush')).toBeVisible();
     // official truth untouched
@@ -319,17 +340,14 @@ test.describe('Penalty Rush', () => {
     expect(await page.locator('.score-stage').innerText()).toBe(heroBefore);
   });
 
-  test('the lobby cabinet opens the gauntlet and Step up again starts a fresh seeded run', async ({ page }) => {
+  test('the lobby card opens the duel and Step up again starts a fresh seeded run', async ({ page }) => {
     await gotoApp(page);
     await tapTab(page, 'play');
     await page.locator('.lobby-rush').click();
     await expect(page.locator('.rush-stage')).toBeVisible();
-    for (let guard = 0; guard < 24; guard++) {
-      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
-      await page.locator('[data-rush-aim="left"]').click();
-    }
+    await finishDuel(page, 'bl');
     await page.locator('#rush-again').click();
-    await expect(page.locator('.rush-callout')).toContainText('Pick your corner');
+    await expect(page.locator('.rush-callout')).toContainText('Scout the keeper');
     await expect(page.locator('.rush-dot.pending')).toHaveCount(5);
   });
 });
@@ -444,7 +462,7 @@ test.describe('Your Side', () => {
     // Penalty Rush wears the same side identity
     await openPlayMode(page, 'shootout');
     await expect(page.locator('.rush-side')).toContainText('Brazil');
-    await expect(page.locator('.rush-runup')).toHaveCount(3);
+    await expect(page.locator('.duel-scout')).toBeVisible();
     await screenshot(page, testInfo, 'play-rush-side');
   });
 });
@@ -462,14 +480,26 @@ test.describe('Arcade Cup', () => {
     await page.locator('[data-side-pick="USA"]').click();
     await expect(page.locator('.side-hero.claimed')).toContainText('USA');
     // the lobby now carries the run strip as the next best action
-    await expect(page.locator('.cup-strip.start')).toContainText('Four stops. One trophy.');
+    await expect(page.locator('.cup-strip.start')).toContainText('Five stops. One trophy.');
     await page.locator('.cup-strip.start').click();
     await expect(page.locator('.play-card.cup')).toBeVisible();
     await page.locator('#cup-start').click();
     await expect(page.locator('.cup-progress .cup-dot.now')).toHaveCount(1);
+    await expect(page.locator('.cup-route .cup-stop')).toHaveCount(5);
     await screenshot(page, testInfo, 'play-cup-route');
 
-    // Stop 1 — Coach's Call: two calls resolve the dugout night
+    // Stop 1 — the Carousel: a real Rondo run settles the opening stop.
+    // Holding the ball loses it honestly; any verdict advances the road.
+    await page.locator('[data-cup-stop="carousel"]').first().click();
+    await expect(page.locator('.rondo.live')).toBeVisible();
+    await expect(page.locator('.rondo-life')).toHaveCount(3);
+    await expect(page.locator('.rondo.result')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('.rondo.result .cup-advance')).toBeVisible();
+    await screenshot(page, testInfo, 'play-cup-carousel');
+    await page.locator('.cup-advance [data-goto="cup"]').click();
+
+    // Stop 2 — Coach's Call: two calls resolve the dugout night
+    await expect(page.locator('[data-cup-stop="call"]').first()).toBeVisible();
     await page.locator('[data-cup-stop="call"]').first().click();
     await expect(page.locator('.play-card.cc')).toBeVisible();
     await expect(page.locator('.cc-matchup')).toBeVisible();
@@ -483,18 +513,15 @@ test.describe('Arcade Cup', () => {
     await screenshot(page, testInfo, 'play-coach-call-verdict');
     await page.locator('.cup-advance [data-goto="cup"]').click();
 
-    // Stop 2 — Penalty Rush: the gauntlet result settles the stop
+    // Stop 3 — Penalty Rush: the duel result settles the stop
     await expect(page.locator('[data-cup-stop="rush"]').first()).toBeVisible();
     await page.locator('[data-cup-stop="rush"]').first().click();
     await expect(page.locator('.rush-stage')).toBeVisible();
-    for (let guard = 0; guard < 24; guard++) {
-      if (await page.locator('.rush-recap').isVisible().catch(() => false)) break;
-      await page.locator('[data-rush-aim="centre"]').click();
-    }
+    await finishDuel(page);
     await expect(page.locator('.rush-recap .cup-advance')).toBeVisible();
     await page.locator('.cup-advance [data-goto="cup"]').click();
 
-    // Stop 3 — Final Minute: three calls, verdict feeds the road
+    // Stop 4 — Final Minute: three calls, verdict feeds the road
     await expect(page.locator('[data-cup-stop="clutch"]').first()).toBeVisible();
     await page.locator('[data-cup-stop="clutch"]').first().click();
     await expect(page.locator('.fm-stage')).toBeVisible();
@@ -502,7 +529,7 @@ test.describe('Arcade Cup', () => {
     await expect(page.locator('.fm-recap .cup-advance')).toBeVisible();
     await page.locator('.cup-advance [data-goto="cup"]').click();
 
-    // Stop 4 — the Showdown: a real Match Lab night against the rival
+    // Stop 5 — the Showdown: a real Match Lab night against the rival
     await expect(page.locator('[data-cup-stop="showdown"]').first()).toBeVisible();
     await page.locator('[data-cup-stop="showdown"]').first().click();
     await expect(page.locator('.lab.running')).toBeVisible();
@@ -513,10 +540,10 @@ test.describe('Arcade Cup', () => {
     await screenshot(page, testInfo, 'play-cup-showdown-final');
     await page.locator('.cup-advance [data-goto="cup"]').click();
 
-    // the run is complete: trophy on the Cup, restart available
+    // the run is complete: a trophy derived only from real stop results
     await expect(page.locator('.cup-final')).toBeVisible();
-    await expect(page.locator('.cup-season')).toContainText('4/4 best road');
-    await expect(page.locator('.cup-season')).toContainText('Perfect road');
+    await expect(page.locator('.cup-final')).toContainText('of 5 stops won');
+    await expect(page.locator('.cup-season')).toContainText(/\/5 best road/);
     await expect(page.locator('#cup-restart')).toBeVisible();
     await screenshot(page, testInfo, 'play-cup-trophy');
     await expectNoHorizontalOverflow(page, expect, 'arcade-cup');
@@ -524,9 +551,9 @@ test.describe('Arcade Cup', () => {
     // the museum keeps the silverware
     await tapTab(page, 'you');
     await expect(page.locator('.you-trophies .you-trophy')).toHaveCount(1);
-    await expect(page.locator('.trophy-shelf')).toContainText('4/4');
+    await expect(page.locator('.trophy-shelf')).toContainText('/5');
     await expect(page.locator('.you-cup-season')).toContainText('perfect cups');
-    await expect(page.locator('.you-trophy-story')).toContainText('Perfect road');
+    await expect(page.locator('.you-trophy-story')).not.toBeEmpty();
     await screenshot(page, testInfo, 'you-trophy-room');
 
     // local-only: whitelisted namespaces, the run lives in the Play key
