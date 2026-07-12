@@ -28,6 +28,8 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('.rondo.live')).toBeVisible();
     await expect(page.locator('.rondo-mate')).toHaveCount(6);
     await expect(page.locator('.rondo-def').first()).toBeVisible();
+    await expect(page.locator('.rondo-def[data-role="CHASE"]')).toHaveCount(1);
+    await expect(page.locator('.rondo-def[data-role="CUT"]')).toHaveCount(1);
     // the dock steps aside during a live run — controls are never covered
     await expect(page.locator('body')).toHaveClass(/rondo-active/);
     // tap a non-carrier teammate: a pass launches, and a rapid second touch
@@ -79,6 +81,24 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('#rondo-exact')).toHaveText('Retry same setup');
     await page.locator('#rondo-exact').click();
     await expect(page.locator('.rondo.live')).toBeVisible();
+    await page.locator('#rondo-exit').click();
+  });
+
+  test('reduced motion keeps the live press, touch controls, and restart playable', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await gotoApp(page);
+    await openPlayMode(page, 'rondo');
+    await page.locator('[data-rondo-start="practice"]').click();
+    await expect(page.locator('.rondo.live')).toBeVisible();
+    const transition = await page.locator('.rondo-def').first().evaluate((el) => getComputedStyle(el).transitionDuration);
+    expect(Math.max(...transition.split(',').map((value) => Number.parseFloat(value)))).toBeLessThan(0.01);
+    await page.locator('.rondo-mate:not(.carrier)').first().dispatchEvent('pointerdown');
+    await expect.poll(async () => Number(await page.locator('#rondo-passes').innerText())).toBeGreaterThanOrEqual(1);
+    await page.locator('#rondo-finish').click();
+    await expect(page.locator('.rondo.result')).toBeVisible();
+    await page.locator('#rondo-exact').click();
+    await expect(page.locator('.rondo.live')).toBeVisible();
+    await expectNoHorizontalOverflow(page, expect, 'rondo reduced motion');
     await page.locator('#rondo-exit').click();
   });
 
@@ -142,7 +162,7 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('#rondo-callout')).toContainText('starts with your touch');
     await page.locator('.rondo-mate:not(.carrier)').first().dispatchEvent('pointerdown');
     await expect(page.locator('.rondo.result')).toBeVisible({ timeout: 20000 });
-    await expect(page.locator('.rondo-why')).toContainText(/Tackled|Cut/);
+    await expect(page.locator('.rondo-why')).toContainText(/Held too long|Cut out/);
     await expect(page.locator('.rondo-final-score')).toBeVisible();
   });
 });

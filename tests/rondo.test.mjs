@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  RONDO_RULES, RONDO_VERSION, createRondo, rondoTick, rondoPass, rondoFrame,
+  RONDO_RULES, RONDO_VERSION, RONDO_DEFENDER_ROLES, createRondo, rondoTick, rondoPass, rondoFrame,
   rondoSummary, rondoRecordAfter, rondoEventLog, validateRondoLog,
   laneOpenness, bestOpenLane, waveProfile, ringPositions, togglePauseRondo, endRondoRun,
 } from '../src/games/rondo.js';
@@ -23,6 +23,37 @@ function greedyBot(run, maxTicks = 4000) {
     rondoTick(run);
   }
   return run;
+}
+
+function percentile(values, p) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor((sorted.length - 1) * p)];
+}
+
+function simulatedPlayer(seed, strategy) {
+  const run = createRondo(seed);
+  const delay = strategy === 'slow' ? 10 : strategy === 'elite' ? 0 : 4;
+  let dangerBefore20 = false;
+  while (!run.over && run.tick < 1000) {
+    if (!run.ball) {
+      const lanes = [];
+      for (let i = 0; i < RONDO_RULES.teammates; i++) {
+        if (i !== run.carrier) lanes.push({ to: i, margin: laneOpenness(run, i) });
+      }
+      lanes.sort((a, b) => b.margin - a.margin || a.to - b.to);
+      if (run.passes < 20 && lanes[0].margin < 10) dangerBefore20 = true;
+      const ready = !run.started || run.tick - run.receivedAt >= delay;
+      if (ready) {
+        // The imperfect player occasionally takes the second-best visible lane;
+        // the elite player mostly one-touches but still makes a rare bad read.
+        const imperfect = strategy === 'risky' && run.passes > 0 && run.passes % 4 === 3;
+        const eliteMistake = strategy === 'elite' && run.passes > 0 && run.passes % 9 === 0;
+        rondoPass(run, lanes[(imperfect || eliteMistake) ? 1 : 0].to);
+      }
+    }
+    rondoTick(run);
+  }
+  return { passes: run.passes, dangerBefore20, over: run.over };
 }
 
 test('same seed and same pass script produce the identical run', () => {
@@ -44,7 +75,7 @@ test('the ball always outruns the press at every wave — no impossible chase', 
   for (let w = 1; w <= RONDO_RULES.maxWave + 2; w++) {
     assert.ok(waveProfile(w).speed < RONDO_RULES.passSpeed * 0.55,
       `wave ${w} presser speed must stay far below ball speed`);
-    assert.ok(waveProfile(w).defenders <= 4);
+    assert.ok(waveProfile(w).defenders <= 8);
   }
 });
 
@@ -129,6 +160,49 @@ test('a competent quick-release strategy survives into a later wave', () => {
   const s = rondoSummary(run);
   assert.ok(s.passes >= RONDO_RULES.passesPerWave, `expected a full wave of passes, got ${s.passes}`);
   assert.ok(s.wave >= 2, `expected wave 2+, got wave ${s.wave}`);
+});
+
+test('defenders have explicit visible roles and fair failures name engine causes', () => {
+  assert.deepEqual(RONDO_DEFENDER_ROLES, ['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure']);
+  const run = createRondo(17);
+  const frame = rondoFrame(run);
+  assert.deepEqual(frame.defenders.map((d) => d.role), ['chaser', 'lane-cutter']);
+  assert.equal(typeof frame.defenders[0].trapPhase, 'string');
+  let sawExplainedCut = false;
+  for (let seed = 1; seed <= 24 && !sawExplainedCut; seed++) {
+    const testRun = createRondo(seed);
+    while (!testRun.over && testRun.tick < 1000) {
+      if (!testRun.ball) {
+        const choices = Array.from({ length: 6 }, (_, i) => i)
+          .filter((i) => i !== testRun.carrier)
+          .sort((a, b) => laneOpenness(testRun, a) - laneOpenness(testRun, b));
+        rondoPass(testRun, choices[0]);
+      }
+      const before = testRun.turnovers;
+      rondoTick(testRun);
+      if (testRun.turnovers > before && testRun.lastOutcome?.kind === 'cut') {
+        assert.ok(['lane-already-closed', 'lane-cutter-stepped-across', 'shadow-removed-safe-outlet', 'trap-triggered', 'risky-pass-intercepted'].includes(testRun.lastOutcome.cause));
+        assert.ok(RONDO_DEFENDER_ROLES.includes(testRun.lastOutcome.role));
+        sawExplainedCut = true;
+      }
+    }
+  }
+  assert.equal(sawExplainedCut, true, 'a real geometric interception carries a truthful cause');
+});
+
+test('seeded strategy distributions make 50-plus a rare achievement', () => {
+  const slow = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'slow'));
+  const quick = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'quick'));
+  const risky = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'risky'));
+  const elite = Array.from({ length: 80 }, (_, i) => simulatedPlayer(i + 1, 'elite'));
+  assert.ok(percentile(slow.map((r) => r.passes), 0.9) <= 8, 'hesitation is punished in the opening phase');
+  assert.ok(quick.every((r) => r.dangerBefore20), 'a competent player meets real pressure before pass 20');
+  assert.ok(percentile(quick.map((r) => r.passes), 0.9) <= 35, '35+ needs more than a routine quick-safe rhythm');
+  assert.ok(percentile(risky.map((r) => r.passes), 0.9) <= 28, 'occasional risky reads do not coast through the press');
+  const fiftyPlus = elite.filter((r) => r.passes >= 50).length / elite.length;
+  const fiftyFivePlus = elite.filter((r) => r.passes >= 55).length / elite.length;
+  assert.ok(fiftyPlus > 0 && fiftyPlus <= 0.15, `50+ should be uncommon, got ${(fiftyPlus * 100).toFixed(1)}%`);
+  assert.ok(fiftyFivePlus > 0 && fiftyFivePlus <= 0.1, `55+ should be rare but possible, got ${(fiftyFivePlus * 100).toFixed(1)}%`);
 });
 
 test('waves escalate pressure but stay bounded', () => {
@@ -295,7 +369,7 @@ test('the replay validator accepts an honest log and rejects tampering', () => {
 
 test('ranked stays locked until a server can replay signed challenges', () => {
   assert.equal(RONDO_RULES.ranked, false);
-  assert.equal(RONDO_VERSION, 'rondo-v2');
+  assert.equal(RONDO_VERSION, 'rondo-v3');
 });
 
 test('an exited run finishes with a complete, honest summary', () => {

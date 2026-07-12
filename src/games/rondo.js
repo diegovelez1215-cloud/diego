@@ -8,20 +8,22 @@
 
 import { createSeededRng, hashSeed } from '../core/soccer-engine.js';
 
-export const RONDO_VERSION = 'rondo-v2';
+// v3 makes defensive intent part of the replayed simulation. Old event logs
+// stay deliberately invalid rather than silently replaying under new AI.
+export const RONDO_VERSION = 'rondo-v3';
 
 export const RONDO_RULES = Object.freeze({
   tickMs: 100,            // one logic tick = 100ms of game time
   lives: 3,               // challenge run ends on the third turnover
   teammates: 6,           // discs on the carousel, numbered 1..6
-  passSpeed: 5.6,         // field units per tick — always faster than any presser
+  passSpeed: 4.8,         // field units per tick — still nearly 2× the fastest presser
   maxDefenderSpeed: 2.6,  // hard cap: pressers can never outrun the ball
-  interceptRadius: 4.4,   // a presser this close to the travelling ball cuts it
+  interceptRadius: 5.4,   // an honest, visible ball-lane reach — never a hidden roll
   tackleRadius: 5.2,      // a presser this close to the carrier starts the tackle count
   tackleTicks: 8,         // 0.8s of continuous contact before a tackle lands
   oneTouchTicks: 8,       // release within 0.8s of receiving = one-touch
-  passesPerWave: 8,       // completed passes to step the press up
-  maxWave: 6,             // pressure stops escalating here — mastery is score, not survival cliff
+  passesPerWave: 5,       // pressure arrives before a long warm-up can form
+  maxWave: 10,            // 50 passes is the last, survival-level band
   ranked: false,          // fail-closed until signed server challenges exist
 });
 
@@ -30,12 +32,32 @@ export const RONDO_RULES = Object.freeze({
    difficulty is more pressure and less space, never worse input. */
 export function waveProfile(wave) {
   const w = Math.max(1, Math.min(RONDO_RULES.maxWave, Math.floor(wave) || 1));
+  const defenders = [2, 3, 4, 4, 5, 6, 7, 8, 8, 8][w - 1];
   return Object.freeze({
     wave: w,
-    defenders: Math.min(4, 1 + Math.ceil(w / 2)),           // 2,2,3,3,4,4
-    speed: Math.min(RONDO_RULES.maxDefenderSpeed, 1.55 + w * 0.17),
-    ringRadius: Math.max(30, 40 - w * 1.5),                 // the circle tightens
-    retargetTicks: Math.max(8, 14 - w),                     // pressers re-read quicker
+    defenders,
+    speed: Math.min(RONDO_RULES.maxDefenderSpeed, 1.96 + w * 0.09),
+    ringRadius: Math.max(21, 37 - w * 1.55),                // useful space tightens gradually
+    retargetTicks: Math.max(3, 6 - Math.floor(w / 3)),      // roles read the next picture sooner
+    trapTicks: Math.max(4, 8 - Math.floor(w / 3)),
+  });
+}
+
+export const RONDO_DEFENDER_ROLES = Object.freeze(['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure']);
+const DEFENDER_ROLES = Object.freeze(['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure', 'lane-cutter', 'shadow', 'late-pressure']);
+
+function profileFor(run) {
+  const base = waveProfile(run.wave);
+  if (run.mode !== 'practice') return base;
+  // Practice keeps the same readable football problems, but leaves more room
+  // and never adds the late chaos role. Nothing about input becomes easier.
+  return Object.freeze({
+    ...base,
+    defenders: Math.min(3, base.defenders),
+    speed: fixed(Math.max(1.35, base.speed - 0.28)),
+    ringRadius: base.ringRadius + 3,
+    retargetTicks: base.retargetTicks + 2,
+    trapTicks: base.trapTicks + 3,
   });
 }
 
@@ -82,10 +104,14 @@ function spawnDefenders(run, count) {
     } while (attempts < 24 && run.defenders.some((d) => dist(d, { x, y }) < 11));
     run.defenders.push({
       id: i + 1,
+      role: DEFENDER_ROLES[i],
       x,
       y,
-      targetKind: 'carrier',   // 'carrier' | 'lane'
+      targetKind: 'carrier',
       laneTo: 0,
+      targetTo: 0,
+      trapPhase: 'show',
+      trapAt: run.tick + 8,
       retargetAt: run.tick + 2,
       closeTicks: 0,
     });
@@ -124,7 +150,7 @@ export function createRondo(seed, mode = 'challenge') {
     over: false,
     endedBy: null,            // 'turnovers' | 'exit'
   };
-  spawnDefenders(run, waveProfile(1).defenders);
+  spawnDefenders(run, profileFor(run).defenders);
   return run;
 }
 
@@ -145,7 +171,7 @@ export function laneOpenness(run, to) {
     // margin = current distance to the lane minus how far the presser can
     // close while the ball is in flight (worst case, straight at the lane)
     const flightTicks = dist(from, target) / RONDO_RULES.passSpeed;
-    const reach = segmentDistance(d, from, target) - waveProfile(run.wave).speed * flightTicks;
+    const reach = segmentDistance(d, from, target) - profileFor(run).speed * flightTicks;
     margin = Math.min(margin, reach);
   }
   return fixed(margin === Infinity ? 99 : margin);
@@ -215,7 +241,7 @@ function completePass(run) {
   if (nextWave > run.wave) {
     run.wave = nextWave;
     run.positions = ringPositions(run.seed, nextWave);
-    spawnDefenders(run, waveProfile(nextWave).defenders);
+    spawnDefenders(run, profileFor(run).defenders);
     pushLog(run, `Wave ${nextWave} — the press steps up.`);
   }
   // A tap made during flight becomes the next one-touch pass. This keeps
@@ -225,40 +251,91 @@ function completePass(run) {
   if (Number.isInteger(queued) && queued !== run.carrier) launchPass(run, queued, false);
 }
 
-function moveDefenders(run) {
-  const profile = waveProfile(run.wave);
-  const carrierPos = run.positions[run.carrier];
-  let nearest = null; let nearestDist = Infinity;
-  for (const d of run.defenders) {
-    const dd = dist(d, carrierPos);
-    if (dd < nearestDist) { nearestDist = dd; nearest = d; }
+function pointOnLane(from, to, amount) {
+  return { x: from.x + (to.x - from.x) * amount, y: from.y + (to.y - from.y) * amount };
+}
+
+function rankedLanes(run) {
+  const lanes = [];
+  for (let i = 0; i < run.positions.length; i++) {
+    if (i !== run.carrier) lanes.push({ teammate: i, margin: laneOpenness(run, i), distance: dist(run.positions[run.carrier], run.positions[i]) });
   }
+  return lanes.sort((a, b) => b.margin - a.margin || b.distance - a.distance || a.teammate - b.teammate);
+}
+
+function chooseRoleTarget(run, d, lanes) {
+  const safest = lanes[0] || { teammate: (run.carrier + 1) % run.positions.length };
+  const nextSafest = lanes[1] || safest;
+  const thirdSafest = lanes[2] || nextSafest;
+  const fourthSafest = lanes[3] || thirdSafest;
+  const fifthSafest = lanes[4] || fourthSafest;
+  if (d.role === 'chaser') return { kind: 'carrier', to: run.carrier };
+  if (d.role === 'lane-cutter') {
+    const to = (d.id > 5 ? fourthSafest : safest).teammate;
+    return { kind: 'lane', to };
+  }
+  if (d.role === 'shadow') {
+    const to = (d.id > 6 ? fifthSafest : nextSafest).teammate;
+    return { kind: 'shadow', to };
+  }
+  if (d.role === 'trap') {
+    // A seeded choice between the two best-looking lanes prevents a rote
+    // pattern, while the show/snap state is always visible in the renderer.
+    const choice = (run.rngAi() < 0.62 ? thirdSafest : nextSafest).teammate;
+    return { kind: 'trap', to: choice };
+  }
+  // Late pressure creates a second closing angle after the player has proven
+  // they can beat the basic press; it still moves at the same capped speed.
+  const to = (d.id > 7 ? fifthSafest : (run.rngAi() < 0.55 ? nextSafest : thirdSafest)).teammate;
+  return { kind: 'late', to };
+}
+
+function roleGoal(run, d) {
+  const carrier = run.positions[run.carrier];
+  const receiver = run.positions[d.targetTo] || carrier;
+  if (d.role === 'chaser') return carrier;
+  if (d.role === 'lane-cutter') return pointOnLane(carrier, receiver, 0.5);
+  if (d.role === 'shadow') return pointOnLane(carrier, receiver, 0.78);
+  if (d.role === 'trap') return pointOnLane(carrier, receiver, d.trapPhase === 'snap' ? 0.5 : 0.86);
+  return pointOnLane(carrier, receiver, 0.32);
+}
+
+function moveDefenders(run) {
+  const profile = profileFor(run);
+  const lanes = rankedLanes(run);
   for (const d of run.defenders) {
+    if (d.role === 'trap' && d.trapPhase === 'show' && run.tick >= d.trapAt) {
+      d.trapPhase = 'snap';
+      d.retargetAt = run.tick; // readable tell has elapsed; now it closes normally
+    }
     if (run.tick >= d.retargetAt) {
       d.retargetAt = run.tick + profile.retargetTicks;
-      if (d === nearest) {
-        d.targetKind = 'carrier';
-      } else {
-        // shadow a lane: lean toward the carrier's most-used outlets
-        d.targetKind = run.rngAi() < 0.72 ? 'lane' : 'carrier';
-        d.laneTo = Math.floor(run.rngAi() * run.positions.length);
-        if (d.laneTo === run.carrier) d.laneTo = (d.laneTo + 1) % run.positions.length;
+      if (d.role === 'trap' && d.trapPhase === 'snap') {
+        d.trapPhase = 'show';
+        d.trapAt = run.tick + profile.trapTicks;
       }
+      const target = chooseRoleTarget(run, d, lanes);
+      d.targetKind = target.kind;
+      d.targetTo = target.to;
+      d.laneTo = target.to;
     }
-    let goal;
-    if (d.targetKind === 'carrier') {
-      goal = carrierPos;
-    } else {
-      const lane = run.positions[d.laneTo] || carrierPos;
-      goal = { x: (carrierPos.x + lane.x) / 2, y: (carrierPos.y + lane.y) / 2 };
-    }
+    const goal = roleGoal(run, d);
     const dd = dist(d, goal);
     if (dd > 0.5) {
-      const step = Math.min(profile.speed, dd);
+      const roleStep = d.role === 'late-pressure' ? profile.speed * 0.96 : profile.speed;
+      const step = Math.min(roleStep, dd);
       d.x = fixed(clamp(d.x + ((goal.x - d.x) / dd) * step, 6, 94));
       d.y = fixed(clamp(d.y + ((goal.y - d.y) / dd) * step, 8, 92));
     }
   }
+}
+
+function interceptionCause(ball, d) {
+  if (d.role === 'trap' && d.trapPhase === 'snap' && d.targetTo === ball.to) return 'trap-triggered';
+  if (d.role === 'lane-cutter' && d.targetTo === ball.to) return 'lane-cutter-stepped-across';
+  if (d.role === 'shadow' && d.targetTo === ball.to) return 'shadow-removed-safe-outlet';
+  if (ball.launchMargin <= RONDO_RULES.interceptRadius) return 'lane-already-closed';
+  return 'risky-pass-intercepted';
 }
 
 /** Advance exactly one logic tick. Deterministic: same seed + same
@@ -281,11 +358,12 @@ export function rondoTick(run) {
     for (const d of run.defenders) {
       if (dist(d, ball) <= RONDO_RULES.interceptRadius) {
         const open = ball.openAtLaunch;
+        const cause = interceptionCause(ball, d);
         turnover(run, {
           kind: 'cut', by: d.id, at: { x: ball.x, y: ball.y }, to: ball.to,
-          openTeammate: open.teammate, openMargin: open.margin,
+          role: d.role, cause, openTeammate: open.teammate, openMargin: open.margin,
         });
-        pushLog(run, `Cut out by presser ${d.id} — the lane closed in flight.`);
+        pushLog(run, `Cut out by ${d.role} — ${cause.replaceAll('-', ' ')}.`);
         return run;
       }
     }
@@ -306,7 +384,7 @@ export function rondoTick(run) {
         const open = bestOpenLane(run);
         turnover(run, {
           kind: 'tackled', by: d.id, heldTicks: run.tick - run.receivedAt,
-          openTeammate: open.teammate, openMargin: open.margin,
+          role: d.role, cause: 'held-too-long', openTeammate: open.teammate, openMargin: open.margin,
         });
         pushLog(run, `Tackled — the ball stayed too long.`);
         return run;
@@ -373,7 +451,7 @@ export function endRondoRun(run, reason = 'exit') {
 
 /** Everything the renderer needs for one frame — no hidden extras. */
 export function rondoFrame(run) {
-  const profile = waveProfile(run.wave);
+  const profile = profileFor(run);
   const carrierPos = run.positions[run.carrier];
   let pressure = 0;
   for (const d of run.defenders) {
@@ -390,7 +468,8 @@ export function rondoFrame(run) {
     queuedTo: run.queuedTo,
     started: run.started,
     defenders: run.defenders.map((d) => ({
-      id: d.id, x: d.x, y: d.y, closing: d.closeTicks > 0,
+      id: d.id, role: d.role, targetTo: d.targetTo, trapPhase: d.trapPhase,
+      x: d.x, y: d.y, closing: d.closeTicks > 0,
     })),
     pressure: fixed(pressure),
     holdTicks: run.ball ? 0 : run.tick - run.receivedAt,

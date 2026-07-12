@@ -2015,7 +2015,10 @@ function rondoCalloutText(run) {
   if (run.ball && run.queuedTo != null) return `Next pass armed for #${run.queuedTo + 1} — one touch on arrival.`;
   if (run.ball) return 'Ball moving — tap the next teammate now to queue a one-touch pass.';
   const o = run.lastOutcome;
-  if (!o) return 'Tap a teammate — or press 1–6 — before the press arrives.';
+  if (!o) return run.wave >= 5
+    ? 'Survival press — move it before the next lane disappears.'
+    : run.wave >= 3 ? 'Pressure is live — read the cutter and shadow before you pass.'
+      : 'Tap a teammate — or press 1–6 — before the press arrives.';
   if (o.kind === 'pass') {
     if (o.split) return `Split pass through the press · +${o.points}`;
     if (o.switch) return `Big switch across the carousel · +${o.points}`;
@@ -2023,23 +2026,43 @@ function rondoCalloutText(run) {
     return `Kept alive · +${o.points}`;
   }
   if (o.kind === 'cut') {
-    return `Cut out by presser ${o.by} — the lane closed in flight. #${(o.openTeammate ?? 0) + 1} was the open ball.`;
+    const cause = {
+      'lane-already-closed': 'That lane was already closed.',
+      'lane-cutter-stepped-across': 'The lane cutter stepped across.',
+      'shadow-removed-safe-outlet': 'The shadow took away the safe outlet.',
+      'trap-triggered': 'The trap showed, then snapped shut.',
+      'risky-pass-intercepted': 'That was a risky lane under pressure.',
+    }[o.cause] || 'The lane closed in flight.';
+    return `Cut out — ${cause} #${(o.openTeammate ?? 0) + 1} was open.`;
   }
   if (o.kind === 'tackled') {
-    return `Tackled after ${Math.round((o.heldTicks || 0) * RONDO_RULES.tickMs / 100) / 10}s on the ball. Release earlier — #${(o.openTeammate ?? 0) + 1} was free.`;
+    return `Held too long — tackled after ${Math.round((o.heldTicks || 0) * RONDO_RULES.tickMs / 100) / 10}s. Release earlier — #${(o.openTeammate ?? 0) + 1} was free.`;
   }
   return '';
 }
 
+function rondoRoleLabel(role) {
+  return ({ chaser: 'CHASE', 'lane-cutter': 'CUT', shadow: 'SHADOW', trap: 'TRAP', 'late-pressure': 'LATE' })[role] || 'PRESS';
+}
+
+function rondoDangerLabel(run, frame) {
+  if (!run.started) return 'ORIENTATION · CHASE + CUT';
+  if (run.wave >= 8) return 'SURVIVAL';
+  if (run.wave >= 5 || frame.pressure > 0.68) return 'HIGH PRESS';
+  if (run.wave >= 3 || frame.pressure > 0.34) return 'PRESSURE · CUT + SHADOW';
+  return 'READ · CHASE + CUT';
+}
+
 function rondoStageHTML(run) {
   const frame = rondoFrame(run);
-  return `<div class="rondo-pitch" id="rondo-pitch" tabindex="0" role="application"
+  return `<div class="rondo-pitch${run.lastOutcome?.kind === 'pass' ? ' pass-hit' : ''}" id="rondo-pitch" tabindex="0" role="application"
     aria-label="Rondo carousel. Tap a numbered teammate or press keys 1 to 6 to pass. P pauses.">
     <i class="rondo-zone" aria-hidden="true"></i>
+    <span class="rondo-danger" aria-hidden="true">${rondoDangerLabel(run, frame)}</span>
     ${frame.positions.map((p, i) => `<button class="rondo-mate${i === run.carrier ? ' carrier' : ''}${i === run.queuedTo ? ' queued' : ''}${rondoLaneHintClass(run, i)}"
       data-mate="${i}" style="--x:${p.x}%;--y:${p.y}%;--press:${i === run.carrier ? frame.pressure : 0}"
       aria-label="${i === run.queuedTo ? `Next pass queued to teammate ${i + 1}` : i === run.carrier ? `Teammate ${i + 1} has the ball` : `Pass to teammate ${i + 1}`}"><b>${i + 1}</b></button>`).join('')}
-    ${frame.defenders.map((d) => `<span class="rondo-def${d.closing ? ' closing' : ''}" data-def="${d.id}"
+    ${frame.defenders.map((d) => `<span class="rondo-def role-${d.role}${d.closing ? ' closing' : ''}" data-def="${d.id}" data-role="${rondoRoleLabel(d.role)}" data-phase="${d.trapPhase || ''}"
       style="--x:${d.x}%;--y:${d.y}%" aria-hidden="true"><i></i></span>`).join('')}
     <span class="rondo-ball${run.ball ? ' flight' : ''}" aria-hidden="true"
       style="--x:${run.ball ? run.ball.x : frame.positions[run.carrier].x}%;--y:${run.ball ? run.ball.y : frame.positions[run.carrier].y}%"></span>
@@ -2177,6 +2200,7 @@ function paintRondo() {
       el.style.setProperty('--x', `${d.x}%`);
       el.style.setProperty('--y', `${d.y}%`);
       el.classList.toggle('closing', d.closing);
+      el.dataset.phase = d.trapPhase || '';
     }
   });
   const ball = pitch.querySelector('.rondo-ball');
@@ -2198,6 +2222,9 @@ function paintRondo() {
     const text = rondoCalloutText(run);
     if (callout.textContent !== text) callout.textContent = text;
   }
+  const danger = pitch.querySelector('.rondo-danger');
+  if (danger) danger.textContent = rondoDangerLabel(run, frame);
+  pitch.classList.toggle('pass-hit', run.lastOutcome?.kind === 'pass' && run.tick === run.receivedAt);
 }
 
 function rondoAttemptPass(i) {
