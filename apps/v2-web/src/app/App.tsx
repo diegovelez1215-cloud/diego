@@ -1,41 +1,30 @@
 import { Component, type MouseEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { MatchdayRoute } from '../routes/Matchday';
+import { TournamentRoute } from '../routes/Tournament';
+import { PlayRoute } from '../routes/Play';
+import { YouRoute } from '../routes/You';
 
 type Destination = {
   path: string;
   label: string;
-  eyebrow: string;
-  title: string;
-  description: string;
 };
 
 const destinations: Destination[] = [
   {
     path: '/v2/',
     label: 'Matchday',
-    eyebrow: 'Matchday',
-    title: 'Matchday is being rebuilt.',
-    description: 'The V2 Matchday foundation is ready for its future verified match experience.',
   },
   {
     path: '/v2/tournament',
     label: 'Tournament',
-    eyebrow: 'Tournament',
-    title: 'Tournament is being rebuilt.',
-    description: 'The V2 Tournament foundation will connect to trusted competition structure in a later package.',
   },
   {
     path: '/v2/play',
     label: 'Play',
-    eyebrow: 'Play',
-    title: 'Play is being rebuilt.',
-    description: 'The V2 Play foundation is intentionally empty while future experiences are designed and tested.',
   },
   {
     path: '/v2/you',
     label: 'You',
-    eyebrow: 'You',
-    title: 'You is being rebuilt.',
-    description: 'The V2 You foundation will become a record space only after identity and privacy work is ready.',
   },
 ];
 
@@ -46,6 +35,13 @@ function normalizedPath(pathname: string) {
 
 function destinationFor(pathname: string) {
   return destinations.find((destination) => destination.path === normalizedPath(pathname));
+}
+
+function destinationContent(path: string) {
+  if (path === '/v2/') return <MatchdayRoute />;
+  if (path === '/v2/tournament') return <TournamentRoute />;
+  if (path === '/v2/play') return <PlayRoute />;
+  return <YouRoute />;
 }
 
 function RootErrorBoundary({ children }: { children: ReactNode }) {
@@ -106,10 +102,7 @@ export function App() {
         </header>
         {destination ? (
           <main className="v2-main" id="v2-content" role="tabpanel" tabIndex={-1}>
-            <p className="v2-eyebrow">{destination.eyebrow}</p>
-            <h1>{destination.title}</h1>
-            <p className="v2-description">{destination.description}</p>
-            <p className="v2-note">No live tournament data, games, rankings, or profiles are available in this foundation.</p>
+            {destinationContent(destination.path)}
           </main>
         ) : (
           <main className="v2-main v2-not-found" id="v2-content" role="status" tabIndex={-1}>

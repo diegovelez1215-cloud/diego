@@ -36,6 +36,12 @@ describe('V2 foundation isolation', () => {
     expect(`${entry}\n${app}`).not.toMatch(/serviceWorker|register\(/);
   });
 
+  it('keeps Play and You isolated from official tournament imports', () => {
+    const play = read('apps/v2-web/src/routes/Play.tsx');
+    const you = read('apps/v2-web/src/routes/You.tsx');
+    expect(`${play}\n${you}`).not.toMatch(/domain\/|tournament-bridge|canonicalFixtures|canonicalTournamentSnapshot/);
+  });
+
   it('puts explicit V2 rewrites before the existing V1 catch-all', () => {
     const config = JSON.parse(read('vercel.json'));
     expect(config.rewrites.map((route: { source: string }) => route.source)).toEqual([
