@@ -7,6 +7,16 @@ export function participantName(participant: FixtureParticipant): string {
   return participant.kind === 'team' ? participant.name : participant.label;
 }
 
+export function MatchSide({ participant, align = 'start' }: { participant: FixtureParticipant; align?: 'start' | 'end' }) {
+  return (
+    <span className="v2-match-side" data-kind={participant.kind} data-align={align}>
+      <span className="v2-match-side__mark" aria-hidden="true">{participant.kind === 'team' ? participant.code : 'PATH'}</span>
+      <strong>{participantName(participant)}</strong>
+      <small>{participant.kind === 'team' ? participant.code : 'Qualification path'}</small>
+    </span>
+  );
+}
+
 function toneFor(fixture: FixtureSummary): StatusTone {
   if (fixture.status.kind === 'live') return 'live';
   if (fixture.status.kind === 'unavailable') return 'unavailable';

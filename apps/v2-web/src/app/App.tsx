@@ -83,7 +83,10 @@ export function App() {
   }, [routeTitle]);
 
   const navigateTo = useCallback((path: string) => {
-    if (normalizedPath(window.location.pathname) === normalizedPath(path)) return;
+    if (normalizedPath(window.location.pathname) === normalizedPath(path)) {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
     window.history.pushState({ unitedV2Navigation: true }, '', path);
     setPathname(path);
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -102,7 +105,7 @@ export function App() {
     <RootErrorBoundary>
       <AppShell currentPath={primaryPath} routeTitle={routeTitle} onNavigate={navigateTo}>
         {primaryPath || fixtureId != null ? (
-          <main className="v2-main" id="v2-content" tabIndex={-1}>
+          <main className="v2-main" id="v2-content" tabIndex={-1} key={normalizedPath(pathname)}>
             {primaryPath === '/v2/tournament' ? <TournamentRoute /> : null}
             {primaryPath === '/v2/play' ? <PlayRoute /> : null}
             {primaryPath === '/v2/you' ? <YouRoute /> : null}

@@ -39,16 +39,16 @@ describe('V2 Matchday states', () => {
     expect(app.querySelector('h1')?.textContent).toBe('Matchday');
     expect(app.querySelector('[aria-busy="true"]')).toBeTruthy();
     expect(app.querySelector('[data-state="loading"]')).toBeTruthy();
-    expect(app.querySelector('.v2-scoreboard')).toBeTruthy();
+    expect(app.querySelector('.v2-match-stage')).toBeTruthy();
     expect(app.querySelector('.v2-match-ledger')).toBeTruthy();
   });
 
   it('distinguishes unavailable treatment and exposes retry', async () => {
     const { app, refresh } = await render({ kind: 'unavailable', snapshot: canonicalTournamentSnapshot() });
     expect(app.querySelector('[data-state="unavailable"]')).toBeTruthy();
-    expect(app.textContent).toContain('No score or live state is asserted');
+    expect(app.textContent).toContain('No live state or score is implied');
     expect(app.querySelector('.v2-status-mark--live')).toBeNull();
-    const retry = [...app.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Try refresh');
+    const retry = [...app.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Retry');
     await act(async () => retry?.click());
     expect(refresh).toHaveBeenCalledTimes(1);
   });
@@ -58,29 +58,32 @@ describe('V2 Matchday states', () => {
     expect(app.querySelector('[data-state="error"]')).toBeTruthy();
     expect(app.querySelector('[data-state="unavailable"]')).toBeNull();
     expect(app.textContent).not.toMatch(/offline|LIVE/i);
-    expect(app.querySelector('.v2-scoreboard')).toBeTruthy();
+    expect(app.querySelector('.v2-match-stage')).toBeTruthy();
+    const stage = app.querySelector('.v2-match-stage');
+    const notice = app.querySelector('[data-state="error"]');
+    expect(stage && notice && !!(stage.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 
   it('labels retained verified content stale without live treatment', async () => {
     const { app } = await render({ kind: 'stale', snapshot: canonicalTournamentSnapshot(), reason: 'request-error' });
     expect(app.querySelector('[data-state="stale"]')).toBeTruthy();
-    expect(app.textContent).toContain('last verified view');
+    expect(app.textContent).toContain('Last verified view');
     expect(app.querySelector('.v2-status-mark--live')).toBeNull();
   });
 
   it('uses live treatment only for a validated live fixture', async () => {
     const live = snapshotWithStatus({ kind: 'live', minute: 63, score: { home: 1, away: 0 }, scoreState: 'available' });
     const { app } = await render({ kind: 'verified', snapshot: live });
-    expect(app.querySelector('.v2-scoreboard[data-status="live"]')).toBeTruthy();
-    expect(app.querySelector('.v2-scoreboard .v2-status-mark--live')?.textContent).toContain('63');
-    expect(app.querySelector('.v2-scoreboard__score')?.textContent).toBe('1–0');
+    expect(app.querySelector('.v2-match-stage[data-status="live"]')).toBeTruthy();
+    expect(app.querySelector('.v2-match-stage .v2-status-mark--live')?.textContent).toContain('63');
+    expect(app.querySelector('.v2-match-stage__score')?.textContent).toBe('1–0');
   });
 
   it('truth-gates a validated live status whose score is unresolved', async () => {
     const pending = snapshotWithStatus({ kind: 'live', minute: 63, score: null, scoreState: 'pending' });
     const { app } = await render({ kind: 'verified', snapshot: pending });
-    expect(app.querySelector('.v2-scoreboard[data-status="live"]')).toBeTruthy();
-    expect(app.querySelector('.v2-scoreboard__score')?.textContent).toBe('vs');
-    expect(app.querySelector('.v2-scoreboard')?.textContent).not.toContain('1–0');
+    expect(app.querySelector('.v2-match-stage[data-status="live"]')).toBeTruthy();
+    expect(app.querySelector('.v2-match-stage__score')?.textContent).toBe('VS');
+    expect(app.querySelector('.v2-match-stage')?.textContent).not.toContain('1–0');
   });
 });

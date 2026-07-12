@@ -30,6 +30,8 @@ type V1Fixture = Readonly<{
   id: number;
   stage: TournamentStage;
   group?: string;
+  home: string;
+  away: string;
   kickoff: string;
   epoch: number;
   day: string;
@@ -50,9 +52,35 @@ function team(code: string): TeamSummary {
   return Object.freeze({ kind: 'team', code, name: teamName(code), flag: teamFlag(code) });
 }
 
-function participant(side: { code: string | null; name: string; flag: string; pending: boolean }): FixtureParticipant {
+const PROGRESSION_STAGE_NAMES: Record<TournamentStage, string> = {
+  group: 'Group stage',
+  r32: 'Round of 32',
+  r16: 'Round of 16',
+  qf: 'Quarter-final',
+  sf: 'Semi-final',
+  bronze: 'Third-place match',
+  final: 'Final',
+};
+
+function progressionLabel(spec: string): string {
+  let match: RegExpExecArray | null;
+  if ((match = /^1([A-L])$/.exec(spec))) return `Group ${match[1]} winner`;
+  if ((match = /^2([A-L])$/.exec(spec))) return `Group ${match[1]} runner-up`;
+  if ((match = /^3:([A-L]+)$/.exec(spec))) return `Best third-place team · Groups ${match[1].split('').join('/')}`;
+  if ((match = /^([WL])(\d+)$/.exec(spec))) {
+    const source = fixture(Number(match[2])) as V1Fixture | null;
+    if (!source) return match[1] === 'W' ? 'Previous match winner' : 'Previous match runner-up';
+    const stageFixtures = (allFixtures() as V1Fixture[]).filter((candidate) => candidate.stage === source.stage);
+    const position = stageFixtures.findIndex((candidate) => candidate.id === source.id) + 1;
+    const outcome = match[1] === 'W' ? 'winner' : 'runner-up';
+    return `${PROGRESSION_STAGE_NAMES[source.stage]} ${position} ${outcome}`;
+  }
+  return 'Qualification path pending';
+}
+
+function participant(side: { code: string | null; name: string; flag: string; pending: boolean }, spec: string): FixtureParticipant {
   return side.pending || !side.code
-    ? Object.freeze({ kind: 'unresolved', label: side.name })
+    ? Object.freeze({ kind: 'unresolved', label: progressionLabel(spec) })
     : Object.freeze({ kind: 'team', code: side.code, name: side.name, flag: side.flag });
 }
 
@@ -88,8 +116,8 @@ function projectFixture(raw: V1Fixture, overlay: V1Overlay): FixtureSummary {
     kickoffLabel: model.time,
     venue: model.venueCity,
     stadium: model.stadium,
-    home: participant(model.home),
-    away: participant(model.away),
+    home: participant(model.home, raw.home),
+    away: participant(model.away, raw.away),
     status: statusFor(model),
     winner: model.winner,
   });

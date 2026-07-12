@@ -20,9 +20,10 @@ export function AppShell({ children, currentPath, routeTitle, onNavigate }: {
   return (
     <div className="v2-app">
       <a className="v2-skip-link" href="#v2-content">Skip to content</a>
-      <TopBar routeTitle={routeTitle} />
+      <TopBar routeTitle={routeTitle}>
+        <BottomNav currentPath={currentPath} onNavigate={onNavigate} />
+      </TopBar>
       <div className="v2-content-frame">{children}</div>
-      <BottomNav currentPath={currentPath} onNavigate={onNavigate} />
     </div>
   );
 }

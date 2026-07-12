@@ -86,6 +86,13 @@ describe('typed tournament-domain bridge', () => {
     expect(fixture.status).toEqual({ kind: 'scheduled', score: null });
   });
 
+  it('projects unresolved advancement as human football progression, never raw match-engine wording', () => {
+    const semifinal = fixtureById(101)!;
+    const labels = [semifinal.home, semifinal.away].map((side) => side.kind === 'unresolved' ? side.label : side.name);
+    expect(labels.every((label) => /Quarter-final \d winner/.test(label))).toBe(true);
+    expect(labels.join(' ')).not.toMatch(/Winner, Match|W\d+/i);
+  });
+
   it('preserves V1 bracket rounds and advancement relationships', () => {
     const snapshot = canonicalTournamentSnapshot();
     const r32 = snapshot.bracket.find((round) => round.stage === 'r32');

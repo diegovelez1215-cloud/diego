@@ -71,13 +71,13 @@ describe('United 2026 V2 product routes', () => {
     expect(app.textContent).toContain('104');
     expect(app.textContent).toContain('12');
     expect(app.textContent).toContain('32');
-    expect(app.textContent).toContain('Canonical bridge active');
+    expect(app.textContent).toContain('Canonical competition map active');
   });
 
   it('keeps Play an honest non-playable shell', async () => {
     const app = await renderAt('/v2/play');
-    expect(app.textContent).toContain('Under construction');
-    expect(app.textContent).toContain('Unavailable until the game runtime is verified');
+    expect(app.textContent).toContain('Concept preview · Not playable');
+    expect(app.textContent).toContain('No imitation gameplay');
     expect(app.querySelector('.v2-play time')).toBeNull();
     expect(app.querySelector('[data-rank], [role="timer"], [data-score]')).toBeNull();
     expect([...app.querySelectorAll('button')].filter((button) => !button.closest('nav'))).toHaveLength(0);
