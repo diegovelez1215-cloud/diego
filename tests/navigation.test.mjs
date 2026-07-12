@@ -115,6 +115,18 @@ test('dock reflects the active tab for assistive tech', () => {
   const selected = [...document.querySelectorAll('.dock-tab[aria-selected="true"]')];
   assert.equal(selected.length, 1);
   assert.equal(selected[0].dataset.tab, 'you');
+  assert.equal(selected[0].getAttribute('tabindex'), '0');
+  assert.equal(document.querySelectorAll('.dock-tab[tabindex="0"]').length, 1, 'the dock is one keyboard stop');
+});
+
+test('dock and segmented tablists support native arrow-key movement', () => {
+  const youTab = document.querySelector('.dock-tab[data-tab="you"]');
+  youTab.focus();
+  youTab.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  flushRaf();
+  assert.equal(getState().nav.tab, 'home', 'ArrowRight wraps to the first dock destination');
+  assert.equal(document.activeElement.dataset.tab, 'home');
+  assert.equal(document.querySelectorAll('.dock-tab[tabindex="0"]').length, 1);
 });
 
 test('re-tapping the active tab scrolls to top and resets NOTHING', () => {

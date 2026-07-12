@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,6 +31,17 @@ test('service worker caches static shell but excludes live truth endpoints from 
   assert.match(sw, /cache:\s*'no-store'/);
   assert.doesNotMatch(sw, /caches\.match\(request\)[\s\S]{0,220}\/api\/results/);
   assert.match(sw, /SKIP_WAITING/);
+  const walk = (dir) => readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? walk(path) : [path];
+  });
+  const modules = walk(join(rootPath, 'src'))
+    .filter((path) => path.endsWith('.js'))
+    .map((path) => '/' + path.slice(rootPath.length).replaceAll('\\', '/'));
+  for (const modulePath of modules) {
+    assert.ok(sw.includes(`'${modulePath}'`), `${modulePath} is available on a fresh offline install`);
+  }
+  assert.doesNotMatch(sw, /cache\.addAll\(STATIC_SHELL\)\.catch/, 'a partial shell must not activate');
 });
 
 test('app registers PWA install, iOS guidance, offline truth, and update affordances', () => {

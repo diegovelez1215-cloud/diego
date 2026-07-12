@@ -72,6 +72,7 @@ test('a genuinely open lane is never cut', () => {
 
 test('a tackle needs consecutive ticks in range — there is always a reaction window', () => {
   const run = createRondo(9);
+  rondoPass(run, bestOpenLane(run).teammate);
   let sawClosePressureBeforeTackle = false;
   while (!run.over && run.tick < 2000) {
     const beforeTurnovers = run.turnovers;
@@ -88,6 +89,7 @@ test('a tackle needs consecutive ticks in range — there is always a reaction w
 
 test('holding the ball forever ends a challenge run — failure comes from input', () => {
   const run = createRondo(31337);
+  rondoPass(run, bestOpenLane(run).teammate);
   for (let i = 0; i < 20_000 && !run.over; i++) rondoTick(run);
   assert.equal(run.over, true);
   assert.equal(run.endedBy, 'turnovers');
@@ -96,6 +98,7 @@ test('holding the ball forever ends a challenge run — failure comes from input
 
 test('practice mode never ends on turnovers and keeps lanes teachable', () => {
   const run = createRondo(5, 'practice');
+  rondoPass(run, bestOpenLane(run).teammate);
   for (let i = 0; i < 6000 && run.turnovers < 6; i++) rondoTick(run);
   assert.ok(run.turnovers >= 4, 'practice still records turnovers');
   assert.equal(run.over, false, 'practice does not end the session');
@@ -104,6 +107,7 @@ test('practice mode never ends on turnovers and keeps lanes teachable', () => {
 
 test('every turnover carries an honest teach-back with the open alternative', () => {
   const run = createRondo(9);
+  rondoPass(run, bestOpenLane(run).teammate);
   while (!run.over && run.tick < 3000) rondoTick(run);
   assert.ok(run.lastOutcome);
   assert.equal(run.lastOutcome.kind === 'tackled' || run.lastOutcome.kind === 'cut', true);
@@ -145,19 +149,104 @@ test('ring positions stay inside the field and are deterministic', () => {
       assert.ok(p.x >= 8 && p.x <= 92 && p.y >= 10 && p.y <= 90);
     }
   }
+  const wide = ringPositions(88, 1);
+  const tight = ringPositions(88, RONDO_RULES.maxWave);
+  for (let i = 0; i < wide.length; i++) {
+    const a1 = Math.atan2(wide[i].y - 50, wide[i].x - 50);
+    const a2 = Math.atan2(tight[i].y - 50, tight[i].x - 50);
+    assert.ok(Math.abs(a1 - a2) < 0.02, `teammate ${i + 1} keeps its lane identity`);
+  }
 });
 
-test('inputs are never converted or dropped silently mid-flight', () => {
+test('the press waits for the first touch and rapid taps buffer one visible next pass', () => {
   const run = createRondo(3);
+  for (let i = 0; i < 40; i++) rondoTick(run);
+  assert.equal(run.tick, 0, 'orientation time never advances the press');
+  assert.equal(run.turnovers, 0);
   const open = bestOpenLane(run);
   assert.ok(rondoPass(run, open.teammate), 'a legal pass is accepted');
-  assert.equal(rondoPass(run, (open.teammate + 1) % 6), null, 'no second ball while one travels');
-  assert.equal(rondoPass(run, run.carrier), null, 'no pass to self');
+  const next = run.carrier;
+  assert.ok(rondoPass(run, next), 'a return pass is buffered during flight');
+  assert.equal(run.queuedTo, next);
+  for (let i = 0; i < 60 && run.passes < 1; i++) rondoTick(run);
+  assert.ok(run.ball, 'the buffered one-touch launches on receipt');
+  assert.equal(run.ball.to, next);
   assert.equal(rondoPass(run, 99), null, 'no pass off the carousel');
+});
+
+test('a buffered pass dies with its possession — a turnover can never fire it', () => {
+  const worstLane = (run) => {
+    let worst = -1; let margin = Infinity;
+    for (let i = 0; i < run.positions.length; i++) {
+      if (i === run.carrier) continue;
+      const m = laneOpenness(run, i);
+      if (m < margin) { margin = m; worst = i; }
+    }
+    return worst;
+  };
+  let cutsWithArmedBuffer = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const run = createRondo(seed);
+    rondoPass(run, bestOpenLane(run).teammate);
+    while (!run.over && run.tick < 1500) {
+      if (!run.ball) {
+        // pass into pressure so cuts actually happen…
+        rondoPass(run, worstLane(run));
+        // …and immediately arm a follow-up, like a player in a hurry would
+        if (run.ball) rondoPass(run, (run.ball.to + 1 + (seed % 3)) % RONDO_RULES.teammates);
+      }
+      const turnoversBefore = run.turnovers;
+      const armed = run.queuedTo;
+      rondoTick(run);
+      if (run.turnovers > turnoversBefore) {
+        assert.equal(run.queuedTo, null, `seed ${seed}: the queue clears the instant possession ends`);
+        if (armed != null) {
+          cutsWithArmedBuffer += 1;
+          // the stale buffer must never fire by itself in the new possession
+          const passes = run.passes;
+          for (let i = 0; i < 30 && !run.over; i++) rondoTick(run);
+          assert.equal(run.ball, null, `seed ${seed}: nothing launches without a new input`);
+          assert.equal(run.passes, passes, `seed ${seed}: the dead buffer never scores`);
+          break;
+        }
+      }
+      if (!run.ball) assert.equal(run.queuedTo, null, `seed ${seed}: a queue exists only while the ball travels`);
+    }
+  }
+  assert.ok(cutsWithArmedBuffer >= 5,
+    `interceptions with an armed buffer were actually exercised (saw ${cutsWithArmedBuffer})`);
+});
+
+test('run completion, exit, and reset all retire an armed buffer', () => {
+  const run = createRondo(4);
+  rondoPass(run, bestOpenLane(run).teammate);
+  rondoPass(run, (run.ball.to + 1) % RONDO_RULES.teammates);
+  assert.notEqual(run.queuedTo, null, 'the buffer is armed while the ball travels');
+  endRondoRun(run, 'exit');
+  assert.equal(run.over, true);
+  assert.equal(run.queuedTo, null, 'an exited run owes no pass');
+  assert.equal(rondoPass(run, 2), null, 'a finished run accepts no input');
+  const fresh = createRondo(run.seed, run.mode);
+  assert.equal(fresh.queuedTo, null, 'a restart or replay reset starts with an empty queue');
+  assert.equal(fresh.started, false, 'and waits again for the first touch');
+});
+
+test('initial defenders are separated enough to read as distinct pressers', () => {
+  for (let seed = 1; seed <= 200; seed++) {
+    const run = createRondo(seed);
+    for (let i = 0; i < run.defenders.length; i++) {
+      for (let j = i + 1; j < run.defenders.length; j++) {
+        const dx = run.defenders[i].x - run.defenders[j].x;
+        const dy = run.defenders[i].y - run.defenders[j].y;
+        assert.ok(Math.hypot(dx, dy) >= 10.9, `seed ${seed} pressers stay visually distinct`);
+      }
+    }
+  }
 });
 
 test('pause freezes the game completely and resume continues it', () => {
   const run = createRondo(11);
+  rondoPass(run, bestOpenLane(run).teammate);
   rondoTick(run);
   togglePauseRondo(run);
   const tick = run.tick;
@@ -195,6 +284,8 @@ test('the replay validator accepts an honest log and rejects tampering', () => {
   assert.equal(validateRondoLog({ ...log, score: log.score + 50 }).ok, false);
   assert.equal(validateRondoLog({ ...log, gameVersion: 'rondo-v0' }).reason, 'version');
   assert.equal(validateRondoLog({ ...log, seed: -1 }).reason, 'challenge');
+  assert.equal(validateRondoLog({ ...log, events: [...log.events, { tick: log.finalTick, to: 1 }] }).reason, 'event',
+    'events appended after the run ended are rejected');
   const shuffled = { ...log, events: [...log.events].reverse() };
   if (shuffled.events.length > 1 && shuffled.events[0].tick !== shuffled.events.at(-1).tick) {
     assert.equal(validateRondoLog(shuffled).ok, false, 'out-of-order events are rejected');
@@ -204,7 +295,7 @@ test('the replay validator accepts an honest log and rejects tampering', () => {
 
 test('ranked stays locked until a server can replay signed challenges', () => {
   assert.equal(RONDO_RULES.ranked, false);
-  assert.equal(RONDO_VERSION, 'rondo-v1');
+  assert.equal(RONDO_VERSION, 'rondo-v2');
 });
 
 test('an exited run finishes with a complete, honest summary', () => {

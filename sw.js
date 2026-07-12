@@ -3,7 +3,7 @@
 // stale fixtures, scores, scorers, or provider responses cannot masquerade as
 // current World Cup truth.
 
-const STATIC_CACHE = 'u26-static-v5';
+const STATIC_CACHE = 'u26-static-v7';
 const STATIC_SHELL = [
   '/',
   '/index.html',
@@ -11,6 +11,37 @@ const STATIC_SHELL = [
   '/icon.png',
   '/icon-180.png',
   '/src/app.js',
+  '/src/components/bracket.js',
+  '/src/components/celebrate.js',
+  '/src/components/date-control.js',
+  '/src/components/match-row.js',
+  '/src/components/score-stage.js',
+  '/src/components/segmented-control.js',
+  '/src/core/app-state.js',
+  '/src/core/canonical-truth.js',
+  '/src/core/leaderboard.js',
+  '/src/core/persistence.js',
+  '/src/core/play-catalog.js',
+  '/src/core/provider-overlay.js',
+  '/src/core/refresh-policy.js',
+  '/src/core/soccer-engine.js',
+  '/src/core/time.js',
+  '/src/data/fixtures.js',
+  '/src/data/tournament-model.js',
+  '/src/games/penalty-duel.js',
+  '/src/games/rondo.js',
+  '/src/navigation/render-scheduler.js',
+  '/src/navigation/router.js',
+  '/src/views/groups.js',
+  '/src/views/home.js',
+  '/src/views/knockout.js',
+  '/src/views/match-center.js',
+  '/src/views/matches.js',
+  '/src/views/play.js',
+  '/src/views/stats.js',
+  '/src/views/tournament.js',
+  '/src/views/venues.js',
+  '/src/views/you.js',
   '/src/styles/tokens.css',
   '/src/styles/shell.css',
   '/src/styles/real-world.css',
@@ -35,7 +66,7 @@ function isStaticAsset(pathname) {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_SHELL)).catch(() => {})
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_SHELL))
   );
 });
 

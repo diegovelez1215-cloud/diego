@@ -38,7 +38,7 @@ test('saved Play/prefs data is sanitized: real-truth field names are stripped', 
   globalThis.window = { localStorage: fakeStorage() };
   const { savePlay, loadPlay, savePrefs, loadPrefs } = await import('../src/core/persistence.js');
   savePlay({
-    myWorldCup: { seed: 7, finals: { 90: { gh: 1, ga: 0 } } },
+    myWorldCup: { seed: 7, finals: { 90: { gh: 1, ga: 0 } }, nested: { officialFixtures: { 99: 'smuggled' } } },
     officialFixtures: { 61: 'smuggled' },
     standings: { A: [] },
     live: { 80: { gh: 9 } },
@@ -47,11 +47,54 @@ test('saved Play/prefs data is sanitized: real-truth field names are stripped', 
   });
   const loaded = loadPlay();
   assert.ok(loaded.myWorldCup, 'play namespace persists');
+  assert.deepEqual(loaded.myWorldCup.nested, {}, 'forbidden truth is stripped at every depth');
   for (const k of ['officialFixtures', 'standings', 'live', 'results', 'overlay']) {
     assert.ok(!(k in loaded), k + ' must never persist');
   }
   savePrefs({ theme: 'light', fixtures: 'smuggled' });
   assert.deepEqual(loadPrefs(), { theme: 'light' });
+  delete globalThis.window;
+});
+
+test('saved simulations obey the same truth contract: cleaned at every depth, never deleted for one bad field', async () => {
+  globalThis.window = { localStorage: fakeStorage() };
+  const { saveSims, loadSims, KEYS } = await import('../src/core/persistence.js');
+  const legit = {
+    id: 'sim-1', at: '2026-07-01T00:00:00Z', champion: 'MEX', championName: 'Mexico',
+    seed: 7, rounds: 5, picks: 12, keepsake: 'unknown fields are preserved',
+  };
+  const dirty = {
+    id: 'sim-2', champion: 'FRA',
+    standings: { A: ['smuggled'] },                       // top-level forbidden
+    meta: { nested: { live: { 80: { gh: 9 } } } },        // nested forbidden
+    history: [{ officialFixtures: { 61: 'x' } }, 'note', 3], // forbidden inside an array
+  };
+  saveSims({ saved: [legit, dirty, null, 'garbage', 42, undefined] });
+  const loaded = loadSims();
+  assert.equal(loaded.saved.length, 2, 'legitimate records survive; non-record garbage does not');
+  assert.deepEqual(loaded.saved[0], legit, 'a clean record round-trips unchanged, unknown fields included');
+  const cleaned = loaded.saved[1];
+  assert.equal(cleaned.id, 'sim-2', 'a partially corrupted record is kept, not deleted');
+  assert.equal(cleaned.champion, 'FRA');
+  assert.ok(!('standings' in cleaned), 'top-level forbidden truth is stripped');
+  assert.deepEqual(cleaned.meta, { nested: {} }, 'nested forbidden truth is stripped at depth');
+  assert.deepEqual(cleaned.history, [{}, 'note', 3], 'arrays keep legitimate items; forbidden objects are emptied');
+  // Round-trip stability: saving exactly what loaded changes nothing.
+  saveSims(loaded);
+  assert.deepEqual(loadSims(), loaded);
+  // A hand-crafted storage blob is sanitized on load too, and the loaded
+  // output carries no forbidden field name anywhere at any depth.
+  window.localStorage.setItem(KEYS.SIMS_KEY, JSON.stringify({
+    saved: [{ id: 'sim-3', overlay: { live: {} }, layers: [[{ scores: [1] }]] }],
+    officialFixtures: { 61: 'smuggled beside the array' },
+  }));
+  const reloaded = loadSims();
+  assert.deepEqual(Object.keys(reloaded), ['saved'], 'only the saved namespace exists');
+  const scan = JSON.stringify(reloaded);
+  for (const k of ['officialFixtures', 'standings', 'live', 'overlay', 'scores', 'results', 'fixtures']) {
+    assert.ok(!scan.includes(`"${k}"`), k + ' appears nowhere in loaded sims');
+  }
+  assert.equal(reloaded.saved[0].id, 'sim-3', 'the record itself still loads');
   delete globalThis.window;
 });
 

@@ -49,11 +49,28 @@ function write(key, value) {
 // plus retired feature namespaces (the removed Club League profile store).
 const FORBIDDEN_FIELDS = ['fixtures', 'officialFixtures', 'standings', 'results',
   'live', 'overlay', 'providerFixtures', 'koFixtures', 'scores', 'club'];
+const FORBIDDEN_SET = new Set(FORBIDDEN_FIELDS);
+function sanitizeValue(value, seen) {
+  if (value == null || typeof value !== 'object') return value;
+  if (seen.has(value)) return undefined;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const clean = value.map((item) => sanitizeValue(item, seen)).filter((item) => item !== undefined);
+    seen.delete(value);
+    return clean;
+  }
+  const clean = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (FORBIDDEN_SET.has(key)) continue;
+    const safe = sanitizeValue(item, seen);
+    if (safe !== undefined) clean[key] = safe;
+  }
+  seen.delete(value);
+  return clean;
+}
 function sanitize(obj) {
   if (!obj || typeof obj !== 'object') return {};
-  const clean = { ...obj };
-  for (const f of FORBIDDEN_FIELDS) delete clean[f];
-  return clean;
+  return sanitizeValue(obj, new WeakSet()) || {};
 }
 
 // Single source of truth for the catalog version — imported, never copied.
@@ -114,7 +131,20 @@ export function loadPlay() {
 }
 export function savePlay(play) { write(PLAY_KEY, sanitize(migratePlayState(play))); }
 
-export function loadSims() { const v = read(SIMS_KEY, { saved: [] }); return Array.isArray(v.saved) ? v : { saved: [] }; }
-export function saveSims(sims) { write(SIMS_KEY, { saved: Array.isArray(sims.saved) ? sims.saved.slice(0, 50) : [] }); }
+// Saved simulations live on the same whitelisted store, so they obey the same
+// contract: a simulated world may keep every legitimate field, but no record
+// can carry official-truth field names at any depth — a hand-crafted sim must
+// never inject, overwrite, or masquerade as provider truth. A record with one
+// bad nested field is cleaned, not deleted; only non-object garbage is dropped.
+function sanitizeSimRecord(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
+  return sanitize(record);
+}
+function sanitizeSims(value) {
+  const saved = Array.isArray(value?.saved) ? value.saved : [];
+  return { saved: saved.map(sanitizeSimRecord).filter((r) => r !== null).slice(0, 50) };
+}
+export function loadSims() { return sanitizeSims(read(SIMS_KEY, { saved: [] })); }
+export function saveSims(sims) { write(SIMS_KEY, sanitizeSims(sims)); }
 
 export const KEYS = Object.freeze({ PREFS_KEY, PLAY_KEY, SIMS_KEY, AUTH_KEY });

@@ -30,8 +30,12 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('.rondo-def').first()).toBeVisible();
     // the dock steps aside during a live run — controls are never covered
     await expect(page.locator('body')).toHaveClass(/rondo-active/);
-    // tap a non-carrier teammate: a pass launches and completes
-    await page.locator('.rondo-mate:not(.carrier)').first().dispatchEvent('pointerdown');
+    // tap a non-carrier teammate: a pass launches, and a rapid second touch
+    // is acknowledged as the visible one-touch buffer.
+    const outlets = page.locator('.rondo-mate:not(.carrier)');
+    await outlets.first().dispatchEvent('pointerdown');
+    await outlets.nth(1).dispatchEvent('pointerdown');
+    await expect(page.locator('.rondo-mate.queued')).toHaveCount(1);
     await page.waitForTimeout(1600);
     const passes = await page.locator('#rondo-passes').innerText();
     expect(Number(passes)).toBeGreaterThanOrEqual(1);
@@ -71,9 +75,51 @@ test.describe('Rondo — flagship skill game', () => {
     // the run went to the local record — no network, all on this phone
     const record = await page.evaluate(() => JSON.parse(window.localStorage.getItem('u26v2.play')).rondo);
     expect(record.played).toBeGreaterThanOrEqual(1);
-    // replay the exact run: same seed relaunches
+    // retry the same setup: same seed relaunches, without pretending this is playback
+    await expect(page.locator('#rondo-exact')).toHaveText('Retry same setup');
     await page.locator('#rondo-exact').click();
     await expect(page.locator('.rondo.live')).toBeVisible();
+    await page.locator('#rondo-exit').click();
+  });
+
+  test('a buffered pass dies with the possession — a turnover never fires it', async ({ page }) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'rondo');
+    await page.locator('[data-rondo-start="practice"]').click();
+    await expect(page.locator('.rondo.live')).toBeVisible();
+    // Repeatedly pass into pressure with a follow-up armed until the press
+    // cuts one out. Practice never ends, so the loop can retry honestly.
+    let sawCut = false;
+    let sawArmedBuffer = false;
+    for (let attempt = 0; attempt < 12 && !sawCut; attempt++) {
+      await page.waitForFunction(() => {
+        const ball = document.querySelector('.rondo-ball');
+        return ball && !ball.classList.contains('flight');
+      });
+      const risky = page.locator('.rondo-mate.lane-closed, .rondo-mate.lane-tight');
+      if (!(await risky.count())) { await page.waitForTimeout(300); continue; }
+      await risky.first().dispatchEvent('pointerdown');
+      // arm the visible one-touch buffer on the old carrier (always legal)
+      await page.locator('.rondo-mate.carrier').dispatchEvent('pointerdown');
+      if (await page.locator('.rondo-mate.queued').count()) sawArmedBuffer = true;
+      const outcome = await page.waitForFunction(() => {
+        const callout = document.querySelector('#rondo-callout')?.textContent || '';
+        if (/Cut out/.test(callout)) return 'cut';
+        const ball = document.querySelector('.rondo-ball');
+        const queued = document.querySelectorAll('.rondo-mate.queued').length;
+        if (ball && !ball.classList.contains('flight') && queued === 0) return 'settled';
+        return false;
+      }, { timeout: 8000 }).then((h) => h.jsonValue());
+      if (outcome === 'cut') sawCut = true;
+    }
+    expect(sawCut, 'the press cut at least one risky pass').toBe(true);
+    expect(sawArmedBuffer, 'the one-touch buffer was visibly armed before a cut').toBe(true);
+    // the turnover retired any armed buffer — and nothing fires by itself
+    await expect(page.locator('.rondo-mate.queued')).toHaveCount(0);
+    const passes = Number(await page.locator('#rondo-passes').innerText());
+    await page.waitForTimeout(900);
+    await expect(page.locator('.rondo-ball.flight')).toHaveCount(0);
+    expect(Number(await page.locator('#rondo-passes').innerText()), 'the dead buffer never scores').toBe(passes);
     await page.locator('#rondo-exit').click();
   });
 
@@ -88,10 +134,13 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('.rondo.setup')).toBeVisible();
     await page.locator('[data-rondo-start="challenge"]').click();
     await expect(page.locator('.rondo.live')).toBeVisible();
-    // challenge shows three lives; holding the ball loses them honestly:
-    // never passing must end the run with a readable reason — no crash,
-    // no arbitrary failure.
+    // Challenge shows three lives, and the press waits until the player's
+    // first touch. Orientation time is free; holding after kickoff is not.
     await expect(page.locator('.rondo-life')).toHaveCount(3);
+    await page.waitForTimeout(1400);
+    await expect(page.locator('.rondo-life.on')).toHaveCount(3);
+    await expect(page.locator('#rondo-callout')).toContainText('starts with your touch');
+    await page.locator('.rondo-mate:not(.carrier)').first().dispatchEvent('pointerdown');
     await expect(page.locator('.rondo.result')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('.rondo-why')).toContainText(/Tackled|Cut/);
     await expect(page.locator('.rondo-final-score')).toBeVisible();

@@ -8,7 +8,7 @@
 
 import { createSeededRng, hashSeed } from '../core/soccer-engine.js';
 
-export const RONDO_VERSION = 'rondo-v1';
+export const RONDO_VERSION = 'rondo-v2';
 
 export const RONDO_RULES = Object.freeze({
   tickMs: 100,            // one logic tick = 100ms of game time
@@ -18,7 +18,7 @@ export const RONDO_RULES = Object.freeze({
   maxDefenderSpeed: 2.6,  // hard cap: pressers can never outrun the ball
   interceptRadius: 4.4,   // a presser this close to the travelling ball cuts it
   tackleRadius: 5.2,      // a presser this close to the carrier starts the tackle count
-  tackleTicks: 3,         // full ticks in range before a tackle lands (reaction window)
+  tackleTicks: 8,         // 0.8s of continuous contact before a tackle lands
   oneTouchTicks: 8,       // release within 0.8s of receiving = one-touch
   passesPerWave: 8,       // completed passes to step the press up
   maxWave: 6,             // pressure stops escalating here — mastery is score, not survival cliff
@@ -55,7 +55,9 @@ function segmentDistance(p, a, b) {
 /** Teammate ring for a wave — deterministic from seed, always min-spaced. */
 export function ringPositions(seed, wave) {
   const profile = waveProfile(wave);
-  const rng = createSeededRng(hashSeed(`${seed}:ring:${profile.wave}`) || 1);
+  // A teammate keeps the same angular identity for the whole run. Waves only
+  // tighten the circle; they never teleport all six outlets to new places.
+  const rng = createSeededRng(hashSeed(`${seed}:ring`) || 1);
   const baseAngle = rng() * Math.PI * 2;
   const positions = [];
   for (let i = 0; i < RONDO_RULES.teammates; i++) {
@@ -72,10 +74,16 @@ function spawnDefenders(run, count) {
   const rng = run.rngSpawn;
   while (run.defenders.length < count) {
     const i = run.defenders.length;
+    let x = 50; let y = 50; let attempts = 0;
+    do {
+      x = fixed(50 + (rng() - 0.5) * 24);
+      y = fixed(50 + (rng() - 0.5) * 24);
+      attempts += 1;
+    } while (attempts < 24 && run.defenders.some((d) => dist(d, { x, y }) < 11));
     run.defenders.push({
       id: i + 1,
-      x: fixed(50 + (rng() - 0.5) * 16),
-      y: fixed(50 + (rng() - 0.5) * 16),
+      x,
+      y,
       targetKind: 'carrier',   // 'carrier' | 'lane'
       laneTo: 0,
       retargetAt: run.tick + 2,
@@ -99,6 +107,8 @@ export function createRondo(seed, mode = 'challenge') {
     rngAi: createSeededRng(hashSeed(`${s}:ai`) || 1),
     rngSpawn: createSeededRng(hashSeed(`${s}:spawn`) || 2),
     ball: null,               // { from, to, x, y, progress } while travelling
+    queuedTo: null,           // one visible next-pass command while ball travels
+    started: false,           // the press begins with the player's first touch
     passes: 0,
     score: 0,
     chain: 0,
@@ -156,6 +166,9 @@ function turnover(run, cause) {
   run.turnovers += 1;
   run.chain = 0;
   run.lastOutcome = cause;
+  // Possession ends here, so any buffered next pass dies with it: a tap made
+  // during the old possession must never fire against the new one.
+  run.queuedTo = null;
   if (run.mode === 'challenge') {
     run.lives = Math.max(0, RONDO_RULES.lives - run.turnovers);
     if (run.turnovers >= RONDO_RULES.lives) {
@@ -205,6 +218,11 @@ function completePass(run) {
     spawnDefenders(run, waveProfile(nextWave).defenders);
     pushLog(run, `Wave ${nextWave} — the press steps up.`);
   }
+  // A tap made during flight becomes the next one-touch pass. This keeps
+  // quick players in rhythm and makes every accepted touch visibly matter.
+  const queued = run.queuedTo;
+  run.queuedTo = null;
+  if (Number.isInteger(queued) && queued !== run.carrier) launchPass(run, queued, false);
 }
 
 function moveDefenders(run) {
@@ -247,6 +265,7 @@ function moveDefenders(run) {
     tick-stamped pass commands ⇒ identical state, always. */
 export function rondoTick(run) {
   if (!run || run.over || run.paused) return run;
+  if (!run.started) return run;
   run.tick += 1;
   moveDefenders(run);
 
@@ -299,15 +318,13 @@ export function rondoTick(run) {
   return run;
 }
 
-/** The one input: send the ball to teammate index `to`. Ignored while the
-    ball is travelling, while paused, or when the run is over — a tap is
-    never silently converted into something else. */
-export function rondoPass(run, to) {
-  if (!run || run.over || run.paused || run.ball) return null;
-  const target = Math.floor(Number(to));
-  if (!(target >= 0 && target < run.positions.length) || target === run.carrier) return null;
+/** Send the ball to teammate index `to`. A legal tap during flight becomes
+    the visible next-pass buffer; paused, ended, self and invalid inputs are
+    rejected without changing the run. */
+function launchPass(run, target, record = true) {
   const openAtLaunch = bestOpenLane(run);
   const margin = laneOpenness(run, target);
+  run.started = true;
   run.ball = {
     from: run.carrier,
     to: target,
@@ -319,9 +336,25 @@ export function rondoPass(run, to) {
     openAtLaunch,
   };
   for (const d of run.defenders) d.closeTicks = 0;
+  if (!record) return { tick: run.tick, to: target, buffered: true };
   const event = { tick: run.tick, to: target };
   run.events.push(event);
   return event;
+}
+
+export function rondoPass(run, to) {
+  if (!run || run.over || run.paused) return null;
+  const target = Math.floor(Number(to));
+  if (!(target >= 0 && target < run.positions.length)) return null;
+  if (run.ball) {
+    if (target === run.ball.to) return null;
+    run.queuedTo = target;
+    const event = { tick: run.tick, to: target };
+    run.events.push(event);
+    return event;
+  }
+  if (target === run.carrier) return null;
+  return launchPass(run, target);
 }
 
 export function togglePauseRondo(run) {
@@ -334,6 +367,7 @@ export function endRondoRun(run, reason = 'exit') {
   if (!run || run.over) return run;
   run.over = true;
   run.endedBy = reason;
+  run.queuedTo = null; // a finished run can never owe a pass
   return run;
 }
 
@@ -353,6 +387,8 @@ export function rondoFrame(run) {
     positions: run.positions,
     carrier: run.carrier,
     ball: run.ball ? { x: run.ball.x, y: run.ball.y, to: run.ball.to } : null,
+    queuedTo: run.queuedTo,
+    started: run.started,
     defenders: run.defenders.map((d) => ({
       id: d.id, x: d.x, y: d.y, closing: d.closeTicks > 0,
     })),
@@ -427,11 +463,12 @@ export function validateRondoLog(log) {
   for (const e of log.events) {
     if (!Number.isInteger(e.tick) || e.tick < lastTick || e.tick > log.finalTick) return { ok: false, reason: 'timing' };
     while (cursor < e.tick && !replay.over) { rondoTick(replay); cursor += 1; }
-    if (replay.over) break;
+    if (replay.over) return { ok: false, reason: 'event' };
     lastTick = e.tick;
     if (!rondoPass(replay, e.to)) return { ok: false, reason: 'event' };
   }
   while (cursor < log.finalTick && !replay.over) { rondoTick(replay); cursor += 1; }
+  if (cursor !== log.finalTick) return { ok: false, reason: 'timing' };
   if (replay.score !== log.score) return { ok: false, reason: 'score', expected: replay.score };
   return { ok: true, score: replay.score, summary: rondoSummary(replay) };
 }

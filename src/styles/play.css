@@ -132,7 +132,7 @@
   margin-top: var(--sp-3);
 }
 .lab-feature-actions .play-btn {
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 var(--sp-3);
   font-size: var(--fs-micro);
 }
@@ -593,7 +593,7 @@
   appearance: none;
   flex: 1;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--hairline);
   border-radius: 999px;
   background: var(--bg-raise-2);
@@ -2380,6 +2380,9 @@
 .rondo.live { overflow:hidden;padding:0;background:var(--rd-deep);border-color:rgba(91,224,160,.3);box-shadow:0 30px 80px -48px rgba(91,224,160,.55); }
 body.rondo-active .dock { visibility:hidden;opacity:0;pointer-events:none;transform:translate(-50%,calc(100% + var(--sp-6) + env(safe-area-inset-bottom))); }
 body.rondo-active .outlets { padding-bottom:max(var(--sp-5),env(safe-area-inset-bottom)); }
+body.rondo-active .play-head,
+body.rondo-active .mode-rail { display:none; }
+body.rondo-active .play-view { padding-top:max(var(--sp-2),env(safe-area-inset-top)); }
 .rondo-topbar { min-height:66px;display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-bottom:1px solid rgba(184,255,220,.1);background:linear-gradient(180deg,rgba(255,255,255,.035),transparent); }
 .rondo-topbar>div:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.rondo-topbar>div:nth-child(2)>strong{font-family:var(--font-display);font-variant-numeric:tabular-nums;}
 .rondo-top-actions{display:flex;gap:var(--sp-2)}
@@ -2419,6 +2422,14 @@ body.rondo-active .outlets { padding-bottom:max(var(--sp-5),env(safe-area-inset-
 .rondo-mate b { font-family:var(--font-display); font-size:1rem; pointer-events:none; }
 .rondo-mate:active { border-color:#fff5c6; }
 .rondo-mate.carrier { border-color:#fff5c6; box-shadow:0 0 0 5px rgba(255,245,198,.16), 0 10px 24px -10px #000; }
+.rondo-mate.queued {
+  border-color:#b8ffdc;
+  box-shadow:0 0 0 6px rgba(91,224,160,.2),0 0 28px rgba(91,224,160,.35),0 10px 24px -10px #000;
+}
+.rondo-mate.queued::before {
+  content:"NEXT";position:absolute;left:50%;top:-19px;transform:translateX(-50%);
+  color:#b8ffdc;font-size:.48rem;font-weight:800;letter-spacing:.09em;
+}
 .rondo-mate.carrier::after {
   content:""; position:absolute; inset:-9px; border-radius:50%; border:2px solid #ff8f6b;
   opacity:calc(var(--press) * 1); transition:opacity 120ms linear; pointer-events:none;

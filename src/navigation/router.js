@@ -34,7 +34,7 @@ export function init(root) {
     <nav class="dock" role="tablist" aria-label="United 2026">
       ${TABS.map((t) => `
         <button class="dock-tab" role="tab" id="tab-${t.id}" data-tab="${t.id}"
-                aria-selected="${t.id === 'home'}" aria-controls="outlet-${t.id}">
+                aria-selected="${t.id === 'home'}" tabindex="${t.id === 'home' ? '0' : '-1'}" aria-controls="outlet-${t.id}">
           <span class="dock-icon" aria-hidden="true">${t.icon}</span>
           <span class="dock-label">${t.label}</span>
         </button>`).join('')}
@@ -55,9 +55,38 @@ export function init(root) {
     outlets.set(t.id, el);
   }
 
-  shell.querySelector('.dock').addEventListener('click', (e) => {
+  const dock = shell.querySelector('.dock');
+  dock.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-tab]');
     if (btn) activate(btn.dataset.tab);
+  });
+  dock.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const tabs = [...dock.querySelectorAll('[role="tab"]')];
+    const current = tabs.indexOf(e.target.closest('[role="tab"]'));
+    if (current < 0) return;
+    const next = e.key === 'Home' ? 0
+      : e.key === 'End' ? tabs.length - 1
+        : (current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    e.preventDefault();
+    e.stopPropagation();
+    tabs[next].focus();
+    activate(tabs[next].dataset.tab);
+  });
+  shell.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const list = e.target.closest('.segmented[role="tablist"]');
+    if (!list) return;
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const current = tabs.indexOf(e.target.closest('[role="tab"]'));
+    if (current < 0 || tabs.length < 2) return;
+    const next = e.key === 'Home' ? 0
+      : e.key === 'End' ? tabs.length - 1
+        : (current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    e.preventDefault();
+    tabs.forEach((tab, i) => tab.setAttribute('tabindex', i === next ? '0' : '-1'));
+    tabs[next].focus();
+    tabs[next].click();
   });
 
   // Re-render only the views whose data changed, and only via rAF.
@@ -89,6 +118,8 @@ function markStale(id) {
  * (horizontal scrollers are left alone), Play mode, or simulation state.
  */
 export function scrollActiveToTop() {
+  // JSDOM exposes a throwing scrollTo stub; browser builds use the real API.
+  if (typeof window !== 'undefined' && /notImplemented/.test(String(window.scrollTo))) return;
   const reduced = typeof matchMedia === 'function'
     && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
@@ -108,6 +139,7 @@ export function activate(id) {
   for (const [tid, el] of outlets) el.classList.toggle('active', tid === id);
   document.querySelectorAll('.dock-tab').forEach((b) => {
     b.setAttribute('aria-selected', String(b.dataset.tab === id));
+    b.setAttribute('tabindex', b.dataset.tab === id ? '0' : '-1');
   });
   const key = versionKeyFn(id);
   if (renderedVersion.get(id) !== key) schedule('view:' + id, () => paint(id));

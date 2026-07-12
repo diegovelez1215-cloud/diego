@@ -2011,6 +2011,9 @@ function rondoLaneHintClass(run, i) {
 }
 
 function rondoCalloutText(run) {
+  if (!run.started) return 'Choose the first pass — the press starts with your touch.';
+  if (run.ball && run.queuedTo != null) return `Next pass armed for #${run.queuedTo + 1} — one touch on arrival.`;
+  if (run.ball) return 'Ball moving — tap the next teammate now to queue a one-touch pass.';
   const o = run.lastOutcome;
   if (!o) return 'Tap a teammate — or press 1–6 — before the press arrives.';
   if (o.kind === 'pass') {
@@ -2033,9 +2036,9 @@ function rondoStageHTML(run) {
   return `<div class="rondo-pitch" id="rondo-pitch" tabindex="0" role="application"
     aria-label="Rondo carousel. Tap a numbered teammate or press keys 1 to 6 to pass. P pauses.">
     <i class="rondo-zone" aria-hidden="true"></i>
-    ${frame.positions.map((p, i) => `<button class="rondo-mate${i === run.carrier ? ' carrier' : ''}${rondoLaneHintClass(run, i)}"
+    ${frame.positions.map((p, i) => `<button class="rondo-mate${i === run.carrier ? ' carrier' : ''}${i === run.queuedTo ? ' queued' : ''}${rondoLaneHintClass(run, i)}"
       data-mate="${i}" style="--x:${p.x}%;--y:${p.y}%;--press:${i === run.carrier ? frame.pressure : 0}"
-      aria-label="${i === run.carrier ? `Teammate ${i + 1} has the ball` : `Pass to teammate ${i + 1}`}"><b>${i + 1}</b></button>`).join('')}
+      aria-label="${i === run.queuedTo ? `Next pass queued to teammate ${i + 1}` : i === run.carrier ? `Teammate ${i + 1} has the ball` : `Pass to teammate ${i + 1}`}"><b>${i + 1}</b></button>`).join('')}
     ${frame.defenders.map((d) => `<span class="rondo-def${d.closing ? ' closing' : ''}" data-def="${d.id}"
       style="--x:${d.x}%;--y:${d.y}%" aria-hidden="true"><i></i></span>`).join('')}
     <span class="rondo-ball${run.ball ? ' flight' : ''}" aria-hidden="true"
@@ -2067,7 +2070,7 @@ function rondoResultHTML(run) {
     ${cupAdvanceHTML(run.cupAdvance)}
     <div class="play-actions rondo-actions">
       <button class="play-btn gold" id="rondo-new">Run it again</button>
-      <button class="play-btn quiet" id="rondo-exact">Replay exact run</button>
+      <button class="play-btn quiet" id="rondo-exact">Retry same setup</button>
       <button class="play-btn quiet" id="rondo-swap">${run.mode === 'challenge' ? 'Practice lane reads' : 'Take the daily challenge'}</button>
       <button class="play-btn quiet" id="rondo-exit">Back to lobby</button>
     </div>
@@ -2115,11 +2118,11 @@ function rondoSetupHTML(play) {
     <span class="sim-badge">SKILL GAME · LOCAL</span>
     <p class="bd-kicker">Flagship game</p>
     <h2 class="display">Rondo</h2>
-    <p class="rondo-lede">The possession carousel. Six of you, a hungry press, one ball to keep alive.</p>
+    <p class="rondo-lede">The possession carousel. Read the press, arm the next pass, and play one touch.</p>
     <div class="sl-rules" role="list" aria-label="How Rondo works">
-      <span role="listitem"><b>1</b> Tap a teammate to pass — or press 1–6</span>
-      <span role="listitem"><b>2</b> Release before the press closes you down</span>
-      <span role="listitem"><b>3</b> One-touch chains and split passes score big</span>
+      <span role="listitem"><b>1</b> Your first pass starts the press — no countdown</span>
+      <span role="listitem"><b>2</b> Tap during flight to arm the next one-touch pass</span>
+      <span role="listitem"><b>3</b> Read open lanes; split passes and switches score big</span>
     </div>
     <div class="sl-best" role="group" aria-label="Rondo local records">
       <span><b>${rec.bestScore ? rec.bestScore.toLocaleString() : '—'}</b><small>challenge best</small></span>
@@ -2131,7 +2134,7 @@ function rondoSetupHTML(play) {
       <button class="sl-start primary" data-rondo-start="challenge"><span>Daily challenge</span><strong>Three balls. Rising press.</strong><small>Seeded fresh today — every attempt is replayable.</small></button>
       <button class="sl-start" data-rondo-start="practice"><span>Practice</span><strong>Open lane reads</strong><small>No lives lost. Lanes show open, tight, closed.</small></button>
     </div>
-    <details class="sl-details"><summary>Fair play & controls</summary><p>Every presser moves on a fixed tick and can never outrun the ball. Passes are cut only when a presser genuinely reaches the lane; tackles need ${RONDO_RULES.tackleTicks * RONDO_RULES.tickMs / 1000}s of contact, so there is always time to release. Waves add pressers and shrink space — your controls never get worse. Keyboard: 1–6 pass, P pauses.</p></details>
+    <details class="sl-details"><summary>Fair play & controls</summary><p>The press waits for your first touch. Every presser moves on a fixed tick and can never outrun the ball. Passes are cut only when a presser genuinely reaches the lane; tackles need ${RONDO_RULES.tackleTicks * RONDO_RULES.tickMs / 1000}s of continuous contact. Waves add pressure without teleporting your outlets. Keyboard: 1–6 pass, P pauses.</p></details>
     <p class="sl-ranked-lock"><b>Ranked locked for integrity.</b> Local records work now; worldwide submission stays off until the server can replay signed runs.</p>
   </section>`;
 }
@@ -2157,6 +2160,10 @@ function paintRondo() {
     const p = frame.positions[i];
     if (p) { el.style.setProperty('--x', `${p.x}%`); el.style.setProperty('--y', `${p.y}%`); }
     el.classList.toggle('carrier', i === run.carrier);
+    el.classList.toggle('queued', i === run.queuedTo);
+    el.setAttribute('aria-label', i === run.queuedTo
+      ? `Next pass queued to teammate ${i + 1}`
+      : i === run.carrier ? `Teammate ${i + 1} has the ball` : `Pass to teammate ${i + 1}`);
     el.style.setProperty('--press', i === run.carrier ? frame.pressure : 0);
     if (run.mode === 'practice') {
       el.classList.remove('lane-open', 'lane-tight', 'lane-closed');
@@ -5015,17 +5022,6 @@ export function render(outlet) {
       if (rondoRun && !rondoRun.over) rondoRun = null;
       setPlayMode(btn.dataset.value);
     }
-  });
-  modeTabs.addEventListener('keydown', (e) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-    const tabs = [...modeTabs.querySelectorAll('[data-value]')];
-    const current = Math.max(0, tabs.indexOf(document.activeElement));
-    const next = e.key === 'Home' ? 0
-      : e.key === 'End' ? tabs.length - 1
-        : (current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    e.preventDefault();
-    tabs[next].focus();
-    tabs[next].click();
   });
   // Any surface can hand off to another mode (lobby tiles, prediction CTA).
   outlet.querySelectorAll('[data-goto]').forEach((b) => {

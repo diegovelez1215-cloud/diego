@@ -642,7 +642,7 @@ function museumHTML(state) {
         <div class="segmented small" role="tablist" aria-labelledby="pref-theme-label" data-segmented="theme">
           ${['dark', 'light'].map((v) => `
             <button class="seg-btn${(prefs.theme || 'dark') === v ? ' active' : ''}" role="tab"
-              aria-selected="${(prefs.theme || 'dark') === v}" data-value="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}
+              aria-selected="${(prefs.theme || 'dark') === v}" tabindex="${(prefs.theme || 'dark') === v ? '0' : '-1'}" data-value="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}
         </div>
       </div>
     </section>`;

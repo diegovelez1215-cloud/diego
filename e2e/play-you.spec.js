@@ -489,10 +489,12 @@ test.describe('Arcade Cup', () => {
     await screenshot(page, testInfo, 'play-cup-route');
 
     // Stop 1 — the Carousel: a real Rondo run settles the opening stop.
-    // Holding the ball loses it honestly; any verdict advances the road.
+    // The press waits for the player's first touch; after it, holding the
+    // ball loses it honestly and any verdict advances the road.
     await page.locator('[data-cup-stop="carousel"]').first().click();
     await expect(page.locator('.rondo.live')).toBeVisible();
     await expect(page.locator('.rondo-life')).toHaveCount(3);
+    await page.locator('.rondo-mate:not(.carrier)').first().dispatchEvent('pointerdown');
     await expect(page.locator('.rondo.result')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('.rondo.result .cup-advance')).toBeVisible();
     await screenshot(page, testInfo, 'play-cup-carousel');

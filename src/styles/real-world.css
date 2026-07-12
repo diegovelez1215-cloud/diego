@@ -944,7 +944,7 @@
   appearance: none;
   flex: none;
   display: inline-flex; align-items: center; gap: 6px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--sp-3);
   border-radius: 999px;
   border: 1px solid var(--hairline);
@@ -994,7 +994,7 @@
   appearance: none; border: 1px solid var(--glass-line); background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   color: var(--ink-3); font-family: inherit; font-size: var(--fs-micro); font-weight: var(--w-bold);
-  min-height: 40px; padding: 0 var(--sp-3); border-radius: 999px; flex: 1;
+  min-height: 44px; padding: 0 var(--sp-3); border-radius: 999px; flex: 1;
   cursor: pointer; transition: transform 120ms ease, color 120ms ease, background-color 120ms ease;
 }
 .ko-jump-chip:active { transform: scale(0.94); }

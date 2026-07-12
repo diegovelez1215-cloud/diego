@@ -130,12 +130,72 @@ test.describe('Tournament', () => {
 
   test('Match Center opens from the live stage with factual content and a real score', async ({ page }) => {
     await gotoApp(page);
-    await page.locator('.score-stage .ss-open').click();
+    const opener = page.locator('.score-stage .ss-open');
+    await opener.click();
     const sheet = page.locator('.mc-sheet');
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('.mc-status')).toContainText('LIVE');
     await expect(sheet.locator('.mc-score')).toContainText('1');
-    await sheet.locator('.mc-close').click();
+    const close = sheet.locator('.mc-close');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Escape');
     await expect(page.locator('.mc-sheet')).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  });
+
+  test('Match Center holds focus through live repaints and survives a vanished model', async ({ page }) => {
+    await gotoApp(page);
+    const opener = page.locator('.score-stage .ss-open');
+    await opener.click();
+    const sheet = page.locator('.mc-sheet');
+    await expect(sheet).toBeVisible();
+    const close = sheet.locator('.mc-close');
+    await expect(close).toBeFocused();
+    // Drive the exact live-refresh path app.js uses: fresh provider truth
+    // lands while the sheet is open. Focus must never fall to the page,
+    // the dock, or the document body.
+    const repaint = (min, gh) => page.evaluate(async ({ min, gh }) => {
+      const [{ setOverlay }, { buildOverlay }] = await Promise.all([
+        import('/src/core/app-state.js'),
+        import('/src/core/provider-overlay.js'),
+      ]);
+      const [results, live] = await Promise.all([
+        fetch('/api/results').then((r) => r.json()),
+        fetch('/api/live').then((r) => r.json()),
+      ]);
+      live.response[0].min = min;
+      live.response[0].gh = gh;
+      setOverlay(buildOverlay({ results, live }));
+    }, { min, gh });
+    await repaint(71, 2);
+    await expect(sheet.locator('.mc-status')).toContainText('71');
+    await expect(sheet.locator('.mc-score')).toContainText('2');
+    await expect(close).toBeFocused();
+    // repeated live repaints keep focus glued to the same logical control
+    await repaint(72, 2);
+    await repaint(73, 2);
+    await expect(sheet.locator('.mc-status')).toContainText('73');
+    await expect(close).toBeFocused();
+    // focus parked on a keyless dialog surface falls back safely inside
+    await sheet.focus();
+    await repaint(74, 2);
+    await expect(close).toBeFocused();
+    // Escape still works after every repaint, and the opener gets focus back
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.mc-sheet')).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    // an invalid or replaced match model closes cleanly: nothing stays inert,
+    // focus is never stranded on a removed element
+    await opener.click();
+    await expect(sheet.locator('.mc-close')).toBeFocused();
+    await page.evaluate(async () => {
+      const { openMatchCenter } = await import('/src/core/app-state.js');
+      openMatchCenter(999999);
+    });
+    await expect(page.locator('.mc-sheet')).toHaveCount(0);
+    await expect(page.locator('#app')).not.toHaveAttribute('inert');
+    await expect(opener).toBeFocused();
   });
 });
