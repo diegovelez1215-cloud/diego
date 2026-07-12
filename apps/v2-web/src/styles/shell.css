@@ -40,6 +40,42 @@
   .v2-description { max-width: 38rem; margin: var(--v2-space-5) 0 0; font-size: clamp(1rem, 3.8vw, 1.25rem); }
   .v2-note { max-width: 40rem; margin: var(--v2-space-4) 0 0; color: var(--v2-muted-chalk); }
 
+  .v2-matchday, .v2-match-detail { padding-bottom: var(--v2-space-6); }
+  .v2-matchday { padding-top: var(--v2-space-6); }
+  .v2-matchday h1, .v2-match-detail h1 { max-width: none; font-size: clamp(1.6rem, 7vw, 2.7rem); line-height: 1.04; }
+  .v2-source-state { margin: var(--v2-space-2) 0 var(--v2-space-5); color: var(--v2-muted-chalk); font-size: 14px; }
+  .v2-focus-stage { display: grid; gap: var(--v2-space-3); padding: var(--v2-space-5) 0; border-block: 2px solid var(--v2-chalk); color: inherit; text-decoration: none; }
+  .v2-focus-meta, .v2-focus-facts, .v2-focus-action { font-size: 13px; font-weight: 620; letter-spacing: .05em; text-transform: uppercase; }
+  .v2-focus-meta, .v2-focus-facts { color: var(--v2-muted-chalk); }
+  .v2-focus-action { color: var(--v2-cobalt); }
+  .v2-focus-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--v2-space-3); align-items: center; font-size: clamp(1.1rem, 5.7vw, 1.75rem); font-weight: 760; line-height: 1.08; }
+  .v2-focus-teams > span:last-child { text-align: right; }
+  .v2-focus-teams strong { font-variant-numeric: tabular-nums; color: var(--v2-chalk); }
+  .v2-ledger-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--v2-space-3); margin-top: var(--v2-space-6); }
+  .v2-ledger-heading .v2-eyebrow { margin-bottom: var(--v2-space-1); }
+  .v2-refresh, .v2-back { min-width: 48px; min-height: 48px; border: 1px solid rgba(244, 241, 232, .38); background: transparent; color: var(--v2-chalk); font: inherit; font-weight: 650; cursor: pointer; }
+  .v2-refresh { padding-inline: var(--v2-space-3); }
+  .v2-refresh:disabled { cursor: wait; opacity: .65; }
+  .v2-back { margin-bottom: var(--v2-space-5); padding-inline: var(--v2-space-3); }
+  .v2-match-ledger { margin-top: var(--v2-space-4); border-top: 1px solid rgba(244, 241, 232, .24); }
+  .v2-match-row { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: var(--v2-space-3); align-items: center; min-height: 78px; border-bottom: 1px solid rgba(244, 241, 232, .24); color: inherit; text-decoration: none; }
+  .v2-match-status { font-size: 12px; font-weight: 720; letter-spacing: .04em; }
+  .v2-match-status--live { color: #FF4D3D; }
+  .v2-match-status--final { color: var(--v2-chalk); }
+  .v2-match-status--pending, .v2-match-status--unavailable { color: var(--v2-error); }
+  .v2-match-teams { display: grid; gap: 2px; min-width: 0; }
+  .v2-match-teams span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v2-match-score { text-align: right; font-weight: 760; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .v2-detail-scoreboard { display: grid; gap: var(--v2-space-3); padding: var(--v2-space-5) 0; border-block: 2px solid var(--v2-chalk); }
+  .v2-detail-scoreboard > p { margin: 0; color: var(--v2-muted-chalk); }
+  .v2-detail-scoreboard h1 { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--v2-space-3); align-items: center; margin: 0; font-size: clamp(1.35rem, 6.7vw, 2.4rem); }
+  .v2-detail-scoreboard h1 span:last-child { text-align: right; }
+  .v2-detail-scoreboard h1 strong { font-variant-numeric: tabular-nums; }
+  .v2-detail-facts { display: grid; gap: var(--v2-space-3); margin: var(--v2-space-5) 0 0; }
+  .v2-detail-facts div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--v2-space-3); padding-bottom: var(--v2-space-3); border-bottom: 1px solid rgba(244, 241, 232, .2); }
+  .v2-detail-facts dt { color: var(--v2-muted-chalk); }
+  .v2-detail-facts dd { margin: 0; overflow-wrap: anywhere; }
+
   .v2-bottom-nav {
     position: fixed;
     z-index: 1;
@@ -74,7 +110,7 @@
   .v2-actions { display: flex; flex-wrap: wrap; gap: var(--v2-space-3); }
   .v2-actions a { background: transparent; outline: 1px solid rgba(244, 241, 232, 0.38); }
 
-  :where(.v2-tab, .v2-primary-link, .v2-actions button, .v2-actions a):focus-visible {
+  :where(.v2-tab, .v2-primary-link, .v2-actions button, .v2-actions a, .v2-focus-stage, .v2-match-row, .v2-refresh, .v2-back):focus-visible {
     outline: 3px solid var(--v2-chalk);
     outline-offset: -3px;
   }

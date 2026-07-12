@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describe('United 2026 V2 foundation routes', () => {
   it.each([
-    ['/v2/', '104 canonical fixtures'],
+    ['/v2/', 'Match ledger'],
     ['/v2/tournament', '12 group tables'],
     ['/v2/play', 'Play is being rebuilt.'],
     ['/v2/you', 'You is being rebuilt.'],
@@ -46,7 +46,7 @@ describe('United 2026 V2 foundation routes', () => {
 
   it('renders bridge-derived Matchday and Tournament content', async () => {
     const matchday = await renderAt('/v2/');
-    expect(matchday.textContent).toContain('104 canonical fixtures');
+    expect(matchday.textContent).toContain('Match ledger');
     await act(async () => root?.unmount());
     container?.remove();
     root = undefined;
@@ -54,6 +54,20 @@ describe('United 2026 V2 foundation routes', () => {
     const tournament = await renderAt('/v2/tournament');
     expect(tournament.textContent).toContain('12 group tables');
     expect(tournament.textContent).toContain('32 canonical bracket matches');
+  });
+
+  it('resolves a direct canonical match route and returns safely on browser back', async () => {
+    const app = await renderAt('/v2/match/1');
+    expect(app.textContent).toContain('Mexico');
+    expect(app.textContent).toContain('South Africa');
+    window.history.replaceState({}, '', '/v2/');
+    await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(app.textContent).toContain('Match ledger');
+  });
+
+  it('renders match detail not found for an unknown canonical fixture ID', async () => {
+    const app = await renderAt('/v2/match/99999');
+    expect(app.textContent).toContain('This canonical match does not exist.');
   });
 
   it('renders a route-level not-found state for an unknown V2 path', async () => {

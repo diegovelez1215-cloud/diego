@@ -1,5 +1,7 @@
 import { Component, type MouseEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useOfficialSnapshot } from '../data/official-snapshot';
 import { MatchdayRoute } from '../routes/Matchday';
+import { MatchDetailRoute } from '../routes/MatchDetail';
 import { TournamentRoute } from '../routes/Tournament';
 import { PlayRoute } from '../routes/Play';
 import { YouRoute } from '../routes/You';
@@ -37,11 +39,9 @@ function destinationFor(pathname: string) {
   return destinations.find((destination) => destination.path === normalizedPath(pathname));
 }
 
-function destinationContent(path: string) {
-  if (path === '/v2/') return <MatchdayRoute />;
-  if (path === '/v2/tournament') return <TournamentRoute />;
-  if (path === '/v2/play') return <PlayRoute />;
-  return <YouRoute />;
+function matchFixtureId(pathname: string): number | null {
+  const hit = /^\/v2\/match\/(\d+)\/?$/.exec(pathname);
+  return hit ? Number(hit[1]) : null;
 }
 
 function RootErrorBoundary({ children }: { children: ReactNode }) {
@@ -76,9 +76,18 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   }
 }
 
+function OfficialRoute({ fixtureId, onNavigate }: { fixtureId: number | null; onNavigate: (path: string) => void }) {
+  const snapshot = useOfficialSnapshot();
+  if (fixtureId != null) {
+    return <MatchDetailRoute fixtureId={fixtureId} snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={onNavigate} />;
+  }
+  return <MatchdayRoute snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={onNavigate} />;
+}
+
 export function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const destination = destinationFor(pathname);
+  const fixtureId = matchFixtureId(normalizedPath(pathname));
 
   useEffect(() => {
     const updatePathname = () => setPathname(window.location.pathname);
@@ -93,16 +102,25 @@ export function App() {
     setPathname(path);
   }, []);
 
+  const navigateTo = useCallback((path: string) => {
+    if (normalizedPath(window.location.pathname) === normalizedPath(path)) return;
+    window.history.pushState({}, '', path);
+    setPathname(path);
+  }, []);
+
   return (
     <RootErrorBoundary>
       <div className="v2-app">
         <header className="v2-header">
           <p className="v2-product">United 2026 <span>V2</span></p>
-          <p className="v2-status">Foundation</p>
+          <p className="v2-status">Match Ledger</p>
         </header>
-        {destination ? (
+        {destination || fixtureId != null ? (
           <main className="v2-main" id="v2-content" role="tabpanel" tabIndex={-1}>
-            {destinationContent(destination.path)}
+            {destination?.path === '/v2/tournament' ? <TournamentRoute /> : null}
+            {destination?.path === '/v2/play' ? <PlayRoute /> : null}
+            {destination?.path === '/v2/you' ? <YouRoute /> : null}
+            {(destination?.path === '/v2/' || fixtureId != null) ? <OfficialRoute fixtureId={fixtureId} onNavigate={navigateTo} /> : null}
           </main>
         ) : (
           <main className="v2-main v2-not-found" id="v2-content" role="status" tabIndex={-1}>

@@ -39,7 +39,7 @@ describe('V2 foundation isolation', () => {
   it('keeps Play and You isolated from official tournament imports', () => {
     const play = read('apps/v2-web/src/routes/Play.tsx');
     const you = read('apps/v2-web/src/routes/You.tsx');
-    expect(`${play}\n${you}`).not.toMatch(/domain\/|tournament-bridge|canonicalFixtures|canonicalTournamentSnapshot/);
+    expect(`${play}\n${you}`).not.toMatch(/domain\/|data\/official-snapshot|tournament-bridge|canonicalFixtures|canonicalTournamentSnapshot/);
   });
 
   it('puts explicit V2 rewrites before the existing V1 catch-all', () => {
