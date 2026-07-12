@@ -1,20 +1,39 @@
 @layer tokens {
   :root {
     color-scheme: dark;
-    --v2-night: #07111F;
-    --v2-raised-night: #0D1B2B;
-    --v2-chalk: #F4F1E8;
-    --v2-muted-chalk: rgba(244, 241, 232, 0.68);
-    --v2-cobalt: #2F6BFF;
-    --v2-pitch: #167A53;
-    --v2-error: #E5484D;
+    --v2-night-950: #050c16;
+    --v2-night-900: #07111f;
+    --v2-night-850: #0a1726;
+    --v2-night-800: #0d1b2b;
+    --v2-night-700: #14263a;
+    --v2-chalk: #f4f1e8;
+    --v2-chalk-80: rgba(244, 241, 232, 0.8);
+    --v2-chalk-62: rgba(244, 241, 232, 0.62);
+    --v2-chalk-42: rgba(244, 241, 232, 0.42);
+    --v2-rule: rgba(244, 241, 232, 0.14);
+    --v2-rule-strong: rgba(244, 241, 232, 0.28);
+    --v2-cobalt: #2f6bff;
+    --v2-cobalt-soft: rgba(47, 107, 255, 0.16);
+    --v2-live: #ff4d3d;
+    --v2-pitch: #167a53;
+    --v2-pitch-deep: #0d4f37;
+    --v2-brass: #c99a3d;
+    --v2-error: #e5484d;
+    --v2-warning: #d5a94f;
+    --v2-radius-sm: 4px;
+    --v2-radius-md: 8px;
     --v2-space-1: 4px;
     --v2-space-2: 8px;
     --v2-space-3: 12px;
     --v2-space-4: 16px;
     --v2-space-5: 24px;
     --v2-space-6: 32px;
-    --v2-nav-height: 64px;
-    --v2-font: Archivo, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --v2-space-7: 48px;
+    --v2-space-8: 64px;
+    --v2-nav-height: 72px;
+    --v2-reading-width: 720px;
+    --v2-shell-width: 1180px;
+    --v2-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --v2-font-display: "Arial Narrow", "Avenir Next Condensed", "Roboto Condensed", ui-sans-serif, system-ui, sans-serif;
   }
 }

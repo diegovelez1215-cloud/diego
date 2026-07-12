@@ -3,6 +3,8 @@ import { App } from './app/App';
 import './styles/reset.css';
 import './styles/tokens.css';
 import './styles/shell.css';
+import './styles/components.css';
+import './styles/routes.css';
 
 const root = document.getElementById('v2-root');
 

@@ -18,6 +18,8 @@ describe('V2 foundation isolation', () => {
     expect(entry).toContain("./styles/reset.css");
     expect(entry).toContain("./styles/tokens.css");
     expect(entry).toContain("./styles/shell.css");
+    expect(entry).toContain("./styles/components.css");
+    expect(entry).toContain("./styles/routes.css");
     expect(entry).not.toMatch(/src\/styles|src\/app\.js/);
     expect(v2Html).toContain('src="/src/main.tsx"');
     expect(v2Html).not.toContain('/src/styles/');
@@ -34,6 +36,24 @@ describe('V2 foundation isolation', () => {
     const entry = read('apps/v2-web/src/main.tsx');
     const app = read('apps/v2-web/src/app/App.tsx');
     expect(`${entry}\n${app}`).not.toMatch(/serviceWorker|register\(/);
+  });
+
+  it('uses no remote font request in the V2 document or styles', () => {
+    const html = read('apps/v2-web/index.html');
+    const tokens = read('apps/v2-web/src/styles/tokens.css');
+    const styles = `${tokens}\n${read('apps/v2-web/src/styles/reset.css')}\n${read('apps/v2-web/src/styles/shell.css')}\n${read('apps/v2-web/src/styles/components.css')}\n${read('apps/v2-web/src/styles/routes.css')}`;
+    expect(html).not.toMatch(/fonts\.(googleapis|gstatic)\.com|<link[^>]+font/i);
+    expect(styles).not.toMatch(/@import|url\(.*https?:/i);
+  });
+
+  it('keeps minimum control, safe-area, and reduced-motion rules in isolated V2 CSS', () => {
+    const shell = read('apps/v2-web/src/styles/shell.css');
+    const components = read('apps/v2-web/src/styles/components.css');
+    expect(`${shell}\n${components}`).toMatch(/min-height:\s*48px/);
+    expect(shell).toContain('env(safe-area-inset-bottom)');
+    expect(shell).toContain('env(safe-area-inset-top)');
+    expect(`${shell}\n${components}`).toContain('@media (prefers-reduced-motion: no-preference)');
+    expect(`${shell}\n${components}`).not.toContain('prefers-reduced-motion: reduce) {\n    *');
   });
 
   it('keeps Play and You isolated from official tournament imports', () => {
