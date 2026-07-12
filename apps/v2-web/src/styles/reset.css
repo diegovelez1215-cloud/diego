@@ -1,0 +1,7 @@
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { min-width: 0; background: var(--v2-night); }
+  body { min-width: 0; margin: 0; overflow-x: hidden; }
+  button, a { font: inherit; }
+  a { color: inherit; }
+}

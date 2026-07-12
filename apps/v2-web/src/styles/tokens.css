@@ -1,0 +1,20 @@
+@layer tokens {
+  :root {
+    color-scheme: dark;
+    --v2-night: #07111F;
+    --v2-raised-night: #0D1B2B;
+    --v2-chalk: #F4F1E8;
+    --v2-muted-chalk: rgba(244, 241, 232, 0.68);
+    --v2-cobalt: #2F6BFF;
+    --v2-pitch: #167A53;
+    --v2-error: #E5484D;
+    --v2-space-1: 4px;
+    --v2-space-2: 8px;
+    --v2-space-3: 12px;
+    --v2-space-4: 16px;
+    --v2-space-5: 24px;
+    --v2-space-6: 32px;
+    --v2-nav-height: 64px;
+    --v2-font: Archivo, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+}

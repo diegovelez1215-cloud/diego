@@ -21,3 +21,19 @@ jobs:
         run: npm run test:logic
       - name: Whitespace hygiene
         run: git diff --check
+
+  v2-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: V2 typecheck
+        run: npm run typecheck:v2
+      - name: V2 foundation smoke tests
+        run: npm run test:v2
+      - name: V2 production build
+        run: npm run build:v2

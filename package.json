@@ -5,10 +5,26 @@
   "scripts": {
     "test:logic": "node --test \"tests/*.test.mjs\"",
     "test:ui": "playwright test",
-    "test:release": "npm run test:logic && npm run test:ui"
+    "test:release": "npm run test:logic && npm run test:ui",
+    "dev:v2": "vite --config vite.config.ts",
+    "build:v2": "vite build --config vite.config.ts",
+    "typecheck:v2": "tsc --project tsconfig.v2.json --noEmit",
+    "test:v2": "vitest run --config vite.config.ts",
+    "serve:foundation": "node scripts/serve-v2-foundation.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
-    "jsdom": "^26.1.0"
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "jsdom": "^26.1.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }
