@@ -2046,7 +2046,7 @@ function rondoRoleLabel(role) {
 }
 
 function rondoDangerLabel(run, frame) {
-  if (!run.started) return 'ORIENTATION · CHASE + CUT';
+  if (!run.started) return 'ORIENTATION · READ THE PRESS';
   if (run.wave >= 8) return 'SURVIVAL';
   if (run.wave >= 5 || frame.pressure > 0.68) return 'HIGH PRESS';
   if (run.wave >= 3 || frame.pressure > 0.34) return 'PRESSURE · CUT + SHADOW';
@@ -2078,10 +2078,12 @@ function rondoResultHTML(run) {
   const why = run.lastOutcome && run.lastOutcome.kind !== 'pass' ? rondoCalloutText(run) : '';
   return `<section class="play-card rondo result" aria-label="Rondo result">
     <span class="sim-badge">LOCAL RESULT</span>
-    <div class="rondo-result-head"><div><p class="bd-kicker">${run.mode === 'challenge' ? 'Daily challenge' : 'Practice session'} complete</p>
+    <div class="rondo-result-head">
+      <p class="bd-kicker">${run.mode === 'challenge' ? 'Daily challenge' : 'Practice session'} complete</p>
       <h2 class="display">${esc(s.grade)}</h2>
-      <p>${s.passes} ${s.passes === 1 ? 'pass' : 'passes'} · wave ${s.wave} · best chain ×${s.bestChain}</p></div>
-      <strong class="rondo-final-score">${s.score.toLocaleString()}<small>points</small></strong></div>
+      <strong class="rondo-final-score">${s.score.toLocaleString()}<small>points</small></strong>
+      <p class="rondo-result-meta">${s.passes} ${s.passes === 1 ? 'pass' : 'passes'} · wave ${s.wave} · best chain ×${s.bestChain}</p>
+    </div>
     <div class="rondo-breakdown" role="group" aria-label="Run breakdown">
       <span><b>${s.passes}</b><small>passes</small></span>
       <span><b>×${s.bestChain}</b><small>best chain</small></span>
@@ -2093,9 +2095,11 @@ function rondoResultHTML(run) {
     ${cupAdvanceHTML(run.cupAdvance)}
     <div class="play-actions rondo-actions">
       <button class="play-btn gold" id="rondo-new">Run it again</button>
-      <button class="play-btn quiet" id="rondo-exact">Retry same setup</button>
-      <button class="play-btn quiet" id="rondo-swap">${run.mode === 'challenge' ? 'Practice lane reads' : 'Take the daily challenge'}</button>
-      <button class="play-btn quiet" id="rondo-exit">Back to lobby</button>
+      <div class="rondo-secondary">
+        <button class="play-btn quiet" id="rondo-exact">Retry same setup</button>
+        <button class="play-btn quiet" id="rondo-swap">${run.mode === 'challenge' ? 'Practice lane reads' : 'Take the daily challenge'}</button>
+        <button class="play-btn quiet" id="rondo-exit">Back to lobby</button>
+      </div>
     </div>
     <p class="sl-ranked-lock"><b>Not submitted globally.</b> Ranked Rondo stays off until the server can replay signed challenges.</p>
   </section>`;
@@ -2139,25 +2143,16 @@ function rondoSetupHTML(play) {
   const bestToday = rec.dateKey === today ? rec.bestToday || 0 : 0;
   return `<section class="play-card rondo setup" aria-label="Rondo">
     <span class="sim-badge">SKILL GAME · LOCAL</span>
-    <p class="bd-kicker">Flagship game</p>
+    <p class="bd-kicker">Flagship game · keep-away</p>
     <h2 class="display">Rondo</h2>
-    <p class="rondo-lede">The possession carousel. Read the press, arm the next pass, and play one touch.</p>
-    <div class="sl-rules" role="list" aria-label="How Rondo works">
-      <span role="listitem"><b>1</b> Your first pass starts the press — no countdown</span>
-      <span role="listitem"><b>2</b> Tap during flight to arm the next one-touch pass</span>
-      <span role="listitem"><b>3</b> Read open lanes; split passes and switches score big</span>
-    </div>
-    <div class="sl-best" role="group" aria-label="Rondo local records">
-      <span><b>${rec.bestScore ? rec.bestScore.toLocaleString() : '—'}</b><small>challenge best</small></span>
-      <span><b>${bestToday || '—'}</b><small>best today</small></span>
-      <span><b>${rec.bestChain ? '×' + rec.bestChain : '—'}</b><small>longest chain</small></span>
-      <span><b>${rec.bestWave || '—'}</b><small>deepest wave</small></span>
-    </div>
+    <p class="rondo-lede">Keep the ball alive — pass to a teammate before the press closes you down.</p>
     <div class="sl-start-grid">
-      <button class="sl-start primary" data-rondo-start="challenge"><span>Daily challenge</span><strong>Three balls. Rising press.</strong><small>Seeded fresh today — every attempt is replayable.</small></button>
-      <button class="sl-start" data-rondo-start="practice"><span>Practice</span><strong>Open lane reads</strong><small>No lives lost. Lanes show open, tight, closed.</small></button>
+      <button class="sl-start primary" data-rondo-start="challenge"><span>Start Challenge</span><strong>Three balls · a press that reads you</strong><small>Today's seed — every run is replayable.</small></button>
+      <button class="sl-start" data-rondo-start="practice"><span>Practice</span><strong>Learn the lanes, no lives lost</strong><small>Lanes show open, tight, or closed.</small></button>
     </div>
-    <details class="sl-details"><summary>Fair play & controls</summary><p>The press waits for your first touch. Every presser moves on a fixed tick and can never outrun the ball. Passes are cut only when a presser genuinely reaches the lane; tackles need ${RONDO_RULES.tackleTicks * RONDO_RULES.tickMs / 1000}s of continuous contact. Waves add pressure without teleporting your outlets. Keyboard: 1–6 pass, P pauses.</p></details>
+    <p class="sl-controls">Tap a teammate or keys <b>1–6</b> to pass · tap during flight to arm a one-touch · <b>P</b> pauses</p>
+    ${rec.bestScore || bestToday ? `<p class="sl-record" aria-label="Rondo local records">Best <b>${(rec.bestScore || 0).toLocaleString()}</b>${bestToday ? ` · today <b>${bestToday.toLocaleString()}</b>` : ''}${rec.bestChain ? ` · chain <b>×${rec.bestChain}</b>` : ''}${rec.bestWave ? ` · wave <b>${rec.bestWave}</b>` : ''}</p>` : ''}
+    <details class="sl-details"><summary>Fair play & controls</summary><p>The press waits for your first touch. Every presser moves on a fixed tick and can never outrun the ball. From your fourth pass the defense starts reading your habits — repeat a pattern and it will be hunted; switch play and space opens. Passes are cut only when a presser genuinely reaches the lane; traps always show a visible wind-up first; tackles need ${RONDO_RULES.tackleTicks * RONDO_RULES.tickMs / 1000}s of continuous contact. Keyboard: 1–6 pass, P pauses.</p></details>
     <p class="sl-ranked-lock"><b>Ranked locked for integrity.</b> Local records work now; worldwide submission stays off until the server can replay signed runs.</p>
   </section>`;
 }

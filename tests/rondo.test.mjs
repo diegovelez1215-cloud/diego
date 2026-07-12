@@ -5,17 +5,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   RONDO_RULES, RONDO_VERSION, RONDO_DEFENDER_ROLES, createRondo, rondoTick, rondoPass, rondoFrame,
-  rondoSummary, rondoRecordAfter, rondoEventLog, validateRondoLog,
+  rondoSummary, rondoRecordAfter, rondoEventLog, validateRondoLog, defenseReads,
   laneOpenness, bestOpenLane, waveProfile, ringPositions, togglePauseRondo, endRondoRun,
 } from '../src/games/rondo.js';
 
 function greedyBot(run, maxTicks = 4000) {
-  // Always release quickly to the safest lane — a competent beginner.
+  // Always release quickly to the safest lane — a competent beginner. The
+  // first touch always goes (ticks only advance once the run has started).
   while (!run.over && run.tick < maxTicks) {
     if (!run.ball) {
       const open = bestOpenLane(run);
-      if (open.teammate >= 0 && open.margin > RONDO_RULES.interceptRadius) {
-        rondoPass(run, open.teammate);
+      if (!run.started || (open.teammate >= 0 && open.margin > RONDO_RULES.interceptRadius)) {
+        rondoPass(run, open.teammate >= 0 ? open.teammate : (run.carrier + 1) % RONDO_RULES.teammates);
       } else if (rondoFrame(run).holdTicks > 4) {
         rondoPass(run, open.teammate >= 0 ? open.teammate : (run.carrier + 1) % RONDO_RULES.teammates);
       }
@@ -30,30 +31,77 @@ function percentile(values, p) {
   return sorted[Math.floor((sorted.length - 1) * p)];
 }
 
-function simulatedPlayer(seed, strategy) {
+/* Scripted players. `delay` is human reaction in ticks; strategies differ in
+   what they read, not in how reliably the engine obeys them. */
+function simulatedPlayer(seed, strategy, maxTicks = 4000) {
   const run = createRondo(seed);
-  const delay = strategy === 'slow' ? 10 : strategy === 'elite' ? 0 : 4;
-  let dangerBefore20 = false;
-  while (!run.over && run.tick < 1000) {
+  const delay = strategy === 'slow' ? 10 : (strategy === 'elite' || strategy === 'elite-varied') ? 0 : 4;
+  let rot = 0;
+  while (!run.over && run.tick < maxTicks) {
     if (!run.ball) {
       const lanes = [];
       for (let i = 0; i < RONDO_RULES.teammates; i++) {
         if (i !== run.carrier) lanes.push({ to: i, margin: laneOpenness(run, i) });
       }
       lanes.sort((a, b) => b.margin - a.margin || a.to - b.to);
-      if (run.passes < 20 && lanes[0].margin < 10) dangerBefore20 = true;
       const ready = !run.started || run.tick - run.receivedAt >= delay;
       if (ready) {
-        // The imperfect player occasionally takes the second-best visible lane;
-        // the elite player mostly one-touches but still makes a rare bad read.
-        const imperfect = strategy === 'risky' && run.passes > 0 && run.passes % 4 === 3;
-        const eliteMistake = strategy === 'elite' && run.passes > 0 && run.passes % 9 === 0;
-        rondoPass(run, lanes[(imperfect || eliteMistake) ? 1 : 0].to);
+        let pick = lanes[0]; // predictable: always the visible freebie
+        if (strategy === 'risky' && run.passes > 0 && run.passes % 4 === 3) pick = lanes[1];
+        if (strategy === 'elite' && run.passes > 0 && run.passes % 9 === 0) pick = lanes[1];
+        if (strategy === 'varied' || strategy === 'elite-varied') {
+          // deliberately rotates through the three best lanes — switching play
+          rot = (rot + 1) % 3;
+          const alt = lanes[Math.min(rot, lanes.length - 1)];
+          pick = alt.margin > RONDO_RULES.interceptRadius + 1 ? alt : lanes[0];
+        }
+        rondoPass(run, pick.to);
       }
     }
     rondoTick(run);
   }
-  return { passes: run.passes, dangerBefore20, over: run.over };
+  return { passes: run.passes, over: run.over };
+}
+
+/* A player leaning on the A→B→A give-and-go. `blind` plays the return ball
+   no matter what; the competent version only plays it when the lane is
+   honestly open, falling back to the safest outlet — the realistic habit. */
+function pingPongPlayer(seed, mode = 'challenge', { blind = false, maxPasses = 30 } = {}) {
+  const run = createRondo(seed, mode);
+  let trapKeyedReturn = false;
+  while (!run.over && run.passes < maxPasses && run.tick < 3000) {
+    if (!run.ball && (!run.started || run.tick - run.receivedAt >= 3)) {
+      const back = run.history.length ? run.history[run.history.length - 1].from : -1;
+      const playable = back >= 0 && back !== run.carrier
+        && (blind || laneOpenness(run, back) > RONDO_RULES.interceptRadius);
+      rondoPass(run, playable ? back : bestOpenLane(run).teammate);
+    }
+    rondoTick(run);
+    if (run.passes >= 4 && !run.ball && run.history.length) {
+      const back = run.history[run.history.length - 1].from;
+      if (run.defenders.some((d) => d.role === 'trap' && d.targetTo === back)) trapKeyedReturn = true;
+    }
+  }
+  return { run, trapKeyedReturn };
+}
+
+/* A competent player who force-feeds one favorite outlet whenever it looks
+   open — the receiver habit the shadow should learn to deny. */
+function favoritePlayer(seed, fav, maxPasses = 16) {
+  const run = createRondo(seed);
+  let favoriteDenied = false;
+  while (!run.over && run.passes < maxPasses && run.tick < 3000) {
+    if (!run.ball && (!run.started || run.tick - run.receivedAt >= 3)) {
+      const to = run.carrier !== fav && laneOpenness(run, fav) > RONDO_RULES.interceptRadius
+        ? fav : bestOpenLane(run).teammate;
+      rondoPass(run, to);
+    }
+    rondoTick(run);
+    if (run.passes >= 6 && run.carrier !== fav) {
+      if (run.defenders.some((d) => (d.role === 'shadow' || d.role === 'lane-cutter') && d.targetTo === fav)) favoriteDenied = true;
+    }
+  }
+  return { run, favoriteDenied };
 }
 
 test('same seed and same pass script produce the identical run', () => {
@@ -71,12 +119,15 @@ test('same seed and same pass script produce the identical run', () => {
   assert.equal(b.turnovers, a.turnovers);
 });
 
-test('the ball always outruns the press at every wave — no impossible chase', () => {
+test('the ball always outruns the press and the unit never exceeds six defenders', () => {
   for (let w = 1; w <= RONDO_RULES.maxWave + 2; w++) {
     assert.ok(waveProfile(w).speed < RONDO_RULES.passSpeed * 0.55,
       `wave ${w} presser speed must stay far below ball speed`);
-    assert.ok(waveProfile(w).defenders <= 8);
+    assert.ok(waveProfile(w).defenders <= 6, `wave ${w} fields at most 6 defenders`);
   }
+  assert.equal(waveProfile(RONDO_RULES.maxWave).defenders, 6, 'the deepest wave fields exactly the six-man cap');
+  const run = greedyBot(createRondo(606), 6000);
+  assert.ok(run.defenders.length <= 6, 'a live run never accumulates more than 6 pressers');
 });
 
 test('difficulty never degrades input: reaction window and pass speed are constant', () => {
@@ -166,7 +217,7 @@ test('defenders have explicit visible roles and fair failures name engine causes
   assert.deepEqual(RONDO_DEFENDER_ROLES, ['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure']);
   const run = createRondo(17);
   const frame = rondoFrame(run);
-  assert.deepEqual(frame.defenders.map((d) => d.role), ['chaser', 'lane-cutter']);
+  assert.deepEqual(frame.defenders.map((d) => d.role), ['chaser', 'lane-cutter', 'shadow']);
   assert.equal(typeof frame.defenders[0].trapPhase, 'string');
   let sawExplainedCut = false;
   for (let seed = 1; seed <= 24 && !sawExplainedCut; seed++) {
@@ -190,19 +241,125 @@ test('defenders have explicit visible roles and fair failures name engine causes
   assert.equal(sawExplainedCut, true, 'a real geometric interception carries a truthful cause');
 });
 
-test('seeded strategy distributions make 50-plus a rare achievement', () => {
-  const slow = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'slow'));
-  const quick = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'quick'));
-  const risky = Array.from({ length: 48 }, (_, i) => simulatedPlayer(i + 1, 'risky'));
-  const elite = Array.from({ length: 80 }, (_, i) => simulatedPlayer(i + 1, 'elite'));
-  assert.ok(percentile(slow.map((r) => r.passes), 0.9) <= 8, 'hesitation is punished in the opening phase');
-  assert.ok(quick.every((r) => r.dangerBefore20), 'a competent player meets real pressure before pass 20');
-  assert.ok(percentile(quick.map((r) => r.passes), 0.9) <= 35, '35+ needs more than a routine quick-safe rhythm');
-  assert.ok(percentile(risky.map((r) => r.passes), 0.9) <= 28, 'occasional risky reads do not coast through the press');
-  const fiftyPlus = elite.filter((r) => r.passes >= 50).length / elite.length;
-  const fiftyFivePlus = elite.filter((r) => r.passes >= 55).length / elite.length;
-  assert.ok(fiftyPlus > 0 && fiftyPlus <= 0.15, `50+ should be uncommon, got ${(fiftyPlus * 100).toFixed(1)}%`);
-  assert.ok(fiftyFivePlus > 0 && fiftyFivePlus <= 0.1, `55+ should be rare but possible, got ${(fiftyFivePlus * 100).toFixed(1)}%`);
+test('seeded strategy distributions match the tuning bands', () => {
+  // Deterministic seeds — this is a fixed fingerprint of the engine, not a
+  // statistical gamble. Bands are deliberately loose behavioral targets.
+  const seeds = 48;
+  const slow = Array.from({ length: seeds }, (_, i) => simulatedPlayer(i + 1, 'slow').passes);
+  const quick = Array.from({ length: seeds }, (_, i) => simulatedPlayer(i + 1, 'quick').passes);
+  const risky = Array.from({ length: seeds }, (_, i) => simulatedPlayer(i + 1, 'risky').passes);
+  const elite = Array.from({ length: seeds }, (_, i) => simulatedPlayer(i + 1, 'elite').passes);
+  const eliteVaried = Array.from({ length: seeds }, (_, i) => simulatedPlayer(i + 1, 'elite-varied').passes);
+  // hesitation, not unavoidable pressure, produces the sub-5 runs
+  assert.ok(percentile(slow, 0.9) <= 8, 'hesitation is punished in the opening phase');
+  assert.ok(quick.every((p) => p >= 5), 'a competent quick player never dies before pass 5');
+  // a predictable competent player commonly finishes around 12–20
+  const quickMedian = percentile(quick, 0.5);
+  assert.ok(quickMedian >= 10 && quickMedian <= 24, `predictable-competent median lands near 12–20, got ${quickMedian}`);
+  assert.ok(percentile(quick, 0.9) <= 30, 'routine safe rhythm does not coast past 30');
+  assert.ok(percentile(risky, 0.9) <= 24, 'regular risky reads meet the press early');
+  // fast play is strong; fast varied play is stronger — 35+ strong, 50+ very rare
+  assert.ok(elite.some((p) => p >= 30), 'fast one-touch play can still go deep');
+  assert.ok(percentile(elite, 0.9) <= 45, 'fast but predictable play does not run away');
+  const fiftyPlus = eliteVaried.filter((p) => p >= 50).length / seeds;
+  assert.ok(eliteVaried.some((p) => p >= 35), '35+ is reachable for fast varied play');
+  assert.ok(fiftyPlus <= 0.25, `50+ stays rare even for perfect varied play, got ${(fiftyPlus * 100).toFixed(1)}%`);
+});
+
+test('a repeated A-B-A give-and-go draws the trap onto the return ball', () => {
+  let keyed = 0; let sampled = 0;
+  for (let seed = 1; seed <= 16; seed++) {
+    const { run, trapKeyedReturn } = pingPongPlayer(seed);
+    if (run.passes >= 5) sampled += 1;
+    if (trapKeyedReturn) keyed += 1;
+  }
+  assert.ok(sampled >= 4, `enough ping-pong runs survived to sample (${sampled})`);
+  assert.ok(keyed >= 4, `the trap keyed the habitual return ball in ${keyed}/16 seeds`);
+});
+
+test('repeatedly feeding one receiver gets that outlet shadowed', () => {
+  let denied = 0; let sampled = 0;
+  for (let seed = 1; seed <= 16; seed++) {
+    const fav = 2 + (seed % 3);
+    const { run, favoriteDenied } = favoritePlayer(seed, fav);
+    if (run.passes >= 7) sampled += 1;
+    if (favoriteDenied) denied += 1;
+  }
+  assert.ok(sampled >= 4, `enough favorite-feeding runs survived to sample (${sampled})`);
+  assert.ok(denied >= 4, `the shadow or cutter denied the favorite outlet in ${denied}/16 seeds`);
+});
+
+test('varied switching stays safer than repetition', () => {
+  let variedTotal = 0; let blindRepeatTotal = 0;
+  for (let seed = 1; seed <= 16; seed++) {
+    variedTotal += simulatedPlayer(seed, 'varied').passes;
+    blindRepeatTotal += pingPongPlayer(seed, 'challenge', { blind: true }).run.passes;
+  }
+  assert.ok(variedTotal > blindRepeatTotal,
+    `switching play outlasts rote repetition (varied ${variedTotal} vs blind give-and-go ${blindRepeatTotal})`);
+});
+
+test('adaptation only begins from pass 4, never in practice, and resets with the run', () => {
+  const run = createRondo(88);
+  assert.equal(defenseReads(run), null, 'a fresh run has nothing to read');
+  assert.deepEqual(run.history, [], 'a fresh run has no pass memory');
+  greedyBot(run, 400);
+  if (run.passes >= 4) assert.notEqual(defenseReads(run), null, 'challenge reads habits once pass 4 arrives');
+  const practice = createRondo(88, 'practice');
+  const pp = pingPongPlayer(88, 'practice', { maxPasses: 12 });
+  assert.equal(defenseReads(pp.run), null, 'practice never hunts habits, whatever the pattern');
+  assert.equal(practice.mode === 'practice' && pp.run.over, false, 'practice cannot end from turnovers');
+  const restart = createRondo(run.seed, run.mode);
+  assert.deepEqual(restart.history, [], 'a restart forgets every habit');
+  assert.equal(restart.habit, null);
+  assert.equal(defenseReads(restart), null);
+});
+
+test('a trap cannot close during its wind-up — five ticks of visible tell, minimum', () => {
+  for (let w = 1; w <= RONDO_RULES.maxWave; w++) {
+    assert.ok(waveProfile(w).trapTicks >= 5, `wave ${w} trap shows for at least 5 ticks`);
+  }
+  // Geometric proof: the same trap standing on the exact ball path lets the
+  // ball through while showing, and cuts it once snapped.
+  const scenario = (phase) => {
+    const run = createRondo(21);
+    rondoPass(run, bestOpenLane(run).teammate); // press begins with the touch
+    for (const d of run.defenders) { d.x = 8; d.y = 10; d.retargetAt = run.tick + 9999; } // park the real press
+    for (let i = 0; i < 60 && run.ball; i++) rondoTick(run); // settle the first pass
+    const target = bestOpenLane(run).teammate;
+    const from = run.positions[run.carrier];
+    const to = run.positions[target];
+    run.defenders.push({
+      id: 4, role: 'trap', x: (from.x + to.x) / 2, y: (from.y + to.y) / 2,
+      targetKind: 'trap', laneTo: target, targetTo: target,
+      trapPhase: phase, trapAt: run.tick + 9999, retargetAt: run.tick + 9999, closeTicks: 0,
+    });
+    const passesBefore = run.passes;
+    rondoPass(run, target);
+    for (let i = 0; i < 60 && run.ball; i++) rondoTick(run);
+    return { run, completed: run.passes === passesBefore + 1 };
+  };
+  const showing = scenario('show');
+  assert.equal(showing.completed, true, 'a showing trap on the lane cannot cut the ball');
+  const snapped = scenario('snap');
+  assert.equal(snapped.completed, false, 'the same trap cuts the ball once snapped');
+  assert.equal(snapped.run.lastOutcome.cause, 'trap-triggered');
+});
+
+test('defenders never teleport — every step obeys the wave speed cap', () => {
+  const run = createRondo(1717);
+  rondoPass(run, bestOpenLane(run).teammate);
+  for (let i = 0; i < 600 && !run.over; i++) {
+    const before = run.defenders.map((d) => ({ x: d.x, y: d.y }));
+    const speed = waveProfile(run.wave).speed;
+    if (!run.ball && run.tick - run.receivedAt >= 4) rondoPass(run, bestOpenLane(run).teammate);
+    rondoTick(run);
+    run.defenders.forEach((d, i2) => {
+      if (!before[i2]) return; // newly spawned this tick
+      const step = Math.hypot(d.x - before[i2].x, d.y - before[i2].y);
+      assert.ok(step <= speed + 0.02, `tick ${run.tick}: defender ${d.id} moved ${step.toFixed(2)} (cap ${speed})`);
+    });
+  }
 });
 
 test('waves escalate pressure but stay bounded', () => {
@@ -369,7 +526,7 @@ test('the replay validator accepts an honest log and rejects tampering', () => {
 
 test('ranked stays locked until a server can replay signed challenges', () => {
   assert.equal(RONDO_RULES.ranked, false);
-  assert.equal(RONDO_VERSION, 'rondo-v3');
+  assert.equal(RONDO_VERSION, 'rondo-v4');
 });
 
 test('an exited run finishes with a complete, honest summary', () => {

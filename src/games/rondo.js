@@ -8,9 +8,9 @@
 
 import { createSeededRng, hashSeed } from '../core/soccer-engine.js';
 
-// v3 makes defensive intent part of the replayed simulation. Old event logs
+// v4 gives the defense deterministic pass-habit memory. Old event logs
 // stay deliberately invalid rather than silently replaying under new AI.
-export const RONDO_VERSION = 'rondo-v3';
+export const RONDO_VERSION = 'rondo-v4';
 
 export const RONDO_RULES = Object.freeze({
   tickMs: 100,            // one logic tick = 100ms of game time
@@ -29,22 +29,23 @@ export const RONDO_RULES = Object.freeze({
 
 /* Presser parameters per wave. Speed and count rise, but the reaction
    window (tackleTicks) and the ball's speed advantage never shrink:
-   difficulty is more pressure and less space, never worse input. */
+   difficulty is more pressure and less space, never worse input. The unit
+   caps at six pressers — intelligence, not bodies, carries the late game. */
 export function waveProfile(wave) {
   const w = Math.max(1, Math.min(RONDO_RULES.maxWave, Math.floor(wave) || 1));
-  const defenders = [2, 3, 4, 4, 5, 6, 7, 8, 8, 8][w - 1];
+  const defenders = [3, 4, 4, 5, 5, 5, 6, 6, 6, 6][w - 1];
   return Object.freeze({
     wave: w,
     defenders,
-    speed: Math.min(RONDO_RULES.maxDefenderSpeed, 1.96 + w * 0.09),
-    ringRadius: Math.max(21, 37 - w * 1.55),                // useful space tightens gradually
+    speed: Math.min(RONDO_RULES.maxDefenderSpeed, 2.0 + w * 0.08),
+    ringRadius: Math.max(20, 36 - w * 1.6),                 // useful space tightens gradually
     retargetTicks: Math.max(3, 6 - Math.floor(w / 3)),      // roles read the next picture sooner
-    trapTicks: Math.max(4, 8 - Math.floor(w / 3)),
+    trapTicks: Math.max(5, 8 - Math.floor(w / 3)),          // a trap always shows for ≥5 ticks
   });
 }
 
 export const RONDO_DEFENDER_ROLES = Object.freeze(['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure']);
-const DEFENDER_ROLES = Object.freeze(['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure', 'lane-cutter', 'shadow', 'late-pressure']);
+const DEFENDER_ROLES = Object.freeze(['chaser', 'lane-cutter', 'shadow', 'trap', 'late-pressure', 'lane-cutter']);
 
 function profileFor(run) {
   const base = waveProfile(run.wave);
@@ -98,10 +99,10 @@ function spawnDefenders(run, count) {
     const i = run.defenders.length;
     let x = 50; let y = 50; let attempts = 0;
     do {
-      x = fixed(50 + (rng() - 0.5) * 24);
-      y = fixed(50 + (rng() - 0.5) * 24);
+      x = fixed(50 + (rng() - 0.5) * 30);
+      y = fixed(50 + (rng() - 0.5) * 30);
       attempts += 1;
-    } while (attempts < 24 && run.defenders.some((d) => dist(d, { x, y }) < 11));
+    } while (attempts < 40 && run.defenders.some((d) => dist(d, { x, y }) < 11));
     run.defenders.push({
       id: i + 1,
       role: DEFENDER_ROLES[i],
@@ -135,6 +136,9 @@ export function createRondo(seed, mode = 'challenge') {
     ball: null,               // { from, to, x, y, progress } while travelling
     queuedTo: null,           // one visible next-pass command while ball travels
     started: false,           // the press begins with the player's first touch
+    history: [],              // recent completed passes — the defense's memory
+    habit: null,              // deterministic read of that memory (see readHabits)
+    readAnnounced: false,     // the "press is reading you" line fires once
     passes: 0,
     score: 0,
     chain: 0,
@@ -159,12 +163,53 @@ function pushLog(run, text) {
   if (run.log.length > 6) run.log.length = 6;
 }
 
+/* ---- pass-habit memory ----------------------------------------------- */
+
+const HABIT_WINDOW = 8;   // completed passes the defense can remember
+const HABIT_RECENT = 6;   // window for receiver-favoritism and variety
+
+/** Deterministic read of the recent pass log. Pure bookkeeping — no dice. */
+function readHabits(run) {
+  const h = run.history;
+  const recent = h.slice(-HABIT_RECENT);
+  const counts = new Map();
+  for (const p of recent) counts.set(p.to, (counts.get(p.to) || 0) + 1);
+  let favorite = -1; let favCount = 0;
+  for (const [to, c] of counts) if (c > favCount) { favorite = to; favCount = c; }
+  let returns = 0; // A→B→A give-and-gos anywhere in memory
+  for (let i = 1; i < h.length; i++) if (h[i].to === h[i - 1].from) returns += 1;
+  let safeStreak = 0; // consecutive picks of the visibly safest lane
+  for (let i = h.length - 1; i >= 0 && h[i].safest; i--) safeStreak += 1;
+  let shortStreak = 0; // consecutive short-side balls
+  for (let i = h.length - 1; i >= 0 && h[i].short; i--) shortStreak += 1;
+  return Object.freeze({
+    favorite: favCount >= 3 ? favorite : -1,
+    favCount,
+    returnTo: h.length ? h[h.length - 1].from : -1,
+    returns,
+    safeStreak,
+    shortStreak,
+    variety: counts.size,
+    varied: recent.length >= 4 && counts.size >= 4,
+  });
+}
+
+/** What the defense is currently allowed to key on. Null while the opening
+    passes stay readable, and always null in practice — practice teaches
+    lanes, it never hunts habits. Exposed so the UI and tests share one
+    truth about when adaptation is live. */
+export function defenseReads(run) {
+  if (!run || run.mode !== 'challenge') return null;
+  if (run.passes < 3 || !run.habit) return null; // adaptation begins with pass 4
+  return run.habit;
+}
+
 /** Openness of the lane carrier→teammate right now: the smallest margin any
     presser has on the travelling ball, in field units. Visible to the player
     (practice hints) and used verbatim for teach-back — never a hidden roll. */
-export function laneOpenness(run, to) {
-  if (to === run.carrier || to < 0 || to >= run.positions.length) return -1;
-  const from = run.positions[run.carrier];
+export function laneOpenness(run, to, fromIndex = run.carrier) {
+  if (to === fromIndex || to < 0 || to >= run.positions.length) return -1;
+  const from = run.positions[fromIndex];
   const target = run.positions[to];
   let margin = Infinity;
   for (const d of run.defenders) {
@@ -236,6 +281,26 @@ function completePass(run) {
   run.lastOutcome = {
     kind: 'pass', points, oneTouch, split, switch: switchBall, chain: run.chain, to: ball.to,
   };
+  // the defense remembers what just happened — and only what just happened
+  run.history.push({
+    from: ball.from,
+    to: ball.to,
+    safest: ball.openAtLaunch.teammate === ball.to,
+    short: distance < 40,
+  });
+  if (run.history.length > HABIT_WINDOW) run.history.shift();
+  run.habit = readHabits(run);
+  // a genuine switch forces the whole unit to re-read the picture: stale
+  // goals persist for a few extra ticks, which is the player's real opening
+  if (switchBall) {
+    const recover = profileFor(run).retargetTicks + 3;
+    for (const d of run.defenders) d.retargetAt = Math.max(d.retargetAt, run.tick + recover);
+  }
+  const reads = defenseReads(run);
+  if (!run.readAnnounced && reads && (reads.favorite >= 0 || reads.returns >= 2 || reads.safeStreak >= 3)) {
+    run.readAnnounced = true;
+    pushLog(run, 'The press is reading your pattern — switch it up.');
+  }
   // wave step-up: more press, less space — announced, never silent
   const nextWave = Math.min(RONDO_RULES.maxWave, 1 + Math.floor(run.passes / RONDO_RULES.passesPerWave));
   if (nextWave > run.wave) {
@@ -255,54 +320,96 @@ function pointOnLane(from, to, amount) {
   return { x: from.x + (to.x - from.x) * amount, y: from.y + (to.y - from.y) * amount };
 }
 
-function rankedLanes(run) {
+/* Where the defense reads from: the carrier — or, once a travelling ball has
+   committed to its line, the teammate about to receive it. Pressers shift
+   during flight like a real unit instead of marking a picture that is
+   already gone, but they need to see the pass before they can react. */
+function pressFocus(run) {
+  return run.ball && run.ball.progress >= 0.45 ? run.ball.to : run.carrier;
+}
+
+function rankedLanes(run, focus = pressFocus(run)) {
   const lanes = [];
   for (let i = 0; i < run.positions.length; i++) {
-    if (i !== run.carrier) lanes.push({ teammate: i, margin: laneOpenness(run, i), distance: dist(run.positions[run.carrier], run.positions[i]) });
+    if (i !== focus) lanes.push({ teammate: i, margin: laneOpenness(run, i, focus), distance: dist(run.positions[focus], run.positions[i]) });
   }
   return lanes.sort((a, b) => b.margin - a.margin || b.distance - a.distance || a.teammate - b.teammate);
 }
 
-function chooseRoleTarget(run, d, lanes) {
-  const safest = lanes[0] || { teammate: (run.carrier + 1) % run.positions.length };
+/* Role targeting. Before pass 4 (and always in practice) every read is the
+   honest geometric one. From pass 4 in challenge, roles start keying on the
+   player's own recent habits — repetition earns anticipation, and a varied
+   player faces only the geometry. No dice decide an outcome; the seeded
+   rngAi only varies which honest lane a role stands on. */
+function chooseRoleTarget(run, d, lanes, focus) {
+  const safest = lanes[0] || { teammate: (focus + 1) % run.positions.length };
   const nextSafest = lanes[1] || safest;
   const thirdSafest = lanes[2] || nextSafest;
-  const fourthSafest = lanes[3] || thirdSafest;
-  const fifthSafest = lanes[4] || fourthSafest;
-  if (d.role === 'chaser') return { kind: 'carrier', to: run.carrier };
+  const reads = defenseReads(run);
+  const habit = reads && !reads.varied ? reads : null; // variety switches the hunt off
+  if (d.role === 'chaser') return { kind: 'carrier', to: focus };
   if (d.role === 'lane-cutter') {
-    const to = (d.id > 5 ? fourthSafest : safest).teammate;
-    return { kind: 'lane', to };
+    if (d.id > 2) return { kind: 'lane', to: nextSafest.teammate }; // second cutter stays geometric
+    // the first cutter steps onto the lane the player keeps leaning on
+    if (habit && habit.favorite >= 0 && habit.favorite !== focus) return { kind: 'lane', to: habit.favorite };
+    return { kind: 'lane', to: safest.teammate };
   }
   if (d.role === 'shadow') {
-    const to = (d.id > 6 ? fifthSafest : nextSafest).teammate;
-    return { kind: 'shadow', to };
+    // the shadow denies the outlet the player keeps choosing…
+    if (habit && habit.favorite >= 0 && habit.favorite !== focus) return { kind: 'shadow', to: habit.favorite };
+    // …and a player who always takes the freebie loses the freebie: the
+    // shadow doubles the safest lane the cutter is already stepping onto
+    if (habit && habit.safeStreak >= 3) return { kind: 'shadow', to: safest.teammate };
+    return { kind: 'shadow', to: nextSafest.teammate };
   }
   if (d.role === 'trap') {
-    // A seeded choice between the two best-looking lanes prevents a rote
-    // pattern, while the show/snap state is always visible in the renderer.
+    // an established give-and-go makes the return ball the obvious target —
+    // still behind a visible ≥5-tick wind-up before the trap may close
+    if (habit && habit.returns >= 2 && habit.returnTo >= 0 && habit.returnTo !== focus) {
+      return { kind: 'trap', to: habit.returnTo };
+    }
     const choice = (run.rngAi() < 0.62 ? thirdSafest : nextSafest).teammate;
     return { kind: 'trap', to: choice };
   }
-  // Late pressure creates a second closing angle after the player has proven
-  // they can beat the basic press; it still moves at the same capped speed.
-  const to = (d.id > 7 ? fifthSafest : (run.rngAi() < 0.55 ? nextSafest : thirdSafest)).teammate;
+  // Late pressure: a second closing angle. Against a short-side habit it
+  // squeezes the nearest outlet instead of a ranked lane.
+  if (habit && habit.shortStreak >= 3) {
+    let nearest = safest; let best = Infinity;
+    for (const lane of lanes) if (lane.distance < best) { best = lane.distance; nearest = lane; }
+    return { kind: 'late', to: nearest.teammate };
+  }
+  const to = (run.rngAi() < 0.55 ? nextSafest : thirdSafest).teammate;
   return { kind: 'late', to };
 }
 
 function roleGoal(run, d) {
-  const carrier = run.positions[run.carrier];
+  const carrier = run.positions[pressFocus(run)];
   const receiver = run.positions[d.targetTo] || carrier;
   if (d.role === 'chaser') return carrier;
-  if (d.role === 'lane-cutter') return pointOnLane(carrier, receiver, 0.5);
+  if (d.role === 'lane-cutter') {
+    // coordination: while the chaser is pressing the carrier, the cutter
+    // tightens toward the exit instead of chasing the same ball
+    const chaser = run.defenders[0];
+    const pressing = chaser && chaser.role === 'chaser' && dist(chaser, carrier) < RONDO_RULES.tackleRadius * 2;
+    return pointOnLane(carrier, receiver, pressing ? 0.42 : 0.5);
+  }
   if (d.role === 'shadow') return pointOnLane(carrier, receiver, 0.78);
-  if (d.role === 'trap') return pointOnLane(carrier, receiver, d.trapPhase === 'snap' ? 0.5 : 0.86);
+  if (d.role === 'trap') {
+    if (d.trapPhase === 'snap') return pointOnLane(carrier, receiver, 0.5);
+    // the wind-up is honest: while showing, the trap stands visibly OFF the
+    // lane it intends to jump, one step to the side of the receiver
+    const p = pointOnLane(carrier, receiver, 0.86);
+    const dx = receiver.x - carrier.x; const dy = receiver.y - carrier.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: p.x - (dy / len) * 6, y: p.y + (dx / len) * 6 };
+  }
   return pointOnLane(carrier, receiver, 0.32);
 }
 
 function moveDefenders(run) {
   const profile = profileFor(run);
-  const lanes = rankedLanes(run);
+  const focus = pressFocus(run);
+  const lanes = rankedLanes(run, focus);
   for (const d of run.defenders) {
     if (d.role === 'trap' && d.trapPhase === 'show' && run.tick >= d.trapAt) {
       d.trapPhase = 'snap';
@@ -314,7 +421,7 @@ function moveDefenders(run) {
         d.trapPhase = 'show';
         d.trapAt = run.tick + profile.trapTicks;
       }
-      const target = chooseRoleTarget(run, d, lanes);
+      const target = chooseRoleTarget(run, d, lanes, focus);
       d.targetKind = target.kind;
       d.targetTo = target.to;
       d.laneTo = target.to;
@@ -356,6 +463,9 @@ export function rondoTick(run) {
     ball.x = fixed(from.x + (to.x - from.x) * ball.progress);
     ball.y = fixed(from.y + (to.y - from.y) * ball.progress);
     for (const d of run.defenders) {
+      // a trap can only close after its visible wind-up has snapped — while
+      // it is still showing, the ball passes it untouched, by rule
+      if (d.role === 'trap' && d.trapPhase !== 'snap') continue;
       if (dist(d, ball) <= RONDO_RULES.interceptRadius) {
         const open = ball.openAtLaunch;
         const cause = interceptionCause(ball, d);

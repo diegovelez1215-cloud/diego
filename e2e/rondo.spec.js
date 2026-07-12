@@ -17,11 +17,22 @@ test.describe('Rondo — flagship skill game', () => {
     await mkdir('output/rondo', { recursive: true });
     await gotoApp(page);
     await openPlayMode(page, 'rondo');
-    // instructions readable in under 20 seconds: three steps, records, two starts
-    await expect(page.locator('.rondo.setup .sl-rules span')).toHaveCount(3);
-    await expect(page.locator('[data-rondo-start="challenge"]')).toBeVisible();
-    await expect(page.locator('[data-rondo-start="practice"]')).toBeVisible();
-    await expect(page.locator('.sl-ranked-lock')).toContainText('Ranked locked');
+    // the landing answers everything in one screen: what it is, which mode,
+    // what to tap — both actions inside the initial 390×844 viewport
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator('.rondo.setup h2')).toHaveText('Rondo');
+    await expect(page.locator('.rondo.setup .sl-rules')).toHaveCount(0); // the card stack is gone
+    for (const [sel, label] of [['[data-rondo-start="challenge"]', 'challenge'], ['[data-rondo-start="practice"]', 'practice']]) {
+      const box = await page.locator(sel).boundingBox();
+      expect(box, `${label} action present`).not.toBeNull();
+      expect(box.y, `${label} action starts on the first screen`).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height, `${label} action fully inside 390×844`).toBeLessThanOrEqual(844);
+    }
+    await expect(page.locator('.sl-controls')).toBeVisible();
+    // the mode rail scrolls away on phones — never pinned under the status bar
+    const railPosition = await page.locator('.mode-rail').evaluate((el) => getComputedStyle(el).position);
+    expect(railPosition, 'mode rail is not sticky on phone widths').not.toBe('sticky');
+    await expectNoHorizontalOverflow(page, expect, 'rondo setup');
     await page.screenshot({ fullPage: true, path: 'output/rondo/setup.png' });
 
     await page.locator('[data-rondo-start="practice"]').click();
@@ -30,6 +41,7 @@ test.describe('Rondo — flagship skill game', () => {
     await expect(page.locator('.rondo-def').first()).toBeVisible();
     await expect(page.locator('.rondo-def[data-role="CHASE"]')).toHaveCount(1);
     await expect(page.locator('.rondo-def[data-role="CUT"]')).toHaveCount(1);
+    await expect(page.locator('.rondo-def[data-role="SHADOW"]')).toHaveCount(1);
     // the dock steps aside during a live run — controls are never covered
     await expect(page.locator('body')).toHaveClass(/rondo-active/);
     // tap a non-carrier teammate: a pass launches, and a rapid second touch
@@ -124,6 +136,35 @@ test.describe('Rondo — flagship skill game', () => {
       expect(points, `POINTS box @ ${width}`).not.toBeNull();
       expect(points.x + points.width, `POINTS visible @ ${width}`).toBeLessThanOrEqual(width);
       expect(points.x, `POINTS not clipped left @ ${width}`).toBeGreaterThanOrEqual(0);
+      // 4) the grade never breaks inside a word — each word sits on one line
+      const wordRects = await page.evaluate(() => {
+        const h2 = document.querySelector('.rondo-result-head h2');
+        const node = h2.firstChild;
+        const text = node.nodeValue;
+        const rects = [];
+        let at = 0;
+        for (const word of text.split(' ')) {
+          const start = text.indexOf(word, at);
+          const range = document.createRange();
+          range.setStart(node, start);
+          range.setEnd(node, start + word.length);
+          rects.push(range.getClientRects().length);
+          at = start + word.length;
+        }
+        return rects;
+      });
+      for (const lines of wordRects) {
+        expect(lines, `no word of the grade splits across lines @ ${width}`).toBe(1);
+      }
+      // 5) the retry actions sit above the app dock, not underneath it
+      await page.locator('#rondo-new').scrollIntoViewIfNeeded();
+      const runAgain = await page.locator('#rondo-new').boundingBox();
+      const dock = await page.locator('.dock').boundingBox();
+      expect(runAgain, `Run it again present @ ${width}`).not.toBeNull();
+      if (dock) {
+        expect(runAgain.y + runAgain.height, `result controls clear the dock @ ${width}`)
+          .toBeLessThanOrEqual(dock.y + 1);
+      }
     }
   });
 
