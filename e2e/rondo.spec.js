@@ -84,6 +84,49 @@ test.describe('Rondo — flagship skill game', () => {
     await page.locator('#rondo-exit').click();
   });
 
+  test('the result score stays width-safe on 320, 390 and 430 phones', async ({ page }) => {
+    await gotoApp(page);
+    await openPlayMode(page, 'rondo');
+    await page.locator('[data-rondo-start="practice"]').click();
+    await expect(page.locator('.rondo.live')).toBeVisible();
+    await page.locator('#rondo-pitch').focus();
+    await page.keyboard.press('3');
+    await page.waitForTimeout(1200);
+    await page.locator('#rondo-finish').click();
+    await expect(page.locator('.rondo.result')).toBeVisible();
+
+    // Reproduce the real-iPhone worst case: a long grade next to a four-digit
+    // score. The layout — not the card's overflow clip — must contain it.
+    await page.evaluate(() => {
+      const grade = document.querySelector('.rondo-result-head h2');
+      if (grade) grade.textContent = 'CAROUSEL MASTER';
+      const score = document.querySelector('.rondo-final-score');
+      if (score && score.firstChild) score.firstChild.nodeValue = '1,412';
+    });
+
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForTimeout(80); // let clamp typography settle
+      // 1) nothing pushes the document wider than the phone
+      await expectNoHorizontalOverflow(page, expect, `rondo result @ ${width}`);
+      // 2) the head and score contain their own content (not merely clipped)
+      const fit = await page.evaluate(() => {
+        const probe = (sel) => {
+          const el = document.querySelector(sel);
+          return el ? el.scrollWidth - el.clientWidth : 0;
+        };
+        return { head: probe('.rondo-result-head'), score: probe('.rondo-final-score') };
+      });
+      expect(fit.head, `head content fits @ ${width}`).toBeLessThanOrEqual(1);
+      expect(fit.score, `score content fits @ ${width}`).toBeLessThanOrEqual(1);
+      // 3) the POINTS label is fully on-screen
+      const points = await page.locator('.rondo-final-score small').boundingBox();
+      expect(points, `POINTS box @ ${width}`).not.toBeNull();
+      expect(points.x + points.width, `POINTS visible @ ${width}`).toBeLessThanOrEqual(width);
+      expect(points.x, `POINTS not clipped left @ ${width}`).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   test('reduced motion keeps the live press, touch controls, and restart playable', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await gotoApp(page);
