@@ -1,7 +1,8 @@
+import type { MouseEvent } from 'react';
+
 const lanes = [
   { name: 'Daily challenge', description: 'One seeded run, same for everyone.', state: 'Planned', icon: 'calendar' },
   { name: 'Practice', description: 'Unranked training, no clock.', state: 'Planned', icon: 'practice' },
-  { name: 'Predictions', description: 'Call every canonical fixture.', state: 'Next up', icon: 'prediction', accent: true },
   { name: 'Ranked', description: 'Server-verified competition.', state: 'Locked', icon: 'lock' },
 ];
 
@@ -12,7 +13,8 @@ function LaneIcon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="10" width="12" height="10" /><path d="M9 10V7a3 3 0 0 1 6 0v3" /></svg>;
 }
 
-export function PlayRoute() {
+export function PlayRoute({ predictions, onNavigate }: { predictions: Readonly<{ eligible: number; pending: number; graded: number; correct: number }>; onNavigate: (path: string) => void }) {
+  function openPredictions(event: MouseEvent<HTMLAnchorElement>) { event.preventDefault(); onNavigate('/v2/predictions'); }
   return (
     <section className="v2-route v2-play">
       <h1 className="v2-page-title">Play</h1>
@@ -25,9 +27,12 @@ export function PlayRoute() {
         <div className="v2-play-flagship__copy"><span>In development</span><h2 id="flagship-title">Counter Attack</h2><p>Turn the break into a goal before the defense recovers.</p></div>
       </section>
       <div className="v2-mode-list" aria-label="Future play modes">
-        {lanes.map((lane) => <article className="v2-mode-row" key={lane.name}><LaneIcon name={lane.icon} /><div><h2>{lane.name}</h2><p>{lane.description}</p></div><span data-accent={lane.accent ? 'true' : undefined}>{lane.state}</span></article>)}
+        {lanes.map((lane) => <article className="v2-mode-row" key={lane.name}><LaneIcon name={lane.icon} /><div><h2>{lane.name}</h2><p>{lane.description}</p></div><span>{lane.state}</span></article>)}
+        <a className="v2-mode-row v2-mode-row--action" href="/v2/predictions" onClick={openPredictions}>
+          <LaneIcon name="prediction" /><div><h2>Predictions</h2><p>{predictions.eligible} eligible · {predictions.pending} pending · {predictions.graded} graded · {predictions.correct} correct</p></div><span data-accent="true">Open</span>
+        </a>
       </div>
-      <p className="v2-route-footnote">United never shows imitation gameplay, scores, or ranks.</p>
+      <p className="v2-route-footnote">Predictions are local to this device. United never shows imitation gameplay, scores, or ranks.</p>
     </section>
   );
 }

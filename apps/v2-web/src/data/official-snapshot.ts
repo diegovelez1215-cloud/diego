@@ -32,6 +32,23 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+function localhostSnapshotFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> | null {
+  if (typeof window === 'undefined' || window.location.hostname !== '127.0.0.1' || (window.localStorage.getItem('__u26v2_prediction_test') !== '1' && !new URLSearchParams(window.location.search).has('__v2e2e'))) return null;
+  try {
+    const configured = JSON.parse(window.localStorage.getItem('__u26v2_official_snapshot') || 'null') as { results?: unknown; live?: unknown } | null;
+    if (!configured) return null;
+    const url = String(input);
+    const body = url.includes('/api/results') ? configured.results : configured.live;
+    return Promise.resolve(new Response(JSON.stringify(body || {}), { status: 200, headers: { 'content-type': 'application/json' } }));
+  } catch {
+    return null;
+  }
+}
+
+function snapshotFetcher(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return localhostSnapshotFetch(input, init) || fetch(input, init);
+}
+
 /**
  * The only browser boundary for official V2 data. Raw provider-shaped payloads
  * are immediately handed to the existing validated overlay before any route
@@ -71,7 +88,7 @@ export type OfficialSnapshotController = Readonly<{
  * request pair at a time. A prior verified snapshot is retained only when a
  * provider marks its fallback stale or a later request fails.
  */
-export function useOfficialSnapshot(fetcher: SnapshotFetch = fetch): OfficialSnapshotController {
+export function useOfficialSnapshot(fetcher: SnapshotFetch = snapshotFetcher): OfficialSnapshotController {
   const [state, setState] = useState<SnapshotState>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const activeRequest = useRef<Promise<void> | null>(null);
@@ -97,7 +114,7 @@ export function useOfficialSnapshot(fetcher: SnapshotFetch = fetch): OfficialSna
           setState(loaded);
           return;
         }
-        if (loaded.stale && lastVerified.current) {
+        if (lastVerified.current) {
           setState({ kind: 'stale', snapshot: lastVerified.current, reason: 'provider-stale' });
           return;
         }

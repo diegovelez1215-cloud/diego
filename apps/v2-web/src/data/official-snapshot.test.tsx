@@ -96,6 +96,23 @@ describe('official snapshot React state', () => {
     expect(controller?.state).toMatchObject({ kind: 'stale', reason: 'provider-stale' });
   });
 
+  it('keeps a validated final projected through an unavailable refresh', async () => {
+    let unavailable = false;
+    const verifiedResults = {
+      ...cleanResults,
+      finished: [{ home: 'Mexico', away: 'South Africa', gh: 2, ga: 0, status: 'FINISHED', utcDate: '2026-06-11T19:00:00Z' }],
+    };
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      if (unavailable) return Promise.resolve(json({ configured: false, finished: [], live: [], hold: [], scheduled: [], response: [] }));
+      return Promise.resolve(json(String(input).endsWith('/api/results') ? verifiedResults : cleanLive));
+    });
+    await mount(fetcher);
+    unavailable = true;
+    await act(async () => { await controller?.refresh(); });
+    expect(controller?.state).toMatchObject({ kind: 'stale', reason: 'provider-stale' });
+    if (controller?.state.kind === 'stale') expect(controller.state.snapshot.fixtures.find((fixture) => fixture.id === 1)?.status.kind).toBe('final');
+  });
+
   it('does not create concurrent duplicate manual refresh requests', async () => {
     const fetcher = vi.fn((input: RequestInfo | URL) => Promise.resolve(json(String(input).endsWith('/api/results') ? cleanResults : cleanLive)));
     await mount(fetcher);

@@ -8,6 +8,7 @@ import './styles/routes.css';
 import './styles/matchday.css';
 import './styles/tournament.css';
 import './styles/play.css';
+import './styles/predictions.css';
 import './styles/you.css';
 
 const root = document.getElementById('v2-root');

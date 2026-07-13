@@ -6,7 +6,7 @@ const repository = process.env.INIT_CWD || resolve(process.cwd(), '../..');
 const read = (path: string) => readFileSync(resolve(repository, path), 'utf8');
 const shell = read('apps/v2-web/src/styles/shell.css');
 const components = read('apps/v2-web/src/styles/components.css');
-const routeStyles = ['matchday.css', 'tournament.css', 'play.css', 'you.css'].map((file) => read(`apps/v2-web/src/styles/${file}`)).join('\n');
+const routeStyles = ['matchday.css', 'tournament.css', 'play.css', 'predictions.css', 'you.css'].map((file) => read(`apps/v2-web/src/styles/${file}`)).join('\n');
 const tokens = read('apps/v2-web/src/styles/tokens.css');
 const matchday = read('apps/v2-web/src/routes/Matchday.tsx');
 const main = read('apps/v2-web/src/main.tsx');
@@ -50,10 +50,10 @@ describe('V2 Floodlight visual contract', () => {
   });
 
   it('splits route styles without adding runtime platform, analytics, font, or service-worker dependencies', () => {
-    for (const file of ['matchday.css', 'tournament.css', 'play.css', 'you.css']) expect(main).toContain(`./styles/${file}`);
+    for (const file of ['matchday.css', 'tournament.css', 'play.css', 'predictions.css', 'you.css']) expect(main).toContain(`./styles/${file}`);
     const packageJson = JSON.parse(read('package.json')) as { dependencies: Record<string, string> };
     expect(Object.keys(packageJson.dependencies).sort()).toEqual(['react', 'react-dom']);
-    const production = ['apps/v2-web/src/main.tsx','apps/v2-web/src/app/App.tsx','apps/v2-web/src/routes/Matchday.tsx','apps/v2-web/src/routes/MatchDetail.tsx','apps/v2-web/src/routes/Tournament.tsx','apps/v2-web/src/routes/Play.tsx','apps/v2-web/src/routes/You.tsx'].map(read).join('\n');
+    const production = ['apps/v2-web/src/main.tsx','apps/v2-web/src/app/App.tsx','apps/v2-web/src/routes/Matchday.tsx','apps/v2-web/src/routes/MatchDetail.tsx','apps/v2-web/src/routes/Tournament.tsx','apps/v2-web/src/routes/Play.tsx','apps/v2-web/src/routes/Predictions.tsx','apps/v2-web/src/routes/PredictionDetail.tsx','apps/v2-web/src/routes/You.tsx'].map(read).join('\n');
     expect(production).not.toMatch(/serviceWorker|@supabase|analytics|gtag\(|segment\.|mixpanel/i);
     expect(`${shell}\n${components}\n${routeStyles}\n${tokens}`).not.toMatch(/url\(.*https?:/i);
   });

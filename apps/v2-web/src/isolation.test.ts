@@ -56,10 +56,25 @@ describe('V2 foundation isolation', () => {
     expect(`${shell}\n${components}`).not.toContain('prefers-reduced-motion: reduce) {\n    *');
   });
 
+  it('keeps Predictions local-only and free of network, auth, analytics, and service-worker imports', () => {
+    const play = read('apps/v2-web/src/routes/Play.tsx');
+    const you = read('apps/v2-web/src/routes/You.tsx');
+    const predictionFiles = ['apps/v2-web/src/predictions/contracts.ts', 'apps/v2-web/src/predictions/prediction-bridge.ts', 'apps/v2-web/src/predictions/prediction-store.ts', 'apps/v2-web/src/routes/Predictions.tsx', 'apps/v2-web/src/routes/PredictionDetail.tsx'].map(read).join('\n');
+    expect(`${play}\n${you}\n${predictionFiles}`).not.toMatch(/@supabase|fetch\(|serviceWorker|analytics|gtag\(|mixpanel|notification/i);
+    expect(predictionFiles).not.toMatch(/providerPayload|officialScore|simulation.*grade/i);
+  });
+
   it('keeps Play and You isolated from official tournament imports', () => {
     const play = read('apps/v2-web/src/routes/Play.tsx');
     const you = read('apps/v2-web/src/routes/You.tsx');
     expect(`${play}\n${you}`).not.toMatch(/domain\/|data\/official-snapshot|tournament-bridge|canonicalFixtures|canonicalTournamentSnapshot/);
+  });
+
+  it('gates deterministic prediction hooks to localhost only', () => {
+    const bridge = read('apps/v2-web/src/predictions/prediction-bridge.ts');
+    const officialSnapshot = read('apps/v2-web/src/data/official-snapshot.ts');
+    expect(`${bridge}\n${officialSnapshot}`).toContain("window.location.hostname !== '127.0.0.1'");
+    expect(`${bridge}\n${officialSnapshot}`).toContain("__u26v2_prediction_test");
   });
 
   it('puts explicit V2 rewrites before the existing V1 catch-all', () => {

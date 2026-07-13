@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 
 let root: Root | undefined;
@@ -23,6 +23,8 @@ afterEach(async () => {
   container?.remove();
   root = undefined;
   container = undefined;
+  window.localStorage.clear();
+  vi.useRealTimers();
 });
 
 describe('United 2026 V2 product routes', () => {
@@ -74,20 +76,54 @@ describe('United 2026 V2 product routes', () => {
     expect(app.querySelectorAll('.v2-phase-tracker [data-state="future"]')).toHaveLength(6);
   });
 
-  it('keeps Play an honest non-playable shell', async () => {
+  it('makes Predictions a real local entry point and shows only real local counts', async () => {
     const app = await renderAt('/v2/play');
     expect(app.textContent).toContain('In development');
-    expect(app.textContent).toContain('United never shows imitation gameplay, scores, or ranks.');
+    expect(app.textContent).toContain('Predictions are local to this device.');
+    const predictions = [...app.querySelectorAll<HTMLAnchorElement>('a')].find((link) => link.textContent?.includes('Predictions'));
+    expect(predictions?.textContent).toContain('eligible');
+    await act(async () => predictions?.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 })));
+    expect(window.location.pathname).toBe('/v2/predictions');
+    expect(app.querySelector('h1')?.textContent).toBe('Predictions');
     expect(app.querySelector('.v2-play time')).toBeNull();
     expect(app.querySelector('[data-rank], [role="timer"], [data-score]')).toBeNull();
-    expect([...app.querySelectorAll('button')].filter((button) => !button.closest('nav') && !button.closest('.v2-source-chip'))).toHaveLength(0);
+    expect(app.textContent).not.toMatch(/streak|reward|leaderboard|rank/i);
   });
 
-  it('keeps You free of invented identity or competitive records', async () => {
+  it('keeps You local and shows an honest prediction empty state', async () => {
     const app = await renderAt('/v2/you');
-    expect(app.textContent).toContain('Signed out. Nothing is stored on this device.');
+    expect(app.textContent).toContain('Prediction history stays on this device.');
+    expect(app.textContent).toContain('No predictions yet.');
     expect(app.querySelector('[data-username], [data-level], [data-rank], [data-trophy]')).toBeNull();
     expect(app.textContent).not.toMatch(/#\d+|level \d+|\d+[- ]day streak/i);
+  });
+
+  it('shows only local prediction history in You', async () => {
+    window.localStorage.setItem('u26v2.predictions.local', JSON.stringify({
+      version: 1,
+      records: [{ fixtureId: 2, outcome: 'away', confidence: 2, confirmedAt: '2026-06-10T12:00:00.000Z', kickoffEpoch: 1781229600000 }],
+    }));
+    const app = await renderAt('/v2/you');
+    expect(app.textContent).toContain('Korea Republic v Czechia');
+    expect(app.textContent).toContain('Pending grade');
+    expect(app.textContent).toContain('Local to this device');
+  });
+
+  it('direct-loads canonical prediction detail and preserves browser back navigation', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00-04:00'));
+    const app = await renderAt('/v2/predictions/1');
+    expect(app.textContent).toContain('Mexico');
+    expect(app.textContent).toContain('Choose a result');
+    window.history.replaceState({}, '', '/v2/predictions');
+    await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(app.querySelector('h1')?.textContent).toBe('Predictions');
+  });
+
+  it('shows unresolved canonical fixtures without impossible outcome controls', async () => {
+    const app = await renderAt('/v2/predictions/73');
+    expect(app.textContent).toContain('Participants are unresolved');
+    expect(app.querySelectorAll('input[name="outcome"]')).toHaveLength(0);
   });
 
   it('renders a useful fixture-not-found route with one h1', async () => {

@@ -1,7 +1,13 @@
-import { Component, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Component, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useOfficialSnapshot } from '../data/official-snapshot';
+import { snapshotFromState } from '../data/snapshot-state';
+import { canonicalTournamentSnapshot } from '../domain/tournament-bridge';
+import { fixtureByCanonicalId, gradePrediction, predictionCounts } from '../predictions/prediction-bridge';
+import { readPredictionStore } from '../predictions/prediction-store';
 import { MatchdayRoute } from '../routes/Matchday';
 import { MatchDetailRoute } from '../routes/MatchDetail';
+import { PredictionDetailRoute } from '../routes/PredictionDetail';
+import { PredictionsRoute } from '../routes/Predictions';
 import { TournamentRoute } from '../routes/Tournament';
 import { PlayRoute } from '../routes/Play';
 import { YouRoute } from '../routes/You';
@@ -15,11 +21,17 @@ function normalizedPath(pathname: string) {
 
 function primaryPathFor(pathname: string): PrimaryPath | null {
   const path = normalizedPath(pathname);
+  if (/^\/v2\/predictions(?:\/\d+)?$/.test(path)) return '/v2/play';
   return primaryDestinations.some((item) => item.path === path) ? path as PrimaryPath : null;
 }
 
 function matchFixtureId(pathname: string): number | null {
   const hit = /^\/v2\/match\/(\d+)\/?$/.exec(pathname);
+  return hit ? Number(hit[1]) : null;
+}
+
+function predictionFixtureId(pathname: string): number | null {
+  const hit = /^\/v2\/predictions\/(\d+)\/?$/.exec(pathname);
   return hit ? Number(hit[1]) : null;
 }
 
@@ -67,11 +79,39 @@ function OfficialRoute({ fixtureId, snapshot, onNavigate, onBack }: {
 export function App() {
   const snapshot = useOfficialSnapshot();
   const [pathname, setPathname] = useState(() => window.location.pathname);
+  const tournamentSnapshot = useMemo(() => snapshotFromState(snapshot.state) || canonicalTournamentSnapshot(), [snapshot.state]);
+  const [predictionRecords, setPredictionRecords] = useState(() => readPredictionStore(window.localStorage, canonicalTournamentSnapshot().fixtures).store.records);
   const primaryPath = primaryPathFor(pathname);
   const fixtureId = matchFixtureId(normalizedPath(pathname));
-  const routeTitle = fixtureId != null
+  const predictionId = predictionFixtureId(normalizedPath(pathname));
+  const predictionsPath = normalizedPath(pathname) === '/v2/predictions';
+  const localPredictionProjection = useMemo(() => {
+    const counts = predictionCounts(tournamentSnapshot, predictionRecords);
+    const history = predictionRecords.slice().sort((a, b) => b.fixtureId - a.fixtureId).slice(0, 6).flatMap((record) => {
+      const fixture = fixtureByCanonicalId(tournamentSnapshot, record.fixtureId);
+      if (!fixture) return [];
+      const grade = gradePrediction(record, fixture);
+      return [{
+        fixtureId: record.fixtureId,
+        fixtureLabel: `${fixture.home.kind === 'team' ? fixture.home.name : fixture.home.label} v ${fixture.away.kind === 'team' ? fixture.away.name : fixture.away.label}`,
+        state: grade.state,
+      }];
+    });
+    return Object.freeze({ ...counts, hasPredictions: predictionRecords.length > 0, history: Object.freeze(history) });
+  }, [predictionRecords, tournamentSnapshot]);
+  const routeTitle = predictionId != null
+    ? 'Prediction detail'
+    : predictionsPath
+      ? 'Predictions'
+      : fixtureId != null
     ? 'Match detail'
     : primaryDestinations.find((item) => item.path === primaryPath)?.label || 'Not found';
+
+  const refreshPredictionRecords = useCallback(() => {
+    setPredictionRecords(readPredictionStore(window.localStorage, tournamentSnapshot.fixtures).store.records);
+  }, [tournamentSnapshot]);
+
+  useEffect(() => { refreshPredictionRecords(); }, [refreshPredictionRecords]);
 
   useEffect(() => {
     const updatePathname = () => setPathname(window.location.pathname);
@@ -105,11 +145,13 @@ export function App() {
   return (
     <RootErrorBoundary>
       <AppShell currentPath={primaryPath} snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={navigateTo}>
-        {primaryPath || fixtureId != null ? (
+        {primaryPath || fixtureId != null || predictionId != null || predictionsPath ? (
           <main className="v2-main" id="v2-content" tabIndex={-1} key={normalizedPath(pathname)}>
             {primaryPath === '/v2/tournament' ? <TournamentRoute snapshotState={snapshot.state} onNavigate={navigateTo} /> : null}
-            {primaryPath === '/v2/play' ? <PlayRoute /> : null}
-            {primaryPath === '/v2/you' ? <YouRoute onNavigate={navigateTo} /> : null}
+            {predictionsPath ? <PredictionsRoute snapshot={tournamentSnapshot} records={predictionRecords} onNavigate={navigateTo} /> : null}
+            {predictionId != null ? <PredictionDetailRoute fixtureId={predictionId} snapshot={tournamentSnapshot} records={predictionRecords} onRecordsChange={refreshPredictionRecords} onBack={backFromDetail} /> : null}
+            {primaryPath === '/v2/play' && !predictionsPath && predictionId == null ? <PlayRoute predictions={localPredictionProjection} onNavigate={navigateTo} /> : null}
+            {primaryPath === '/v2/you' ? <YouRoute predictions={localPredictionProjection} onNavigate={navigateTo} /> : null}
             {(primaryPath === '/v2/' || fixtureId != null) ? <OfficialRoute fixtureId={fixtureId} snapshot={snapshot} onNavigate={navigateTo} onBack={backFromDetail} /> : null}
           </main>
         ) : (
