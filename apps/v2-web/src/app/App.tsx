@@ -52,12 +52,12 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { failed: boo
   }
 }
 
-function OfficialRoute({ fixtureId, onNavigate, onBack }: {
+function OfficialRoute({ fixtureId, snapshot, onNavigate, onBack }: {
   fixtureId: number | null;
+  snapshot: ReturnType<typeof useOfficialSnapshot>;
   onNavigate: (path: string) => void;
   onBack: () => void;
 }) {
-  const snapshot = useOfficialSnapshot();
   if (fixtureId != null) {
     return <MatchDetailRoute fixtureId={fixtureId} snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={onNavigate} onBack={onBack} />;
   }
@@ -65,6 +65,7 @@ function OfficialRoute({ fixtureId, onNavigate, onBack }: {
 }
 
 export function App() {
+  const snapshot = useOfficialSnapshot();
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const primaryPath = primaryPathFor(pathname);
   const fixtureId = matchFixtureId(normalizedPath(pathname));
@@ -103,13 +104,13 @@ export function App() {
 
   return (
     <RootErrorBoundary>
-      <AppShell currentPath={primaryPath} routeTitle={routeTitle} onNavigate={navigateTo}>
+      <AppShell currentPath={primaryPath} snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={navigateTo}>
         {primaryPath || fixtureId != null ? (
           <main className="v2-main" id="v2-content" tabIndex={-1} key={normalizedPath(pathname)}>
-            {primaryPath === '/v2/tournament' ? <TournamentRoute /> : null}
+            {primaryPath === '/v2/tournament' ? <TournamentRoute snapshotState={snapshot.state} onNavigate={navigateTo} /> : null}
             {primaryPath === '/v2/play' ? <PlayRoute /> : null}
-            {primaryPath === '/v2/you' ? <YouRoute /> : null}
-            {(primaryPath === '/v2/' || fixtureId != null) ? <OfficialRoute fixtureId={fixtureId} onNavigate={navigateTo} onBack={backFromDetail} /> : null}
+            {primaryPath === '/v2/you' ? <YouRoute onNavigate={navigateTo} /> : null}
+            {(primaryPath === '/v2/' || fixtureId != null) ? <OfficialRoute fixtureId={fixtureId} snapshot={snapshot} onNavigate={navigateTo} onBack={backFromDetail} /> : null}
           </main>
         ) : (
           <main className="v2-main" id="v2-content" tabIndex={-1}>

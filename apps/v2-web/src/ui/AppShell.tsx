@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import type { SnapshotState } from '../data/snapshot-state';
 import { BottomNav } from './BottomNav';
+import { SourceChip } from './SourceChip';
 import { TopBar } from './TopBar';
 
 export const primaryDestinations = [
@@ -11,19 +13,20 @@ export const primaryDestinations = [
 
 export type PrimaryPath = typeof primaryDestinations[number]['path'];
 
-export function AppShell({ children, currentPath, routeTitle, onNavigate }: {
+export function AppShell({ children, currentPath, snapshotState, refreshing, onRefresh, onNavigate }: {
   children: ReactNode;
   currentPath: PrimaryPath | null;
-  routeTitle: string;
+  snapshotState: SnapshotState;
+  refreshing: boolean;
+  onRefresh: () => Promise<void>;
   onNavigate: (path: string) => void;
 }) {
   return (
     <div className="v2-app">
       <a className="v2-skip-link" href="#v2-content">Skip to content</a>
-      <TopBar routeTitle={routeTitle}>
-        <BottomNav currentPath={currentPath} onNavigate={onNavigate} />
-      </TopBar>
+      <TopBar source={<SourceChip state={snapshotState} refreshing={refreshing} onRefresh={onRefresh} />} />
       <div className="v2-content-frame">{children}</div>
+      <BottomNav currentPath={currentPath} onNavigate={onNavigate} />
     </div>
   );
 }

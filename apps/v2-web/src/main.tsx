@@ -5,6 +5,10 @@ import './styles/tokens.css';
 import './styles/shell.css';
 import './styles/components.css';
 import './styles/routes.css';
+import './styles/matchday.css';
+import './styles/tournament.css';
+import './styles/play.css';
+import './styles/you.css';
 
 const root = document.getElementById('v2-root');
 

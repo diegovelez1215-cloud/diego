@@ -69,23 +69,23 @@ describe('United 2026 V2 product routes', () => {
   it('renders bridge-derived Tournament facts without official results', async () => {
     const app = await renderAt('/v2/tournament');
     expect(app.textContent).toContain('104');
-    expect(app.textContent).toContain('12');
-    expect(app.textContent).toContain('32');
-    expect(app.textContent).toContain('Canonical competition map active');
+    expect(app.querySelectorAll('.v2-group-table')).toHaveLength(12);
+    expect(app.textContent).toContain('104 matches · 16 venues · 3 hosts');
+    expect(app.querySelectorAll('.v2-phase-tracker [data-state="future"]')).toHaveLength(6);
   });
 
   it('keeps Play an honest non-playable shell', async () => {
     const app = await renderAt('/v2/play');
-    expect(app.textContent).toContain('Concept preview · Not playable');
-    expect(app.textContent).toContain('No imitation gameplay');
+    expect(app.textContent).toContain('In development');
+    expect(app.textContent).toContain('United never shows imitation gameplay, scores, or ranks.');
     expect(app.querySelector('.v2-play time')).toBeNull();
     expect(app.querySelector('[data-rank], [role="timer"], [data-score]')).toBeNull();
-    expect([...app.querySelectorAll('button')].filter((button) => !button.closest('nav'))).toHaveLength(0);
+    expect([...app.querySelectorAll('button')].filter((button) => !button.closest('nav') && !button.closest('.v2-source-chip'))).toHaveLength(0);
   });
 
   it('keeps You free of invented identity or competitive records', async () => {
     const app = await renderAt('/v2/you');
-    expect(app.textContent).toContain('No player is signed in');
+    expect(app.textContent).toContain('Signed out. Nothing is stored on this device.');
     expect(app.querySelector('[data-username], [data-level], [data-rank], [data-trophy]')).toBeNull();
     expect(app.textContent).not.toMatch(/#\d+|level \d+|\d+[- ]day streak/i);
   });

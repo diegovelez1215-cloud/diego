@@ -1,0 +1,13 @@
+@layer routes {
+  .v2-matchday-context { display:flex; min-height:48px; align-items:center; justify-content:space-between; gap:8px; }
+  .v2-matchday-context strong { overflow:hidden; font-size:13px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+  .v2-matchday-context > span { display:flex; align-items:center; color:var(--v2-chalk-48); font-size:12px; white-space:nowrap; }
+  .v2-matchday-context button { min-width:49px; min-height:49px; padding:0 0 0 4px; border:0; background:transparent; color:var(--official); font:600 12px var(--v2-font); }
+  .v2-matchday__layout { display:grid; gap:12px; }.v2-empty-stage { min-height:236px; padding:20px; border-block:1px solid var(--strong-rule); }.v2-empty-stage h2 { font-size:17px; }.v2-empty-stage p { margin-top:6px; color:var(--v2-chalk-68); font-size:15px; }
+  .v2-match-detail .v2-page-title { padding-top:0; }.v2-match-detail > .v2-back-button { margin-top:8px; }.v2-match-detail .v2-fixture-stage { margin-top:0; }
+  .v2-detail-grid { display:grid; gap:24px; margin-top:24px; }.v2-detail-grid h2 { min-height:40px; font-size:15px; font-weight:650; }
+  .v2-detail-ledger dl { border-top:1px solid var(--strong-rule); }.v2-detail-ledger dl > div { display:grid; grid-template-columns:minmax(100px,1fr) 2fr; gap:16px; min-height:54px; align-items:center; border-bottom:1px solid var(--hairline); }.v2-detail-ledger dt { color:var(--v2-chalk-48); font-size:12px; }.v2-detail-ledger dd { overflow-wrap:anywhere; font-size:13px; font-weight:600; text-align:right; }
+  .v2-coverage-list ul { border-top:1px solid var(--strong-rule); }.v2-coverage-list li { display:flex; min-height:50px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--hairline); font-size:13px; }.v2-coverage-list li span { color:var(--v2-chalk-48); }.v2-coverage-list > p { margin-top:12px; color:var(--v2-chalk-68); font-size:12px; }
+  @media (min-width:820px) { .v2-fixture-stage[data-detail="true"] { min-height:300px; }.v2-detail-grid { grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); } }
+  @media (min-width:1040px) { .v2-matchday__layout { grid-template-columns:minmax(0,1.6fr) minmax(340px,1fr); align-items:start; }.v2-matchday .v2-fixture-stage { min-height:300px; padding:20px 24px; }.v2-day-schedule { min-width:0; } }
+}
