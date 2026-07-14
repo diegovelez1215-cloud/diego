@@ -70,6 +70,15 @@ describe('V2 foundation isolation', () => {
     expect(`${play}\n${you}`).not.toMatch(/domain\/|data\/official-snapshot|tournament-bridge|canonicalFixtures|canonicalTournamentSnapshot/);
   });
 
+  it('keeps V2 auth on the established V1 email-code client without profile, table, or prediction writes', () => {
+    const adapter = read('apps/v2-web/src/auth/auth-client.ts');
+    const provider = read('apps/v2-web/src/auth/auth-provider.tsx');
+    const you = read('apps/v2-web/src/routes/You.tsx');
+    expect(adapter).toContain("../../../../src/core/leaderboard.js");
+    expect(`${adapter}\n${provider}\n${you}`).not.toMatch(/upsertMyProfile|pushPick|pushEligiblePicks|fetchPicksBoard|fetchMyBoardRow|arcade|localStorage\.setItem|sessionStorage|service_role/i);
+    expect(adapter).toContain('fetchMyProfile');
+  });
+
   it('gates deterministic prediction hooks to localhost only', () => {
     const bridge = read('apps/v2-web/src/predictions/prediction-bridge.ts');
     const officialSnapshot = read('apps/v2-web/src/data/official-snapshot.ts');

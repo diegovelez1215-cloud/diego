@@ -13,6 +13,7 @@ import { PlayRoute } from '../routes/Play';
 import { YouRoute } from '../routes/You';
 import { AppShell, primaryDestinations, type PrimaryPath } from '../ui/AppShell';
 import { StatePanel } from '../ui/StatePanel';
+import { AuthProvider } from '../auth/auth-provider';
 
 function normalizedPath(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
@@ -76,7 +77,7 @@ function OfficialRoute({ fixtureId, snapshot, onNavigate, onBack }: {
   return <MatchdayRoute snapshotState={snapshot.state} refreshing={snapshot.refreshing} onRefresh={snapshot.refresh} onNavigate={onNavigate} />;
 }
 
-export function App() {
+function AppRoutes() {
   const snapshot = useOfficialSnapshot();
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const tournamentSnapshot = useMemo(() => snapshotFromState(snapshot.state) || canonicalTournamentSnapshot(), [snapshot.state]);
@@ -151,7 +152,7 @@ export function App() {
             {predictionsPath ? <PredictionsRoute snapshot={tournamentSnapshot} records={predictionRecords} onNavigate={navigateTo} /> : null}
             {predictionId != null ? <PredictionDetailRoute fixtureId={predictionId} snapshot={tournamentSnapshot} records={predictionRecords} onRecordsChange={refreshPredictionRecords} onBack={backFromDetail} /> : null}
             {primaryPath === '/v2/play' && !predictionsPath && predictionId == null ? <PlayRoute predictions={localPredictionProjection} onNavigate={navigateTo} /> : null}
-            {primaryPath === '/v2/you' ? <YouRoute predictions={localPredictionProjection} onNavigate={navigateTo} /> : null}
+            {primaryPath === '/v2/you' ? <AuthProvider><YouRoute predictions={localPredictionProjection} onNavigate={navigateTo} /></AuthProvider> : null}
             {(primaryPath === '/v2/' || fixtureId != null) ? <OfficialRoute fixtureId={fixtureId} snapshot={snapshot} onNavigate={navigateTo} onBack={backFromDetail} /> : null}
           </main>
         ) : (
@@ -169,4 +170,8 @@ export function App() {
       </AppShell>
     </RootErrorBoundary>
   );
+}
+
+export function App() {
+  return <AppRoutes />;
 }

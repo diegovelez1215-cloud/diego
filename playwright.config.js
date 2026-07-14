@@ -29,7 +29,7 @@ export default defineConfig({
     video: 'off',
   },
   webServer: {
-    command: `python3 -m http.server ${PORT} --bind ${HOST}`,
+    command: `PORT=${PORT} npm run serve:foundation`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 15_000,

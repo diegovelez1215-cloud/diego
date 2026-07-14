@@ -92,7 +92,7 @@ describe('United 2026 V2 product routes', () => {
 
   it('keeps You local and shows an honest prediction empty state', async () => {
     const app = await renderAt('/v2/you');
-    expect(app.textContent).toContain('Prediction history stays on this device.');
+    expect(app.textContent).toContain('These predictions stay on this device.');
     expect(app.textContent).toContain('No predictions yet.');
     expect(app.querySelector('[data-username], [data-level], [data-rank], [data-trophy]')).toBeNull();
     expect(app.textContent).not.toMatch(/#\d+|level \d+|\d+[- ]day streak/i);
@@ -106,7 +106,7 @@ describe('United 2026 V2 product routes', () => {
     const app = await renderAt('/v2/you');
     expect(app.textContent).toContain('Korea Republic v Czechia');
     expect(app.textContent).toContain('Pending grade');
-    expect(app.textContent).toContain('Local to this device');
+    expect(app.textContent).toContain('Device-local');
   });
 
   it('direct-loads canonical prediction detail and preserves browser back navigation', async () => {
