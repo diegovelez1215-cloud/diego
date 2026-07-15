@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PROTOTYPE_STORAGE_KEY, readPrototypeState, writePrototypeState, type PrototypeScreen } from './prototype-state';
+import { createCampaign, readCampaign, recordMatch, resetCampaign, writeCampaign } from './campaign/campaign-store';
+import { DEFAULT_TACTICS, type CampaignStateV1, type Tactics } from './campaign/contracts';
+import { replayMoment } from './campaign/moment-engine';
+import { completeMatch, groupTable, otherGroupResult, simulateMatch } from './campaign/simulation';
 import './your-world-cup.css';
 
 type View = 'opening' | PrototypeScreen;
@@ -163,23 +167,26 @@ function DrawScreen({ reducedMotion, onComplete, onBack }: { reducedMotion: bool
   );
 }
 
-function GroupTable() {
+function GroupTable({ campaign }: { campaign: CampaignStateV1 | null }) {
+  const match = campaign?.completedMatches[0];
+  const table = groupTable(match, campaign?.seed ?? 26062026);
   return (
     <div className="ywc-group-table">
       <div className="ywc-tape ywc-tape--table" aria-hidden="true" />
-      <div className="ywc-artifact-title"><span>Group C</span><b>Before kickoff</b></div>
+      <div className="ywc-artifact-title"><span>Group C</span><b>{match ? 'Simulated campaign' : 'Before kickoff'}</b></div>
       <div className="ywc-table-head"><span>Nation</span><span>PL</span><span>GD</span><span>PTS</span></div>
-      {group.map((team, index) => (
-        <div className={`ywc-table-row${index === 0 ? ' is-you' : ''}`} key={team.code}>
-          <span><Flag name={team.flag} />{team.name}</span><b>0</b><b>0</b><b>0</b>
+      {table.map((team) => (
+        <div className={`ywc-table-row${team.name === 'Argentina' ? ' is-you' : ''}`} key={team.name}>
+          <span><Flag name={team.name === 'New Zealand' ? 'new-zealand' : team.name.toLowerCase()} />{team.name}</span><b>{team.played}</b><b>{team.gd}</b><b>{team.points}</b>
         </div>
       ))}
-      <p className="ywc-table-scrawl">top two keep the dream alive</p>
+      <p className="ywc-table-scrawl">{match ? `Poland ${otherGroupResult(campaign!.seed).home}–${otherGroupResult(campaign!.seed).away} New Zealand` : 'top two keep the dream alive'}</p>
     </div>
   );
 }
 
-function CampaignScreen({ onPlay, showMessage }: { onPlay: () => void; showMessage: boolean }) {
+function CampaignScreen({ campaign, onPlay, onReset }: { campaign: CampaignStateV1 | null; onPlay: () => void; onReset: () => void }) {
+  const match = campaign?.completedMatches[0];
   return (
     <main className="ywc-prototype ywc-campaign" data-screen="campaign">
       <div className="ywc-print-noise" aria-hidden="true" />
@@ -190,13 +197,13 @@ function CampaignScreen({ onPlay, showMessage }: { onPlay: () => void; showMessa
         <span className="ywc-campaign-stamp">THE DREAM STARTS HERE</span>
       </header>
       <section className="ywc-wall" aria-label="Argentina campaign artifacts">
-        <div className="ywc-wall__table"><GroupTable /></div>
+        <div className="ywc-wall__table"><GroupTable campaign={campaign} /></div>
         <article className="ywc-next-ticket">
           <div className="ywc-ticket-stub" aria-hidden="true">C26<br />001</div>
-          <p>Matchday 1 · Group C</p>
-          <h2><span><Flag name="argentina" /> Argentina</span><i>v</i><span><Flag name="nigeria" /> Nigeria</span></h2>
-          <dl><div><dt>When</dt><dd>Friday · 20:00</dd></div><div><dt>Where</dt><dd>Atlanta · Gate C</dd></div></dl>
-          <b className="ywc-ticket-callout">NEXT MATCH</b>
+          <p>{match ? 'Next fixture · Group C' : 'Matchday 1 · Group C'}</p>
+          <h2><span><Flag name="argentina" /> Argentina</span><i>v</i><span><Flag name={match ? 'poland' : 'nigeria'} /> {match ? 'Poland' : 'Nigeria'}</span></h2>
+          <dl><div><dt>{match ? 'Last result' : 'When'}</dt><dd>{match ? `Argentina ${match.homeGoals}–${match.awayGoals} Nigeria` : 'Friday · 20:00'}</dd></div><div><dt>{match ? 'Points' : 'Where'}</dt><dd>{match ? `${groupTable(match, campaign!.seed).find((team) => team.name === 'Argentina')!.points} after one` : 'Atlanta · Gate C'}</dd></div></dl>
+          <b className="ywc-ticket-callout">{match ? 'NEXT UP' : 'NEXT MATCH'}</b>
         </article>
         <article className="ywc-road-map">
           <div className="ywc-tape ywc-tape--road" aria-hidden="true" />
@@ -215,11 +222,76 @@ function CampaignScreen({ onPlay, showMessage }: { onPlay: () => void; showMessa
         </aside>
       </section>
       <div className="ywc-campaign__action">
-        {showMessage ? <p className="ywc-prototype-message" role="status">Playable match moment comes in the next vertical slice.</p> : null}
-        <button type="button" className="ywc-button ywc-button--pink" onClick={onPlay}>Play Argentina v Nigeria <span aria-hidden="true">→</span></button>
+        {match ? <p className="ywc-prototype-message" role="status">A {match.outcome} is pinned to your wall. Poland is next.</p> : <p className="ywc-prototype-message" role="status">YOUR WORLD CUP · SIMULATED CAMPAIGN</p>}
+        {match ? <button type="button" className="ywc-button ywc-button--paper" onClick={onReset}>Reset this slice <span aria-hidden="true">↺</span></button> : <button type="button" className="ywc-button ywc-button--pink" onClick={onPlay}>Play Argentina v Nigeria <span aria-hidden="true">→</span></button>}
       </div>
     </main>
   );
+}
+
+const choices: ReadonlyArray<Readonly<{ key: keyof Tactics; label: string; values: readonly [string, string] }>> = [
+  { key: 'shape', label: 'Shape', values: ['4-3-3-wide', '4-2-3-1-control'] },
+  { key: 'press', label: 'Press', values: ['patient', 'balanced'] },
+  { key: 'finalThird', label: 'Final-third plan', values: ['wings', 'number-10'] },
+];
+
+function TacticsClipboard({ tactics, onChange, onKickOff, onBack }: { tactics: Tactics; onChange: (next: Tactics) => void; onKickOff: () => void; onBack: () => void }) {
+  const pressValues = ['patient', 'balanced', 'aggressive'] as const;
+  const finalThirdValues = ['wings', 'number-10', 'direct-runners'] as const;
+  return <main className="ywc-prototype ywc-tactics" data-screen="tactics">
+    <header className="ywc-screen-head"><button type="button" className="ywc-back" onClick={onBack}>← Wall</button><PrototypeLabel compact /></header>
+    <section className="ywc-clipboard" aria-labelledby="ywc-tactics-title">
+      <div className="ywc-clip" aria-hidden="true" />
+      <p className="ywc-kicker">Coach clipboard · fictional campaign</p><h1 id="ywc-tactics-title">Make the <em>plan</em></h1>
+      <div className={`ywc-tactics-pitch is-${tactics.shape}`} aria-label={`Pitch diagram for ${tactics.shape}`}>
+        {[1, 4, 5, 6, 3, 8, 10, 11, 7, 9].map((number) => <i key={number}>{number}</i>)}
+      </div>
+      <fieldset className="ywc-choice"><legend>Shape</legend>{(['4-3-3-wide', '4-2-3-1-control'] as const).map((value) => <button type="button" key={value} className={tactics.shape === value ? 'is-selected' : ''} aria-pressed={tactics.shape === value} onClick={() => onChange({ ...tactics, shape: value })}>{value === '4-3-3-wide' ? '4–3–3 Wide' : '4–2–3–1 Control'}</button>)}</fieldset>
+      <fieldset className="ywc-choice"><legend>Press</legend>{pressValues.map((value) => <button type="button" key={value} className={tactics.press === value ? 'is-selected' : ''} aria-pressed={tactics.press === value} onClick={() => onChange({ ...tactics, press: value })}>{value}</button>)}</fieldset>
+      <fieldset className="ywc-choice"><legend>Final-third plan</legend>{finalThirdValues.map((value) => <button type="button" key={value} className={tactics.finalThird === value ? 'is-selected' : ''} aria-pressed={tactics.finalThird === value} onClick={() => onChange({ ...tactics, finalThird: value })}>{value === 'wings' ? 'Attack the wings' : value === 'number-10' ? 'Play through the 10' : 'Direct runners'}</button>)}</fieldset>
+      <p className="ywc-marker-note">Your plan changes the tape and the last attack.</p>
+      <button type="button" className="ywc-button ywc-button--pink" onClick={onKickOff}>Kick off <span aria-hidden="true">→</span></button>
+    </section>
+  </main>;
+}
+
+function MatchStory({ campaign, onMoment, onBack }: { campaign: CampaignStateV1; onMoment: () => void; onBack: () => void }) {
+  const setup = simulateMatch(campaign.seed, campaign.tactics!);
+  const [shown, setShown] = useState(1);
+  useEffect(() => { const timer = window.setInterval(() => setShown((count) => Math.min(setup.story.length, count + 1)), 650); const ready = window.setTimeout(onMoment, 3200); return () => { window.clearInterval(timer); window.clearTimeout(ready); }; }, [onMoment, setup.story.length]);
+  return <main className="ywc-prototype ywc-match-story" data-screen="match-story">
+    <div className="ywc-score-bug"><span>YOUR WORLD CUP · SIMULATED</span><b>ARG {setup.homeGoals}–{setup.awayGoals} NGA</b><i>{setup.minute}′</i></div>
+    <section className="ywc-match-tape" aria-live="polite"><p className="ywc-kicker">Fast match tape · your tactics in motion</p><h1>THE TAPE <em>ROLLS</em></h1>{setup.story.slice(0, shown).map((line, index) => <p className="ywc-tape-strip" key={line} style={{ '--turn': `${index % 2 ? 1 : -1}deg` } as React.CSSProperties}>{line}</p>)}<strong>{setup.prompt}</strong></section>
+    <div className="ywc-story-actions"><button type="button" className="ywc-back ywc-back--dark" onClick={onBack}>← Clipboard</button><button type="button" className="ywc-button ywc-button--marigold" onClick={onMoment}>Skip to the moment <span aria-hidden="true">→</span></button></div>
+  </main>;
+}
+
+function LastChanceMoment({ campaign, onComplete }: { campaign: CampaignStateV1; onComplete: (events: readonly string[]) => void }) {
+  const setup = simulateMatch(campaign.seed, campaign.tactics!);
+  const [events, setEvents] = useState<readonly string[]>(campaign.eventInputs);
+  const state = replayMoment(setup, campaign.tactics!, events);
+  useEffect(() => { if (state.outcome) { onComplete(events); return; } const timer = window.setInterval(() => setEvents((current) => [...current, 'tick']), 1000); return () => window.clearInterval(timer); }, [events, onComplete, state.outcome]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (state.outcome) return;
+      const input = event.key === '1' ? 'pass:left' : event.key === '2' ? 'pass:center' : event.key === '3' ? 'pass:right' : event.key.toLowerCase() === 'g' ? 'shoot' : null;
+      if (input) { event.preventDefault(); setEvents((current) => [...current, input]); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [state.outcome]);
+  const add = (event: string) => !state.outcome && setEvents((current) => [...current, event]);
+  const name = state.active === 'left' ? 'Luna' : state.active === 'right' ? 'Garay' : 'Ocampo';
+  return <main className="ywc-prototype ywc-moment" data-screen="moment" tabIndex={0}>
+    <div className="ywc-score-bug"><span>YOUR WORLD CUP · SIMULATED</span><b>ARG {setup.homeGoals}–{setup.awayGoals} NGA</b><i>{setup.minute}′ + {state.ticks}</i></div>
+    <section className="ywc-play-panel" aria-label="Playable last-chance attack"><div className="ywc-goal" aria-hidden="true" /><div className="ywc-keeper" aria-hidden="true" /><div className={`ywc-player ywc-player--left${state.active === 'left' ? ' is-active' : ''}`}>Luna</div><div className={`ywc-player ywc-player--center${state.active === 'center' ? ' is-active' : ''}`}>Ocampo</div><div className={`ywc-player ywc-player--right${state.active === 'right' ? ' is-active' : ''}`}>Garay</div><div className="ywc-defenders" aria-hidden="true"><i /><i /><i /></div><div className="ywc-ball">●</div></section>
+    <section className="ywc-moment-controls" aria-label="Attack controls"><p className="ywc-marker-note">{state.message}</p><p className="ywc-moment-timer">Stoppage time: {Math.max(0, 12 - state.ticks)} · Ball: {name}</p><div><button type="button" onClick={() => add('pass:left')}>1 · Pass Luna</button><button type="button" onClick={() => add('pass:center')}>2 · Pass Ocampo</button><button type="button" onClick={() => add('pass:right')}>3 · Pass Garay</button></div><button type="button" className="ywc-button ywc-button--marigold" onClick={() => add('shoot')}>G · Shoot at goal <span aria-hidden="true">→</span></button><p className="ywc-keyboard-note">Tap controls or use 1, 2, 3, then G. Two passes open the best lane.</p></section>
+  </main>;
+}
+
+function FullTimeArtifact({ campaign, onReturn }: { campaign: CampaignStateV1; onReturn: () => void }) {
+  const match = campaign.completedMatches[0]!; const positive = match.outcome === 'win';
+  return <main className={`ywc-prototype ywc-full-time ${positive ? 'is-positive' : 'is-negative'}`} data-screen="result"><article className="ywc-result-artifact"><p>{positive ? 'THE FINAL WHISTLE · FREE EDITION' : 'THE CAMPAIGN WALL · RAIN EDITION'}</p><h1>{positive ? 'ARGENTINA FIND A WAY' : match.outcome === 'draw' ? 'A POINT TO PIN UP' : 'WE GO AGAIN'}</h1><div className="ywc-result-score">ARG {match.homeGoals}–{match.awayGoals} NGA</div><strong>{positive ? 'THE LAST MOVE BECOMES A FRONT PAGE.' : match.decisiveMoment === 'interception' ? 'Nigeria closed the lane. The story keeps moving.' : 'The last chance did not land. The next one is waiting.'}</strong><small>YOUR WORLD CUP · SIMULATED CAMPAIGN · Argentina have {groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points} point{groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points === 1 ? '' : 's'}.</small></article><button type="button" className="ywc-button ywc-button--paper" onClick={onReturn}>{positive ? 'Keep the paper' : 'Pin it up. We go again.'} <span aria-hidden="true">→</span></button></main>;
 }
 
 function prefersReducedMotion() {
@@ -228,10 +300,11 @@ function prefersReducedMotion() {
 
 export function YourWorldCupPrototype() {
   const initialState = useMemo(() => readPrototypeState(window.localStorage), []);
+  const initialCampaign = useMemo(() => readCampaign(window.localStorage), []);
   const [savedState, setSavedState] = useState(initialState);
-  const [view, setView] = useState<View>('opening');
+  const [campaign, setCampaign] = useState<CampaignStateV1 | null>(initialCampaign);
+  const [view, setView] = useState<View>(() => initialCampaign && initialCampaign.stage !== 'campaign' ? 'campaign' : 'opening');
   const [selected, setSelected] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
   const reducedMotion = useMemo(prefersReducedMotion, []);
 
   useEffect(() => {
@@ -242,6 +315,45 @@ export function YourWorldCupPrototype() {
     const next = { version: 1, screen, nation } as const;
     writePrototypeState(window.localStorage, next);
     setSavedState(next);
+  }
+
+  function saveCampaign(next: CampaignStateV1) {
+    writeCampaign(window.localStorage, next);
+    setCampaign(next);
+  }
+
+  function openTactics() {
+    const next = campaign ?? createCampaign();
+    saveCampaign({ ...next, stage: 'tactics', tactics: next.tactics ?? DEFAULT_TACTICS, eventInputs: [] });
+  }
+
+  function setTactics(tactics: Tactics) {
+    const current = campaign ?? createCampaign();
+    saveCampaign({ ...current, stage: 'tactics', tactics });
+  }
+
+  function kickOff() {
+    if (!campaign?.tactics) return;
+    saveCampaign({ ...campaign, stage: 'match-story', eventInputs: [] });
+  }
+
+  function startMoment() {
+    if (!campaign?.tactics) return;
+    saveCampaign({ ...campaign, stage: 'moment' });
+  }
+
+  function resolveMoment(events: readonly string[]) {
+    if (!campaign?.tactics || campaign.completedMatches.length) return;
+    const setup = simulateMatch(campaign.seed, campaign.tactics);
+    const moment = replayMoment(setup, campaign.tactics, events);
+    if (!moment.outcome) return;
+    const match = completeMatch(setup, moment.outcome, campaign.tactics, campaign.seed, events);
+    saveCampaign(recordMatch(campaign, match));
+  }
+
+  function resetSlice() {
+    resetCampaign(window.localStorage);
+    setCampaign(null);
   }
 
   function start() {
@@ -259,7 +371,11 @@ export function YourWorldCupPrototype() {
   if (view === 'opening') return <OpeningScreen hasCampaign={savedState != null} onStart={start} onContinue={continueCampaign} />;
   if (view === 'nation') return <NationScreen selected={selected} onSelect={() => setSelected(true)} onBack={() => setView('opening')} onChoose={() => { persist('draw', 'Argentina'); setView('draw'); }} />;
   if (view === 'draw') return <DrawScreen reducedMotion={reducedMotion} onBack={() => { persist('nation', 'Argentina'); setSelected(true); setView('nation'); }} onComplete={() => { persist('campaign', 'Argentina'); setView('campaign'); }} />;
-  return <CampaignScreen showMessage={showMessage} onPlay={() => setShowMessage(true)} />;
+  if (campaign?.stage === 'tactics') return <TacticsClipboard tactics={campaign.tactics ?? DEFAULT_TACTICS} onChange={setTactics} onKickOff={kickOff} onBack={() => saveCampaign({ ...campaign, stage: 'campaign', eventInputs: [] })} />;
+  if (campaign?.stage === 'match-story') return <MatchStory campaign={campaign} onMoment={startMoment} onBack={() => saveCampaign({ ...campaign, stage: 'tactics' })} />;
+  if (campaign?.stage === 'moment') return <LastChanceMoment campaign={campaign} onComplete={resolveMoment} />;
+  if (campaign?.stage === 'result') return <FullTimeArtifact campaign={campaign} onReturn={() => saveCampaign({ ...campaign, stage: 'campaign' })} />;
+  return <CampaignScreen campaign={campaign} onPlay={openTactics} onReset={resetSlice} />;
 }
 
 export { PROTOTYPE_STORAGE_KEY };

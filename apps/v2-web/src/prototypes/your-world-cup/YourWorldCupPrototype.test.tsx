@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { PROTOTYPE_STORAGE_KEY } from './prototype-state';
+import { CAMPAIGN_STORAGE_KEY } from './campaign/contracts';
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -66,7 +67,7 @@ describe('Your World Cup prototype route', () => {
     expect(app.querySelector('.ywc-opening__terrace')?.textContent).toBe('48 NATIONS · 3 HOST COUNTRIES · YOUR COLORS · YOUR NOISE · YOUR WORLD CUP');
   });
 
-  it('supports opening, tactile selection, draw, campaign, and truthful match handoff using only the prototype key', async () => {
+  it('supports opening, tactile selection, draw, campaign, and isolated tactics handoff', async () => {
     vi.useFakeTimers();
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     await renderPrototype();
@@ -91,11 +92,12 @@ describe('Your World Cup prototype route', () => {
     expect(container?.querySelector('[data-screen="campaign"]')).toBeTruthy();
     expect(container?.textContent).toContain('Argentina v Nigeria');
     await act(async () => button('play argentina v nigeria')?.click());
-    expect(container?.textContent).toContain('Playable match moment comes in the next vertical slice.');
+    expect(container?.querySelector('[data-screen="tactics"]')).toBeTruthy();
+    expect(container?.textContent).toContain('Make the plan');
 
     expect(setItem.mock.calls.length).toBeGreaterThan(0);
-    expect(new Set(setItem.mock.calls.map(([key]) => key))).toEqual(new Set([PROTOTYPE_STORAGE_KEY]));
-    expect([...new Set(Object.keys(window.localStorage))]).toEqual([PROTOTYPE_STORAGE_KEY]);
+    expect(new Set(setItem.mock.calls.map(([key]) => key))).toEqual(new Set([PROTOTYPE_STORAGE_KEY, CAMPAIGN_STORAGE_KEY]));
+    expect([...new Set(Object.keys(window.localStorage))]).toEqual([PROTOTYPE_STORAGE_KEY, CAMPAIGN_STORAGE_KEY]);
     expect(window.localStorage.getItem('u26v2.auth')).toBeNull();
     expect(window.localStorage.getItem('u26v2.predictions.local')).toBeNull();
   });

@@ -19,10 +19,15 @@ describe('Your World Cup prototype isolation contract', () => {
     const prototype = [
       read('apps/v2-web/src/prototypes/your-world-cup/YourWorldCupPrototype.tsx'),
       read('apps/v2-web/src/prototypes/your-world-cup/prototype-state.ts'),
+      read('apps/v2-web/src/prototypes/your-world-cup/campaign/contracts.ts'),
+      read('apps/v2-web/src/prototypes/your-world-cup/campaign/campaign-store.ts'),
+      read('apps/v2-web/src/prototypes/your-world-cup/campaign/simulation.ts'),
+      read('apps/v2-web/src/prototypes/your-world-cup/campaign/moment-engine.ts'),
       read('apps/v2-web/src/prototypes/your-world-cup/your-world-cup.css'),
     ].join('\n');
     expect(prototype).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/src\/|auth\/|predictions\/|data\/official|domain\/|@supabase|fetch\(|XMLHttpRequest|analytics|gtag\(|serviceWorker|indexedDB|sessionStorage/i);
     expect(prototype).toContain("'u26v2.prototype.your-world-cup'");
+    expect(prototype).toContain("'u26v2.your-world-cup.campaign'");
     expect(prototype).not.toMatch(/localStorage\.(setItem|removeItem)\(['\"]u26v2\.(auth|predictions)/i);
   });
 
