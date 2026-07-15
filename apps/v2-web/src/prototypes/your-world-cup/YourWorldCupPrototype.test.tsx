@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { PROTOTYPE_STORAGE_KEY } from './prototype-state';
-import { CAMPAIGN_STORAGE_KEY } from './campaign/contracts';
+import { CAMPAIGN_STORAGE_KEY, createCampaign, DEFAULT_TACTICS } from './campaign/contracts';
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -118,5 +118,56 @@ describe('Your World Cup prototype route', () => {
     expect(container?.querySelector('[data-screen="draw"][data-draw-complete="true"]')).toBeTruthy();
     expect(button('enter campaign')).toBeTruthy();
     expect(button('skip draw')).toBeUndefined();
+  });
+
+  it('persists only discrete pitch decisions, restores them, and resolves direct controls', async () => {
+    vi.useFakeTimers();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    await renderPrototype();
+    await act(async () => button('start your world cup')?.click());
+    await act(async () => container?.querySelector<HTMLButtonElement>('button[aria-label^="Argentina, Quick combinations"]')?.click());
+    await act(async () => button('choose argentina')?.click());
+    await act(async () => button('skip draw')?.click());
+    await act(async () => button('enter campaign')?.click());
+    await act(async () => button('play argentina v nigeria')?.click());
+    await act(async () => button('kick off')?.click());
+    await act(async () => button('skip to the moment')?.click());
+    expect(container?.querySelector('[data-screen="moment"]')).toBeTruthy();
+    expect(container?.querySelectorAll('.ywc-player')).toHaveLength(4);
+    expect(container?.querySelectorAll('.ywc-defender')).toHaveLength(3);
+    expect(container?.querySelectorAll('.ywc-goal-zone')).toHaveLength(0);
+
+    setItem.mockClear();
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(setItem).not.toHaveBeenCalled();
+    await act(async () => container?.querySelector<HTMLButtonElement>('button[aria-label^="Luna, open"]')?.click());
+    expect(JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!).moment.events).toHaveLength(1);
+
+    await act(async () => root?.unmount());
+    container?.remove(); root = undefined; container = undefined;
+    await renderPrototype();
+    const restored = document.body.lastElementChild as HTMLDivElement;
+    expect(restored.querySelector('[data-screen="moment"]')).toBeTruthy();
+    expect(restored.textContent).toContain('Ball: Luna');
+    await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]')?.click());
+    expect(restored.querySelectorAll('.ywc-goal-zone')).toHaveLength(3);
+    await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label="Shoot right goal zone"]')?.click());
+    expect(restored.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/goal/i);
+    await act(async () => vi.advanceTimersByTime(220));
+    expect(restored.querySelector('[data-screen="result"]')).toBeTruthy();
+  });
+
+  it('shows a closed direct lane as a real interception and negative result', async () => {
+    vi.useFakeTimers();
+    const campaign = { ...createCampaign(26062026), stage: 'moment' as const, tactics: DEFAULT_TACTICS };
+    window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(campaign));
+    await renderPrototype();
+    const closed = container?.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, lane closing"]');
+    expect(closed).toBeTruthy();
+    await act(async () => closed?.click());
+    expect(container?.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/closed|cut it out/i);
+    await act(async () => vi.advanceTimersByTime(220));
+    expect(container?.querySelector('[data-screen="result"]')).toBeTruthy();
+    expect(button('pin it up')).toBeTruthy();
   });
 });

@@ -4,8 +4,12 @@ export type Shape = '4-3-3-wide' | '4-2-3-1-control';
 export type Press = 'patient' | 'balanced' | 'aggressive';
 export type FinalThird = 'wings' | 'number-10' | 'direct-runners';
 export type Tactics = Readonly<{ shape: Shape; press: Press; finalThird: FinalThird }>;
-export type CampaignStage = 'campaign' | 'tactics' | 'match-story' | 'moment' | 'result';
+export type CampaignStage = 'campaign' | 'tactics' | 'match-story' | 'moment' | 'result' | 'campaign-complete';
 export type MomentOutcome = 'goal' | 'save' | 'interception' | 'expired';
+export type PlayerId = 'lw' | 'ten' | 'rw' | 'st';
+export type ShotZone = 'left' | 'center' | 'right';
+export type MomentReplayEvent = Readonly<{ tick: number; action: Readonly<{ type: 'pass'; target: PlayerId } | { type: 'shoot'; zone: ShotZone }> }>;
+export type MomentProgress = Readonly<{ tick: number; events: readonly MomentReplayEvent[] }>;
 
 export type CompletedMatch = Readonly<{
   fixtureId: 'arg-nga';
@@ -16,7 +20,7 @@ export type CompletedMatch = Readonly<{
   outcome: 'win' | 'draw' | 'loss';
   decisiveMoment: MomentOutcome;
   tactics: Tactics;
-  replay: Readonly<{ seed: number; eventInputs: readonly string[] }>;
+  replay: Readonly<{ seed: number; progress: MomentProgress }>;
 }>;
 
 export type CampaignStateV1 = Readonly<{
@@ -27,7 +31,7 @@ export type CampaignStateV1 = Readonly<{
   group: readonly ['Argentina', 'Nigeria', 'Poland', 'New Zealand'];
   stage: CampaignStage;
   tactics: Tactics | null;
-  eventInputs: readonly string[];
+  moment: MomentProgress;
   completedMatches: readonly CompletedMatch[];
 }>;
 
@@ -46,7 +50,7 @@ export function createCampaign(seed = 26062026): CampaignStateV1 {
     group: ['Argentina', 'Nigeria', 'Poland', 'New Zealand'] as const,
     stage: 'campaign',
     tactics: null,
-    eventInputs: [],
+    moment: { tick: 0, events: [] },
     completedMatches: [],
   });
 }

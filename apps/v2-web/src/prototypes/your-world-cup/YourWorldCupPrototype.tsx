@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PROTOTYPE_STORAGE_KEY, readPrototypeState, writePrototypeState, type PrototypeScreen } from './prototype-state';
 import { createCampaign, readCampaign, recordMatch, resetCampaign, writeCampaign } from './campaign/campaign-store';
-import { DEFAULT_TACTICS, type CampaignStateV1, type Tactics } from './campaign/contracts';
+import { DEFAULT_TACTICS, type CampaignStateV1, type MomentProgress, type PlayerId, type ShotZone, type Tactics } from './campaign/contracts';
 import { replayMoment } from './campaign/moment-engine';
 import { completeMatch, groupTable, otherGroupResult, simulateMatch } from './campaign/simulation';
 import './your-world-cup.css';
@@ -229,12 +229,6 @@ function CampaignScreen({ campaign, onPlay, onReset }: { campaign: CampaignState
   );
 }
 
-const choices: ReadonlyArray<Readonly<{ key: keyof Tactics; label: string; values: readonly [string, string] }>> = [
-  { key: 'shape', label: 'Shape', values: ['4-3-3-wide', '4-2-3-1-control'] },
-  { key: 'press', label: 'Press', values: ['patient', 'balanced'] },
-  { key: 'finalThird', label: 'Final-third plan', values: ['wings', 'number-10'] },
-];
-
 function TacticsClipboard({ tactics, onChange, onKickOff, onBack }: { tactics: Tactics; onChange: (next: Tactics) => void; onKickOff: () => void; onBack: () => void }) {
   const pressValues = ['patient', 'balanced', 'aggressive'] as const;
   const finalThirdValues = ['wings', 'number-10', 'direct-runners'] as const;
@@ -266,26 +260,40 @@ function MatchStory({ campaign, onMoment, onBack }: { campaign: CampaignStateV1;
   </main>;
 }
 
-function LastChanceMoment({ campaign, onComplete }: { campaign: CampaignStateV1; onComplete: (events: readonly string[]) => void }) {
+function LastChanceMoment({ campaign, reducedMotion, onProgress, onComplete }: { campaign: CampaignStateV1; reducedMotion: boolean; onProgress: (progress: MomentProgress) => void; onComplete: (progress: MomentProgress) => void }) {
   const setup = simulateMatch(campaign.seed, campaign.tactics!);
-  const [events, setEvents] = useState<readonly string[]>(campaign.eventInputs);
-  const state = replayMoment(setup, campaign.tactics!, events);
-  useEffect(() => { if (state.outcome) { onComplete(events); return; } const timer = window.setInterval(() => setEvents((current) => [...current, 'tick']), 1000); return () => window.clearInterval(timer); }, [events, onComplete, state.outcome]);
+  const state = replayMoment(campaign.seed, campaign.tactics!, campaign.moment);
+  useEffect(() => {
+    if (state.outcome) { const timer = window.setTimeout(() => onComplete(campaign.moment), reducedMotion ? 0 : 220); return () => window.clearTimeout(timer); }
+    const timer = window.setInterval(() => onProgress({ ...campaign.moment, tick: campaign.moment.tick + 1 }), 1000);
+    return () => window.clearInterval(timer);
+  }, [campaign.moment, onComplete, onProgress, reducedMotion, state.outcome]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (state.outcome) return;
-      const input = event.key === '1' ? 'pass:left' : event.key === '2' ? 'pass:center' : event.key === '3' ? 'pass:right' : event.key.toLowerCase() === 'g' ? 'shoot' : null;
-      if (input) { event.preventDefault(); setEvents((current) => [...current, input]); }
+      const player = ({ '1': 'lw', '2': 'ten', '3': 'rw', '4': 'st' } as Record<string, PlayerId>)[event.key];
+      const zone = ({ q: 'left', w: 'center', e: 'right' } as Record<string, ShotZone>)[event.key.toLowerCase()];
+      if (player && player !== state.ballCarrier) { event.preventDefault(); onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'pass', target: player } }] }); }
+      if (zone && state.shotAvailable) { event.preventDefault(); onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'shoot', zone } }] }); }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.outcome]);
-  const add = (event: string) => !state.outcome && setEvents((current) => [...current, event]);
-  const name = state.active === 'left' ? 'Luna' : state.active === 'right' ? 'Garay' : 'Ocampo';
+  }, [campaign.moment, onProgress, state.ballCarrier, state.outcome, state.shotAvailable]);
+  const pass = (target: PlayerId) => !state.outcome && target !== state.ballCarrier && onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'pass', target } }] });
+  const shoot = (zone: ShotZone) => state.shotAvailable && onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'shoot', zone } }] });
+  const label: Record<PlayerId, string> = { lw: 'Luna', ten: 'Ocampo', rw: 'Garay', st: 'Ferreyra' };
+  const percent = (point: { x: number; y: number }) => ({ left: `${point.x}%`, top: `${point.y}%` });
   return <main className="ywc-prototype ywc-moment" data-screen="moment" tabIndex={0}>
-    <div className="ywc-score-bug"><span>YOUR WORLD CUP · SIMULATED</span><b>ARG {setup.homeGoals}–{setup.awayGoals} NGA</b><i>{setup.minute}′ + {state.ticks}</i></div>
-    <section className="ywc-play-panel" aria-label="Playable last-chance attack"><div className="ywc-goal" aria-hidden="true" /><div className="ywc-keeper" aria-hidden="true" /><div className={`ywc-player ywc-player--left${state.active === 'left' ? ' is-active' : ''}`}>Luna</div><div className={`ywc-player ywc-player--center${state.active === 'center' ? ' is-active' : ''}`}>Ocampo</div><div className={`ywc-player ywc-player--right${state.active === 'right' ? ' is-active' : ''}`}>Garay</div><div className="ywc-defenders" aria-hidden="true"><i /><i /><i /></div><div className="ywc-ball">●</div></section>
-    <section className="ywc-moment-controls" aria-label="Attack controls"><p className="ywc-marker-note">{state.message}</p><p className="ywc-moment-timer">Stoppage time: {Math.max(0, 12 - state.ticks)} · Ball: {name}</p><div><button type="button" onClick={() => add('pass:left')}>1 · Pass Luna</button><button type="button" onClick={() => add('pass:center')}>2 · Pass Ocampo</button><button type="button" onClick={() => add('pass:right')}>3 · Pass Garay</button></div><button type="button" className="ywc-button ywc-button--marigold" onClick={() => add('shoot')}>G · Shoot at goal <span aria-hidden="true">→</span></button><p className="ywc-keyboard-note">Tap controls or use 1, 2, 3, then G. Two passes open the best lane.</p></section>
+    <div className="ywc-score-bug"><span>YOUR WORLD CUP · SIMULATED</span><b>ARG {setup.homeGoals}–{setup.awayGoals} NGA</b><i>{setup.minute}′ + {state.tick}</i></div>
+    <section className={`ywc-play-panel${state.outcome ? ` is-${state.outcome}` : ''}`} aria-label="Playable last-chance attack">
+      <div className="ywc-goal">{state.shotAvailable ? (['left', 'center', 'right'] as const).map((zone) => <button type="button" key={zone} className={`ywc-goal-zone ywc-goal-zone--${zone}`} onClick={() => shoot(zone)} aria-label={`Shoot ${zone} goal zone`} />) : null}</div>
+      <div className={`ywc-keeper${state.outcome === 'save' ? ' is-diving' : ''}`} style={percent(state.keeper)} aria-hidden="true" />
+      {(['lw', 'ten', 'rw', 'st'] as const).map((id) => <button type="button" key={id} className={`ywc-player ywc-player--${id}${state.ballCarrier === id ? ' is-active' : ''}${state.closedPasses.includes(id) ? ' is-closed' : ''}`} style={percent(state.attackers[id])} disabled={state.outcome != null || state.ballCarrier === id} onClick={() => pass(id)} aria-label={`${label[id]}${state.closedPasses.includes(id) ? ', lane closing' : ', open for a pass'}`}>{label[id]}<small>{id === 'lw' ? '1' : id === 'ten' ? '2' : id === 'rw' ? '3' : '4'}</small></button>)}
+      {state.defenders.map((defender, index) => <i className="ywc-defender" key={index} style={percent(defender)} aria-hidden="true" />)}
+      <div className={`ywc-ball${state.lastAction?.type === 'pass' ? ' is-travelling' : ''}`} style={percent(state.ball)} aria-hidden="true">●</div>
+      {state.outcome ? <div className="ywc-moment-feedback" role="status">{state.message}</div> : null}
+    </section>
+    <section className="ywc-moment-controls" aria-label="Attack status"><p className="ywc-marker-note" aria-live="polite">{state.message}</p><p className="ywc-moment-timer">Stoppage time: {Math.max(0, state.limit - state.tick)} · Ball: {label[state.ballCarrier]}</p><p className="ywc-keyboard-note">Tap a teammate. Keys 1–4 pass; when at goal, Q / W / E shoot left, centre, right.</p></section>
   </main>;
 }
 
@@ -324,7 +332,7 @@ export function YourWorldCupPrototype() {
 
   function openTactics() {
     const next = campaign ?? createCampaign();
-    saveCampaign({ ...next, stage: 'tactics', tactics: next.tactics ?? DEFAULT_TACTICS, eventInputs: [] });
+    saveCampaign({ ...next, stage: 'tactics', tactics: next.tactics ?? DEFAULT_TACTICS, moment: { tick: 0, events: [] } });
   }
 
   function setTactics(tactics: Tactics) {
@@ -334,20 +342,24 @@ export function YourWorldCupPrototype() {
 
   function kickOff() {
     if (!campaign?.tactics) return;
-    saveCampaign({ ...campaign, stage: 'match-story', eventInputs: [] });
+    saveCampaign({ ...campaign, stage: 'match-story', moment: { tick: 0, events: [] } });
   }
 
   function startMoment() {
     if (!campaign?.tactics) return;
-    saveCampaign({ ...campaign, stage: 'moment' });
+    saveCampaign({ ...campaign, stage: 'moment', moment: { tick: 0, events: [] } });
   }
 
-  function resolveMoment(events: readonly string[]) {
+  function updateMoment(progress: MomentProgress) {
+    if (campaign?.stage === 'moment' && !campaign.completedMatches.length) saveCampaign({ ...campaign, moment: progress });
+  }
+
+  function resolveMoment(progress: MomentProgress) {
     if (!campaign?.tactics || campaign.completedMatches.length) return;
     const setup = simulateMatch(campaign.seed, campaign.tactics);
-    const moment = replayMoment(setup, campaign.tactics, events);
+    const moment = replayMoment(campaign.seed, campaign.tactics, progress);
     if (!moment.outcome) return;
-    const match = completeMatch(setup, moment.outcome, campaign.tactics, campaign.seed, events);
+    const match = completeMatch(setup, moment.outcome, campaign.tactics, campaign.seed, progress);
     saveCampaign(recordMatch(campaign, match));
   }
 
@@ -371,10 +383,10 @@ export function YourWorldCupPrototype() {
   if (view === 'opening') return <OpeningScreen hasCampaign={savedState != null} onStart={start} onContinue={continueCampaign} />;
   if (view === 'nation') return <NationScreen selected={selected} onSelect={() => setSelected(true)} onBack={() => setView('opening')} onChoose={() => { persist('draw', 'Argentina'); setView('draw'); }} />;
   if (view === 'draw') return <DrawScreen reducedMotion={reducedMotion} onBack={() => { persist('nation', 'Argentina'); setSelected(true); setView('nation'); }} onComplete={() => { persist('campaign', 'Argentina'); setView('campaign'); }} />;
-  if (campaign?.stage === 'tactics') return <TacticsClipboard tactics={campaign.tactics ?? DEFAULT_TACTICS} onChange={setTactics} onKickOff={kickOff} onBack={() => saveCampaign({ ...campaign, stage: 'campaign', eventInputs: [] })} />;
+  if (campaign?.stage === 'tactics') return <TacticsClipboard tactics={campaign.tactics ?? DEFAULT_TACTICS} onChange={setTactics} onKickOff={kickOff} onBack={() => saveCampaign({ ...campaign, stage: 'campaign', tactics: null, moment: { tick: 0, events: [] } })} />;
   if (campaign?.stage === 'match-story') return <MatchStory campaign={campaign} onMoment={startMoment} onBack={() => saveCampaign({ ...campaign, stage: 'tactics' })} />;
-  if (campaign?.stage === 'moment') return <LastChanceMoment campaign={campaign} onComplete={resolveMoment} />;
-  if (campaign?.stage === 'result') return <FullTimeArtifact campaign={campaign} onReturn={() => saveCampaign({ ...campaign, stage: 'campaign' })} />;
+  if (campaign?.stage === 'moment') return <LastChanceMoment campaign={campaign} reducedMotion={reducedMotion} onProgress={updateMoment} onComplete={resolveMoment} />;
+  if (campaign?.stage === 'result') return <FullTimeArtifact campaign={campaign} onReturn={() => saveCampaign({ ...campaign, stage: 'campaign-complete' })} />;
   return <CampaignScreen campaign={campaign} onPlay={openTactics} onReset={resetSlice} />;
 }
 

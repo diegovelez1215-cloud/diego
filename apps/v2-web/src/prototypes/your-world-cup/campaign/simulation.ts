@@ -1,4 +1,4 @@
-import type { CompletedMatch, MomentOutcome, Tactics } from './contracts';
+import type { CompletedMatch, MomentOutcome, MomentProgress, Tactics } from './contracts';
 
 export type MatchSetup = Readonly<{
   homeGoals: number;
@@ -31,11 +31,11 @@ export function otherGroupResult(seed: number) {
   return value === 0 ? { home: 1, away: 1 } : value === 1 ? { home: 2, away: 0 } : { home: 1, away: 0 };
 }
 
-export function completeMatch(setup: MatchSetup, decisiveMoment: MomentOutcome, tactics: Tactics, seed: number, eventInputs: readonly string[]): CompletedMatch {
+export function completeMatch(setup: MatchSetup, decisiveMoment: MomentOutcome, tactics: Tactics, seed: number, progress: MomentProgress): CompletedMatch {
   const scored = decisiveMoment === 'goal';
   const homeGoals = setup.homeGoals + (scored ? 1 : 0);
   const outcome = homeGoals > setup.awayGoals ? 'win' : homeGoals === setup.awayGoals ? 'draw' : 'loss';
-  return Object.freeze({ fixtureId: 'arg-nga', home: 'Argentina', away: 'Nigeria', homeGoals, awayGoals: setup.awayGoals, outcome, decisiveMoment, tactics, replay: { seed, eventInputs } });
+  return Object.freeze({ fixtureId: 'arg-nga', home: 'Argentina', away: 'Nigeria', homeGoals, awayGoals: setup.awayGoals, outcome, decisiveMoment, tactics, replay: { seed, progress } });
 }
 
 export function groupTable(match: CompletedMatch | undefined, seed: number) {
