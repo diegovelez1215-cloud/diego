@@ -263,32 +263,43 @@ function MatchStory({ campaign, onMoment, onBack }: { campaign: CampaignStateV1;
 function LastChanceMoment({ campaign, reducedMotion, onProgress, onComplete }: { campaign: CampaignStateV1; reducedMotion: boolean; onProgress: (progress: MomentProgress) => void; onComplete: (progress: MomentProgress) => void }) {
   const setup = simulateMatch(campaign.seed, campaign.tactics!);
   const state = replayMoment(campaign.seed, campaign.tactics!, campaign.moment);
+  const [inputLocked, setInputLocked] = useState(false);
   useEffect(() => {
-    if (state.outcome) { const timer = window.setTimeout(() => onComplete(campaign.moment), reducedMotion ? 0 : 220); return () => window.clearTimeout(timer); }
+    if (state.outcome) { const timer = window.setTimeout(() => onComplete(campaign.moment), reducedMotion ? 350 : 700); return () => window.clearTimeout(timer); }
     const timer = window.setInterval(() => onProgress({ ...campaign.moment, tick: campaign.moment.tick + 1 }), 1000);
     return () => window.clearInterval(timer);
   }, [campaign.moment, onComplete, onProgress, reducedMotion, state.outcome]);
   useEffect(() => {
+    if (!inputLocked) return;
+    const timer = window.setTimeout(() => setInputLocked(false), reducedMotion ? 120 : 300);
+    return () => window.clearTimeout(timer);
+  }, [inputLocked, reducedMotion]);
+  const pass = (target: PlayerId) => {
+    if (inputLocked || state.outcome || target === state.ballCarrier) return;
+    const progress = { ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'pass' as const, target } }] };
+    if (state.availablePasses.includes(target)) { setInputLocked(true); onProgress({ ...progress, tick: campaign.moment.tick + 1 }); return; }
+    onProgress(progress);
+  };
+  const shoot = (zone: ShotZone) => !inputLocked && state.shotAvailable && onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'shoot', zone } }] });
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (state.outcome) return;
+      if (state.outcome || inputLocked) return;
       const player = ({ '1': 'lw', '2': 'ten', '3': 'rw', '4': 'st' } as Record<string, PlayerId>)[event.key];
       const zone = ({ q: 'left', w: 'center', e: 'right' } as Record<string, ShotZone>)[event.key.toLowerCase()];
-      if (player && player !== state.ballCarrier) { event.preventDefault(); onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'pass', target: player } }] }); }
-      if (zone && state.shotAvailable) { event.preventDefault(); onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'shoot', zone } }] }); }
+      if (player && player !== state.ballCarrier) { event.preventDefault(); pass(player); }
+      if (zone && state.shotAvailable) { event.preventDefault(); shoot(zone); }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [campaign.moment, onProgress, state.ballCarrier, state.outcome, state.shotAvailable]);
-  const pass = (target: PlayerId) => !state.outcome && target !== state.ballCarrier && onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'pass', target } }] });
-  const shoot = (zone: ShotZone) => state.shotAvailable && onProgress({ ...campaign.moment, events: [...campaign.moment.events, { tick: campaign.moment.tick, action: { type: 'shoot', zone } }] });
+  }, [inputLocked, state.ballCarrier, state.outcome, state.shotAvailable]);
   const label: Record<PlayerId, string> = { lw: 'Luna', ten: 'Ocampo', rw: 'Garay', st: 'Ferreyra' };
   const percent = (point: { x: number; y: number }) => ({ left: `${point.x}%`, top: `${point.y}%` });
-  return <main className="ywc-prototype ywc-moment" data-screen="moment" tabIndex={0}>
+  return <main className="ywc-prototype ywc-moment" data-screen="moment" tabIndex={0} aria-busy={inputLocked}>
     <div className="ywc-score-bug"><span>YOUR WORLD CUP · SIMULATED</span><b>ARG {setup.homeGoals}–{setup.awayGoals} NGA</b><i>{setup.minute}′ + {state.tick}</i></div>
     <section className={`ywc-play-panel${state.outcome ? ` is-${state.outcome}` : ''}`} aria-label="Playable last-chance attack">
-      <div className="ywc-goal">{state.shotAvailable ? (['left', 'center', 'right'] as const).map((zone) => <button type="button" key={zone} className={`ywc-goal-zone ywc-goal-zone--${zone}`} onClick={() => shoot(zone)} aria-label={`Shoot ${zone} goal zone`} />) : null}</div>
+      <div className="ywc-goal">{state.shotAvailable ? (['left', 'center', 'right'] as const).map((zone) => <button type="button" key={zone} className={`ywc-goal-zone ywc-goal-zone--${zone}`} disabled={inputLocked} onClick={() => shoot(zone)} aria-label={`Shoot ${zone} goal zone`} />) : null}</div>
       <div className={`ywc-keeper${state.outcome === 'save' ? ' is-diving' : ''}`} style={percent(state.keeper)} aria-hidden="true" />
-      {(['lw', 'ten', 'rw', 'st'] as const).map((id) => <button type="button" key={id} className={`ywc-player ywc-player--${id}${state.ballCarrier === id ? ' is-active' : ''}${state.closedPasses.includes(id) ? ' is-closed' : ''}`} style={percent(state.attackers[id])} disabled={state.outcome != null || state.ballCarrier === id} onClick={() => pass(id)} aria-label={`${label[id]}${state.closedPasses.includes(id) ? ', lane closing' : ', open for a pass'}`}>{label[id]}<small>{id === 'lw' ? '1' : id === 'ten' ? '2' : id === 'rw' ? '3' : '4'}</small></button>)}
+      {(['lw', 'ten', 'rw', 'st'] as const).map((id) => <button type="button" key={id} className={`ywc-player ywc-player--${id}${state.ballCarrier === id ? ' is-active' : ''}${state.closedPasses.includes(id) ? ' is-closed' : ''}`} style={percent(state.attackers[id])} disabled={inputLocked || state.outcome != null || state.ballCarrier === id} onClick={() => pass(id)} aria-label={`${label[id]}${state.closedPasses.includes(id) ? ', lane closing' : ', open for a pass'}`}>{label[id]}<small>{id === 'lw' ? '1' : id === 'ten' ? '2' : id === 'rw' ? '3' : '4'}</small></button>)}
       {state.defenders.map((defender, index) => <i className="ywc-defender" key={index} style={percent(defender)} aria-hidden="true" />)}
       <div className={`ywc-ball${state.lastAction?.type === 'pass' ? ' is-travelling' : ''}`} style={percent(state.ball)} aria-hidden="true">●</div>
       {state.outcome ? <div className="ywc-moment-feedback" role="status">{state.message}</div> : null}

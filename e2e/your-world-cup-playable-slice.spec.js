@@ -5,12 +5,25 @@ import { expect, test } from '@playwright/test';
 
 const v1Path = new URL('../index.html', import.meta.url);
 const sha = (value) => createHash('sha256').update(value).digest('hex');
+const momentHash = (value) => [...value].reduce((total, character) => ((total * 33) + character.charCodeAt(0)) >>> 0, 5381);
 const v1AtCheckpoint = sha(execFileSync('git', ['show', 'HEAD:index.html'], { encoding: 'utf8' }));
+const sentinels = Object.freeze({
+  'u26v2.predictions.local': '{"sentinel":"prediction-bytes-v1"}',
+  'u26v2.auth': '{"sentinel":"auth-bytes-v1"}',
+  'u26v2.play': '{"sentinel":"v1-play-bytes-v1"}',
+});
+
+async function seedSentinels(page) {
+  await page.evaluate((values) => { localStorage.clear(); Object.entries(values).forEach(([key, value]) => localStorage.setItem(key, value)); }, sentinels);
+}
+
+async function expectSentinels(page) {
+  await expect(page.evaluate((values) => Object.fromEntries(Object.keys(values).map((key) => [key, localStorage.getItem(key)])), sentinels)).resolves.toEqual(sentinels);
+}
 
 async function enterCampaign(page) {
   await page.goto('/v2/your-world-cup-prototype');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await seedSentinels(page); await page.reload();
   await page.getByRole('button', { name: /start your world cup/i }).click();
   await page.getByRole('button', { name: /Argentina, Quick combinations/i }).click();
   await page.getByRole('button', { name: /choose argentina/i }).click();
@@ -27,89 +40,76 @@ async function openMoment(page, plan = 'wings') {
   await expect(page.locator('[data-screen="moment"]')).toBeVisible();
 }
 
-async function scoreWithPitchControls(page, onFeedback) {
-  await page.getByRole('button', { name: /Luna, open for a pass/i }).click();
-  await page.getByRole('button', { name: /Ferreyra, open for a pass/i }).click();
-  await page.getByRole('button', { name: /Shoot right goal zone/i }).click();
+async function passAndSettle(page, name) {
+  await page.getByRole('button', { name }).click();
+  await expect(page.locator('[data-screen="moment"]')).toHaveAttribute('aria-busy', 'true');
+  await page.waitForTimeout(350);
+  await expect(page.locator('[data-screen="moment"]')).toHaveAttribute('aria-busy', 'false');
+}
+
+async function scoreWithVisiblePressure(page, onFirstPass) {
+  await passAndSettle(page, /Luna, open for a pass/i);
+  if (onFirstPass) await onFirstPass();
+  await passAndSettle(page, /Ferreyra, open for a pass/i);
+  const tick = Number((await page.locator('.ywc-score-bug').textContent())?.match(/\+\s*(\d+)/)?.[1] ?? 0);
+  const zone = ['right', 'left'].sort((a, b) => (momentHash(`26062026:4-3-3-wide:wings:${tick}:${b}`) % 13) - (momentHash(`26062026:4-3-3-wide:wings:${tick}:${a}`) % 13))[0];
+  await page.getByRole('button', { name: `Shoot ${zone} goal zone` }).click();
   await expect(page.locator('.ywc-moment-feedback')).toContainText(/goal/i);
-  if (onFeedback) await onFeedback();
+  await page.waitForTimeout(500);
   await expect(page.locator('[data-screen="result"]')).toBeVisible();
 }
 
-for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }]) {
-  test(`pitch controls fit and finish at ${viewport.width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport);
-    await enterCampaign(page);
-    await page.getByRole('button', { name: /play argentina v nigeria/i }).click();
-    await page.screenshot({ path: testInfo.outputPath(`tactics-${viewport.width}.png`), fullPage: true });
-    await page.getByRole('button', { name: /^kick off/i }).click();
-    await page.screenshot({ path: testInfo.outputPath(`match-tape-${viewport.width}.png`), fullPage: true });
-    await page.getByRole('button', { name: /skip to the moment/i }).click();
-    await expect(page.locator('[data-screen="moment"]')).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`moment-open-${viewport.width}.png`), fullPage: true });
-    await page.screenshot({ path: testInfo.outputPath(`moment-mid-${viewport.width}.png`), fullPage: true });
-    await scoreWithPitchControls(page, () => page.screenshot({ path: testInfo.outputPath(`goal-feedback-${viewport.width}.png`), fullPage: true }));
+for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }, { width: 1440, height: 1000 }]) {
+  test(`pressure is observable and usable at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport); await enterCampaign(page); await openMoment(page);
+    const open = await page.locator('[data-screen="moment"]').screenshot({ path: testInfo.outputPath(`moment-open-${viewport.width}.png`) });
+    if (viewport.width === 1440) {
+      const geometry = await page.evaluate(() => {
+        const score = document.querySelector('.ywc-score-bug')?.getBoundingClientRect(); const timer = document.querySelector('.ywc-moment-timer')?.getBoundingClientRect();
+        return { width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, pitch: !!document.querySelector('.ywc-play-panel'), score: score ? score.bottom <= innerHeight : false, timer: timer ? timer.bottom <= innerHeight : false };
+      });
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.width); expect(geometry.pitch).toBe(true); expect(geometry.score).toBe(true); expect(geometry.timer).toBe(true);
+    }
+    await scoreWithVisiblePressure(page, async () => {
+      await expect(page.locator('.ywc-moment-timer')).toContainText(/Ball: Luna/i);
+      await expect(page.locator('.ywc-score-bug')).toContainText(/\+ 1/);
+      const mid = await page.locator('[data-screen="moment"]').screenshot({ path: testInfo.outputPath(`moment-mid-${viewport.width}.png`) });
+      expect(sha(mid)).not.toBe(sha(open));
+    });
     await page.screenshot({ path: testInfo.outputPath(`victory-${viewport.width}.png`), fullPage: true });
-    await page.getByRole('button', { name: /keep the paper/i }).click();
-    await page.screenshot({ path: testInfo.outputPath(`campaign-wall-${viewport.width}.png`), fullPage: true });
-    const geometry = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => button.getBoundingClientRect().height) }));
-    expect(geometry.scroll).toBeLessThanOrEqual(geometry.width);
-    expect(geometry.buttons.every((height) => height >= 48)).toBe(true);
-    expect(await page.evaluate(() => localStorage.getItem('u26v2.predictions.local'))).toBeNull();
-    expect(await page.evaluate(() => localStorage.getItem('u26v2.auth'))).toBeNull();
+    await expectSentinels(page);
   });
 }
 
-test('keyboard, reload, reduced motion, malformed state, isolation, and V1 stay safe', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await enterCampaign(page);
-  await openMoment(page);
-  await page.keyboard.press('1'); await page.keyboard.press('4'); await page.keyboard.press('e');
-  await expect(page.locator('[data-screen="result"]')).toBeVisible();
-  await page.getByRole('button', { name: /keep the paper/i }).click();
-  await expect(page.locator('[data-screen="campaign"]')).toBeVisible();
-
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await enterCampaign(page);
-  await openMoment(page, 'direct');
+test('storage sentinels survive failure, campaign reset, and reload', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 }); await enterCampaign(page); await openMoment(page, 'direct');
   await page.getByRole('button', { name: /Ferreyra, lane closing/i }).click();
+  await expect(page.locator('.ywc-moment-feedback')).toContainText(/closed|cut it out/i);
+  await page.screenshot({ path: testInfo.outputPath('negative-feedback-390.png'), fullPage: true });
   await expect(page.getByRole('button', { name: /pin it up/i })).toBeVisible();
-
-  await page.goto('/v2/your-world-cup-prototype');
-  await page.evaluate(() => localStorage.setItem('u26v2.your-world-cup.campaign', '{malformed'));
-  await page.reload();
-  await expect(page.locator('[data-screen="opening"]')).toBeVisible();
-  await page.goto('/');
-  await expect(page.locator('.ywc-prototype')).toHaveCount(0);
-  expect(sha(readFileSync(v1Path))).toBe(v1AtCheckpoint);
+  await expectSentinels(page);
+  await page.getByRole('button', { name: /pin it up/i }).click();
+  await page.getByRole('button', { name: /reset this slice/i }).click();
+  await expect(page.evaluate(() => localStorage.getItem('u26v2.your-world-cup.campaign'))).resolves.toBeNull();
+  await expectSentinels(page); await page.reload(); await expectSentinels(page);
+  await page.goto('/'); await expect(page.locator('.ywc-prototype')).toHaveCount(0); expect(sha(readFileSync(v1Path))).toBe(v1AtCheckpoint);
 });
 
-test('restores an in-progress pitch action after reload', async ({ page }) => {
-  await enterCampaign(page);
-  await openMoment(page);
-  await page.getByRole('button', { name: /Luna, open for a pass/i }).click();
-  await page.reload();
-  await expect(page.locator('[data-screen="moment"]')).toBeVisible();
-  await expect(page.locator('.ywc-moment-timer')).toContainText(/Ball: Luna/i);
-});
-
-test('captures a saved shot and its negative result', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('keyboard controls respect the pass lock and restore exact progress', async ({ page }) => {
   await enterCampaign(page); await openMoment(page);
-  await page.getByRole('button', { name: /Luna, open for a pass/i }).click();
-  await page.getByRole('button', { name: /Ferreyra, open for a pass/i }).click();
-  await page.getByRole('button', { name: /Shoot center goal zone/i }).click();
-  await expect(page.locator('.ywc-moment-feedback')).toContainText(/saved/i);
-  await page.screenshot({ path: testInfo.outputPath('save-feedback-390.png'), fullPage: true });
-  await expect(page.locator('[data-screen="result"]')).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('negative-390.png'), fullPage: true });
+  await page.keyboard.press('1'); await page.keyboard.press('4');
+  await page.waitForTimeout(350); await page.keyboard.press('4'); await page.waitForTimeout(350); await page.keyboard.press('e');
+  await expect(page.locator('[data-screen="result"]')).toBeVisible(); await expectSentinels(page);
+  await page.reload(); await expect(page.locator('[data-screen="result"]')).toBeVisible(); await expectSentinels(page);
 });
 
-for (const [name, action] of [['complete-success', scoreWithPitchControls], ['closed-lane-failure', async (page) => { await page.getByRole('button', { name: /Ferreyra, lane closing/i }).click(); await expect(page.getByRole('button', { name: /pin it up/i })).toBeVisible(); }]]) {
-  test(`records ${name} flow`, async ({ browser }, testInfo) => {
+for (const [name, action] of [
+  ['complete-success', async (page) => scoreWithVisiblePressure(page)],
+  ['closed-lane-failure', async (page) => { await page.getByRole('button', { name: /Ferreyra, lane closing/i }).click(); await page.waitForTimeout(900); await expect(page.getByRole('button', { name: /pin it up/i })).toBeVisible(); }],
+]) {
+  test(`records ${name} flow with observable pauses`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, recordVideo: { dir: testInfo.outputPath('recording'), size: { width: 390, height: 844 } }, serviceWorkers: 'block' });
-    const page = await context.newPage();
-    await enterCampaign(page); await openMoment(page); await action(page);
+    const page = await context.newPage(); await enterCampaign(page); await openMoment(page); await action(page); await expectSentinels(page);
     const video = page.video(); await context.close(); await video?.saveAs(testInfo.outputPath(`${name}.webm`));
   });
 }

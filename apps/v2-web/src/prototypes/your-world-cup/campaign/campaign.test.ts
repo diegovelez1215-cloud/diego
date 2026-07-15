@@ -14,13 +14,13 @@ describe('Your World Cup campaign contract', () => {
     expect(setItem).toHaveBeenCalledWith(CAMPAIGN_STORAGE_KEY, expect.any(String)); expect(removeItem).toHaveBeenCalledWith(CAMPAIGN_STORAGE_KEY);
   });
 
-  it('moves defenders, moves the carrier/ball on valid passes, and has two open wide routes', () => {
+  it('evaluates the visible lane, then advances one deterministic tick after each open pass', () => {
     const start = initialMoment(26062026, DEFAULT_TACTICS); const ticked = advanceMoment(26062026, DEFAULT_TACTICS, start);
     expect(ticked.defenders).not.toEqual(start.defenders);
     expect(start.availablePasses).toContain('lw'); expect(start.availablePasses).toContain('rw');
     expect(ticked.availablePasses).toContain('lw'); expect(ticked.availablePasses).toContain('rw');
     const left = passMoment(26062026, DEFAULT_TACTICS, start, 'lw'); const right = passMoment(26062026, DEFAULT_TACTICS, start, 'rw');
-    expect(left.ballCarrier).toBe('lw'); expect(left.ball).toEqual(left.attackers.lw); expect(right.ballCarrier).toBe('rw');
+    expect(left.ballCarrier).toBe('lw'); expect(left.tick).toBe(start.tick + 1); expect(left.ball).toEqual(left.attackers.lw); expect(left.defenders).not.toEqual(start.defenders); expect(right.ballCarrier).toBe('rw');
     expect(passMoment(26062026, DEFAULT_TACTICS, ticked, 'lw').availablePasses).toContain('st');
   });
 
@@ -31,7 +31,7 @@ describe('Your World Cup campaign contract', () => {
   });
 
   it('replays exact actions deterministically, resolves zones, and expires honestly', () => {
-    const progress = defaultProgress([{ tick: 0, action: { type: 'pass', target: 'lw' } }, { tick: 0, action: { type: 'pass', target: 'st' } }, { tick: 0, action: { type: 'shoot', zone: 'right' } }]);
+    const progress = defaultProgress([{ tick: 0, action: { type: 'pass', target: 'lw' } }, { tick: 1, action: { type: 'pass', target: 'st' } }, { tick: 2, action: { type: 'shoot', zone: 'right' } }], 2);
     expect(replayMoment(26062026, DEFAULT_TACTICS, progress)).toEqual(replayMoment(26062026, DEFAULT_TACTICS, progress));
     const st = passMoment(26062026, DEFAULT_TACTICS, passMoment(26062026, DEFAULT_TACTICS, initialMoment(26062026, DEFAULT_TACTICS), 'lw'), 'st');
     expect(st.shotAvailable).toBe(true);
@@ -48,7 +48,7 @@ describe('Your World Cup campaign contract', () => {
   });
 
   it('rejects dangerous restored state and validates result replay/score agreement', () => {
-    const state = { ...createCampaign(26062026), stage: 'moment' as const, tactics: DEFAULT_TACTICS, moment: defaultProgress([{ tick: 0, action: { type: 'pass', target: 'lw' } }]) };
+    const state = { ...createCampaign(26062026), stage: 'moment' as const, tactics: DEFAULT_TACTICS, moment: defaultProgress([{ tick: 0, action: { type: 'pass', target: 'lw' } }], 1) };
     expect(sanitizeCampaign(state)).toEqual(state);
     expect(sanitizeCampaign({ ...state, moment: { tick: 999, events: [] } })).toBeNull();
     expect(sanitizeCampaign({ ...state, stage: 'tactics', tactics: null })).toBeNull();

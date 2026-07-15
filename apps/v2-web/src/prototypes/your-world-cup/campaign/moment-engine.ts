@@ -107,7 +107,10 @@ export function passMoment(seed: number, tactics: Tactics, state: MomentState, t
   if (state.outcome || target === state.ballCarrier) return state;
   const closed = state.closedPasses.includes(target);
   if (closed) return build(seed, tactics, state.tick, state.ballCarrier, state.attackers as Record<PlayerId, Point>, state.defenders, 'interception', 'The lane was closed. Nigeria cut it out.', { type: 'pass', target });
-  return build(seed, tactics, state.tick, target, state.attackers as Record<PlayerId, Point>, state.defenders, null, `${target === 'lw' ? 'Luna' : target === 'rw' ? 'Garay' : target === 'st' ? 'Ferreyra' : 'Ocampo'} takes it on the move.`, { type: 'pass', target });
+  const received = build(seed, tactics, state.tick, target, state.attackers as Record<PlayerId, Point>, state.defenders, null, `${target === 'lw' ? 'Luna' : target === 'rw' ? 'Garay' : target === 'st' ? 'Ferreyra' : 'Ocampo'} takes it on the move.`, { type: 'pass', target });
+  const attackers = runAttackers(received, tactics); const defenders = moveDefenders(received, attackers); const nextTick = state.tick + 1;
+  if (nextTick >= received.limit) return build(seed, tactics, nextTick, target, attackers, defenders, 'expired', 'The whistle cuts through the attack.', { type: 'pass', target });
+  return build(seed, tactics, nextTick, target, attackers, defenders, null, 'The pass lands. Nigeria reset their line around the new carrier.', { type: 'pass', target });
 }
 
 export function shootMoment(seed: number, tactics: Tactics, state: MomentState, zone: ShotZone): MomentState {
@@ -116,7 +119,8 @@ export function shootMoment(seed: number, tactics: Tactics, state: MomentState, 
   const pressure = Math.min(...state.defenders.map((defender) => distance(defender, state.attackers[state.ballCarrier])));
   const keeperZone: ShotZone = state.keeper.x < 42 ? 'left' : state.keeper.x > 58 ? 'right' : 'center';
   const roll = hash(`${seed}:${tactics.shape}:${tactics.finalThird}:${state.tick}:${zone}`) % 13;
-  const goal = zone !== keeperZone && pressure > 7 && roll > 1;
+  const pressureThreshold = pressure < 4 ? 4 : 1;
+  const goal = zone !== keeperZone && roll > pressureThreshold;
   return build(seed, tactics, state.tick, state.ballCarrier, state.attackers as Record<PlayerId, Point>, state.defenders, goal ? 'goal' : 'save', goal ? 'GOAL! The net snaps before the print slam.' : 'Saved. The keeper gets across and freezes the moment.', { type: 'shoot', zone });
 }
 

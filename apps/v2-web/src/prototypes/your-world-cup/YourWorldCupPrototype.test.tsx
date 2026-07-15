@@ -141,7 +141,8 @@ describe('Your World Cup prototype route', () => {
     await act(async () => vi.advanceTimersByTime(500));
     expect(setItem).not.toHaveBeenCalled();
     await act(async () => container?.querySelector<HTMLButtonElement>('button[aria-label^="Luna, open"]')?.click());
-    expect(JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!).moment.events).toHaveLength(1);
+    const persisted = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
+    expect(persisted.moment.events).toHaveLength(1); expect(persisted.moment.tick).toBe(1);
 
     await act(async () => root?.unmount());
     container?.remove(); root = undefined; container = undefined;
@@ -149,11 +150,13 @@ describe('Your World Cup prototype route', () => {
     const restored = document.body.lastElementChild as HTMLDivElement;
     expect(restored.querySelector('[data-screen="moment"]')).toBeTruthy();
     expect(restored.textContent).toContain('Ball: Luna');
+    await act(async () => vi.advanceTimersByTime(300));
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]')?.click());
     expect(restored.querySelectorAll('.ywc-goal-zone')).toHaveLength(3);
+    await act(async () => vi.advanceTimersByTime(300));
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label="Shoot right goal zone"]')?.click());
     expect(restored.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/goal/i);
-    await act(async () => vi.advanceTimersByTime(220));
+    await act(async () => vi.advanceTimersByTime(700));
     expect(restored.querySelector('[data-screen="result"]')).toBeTruthy();
   });
 
@@ -166,7 +169,7 @@ describe('Your World Cup prototype route', () => {
     expect(closed).toBeTruthy();
     await act(async () => closed?.click());
     expect(container?.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/closed|cut it out/i);
-    await act(async () => vi.advanceTimersByTime(220));
+    await act(async () => vi.advanceTimersByTime(700));
     expect(container?.querySelector('[data-screen="result"]')).toBeTruthy();
     expect(button('pin it up')).toBeTruthy();
   });
