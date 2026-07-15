@@ -13,18 +13,23 @@ export const primaryDestinations = [
 
 export type PrimaryPath = typeof primaryDestinations[number]['path'];
 
-export function AppShell({ children, currentPath, snapshotState, refreshing, onRefresh, onNavigate }: {
+export function AppShell({ children, currentPath, snapshotState, refreshing, showMatchdayEdition, onRefresh, onNavigate }: {
   children: ReactNode;
   currentPath: PrimaryPath | null;
   snapshotState: SnapshotState;
   refreshing: boolean;
+  showMatchdayEdition: boolean;
   onRefresh: () => Promise<void>;
   onNavigate: (path: string) => void;
 }) {
   return (
     <div className="v2-app">
       <a className="v2-skip-link" href="#v2-content">Skip to content</a>
-      <TopBar source={<SourceChip state={snapshotState} refreshing={refreshing} onRefresh={onRefresh} />} />
+      <TopBar
+        source={<SourceChip state={snapshotState} refreshing={refreshing} onRefresh={onRefresh} />}
+        showEditionContext={showMatchdayEdition}
+        onNavigate={onNavigate}
+      />
       <div className="v2-content-frame">{children}</div>
       <BottomNav currentPath={currentPath} onNavigate={onNavigate} />
     </div>

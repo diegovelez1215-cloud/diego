@@ -1,5 +1,194 @@
 @layer routes {
-  .v2-play { max-width:720px; }.v2-play-flagship { position:relative; display:grid; min-height:200px; overflow:hidden; align-items:end; padding:16px; background-color:var(--band); background-image:radial-gradient(120% 90% at 18% 0%, rgba(47,107,255,.14), transparent 55%); box-shadow:0 12px 32px rgba(2,6,12,.45); }.v2-tactical-diagram { position:absolute; inset:0; width:100%; height:100%; opacity:.52; }.v2-tactical-diagram path { fill:none; stroke-linecap:square; stroke-linejoin:miter; }.v2-tactical-pitch { stroke:rgba(244,241,232,.20); stroke-width:1.2; }.v2-tactical-run { stroke:var(--official); stroke-width:3; }.v2-tactical-ball { fill:var(--chalk); }.v2-play-flagship__copy { position:relative; max-width:360px; margin-left:auto; padding:12px; background:rgba(13,27,43,.88); }.v2-play-flagship__copy > span { display:inline-flex; min-height:28px; align-items:center; padding:0 8px; border:1px solid var(--brass); color:var(--brass); font-size:11px; font-weight:700; }.v2-play-flagship__copy h2 { margin-top:8px; font-size:22px; font-weight:700; }.v2-play-flagship__copy p { margin-top:4px; color:var(--v2-chalk-68); font-size:14px; }
-  .v2-mode-list { margin-top:12px; }.v2-mode-row { display:grid; grid-template-columns:24px minmax(0,1fr) auto; gap:12px; min-height:64px; align-items:center; border-bottom:1px solid var(--hairline); }.v2-mode-row > svg { width:24px; height:24px; fill:none; stroke:var(--v2-chalk-68); stroke-width:1.7; stroke-linecap:square; stroke-linejoin:miter; }.v2-mode-row h2 { font-size:16px; font-weight:650; }.v2-mode-row p { overflow:hidden; color:var(--v2-chalk-48); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }.v2-mode-row > span { padding:4px 7px; border:1px solid var(--hairline); color:var(--v2-chalk-48); font-size:11px; white-space:nowrap; }.v2-mode-row > span[data-accent="true"] { border-color:var(--official); color:var(--official); }.v2-route-footnote { margin-top:12px; color:var(--v2-chalk-48); font-size:12px; }
-  @media (min-width:820px) { .v2-play-flagship { min-height:260px; }.v2-play-flagship__copy { margin-right:28px; } }
+  .v2-play {
+    max-width: 720px;
+  }
+
+  .v2-play-flagship {
+    position: relative;
+    display: grid;
+    min-height: 248px;
+    overflow: hidden;
+    align-items: end;
+    padding: 20px;
+    background-color: var(--band);
+    background-image: var(--floodlight-primary);
+    box-shadow: 0 12px 32px rgba(2,6,12,.45);
+    isolation: isolate;
+  }
+
+  .v2-tactical-diagram {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: .42;
+  }
+
+  .v2-tactical-diagram path,
+  .v2-tactical-diagram circle {
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+  }
+
+  .v2-tactical-pitch {
+    fill: none;
+    stroke: var(--strong-rule);
+    stroke-width: 1.2;
+  }
+
+  .v2-tactical-run {
+    fill: none;
+    stroke: var(--official);
+    stroke-width: 3;
+  }
+
+  .v2-tactical-ball {
+    fill: var(--chalk);
+    stroke: none;
+  }
+
+  .v2-tactical-player {
+    fill: var(--band);
+    stroke: var(--chalk);
+    stroke-width: 2;
+  }
+
+  .v2-tactical-press {
+    fill: var(--band);
+    stroke: var(--v2-chalk-48);
+    stroke-width: 2;
+    stroke-dasharray: 3 3;
+  }
+
+  .v2-play-flagship__copy {
+    position: relative;
+    max-width: 400px;
+  }
+
+  .v2-play-flagship__copy > span {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 0 8px;
+    border: 1px solid var(--v2-chalk-48);
+    color: var(--v2-chalk-68);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .v2-play-flagship__copy h2 {
+    margin-top: 10px;
+    font-size: 30px;
+    font-weight: 760;
+    letter-spacing: -.02em;
+  }
+
+  .v2-play-flagship__copy > p {
+    margin-top: 4px;
+    color: var(--v2-chalk-86);
+    font-size: 15px;
+  }
+
+  .v2-play-flagship__action-slot {
+    display: grid;
+    gap: 2px;
+    min-height: 52px;
+    align-content: center;
+    margin-top: 16px;
+    padding-top: 10px;
+    border-top: 1px solid var(--strong-rule);
+  }
+
+  .v2-play-flagship__action-slot strong {
+    font-size: 13px;
+  }
+
+  .v2-play-flagship__action-slot small {
+    color: var(--v2-chalk-48);
+    font-size: 12px;
+  }
+
+  .v2-mode-list {
+    margin-top: 16px;
+    border-top: 1px solid var(--strong-rule);
+  }
+
+  .v2-mode-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 68px;
+    align-items: center;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .v2-mode-row > svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: var(--v2-chalk-68);
+    stroke-width: 1.7;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+  }
+
+  .v2-mode-row h2 {
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  .v2-mode-row p {
+    overflow: hidden;
+    color: var(--v2-chalk-48);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .v2-mode-row > span {
+    padding: 4px 7px;
+    border: 1px solid var(--hairline);
+    color: var(--v2-chalk-48);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  .v2-mode-row--action {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .v2-mode-row--action > span {
+    border-color: var(--official);
+    color: var(--official);
+  }
+
+  @media (min-width: 820px) {
+    .v2-play-flagship {
+      min-height: 300px;
+      padding: 28px;
+    }
+
+    .v2-play-flagship__copy h2 {
+      font-size: 38px;
+    }
+  }
+
+  @media (min-width: 820px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .v2-mode-row--action {
+      transition: background-color var(--motion-fast) var(--ease-state);
+    }
+
+    .v2-mode-row--action:hover {
+      background: rgba(47,107,255,.07);
+    }
+
+    .v2-mode-row--action:hover h2 {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
 }

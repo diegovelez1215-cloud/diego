@@ -35,7 +35,7 @@ export function scheduleForFocus(fixtures: readonly FixtureSummary[], focus: Fix
 }
 
 export function statusLabel(status: FixtureStatus): string {
-  if (status.kind === 'live') return status.minute == null ? 'LIVE — score pending' : `LIVE · ${status.minute}'`;
+  if (status.kind === 'live') return status.scoreState === 'pending' ? 'LIVE — score pending' : status.minute == null ? 'LIVE' : `LIVE · ${status.minute}'`;
   if (status.kind === 'final') return 'FT';
   if (status.kind === 'pending') return status.reason === 'on-hold' ? 'Pending' : 'Score pending';
   if (status.kind === 'unavailable') return 'Unavailable';

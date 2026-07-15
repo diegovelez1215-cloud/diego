@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { TournamentSnapshot } from '../domain/contracts';
 import type { LocalPrediction, PredictionConfidence, PredictionOutcome } from '../predictions/contracts';
 import { drawAllowed, hasResolvedParticipants } from '../predictions/contracts';
-import { canChooseOutcome, gradePrediction, isEligibleFixture, isLockedAtKickoff, predictionNow, predictionState } from '../predictions/prediction-bridge';
+import { gradePrediction, isEligibleFixture, isLockedAtKickoff, predictionNow, predictionState } from '../predictions/prediction-bridge';
 import { confirmPrediction, writePredictionStore } from '../predictions/prediction-store';
 import { Flag } from '../ui/Flag';
 
@@ -24,6 +24,17 @@ function statusCopy(state: ReturnType<typeof predictionState>) {
   return 'Scheduled. Confirm a result before the official kickoff.';
 }
 
+const settledCorrectGrades = new Set<number>();
+
+function GradeSentence({ fixtureId, state, children }: { fixtureId: number; state: 'correct' | 'incorrect'; children: ReactNode }) {
+  const [settle] = useState(() => {
+    if (state !== 'correct' || settledCorrectGrades.has(fixtureId)) return false;
+    settledCorrectGrades.add(fixtureId);
+    return true;
+  });
+  return <p className="v2-prediction-grade" data-grade-state={state} data-grade-settle={settle ? 'true' : undefined}>{children}</p>;
+}
+
 export function PredictionDetailRoute({ fixtureId, snapshot, records, onRecordsChange, onBack }: {
   fixtureId: number;
   snapshot: TournamentSnapshot;
@@ -41,10 +52,38 @@ export function PredictionDetailRoute({ fixtureId, snapshot, records, onRecordsC
   const confirmTrigger = useRef<HTMLButtonElement>(null);
   const editTrigger = useRef<HTMLButtonElement>(null);
   const confirmDialog = useRef<HTMLDivElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const confirmButton = useRef<HTMLButtonElement>(null);
+
+  const cancelConfirmation = useCallback(() => {
+    setConfirming(false);
+    requestAnimationFrame(() => confirmTrigger.current?.focus());
+  }, []);
 
   useEffect(() => {
-    if (confirming) confirmDialog.current?.focus();
-  }, [confirming]);
+    if (!confirming) return;
+    cancelButton.current?.focus();
+    function keepFocus(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelConfirmation();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const first = cancelButton.current;
+      const last = confirmButton.current;
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === confirmDialog.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener('keydown', keepFocus);
+    return () => document.removeEventListener('keydown', keepFocus);
+  }, [cancelConfirmation, confirming]);
 
   if (!fixture) {
     return <section className="v2-route v2-prediction-detail"><button className="v2-back-button" type="button" onClick={onBack}>← Back to predictions</button><h1 className="v2-page-title">Prediction not found</h1><p>This fixture is not in the canonical tournament registry.</p></section>;
@@ -60,11 +99,6 @@ export function PredictionDetailRoute({ fixtureId, snapshot, records, onRecordsC
   const canEdit = !!record && !locked && resolved;
   const canStart = !record && eligible;
   const choices: PredictionOutcome[] = drawAllowed(fixture) ? ['home', 'draw', 'away'] : ['home', 'away'];
-
-  function cancelConfirmation() {
-    setConfirming(false);
-    requestAnimationFrame(() => confirmTrigger.current?.focus());
-  }
 
   function savePrediction() {
     if (!outcome) return;
@@ -97,7 +131,7 @@ export function PredictionDetailRoute({ fixtureId, snapshot, records, onRecordsC
         <div><Flag code={fixture.away.kind === 'team' ? fixture.away.code : undefined} size="stage" /><strong>{participantName(fixture.away)}</strong></div>
       </section>
       <p className="v2-prediction-status" data-state={state} role="status">{statusCopy(state)}</p>
-      {grade && grade.state !== 'pending' ? <p className="v2-prediction-grade">Official result: {outcomeName(grade.officialWinner!, fixture)} won. Your call: {outcomeName(record!.outcome, fixture)}.</p> : null}
+      {grade && grade.state !== 'pending' ? <GradeSentence fixtureId={fixture.id} state={grade.state}>Official result: {outcomeName(grade.officialWinner!, fixture)}. Your call: {outcomeName(record!.outcome, fixture)}.</GradeSentence> : null}
       {!resolved ? <section className="v2-prediction-empty"><h2>Participants are unresolved</h2><p>United will not offer a team pick until both canonical slots are resolved.</p></section> : null}
       {(canStart || (editing && canEdit)) ? <form className="v2-prediction-form" onSubmit={(event) => { event.preventDefault(); if (!outcome) { setMessage('Choose a result before confirming.'); return; } setConfirming(true); }}>
         <fieldset>
@@ -124,12 +158,13 @@ export function PredictionDetailRoute({ fixtureId, snapshot, records, onRecordsC
       {record && !editing && canEdit ? <button ref={editTrigger} type="button" className="v2-button v2-button--quiet" onClick={() => { setOutcome(record.outcome); setConfidence(record.confidence || 1); setMessage(null); setEditing(true); }}>Edit prediction</button> : null}
       {!record && !canStart && resolved && !locked ? <p className="v2-form-message" role="status">This fixture is not available for a new prediction.</p> : null}
       {message && !(canStart || (editing && canEdit)) ? <p className="v2-form-message" role="status">{message}</p> : null}
-      {confirming && outcome ? <div className="v2-confirm-layer" role="presentation"><div className="v2-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="prediction-confirm-title" tabIndex={-1} ref={confirmDialog}>
+      {confirming && outcome ? <div className="v2-confirm-layer" role="presentation"><div className="v2-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="prediction-confirm-title" aria-describedby="prediction-confirm-description" tabIndex={-1} ref={confirmDialog}>
         <p className="v2-eyebrow">Confirm local prediction</p>
         <h2 id="prediction-confirm-title">{outcomeName(outcome, fixture)}</h2>
-        <p>This is saved only on this device and locks at the official kickoff.</p>
-        <div><button type="button" className="v2-button v2-button--quiet" onClick={cancelConfirmation}>Cancel</button><button type="button" className="v2-button v2-button--primary" onClick={savePrediction}>Confirm prediction</button></div>
+        <p id="prediction-confirm-description">This is saved only on this device and locks at the official kickoff.</p>
+        <div><button ref={cancelButton} type="button" className="v2-button v2-button--quiet" onClick={cancelConfirmation}>Cancel</button><button ref={confirmButton} type="button" className="v2-button v2-button--primary" onClick={savePrediction}>Confirm prediction</button></div>
       </div></div> : null}
+      <p className="v2-route-footnote">Device-local only. Signing in never uploads or changes this prediction.</p>
     </section>
   );
 }

@@ -55,13 +55,13 @@ export function YouRoute({ predictions, onNavigate }: { predictions: PredictionP
 
   return <section className="v2-route v2-you">
     <h1 className="v2-page-title">You</h1>
-    <section className="v2-identity-band" aria-labelledby="identity-title" data-auth-state={state.kind}>
+    <section className="v2-identity-band" aria-labelledby="identity-title" aria-live="polite" data-auth-state={state.kind}>
       <IdentityBand />
-      <div>
+      <div key={state.kind}>
         {state.kind === 'checking' ? <><h2 id="identity-title">Checking your session</h2><p>Confirming the existing United sign-in session.</p><span>FLOODLIGHT · Session check</span></> : null}
         {state.kind === 'configuration-unavailable' ? <><h2 id="identity-title">Sign-in is unavailable</h2><p>This device cannot reach the configured sign-in service right now.</p><button className="v2-button v2-button--quiet" type="button" onClick={retry}>Try again</button></> : null}
         {state.kind === 'signed-out' ? <>
-          <h2 id="identity-title">FLOODLIGHT</h2><p>Sign in with the existing United email-code method.</p><span>Predictions remain device-local</span>
+          <span>FLOODLIGHT · Predictions remain device-local</span><h2 id="identity-title">Sign in to United</h2><p>Use the existing United email-code method.</p>
           {step === 'email' ? <form className="v2-auth-form" onSubmit={sendCode}><label htmlFor="v2-auth-email">Email</label><input id="v2-auth-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /><button className="v2-button v2-button--primary" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send sign-in code'}</button></form> : <form className="v2-auth-form" onSubmit={confirmCode}><label htmlFor="v2-auth-code">Six-digit code sent to {email}</label><input id="v2-auth-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} /><div className="v2-auth-form__actions"><button className="v2-button v2-button--primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Confirm sign-in'}</button><button className="v2-button v2-button--quiet" type="button" onClick={() => { setStep('email'); setCode(''); setMessage(null); }}>Use another email</button></div></form>}
           {message ? <p className="v2-auth-message" role="status">{message}</p> : null}
           <p className="v2-auth-privacy">Your email is handled by United’s existing sign-in service. This foundation does not build a profile or sync your predictions.</p>

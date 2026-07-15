@@ -52,13 +52,14 @@ describe('United 2026 V2 product routes', () => {
     expect(app.querySelector('h1')?.textContent).toBe('Play');
   });
 
-  it('keeps match detail outside the four primary selected destinations', async () => {
+  it('keeps match detail owned by Matchday in primary navigation', async () => {
     const app = await renderAt('/v2/match/1');
     expect(app.querySelector('h1')?.textContent).toBe('Match detail');
     expect(app.textContent).toContain('Mexico');
     expect(app.textContent).toContain('South Africa');
     expect(app.querySelectorAll('.v2-nav-link')).toHaveLength(4);
-    expect(app.querySelectorAll('.v2-nav-link[aria-current="page"]')).toHaveLength(0);
+    expect(app.querySelectorAll('.v2-nav-link[aria-current="page"]')).toHaveLength(1);
+    expect(app.querySelector('.v2-nav-link[aria-current="page"]')?.textContent).toContain('Matchday');
   });
 
   it('returns safely when browser history changes', async () => {
@@ -78,8 +79,11 @@ describe('United 2026 V2 product routes', () => {
 
   it('makes Predictions a real local entry point and shows only real local counts', async () => {
     const app = await renderAt('/v2/play');
+    expect(app.textContent).toContain('Rondo');
+    expect(app.textContent).toContain('Next build');
     expect(app.textContent).toContain('In development');
     expect(app.textContent).toContain('Predictions are local to this device.');
+    expect(app.querySelector('a[href="/v2/play/rondo"]')).toBeNull();
     const predictions = [...app.querySelectorAll<HTMLAnchorElement>('a')].find((link) => link.textContent?.includes('Predictions'));
     expect(predictions?.textContent).toContain('eligible');
     await act(async () => predictions?.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 })));
@@ -117,6 +121,17 @@ describe('United 2026 V2 product routes', () => {
     expect(app.textContent).toContain('Choose a result');
     window.history.replaceState({}, '', '/v2/predictions');
     await act(async () => window.dispatchEvent(new PopStateEvent('popstate')));
+    expect(app.querySelector('h1')?.textContent).toBe('Predictions');
+  });
+
+  it('returns a direct-loaded prediction detail to Predictions', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00-04:00'));
+    const app = await renderAt('/v2/predictions/1');
+    const back = [...app.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('Back to predictions'));
+    expect(back).toBeTruthy();
+    await act(async () => back?.click());
+    expect(window.location.pathname).toBe('/v2/predictions');
     expect(app.querySelector('h1')?.textContent).toBe('Predictions');
   });
 

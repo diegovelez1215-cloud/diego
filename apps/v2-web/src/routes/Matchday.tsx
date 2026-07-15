@@ -32,12 +32,13 @@ export function MatchdayRoute({ snapshotState, refreshing, onRefresh, onNavigate
       <h1 className="v2-page-title">Matchday</h1>
       <div className="v2-matchday-context">
         <strong>{focus ? `${readableDate(focus.tournamentDay)} · Matchday ${matchday}` : 'Tournament schedule'}</strong>
-        <span>Updated {freshness(snapshotState)} · <button type="button" onClick={() => void onRefresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button></span>
+        <span><span>Updated {freshness(snapshotState)}</span><button type="button" onClick={() => void onRefresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button></span>
       </div>
       <div className="v2-matchday__layout">
         {focus ? <FixtureStage fixture={focus} onNavigate={onNavigate} /> : <section className="v2-empty-stage"><h2>No canonical fixture available</h2><p>The schedule contains no match to place in focus.</p></section>}
         <section className="v2-day-schedule" aria-labelledby="day-schedule-title">
           <header className="v2-ledger-heading"><h2 id="day-schedule-title">Today</h2><span>{schedule.length} {schedule.length === 1 ? 'match' : 'matches'}</span></header>
+          {matchday > 0 ? <p className="v2-matchday-progress">Matchday {matchday} of {days.length}</p> : null}
           <div className="v2-match-ledger" aria-label="Chronological match schedule">
             {schedule.map((fixture) => <MatchRow fixture={fixture} key={fixture.id} onNavigate={onNavigate} />)}
           </div>
