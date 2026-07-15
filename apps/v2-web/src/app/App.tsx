@@ -15,6 +15,7 @@ import { YouRoute } from '../routes/You';
 import { AppShell, primaryDestinations, type PrimaryPath } from '../ui/AppShell';
 import { StatePanel } from '../ui/StatePanel';
 import { AuthProvider } from '../auth/auth-provider';
+import { YourWorldCupPrototype } from '../prototypes/your-world-cup/YourWorldCupPrototype';
 
 function normalizedPath(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
@@ -185,5 +186,8 @@ function AppRoutes() {
 }
 
 export function App() {
+  if (normalizedPath(window.location.pathname) === '/v2/your-world-cup-prototype') {
+    return <RootErrorBoundary><YourWorldCupPrototype /></RootErrorBoundary>;
+  }
   return <AppRoutes />;
 }
