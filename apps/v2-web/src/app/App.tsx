@@ -1,4 +1,4 @@
-import { Component, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOfficialSnapshot } from '../data/official-snapshot';
 import { snapshotFromState } from '../data/snapshot-state';
 import { canonicalTournamentSnapshot } from '../domain/tournament-bridge';
@@ -15,7 +15,8 @@ import { YouRoute } from '../routes/You';
 import { AppShell, primaryDestinations, type PrimaryPath } from '../ui/AppShell';
 import { StatePanel } from '../ui/StatePanel';
 import { AuthProvider } from '../auth/auth-provider';
-import { YourWorldCupPrototype } from '../prototypes/your-world-cup/YourWorldCupPrototype';
+
+const YourWorldCupPrototype = lazy(() => import('../prototypes/your-world-cup/YourWorldCupPrototype').then((module) => ({ default: module.YourWorldCupPrototype })));
 
 function normalizedPath(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
@@ -187,7 +188,7 @@ function AppRoutes() {
 
 export function App() {
   if (normalizedPath(window.location.pathname) === '/v2/your-world-cup-prototype') {
-    return <RootErrorBoundary><YourWorldCupPrototype /></RootErrorBoundary>;
+    return <RootErrorBoundary><Suspense fallback={<main className="v2-emergency" role="status">Opening Your World Cup…</main>}><YourWorldCupPrototype /></Suspense></RootErrorBoundary>;
   }
   return <AppRoutes />;
 }

@@ -31,9 +31,18 @@ async function renderPrototype() {
   root = createRoot(container);
   await act(async () => {
     root?.render(<App />);
+    await import('./YourWorldCupPrototype');
+    await Promise.resolve();
     await Promise.resolve();
   });
   return container;
+}
+
+async function loadMatchExperience() {
+  await act(async () => {
+    await import('./match/MatchExperience');
+    await Promise.resolve();
+  });
 }
 
 function button(name: string) {
@@ -130,47 +139,65 @@ describe('Your World Cup prototype route', () => {
     await act(async () => button('skip draw')?.click());
     await act(async () => button('enter campaign')?.click());
     await act(async () => button('play argentina v nigeria')?.click());
+    await loadMatchExperience();
     await act(async () => button('kick off')?.click());
+    expect(container?.querySelector('[data-screen="match"]')).toBeTruthy();
     await act(async () => button('skip to the moment')?.click());
-    expect(container?.querySelector('[data-screen="moment"]')).toBeTruthy();
-    expect(container?.querySelectorAll('.ywc-player')).toHaveLength(4);
-    expect(container?.querySelectorAll('.ywc-defender')).toHaveLength(3);
-    expect(container?.querySelectorAll('.ywc-goal-zone')).toHaveLength(0);
+    expect(container?.querySelector('[data-phase="pivotal"]')).toBeTruthy();
+    expect(container?.querySelectorAll('.ywc-match-player')).toHaveLength(22);
+    expect(container?.querySelectorAll('button.ywc-match-player')).toHaveLength(4);
+    expect(container?.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(0);
 
     setItem.mockClear();
     await act(async () => vi.advanceTimersByTime(500));
     expect(setItem).not.toHaveBeenCalled();
     await act(async () => container?.querySelector<HTMLButtonElement>('button[aria-label^="Luna, open"]')?.click());
     const persisted = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
-    expect(persisted.moment.events).toHaveLength(1); expect(persisted.moment.tick).toBe(1);
+    expect(persisted.match.moment.events).toHaveLength(1); expect(persisted.match.moment.tick).toBe(1);
 
     await act(async () => root?.unmount());
     container?.remove(); root = undefined; container = undefined;
     await renderPrototype();
     const restored = document.body.lastElementChild as HTMLDivElement;
-    expect(restored.querySelector('[data-screen="moment"]')).toBeTruthy();
-    expect(restored.textContent).toContain('Ball: Luna');
+    expect(restored.querySelector('[data-phase="pivotal"]')).toBeTruthy();
+    expect(restored.querySelector('.ywc-match-player.is-carrier')?.getAttribute('aria-label')).toMatch(/Luna/i);
     await act(async () => vi.advanceTimersByTime(300));
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]')?.click());
-    expect(restored.querySelectorAll('.ywc-goal-zone')).toHaveLength(3);
+    expect(restored.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(3);
     await act(async () => vi.advanceTimersByTime(300));
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label="Shoot right goal zone"]')?.click());
-    expect(restored.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/goal/i);
-    await act(async () => vi.advanceTimersByTime(700));
-    expect(restored.querySelector('[data-screen="result"]')).toBeTruthy();
+    expect(restored.querySelector('.ywc-match-freeze.is-goal')?.textContent).toMatch(/goal/i);
+    await act(async () => vi.advanceTimersByTime(1200));
+    expect(restored.querySelector('[data-phase="closing"]')).toBeTruthy();
+    const successAtFullTime = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
+    successAtFullTime.match = { ...successAtFullTime.match, tick: 90, phase: 'full-time' };
+    window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(successAtFullTime));
+    await act(async () => root?.unmount()); restored.remove(); root = undefined; container = undefined;
+    const renderedSuccess = await renderPrototype(); await loadMatchExperience();
+    await act(async () => vi.advanceTimersByTime(1100));
+    expect(renderedSuccess.querySelector('[data-screen="result"]')).toBeTruthy();
   });
 
   it('shows a closed direct lane as a real interception and negative result', async () => {
     vi.useFakeTimers();
-    const campaign = { ...createCampaign(26062026), stage: 'moment' as const, tactics: DEFAULT_TACTICS };
+    const base = createCampaign(26062026);
+    const campaign = { ...base, stage: 'match' as const, tactics: DEFAULT_TACTICS, match: { ...base.match, tick: 68, phase: 'pivotal' as const } };
     window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(campaign));
     await renderPrototype();
+    await loadMatchExperience();
     const closed = container?.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, lane closing"]');
     expect(closed).toBeTruthy();
     await act(async () => closed?.click());
-    expect(container?.querySelector('.ywc-moment-feedback')?.textContent).toMatch(/closed|cut it out/i);
-    await act(async () => vi.advanceTimersByTime(700));
-    expect(container?.querySelector('[data-screen="result"]')).toBeTruthy();
+    expect(container?.querySelector('.ywc-match-freeze.is-interception')?.textContent).toMatch(/closed|cut it out/i);
+    await act(async () => vi.advanceTimersByTime(1200));
+    const failureAtFullTime = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
+    failureAtFullTime.match = { ...failureAtFullTime.match, tick: 90, phase: 'full-time' };
+    window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(failureAtFullTime));
+    const failedMatch = container;
+    await act(async () => root?.unmount()); failedMatch?.remove(); root = undefined; container = undefined;
+    const renderedFailure = await renderPrototype(); await loadMatchExperience();
+    await act(async () => vi.advanceTimersByTime(1100));
+    expect(renderedFailure.querySelector('[data-screen="result"]')).toBeTruthy();
     expect(button('pin it up')).toBeTruthy();
   });
 });

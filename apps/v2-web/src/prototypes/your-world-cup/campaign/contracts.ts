@@ -4,12 +4,22 @@ export type Shape = '4-3-3-wide' | '4-2-3-1-control';
 export type Press = 'patient' | 'balanced' | 'aggressive';
 export type FinalThird = 'wings' | 'number-10' | 'direct-runners';
 export type Tactics = Readonly<{ shape: Shape; press: Press; finalThird: FinalThird }>;
-export type CampaignStage = 'campaign' | 'tactics' | 'match-story' | 'moment' | 'result' | 'campaign-complete';
+export type CampaignStage = 'campaign' | 'tactics' | 'match' | 'result' | 'campaign-complete';
+export type MatchPhase = 'first-half' | 'halftime' | 'second-half' | 'pivotal' | 'closing' | 'full-time';
+export type MatchSpeed = 1 | 2 | 4;
 export type MomentOutcome = 'goal' | 'save' | 'interception' | 'expired';
 export type PlayerId = 'lw' | 'ten' | 'rw' | 'st';
 export type ShotZone = 'left' | 'center' | 'right';
 export type MomentReplayEvent = Readonly<{ tick: number; action: Readonly<{ type: 'pass'; target: PlayerId } | { type: 'shoot'; zone: ShotZone }> }>;
 export type MomentProgress = Readonly<{ tick: number; events: readonly MomentReplayEvent[] }>;
+
+export type MatchCheckpoint = Readonly<{
+  tick: number;
+  speed: MatchSpeed;
+  phase: MatchPhase;
+  moment: MomentProgress;
+  momentOutcome: MomentOutcome | null;
+}>;
 
 export type CompletedMatch = Readonly<{
   fixtureId: 'arg-nga';
@@ -23,17 +33,20 @@ export type CompletedMatch = Readonly<{
   replay: Readonly<{ seed: number; progress: MomentProgress }>;
 }>;
 
-export type CampaignStateV1 = Readonly<{
-  version: 1;
+export type CampaignStateV2 = Readonly<{
+  version: 2;
   campaignId: string;
   seed: number;
   nation: 'Argentina';
   group: readonly ['Argentina', 'Nigeria', 'Poland', 'New Zealand'];
   stage: CampaignStage;
   tactics: Tactics | null;
-  moment: MomentProgress;
+  match: MatchCheckpoint;
   completedMatches: readonly CompletedMatch[];
 }>;
+
+// Kept as an export alias while the package migrates its existing tests and callers.
+export type CampaignStateV1 = CampaignStateV2;
 
 export const DEFAULT_TACTICS: Tactics = Object.freeze({
   shape: '4-3-3-wide',
@@ -41,16 +54,24 @@ export const DEFAULT_TACTICS: Tactics = Object.freeze({
   finalThird: 'wings',
 });
 
-export function createCampaign(seed = 26062026): CampaignStateV1 {
+export const DEFAULT_MATCH_CHECKPOINT: MatchCheckpoint = Object.freeze({
+  tick: 0,
+  speed: 1,
+  phase: 'first-half',
+  moment: Object.freeze({ tick: 0, events: Object.freeze([]) }),
+  momentOutcome: null,
+});
+
+export function createCampaign(seed = 26062026): CampaignStateV2 {
   return Object.freeze({
-    version: 1,
+    version: 2,
     campaignId: 'argentina-group-c-001',
     seed,
     nation: 'Argentina',
     group: ['Argentina', 'Nigeria', 'Poland', 'New Zealand'] as const,
     stage: 'campaign',
     tactics: null,
-    moment: { tick: 0, events: [] },
+    match: DEFAULT_MATCH_CHECKPOINT,
     completedMatches: [],
   });
 }
