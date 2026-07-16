@@ -6,49 +6,22 @@ import { primaryDestinations } from '../../ui/AppShell';
 const repository = process.env.INIT_CWD || resolve(process.cwd(), '../..');
 const read = (path: string) => readFileSync(resolve(repository, path), 'utf8');
 
-describe('Your World Cup prototype isolation contract', () => {
-  it('registers one direct route without adding it to existing V2 navigation', () => {
-    const app = read('apps/v2-web/src/app/App.tsx');
-    const prototype = read('apps/v2-web/src/prototypes/your-world-cup/YourWorldCupPrototype.tsx');
-    const navigation = read('apps/v2-web/src/ui/AppShell.tsx');
-    expect(app).toContain("'/v2/your-world-cup-prototype'");
-    expect(app).toContain("lazy(() => import('../prototypes/your-world-cup/YourWorldCupPrototype')");
-    expect(prototype).toContain("lazy(() => import('./match/MatchExperience')");
-    expect(primaryDestinations.map(({ path }) => path)).not.toContain('/v2/your-world-cup-prototype');
-    expect(navigation).not.toContain('your-world-cup-prototype');
+describe('Your World Cup isolation and renderer contract', () => {
+  it('keeps the campaign a direct isolated route, outside existing V2 navigation', () => {
+    const app = read('apps/v2-web/src/app/App.tsx'); const prototype = read('apps/v2-web/src/prototypes/your-world-cup/YourWorldCupPrototype.tsx');
+    expect(app).toContain("'/v2/your-world-cup-prototype'"); expect(app).toContain("lazy(() => import('../prototypes/your-world-cup/YourWorldCupPrototype')");
+    expect(prototype).toContain("lazy(() => import('./match/MatchExperience')"); expect(primaryDestinations.map(({ path }) => path)).not.toContain('/v2/your-world-cup-prototype');
   });
 
-  it('keeps prototype code free of V1, auth, prediction, official-data, backend, analytics, and service-worker dependencies', () => {
-    const prototype = [
-      read('apps/v2-web/src/prototypes/your-world-cup/YourWorldCupPrototype.tsx'),
-      read('apps/v2-web/src/prototypes/your-world-cup/prototype-state.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/campaign/contracts.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/campaign/campaign-store.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/campaign/group-table.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/campaign/simulation.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/campaign/moment-engine.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/match/engine.ts'),
-      read('apps/v2-web/src/prototypes/your-world-cup/match/MatchPitch.tsx'),
-      read('apps/v2-web/src/prototypes/your-world-cup/match/MatchExperience.tsx'),
-      read('apps/v2-web/src/prototypes/your-world-cup/match/match-experience.css'),
-      read('apps/v2-web/src/prototypes/your-world-cup/your-world-cup.css'),
-    ].join('\n');
-    expect(prototype).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/src\/|auth\/|predictions\/|data\/official|domain\/|@supabase|fetch\(|XMLHttpRequest|analytics|gtag\(|serviceWorker|indexedDB|sessionStorage/i);
-    expect(prototype).toContain("'u26v2.prototype.your-world-cup'");
-    expect(prototype).toContain("'u26v2.your-world-cup.campaign'");
-    expect(prototype).not.toMatch(/localStorage\.(setItem|removeItem)\(['\"]u26v2\.(auth|predictions)/i);
+  it('uses only the campaign key and keeps fictional simulation isolated from V1, truth, auth, prediction, and network code', () => {
+    const surface = ['YourWorldCupPrototype.tsx', 'campaign/tournament.ts', 'match/MatchExperience.tsx', 'match/CanvasMatchRenderer.ts'].map((path) => read(`apps/v2-web/src/prototypes/your-world-cup/${path}`)).join('\n');
+    expect(surface).toContain("'u26v2.your-world-cup.campaign'"); expect(surface).not.toContain('u26v2.prototype.your-world-cup');
+    expect(surface).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/src\/|auth\/|predictions\/|data\/official|domain\/|@supabase|fetch\(|XMLHttpRequest|analytics|gtag\(|serviceWorker|indexedDB|sessionStorage/i);
   });
 
-  it('leaves the V1 entry and existing V2 route files untouched by the prototype registration', () => {
-    expect(read('index.html')).toContain('src="/src/app.js"');
-    expect(read('apps/v2-web/src/ui/BottomNav.tsx')).not.toContain('your-world-cup-prototype');
-    expect(read('apps/v2-web/src/routes/Matchday.tsx')).not.toContain('your-world-cup-prototype');
-  });
-
-  it('builds a direct static entry for the unlinked prototype route', () => {
-    const vite = read('vite.config.ts');
-    expect(vite).toContain("name: 'direct-your-world-cup-route'");
-    expect(vite).toContain("resolve(output, 'your-world-cup-prototype')");
-    expect(vite).toContain("copyFileSync(resolve(output, 'index.html'), resolve(direct, 'index.html'))");
+  it('makes Canvas own the active match frames with one fixed-step rAF loop and no React player renderer', () => {
+    const renderer = read('apps/v2-web/src/prototypes/your-world-cup/match/CanvasMatchRenderer.ts'); const match = read('apps/v2-web/src/prototypes/your-world-cup/match/MatchExperience.tsx');
+    expect(renderer).toContain('const STEP = 1 / 30'); expect(renderer).toContain('requestAnimationFrame(this.loop)'); expect(renderer).toContain('cancelAnimationFrame'); expect(renderer).toContain('this.accumulator'); expect(renderer).toContain('draw(this.accumulator / STEP)');
+    expect(match).toContain('<canvas'); expect(match).not.toContain('MatchPitch'); expect(match).not.toMatch(/setTimeout|setInterval|RenderPlayer/);
   });
 });

@@ -694,3 +694,13 @@
 .ywc-moment-controls { width:min(100%,920px); margin:0 auto; }.ywc-moment-controls .ywc-marker-note { margin:0 0 4px !important; text-align:left; }.ywc-keyboard-note { color:#fff; }.ywc-moment-timer { color:var(--ywc-marigold); }
 @keyframes ywc-goal-slam { from { transform:scale(1.25) rotate(-3deg); } to { transform:scale(1) rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .ywc-player,.ywc-defender,.ywc-keeper,.ywc-ball { transition:none; }.ywc-play-panel.is-goal::before { animation:none; } }
+
+/* Full campaign ledger additions. */
+.ywc-sticker-grid--full { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+.ywc-nation-sticker .ywc-sticker-disc { display: grid; place-items: center; color: #07111F; font-size: 12px; font-weight: 950; }
+.ywc-table-row i { width: 17px; height: 17px; margin-right: 7px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+.ywc-history { width: min(1040px, calc(100% - 32px)); margin: 20px auto; padding: 16px; border: 2px solid rgba(7,17,31,.34); background: var(--ywc-paper); }
+.ywc-history h2 { margin: 0 0 8px; font-size: 19px; text-transform: uppercase; }.ywc-history p { margin: 0; padding: 8px 0; border-top: 1px solid rgba(7,17,31,.2); font-weight: 800; }
+.ywc-bracket { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; width: min(1040px, calc(100% - 32px)); margin: 20px auto; }.ywc-bracket-match { min-height: 76px; padding: 10px; color: var(--ywc-paper); background: var(--ywc-ink); border-left: 5px solid var(--ywc-ink); }.ywc-bracket-match.is-you { border-left-color: var(--ywc-pink); }.ywc-bracket-match p,.ywc-bracket-match small { display: block; margin: 0 0 4px; font-size: 10px; text-transform: uppercase; }.ywc-bracket-match b { font-size: 14px; }.ywc-bracket-match b span { opacity: .6; }
+.ywc-bracket-empty { width: min(1040px, calc(100% - 32px)); margin: 20px auto; padding: 16px; background: var(--ywc-paper); border: 2px dashed rgba(7,17,31,.35); }
+.ywc-tactics-pitch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; min-height: 180px; padding: 20px; align-items: center; text-align: center; color: #fff; background: var(--ywc-green); border: 5px solid var(--ywc-ink); }.ywc-tactics-pitch b { position: relative; z-index: 3; display: grid; width: 48px; height: 48px; margin: auto; border: 2px solid #fff; border-radius: 50%; place-items: center; }.ywc-tactics-pitch span { position: relative; z-index: 3; grid-column: 1 / -1; font-size: 13px; text-align: left; }

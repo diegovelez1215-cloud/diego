@@ -1,365 +1,68 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { PROTOTYPE_STORAGE_KEY, readPrototypeState, writePrototypeState, type PrototypeScreen } from './prototype-state';
-import { checkpointMatch, createCampaign, readCampaign, recordMatch, resetCampaign, writeCampaign } from './campaign/campaign-store';
-import { DEFAULT_MATCH_CHECKPOINT, DEFAULT_TACTICS, type CampaignStateV2, type CompletedMatch, type MatchCheckpoint, type Tactics } from './campaign/contracts';
-import { formationForShape } from './campaign/formations';
-import { groupTable, otherGroupResult } from './campaign/group-table';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import type { Tactics } from './campaign/contracts';
+import { completeActiveMatch, createTournamentCampaign, fixtureForActive, groupStandings, openNextMatch, readTournamentCampaign, resetTournamentCampaign, teamFor, TOURNAMENT_TEAMS, type TournamentCampaign, writeTournamentCampaign } from './campaign/tournament';
 import './your-world-cup.css';
 
 const MatchExperience = lazy(() => import('./match/MatchExperience').then((module) => ({ default: module.MatchExperience })));
+const groupForNation = (campaign: TournamentCampaign) => Object.entries(campaign.groups).find(([, teams]) => teams.includes(campaign.nation))?.[0] ?? 'A';
+const stageLabel = (stage: TournamentCampaign['stage']) => stage === 'groups' ? 'Group stage' : stage.replaceAll('-', ' ');
 
-type View = 'opening' | PrototypeScreen;
+function reducedMotion() { return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function CampaignLabel() { return <p className="ywc-simulation-label">YOUR WORLD CUP · SIMULATED PERSONAL TOURNAMENT</p>; }
 
-const nations = [
-  { name: 'Argentina', code: 'ARG', flag: 'argentina', style: 'Quick combinations', available: true },
-  { name: 'Nigeria', code: 'NGA', flag: 'nigeria', style: 'Fast transitions', available: false },
-  { name: 'Poland', code: 'POL', flag: 'poland', style: 'Set-piece steel', available: false },
-  { name: 'New Zealand', code: 'NZL', flag: 'new-zealand', style: 'Relentless running', available: false },
-  { name: 'Japan', code: 'JPN', flag: 'japan', style: 'One-touch rhythm', available: false },
-  { name: 'Mexico', code: 'MEX', flag: 'mexico', style: 'Front-foot pressure', available: false },
-] as const;
-
-const group = [
-  { name: 'Argentina', code: 'ARG', flag: 'argentina' },
-  { name: 'Nigeria', code: 'NGA', flag: 'nigeria' },
-  { name: 'Poland', code: 'POL', flag: 'poland' },
-  { name: 'New Zealand', code: 'NZL', flag: 'new-zealand' },
-] as const;
-
-function Flag({ name }: { name: string }) {
-  return <span className={`ywc-flag ywc-flag--${name}`} aria-hidden="true" />;
+function Opening({ hasCampaign, onStart, onContinue }: { hasCampaign: boolean; onStart: () => void; onContinue: () => void }) {
+  return <main className="ywc-prototype ywc-opening" data-screen="opening"><div className="ywc-print-noise" aria-hidden="true" /><section className="ywc-opening__copy"><CampaignLabel /><h1><span>Your</span><span>World Cup</span></h1><p className="ywc-marker-line">Choose a nation. Survive the draw. Write a fictional tournament story.</p><div className="ywc-opening__stickers" aria-hidden="true"><span>48 nations</span><span>12 groups</span><span>One trophy</span></div></section><div className="ywc-opening__actions"><button type="button" className="ywc-button ywc-button--primary" onClick={onStart}>Start new campaign <span aria-hidden="true">→</span></button>{hasCampaign ? <button type="button" className="ywc-button ywc-button--paper" onClick={onContinue}>Continue campaign <span aria-hidden="true">↗</span></button> : null}</div><div className="ywc-opening__terrace">Fictional draw · local campaign record · never official World Cup results</div></main>;
 }
 
-function FootballPosterBall() {
-  return (
-    <svg className="ywc-poster-ball" viewBox="0 0 360 360" aria-hidden="true">
-      <circle cx="180" cy="180" r="164" fill="#f7f0df" stroke="currentColor" strokeWidth="9" />
-      <path d="m180 91 53 39-20 63h-66l-20-63 53-39Z" fill="currentColor" />
-      <path d="m127 130-70-17m176 17 70-17M147 193l-43 62m109-62 43 62M104 255l-2 58m154-58 2 58M127 130 91 62m142 68 36-68" fill="none" stroke="currentColor" strokeWidth="9" strokeLinejoin="round" />
-      <path d="M91 62 45 106l12 7m212-51 46 44-12 7M102 313l78 31 78-31" fill="none" stroke="currentColor" strokeWidth="9" strokeLinejoin="round" />
-    </svg>
-  );
+function NationSelect({ selected, onSelect, onBack }: { selected: string | null; onSelect: (nation: string) => void; onBack: () => void }) {
+  return <main className="ywc-prototype ywc-nations" data-screen="nation"><header className="ywc-screen-head"><button type="button" className="ywc-back" onClick={onBack}>← Back</button><CampaignLabel /></header><section className="ywc-nations__intro"><p className="ywc-kicker">Sticker sheet · fictional campaign field</p><h1>Pick your <em>colors</em></h1><p>Every nation below is an owned, fictional campaign rating—not an official qualified field.</p></section><section className="ywc-sticker-sheet" aria-label="Choose a nation"><div className="ywc-sticker-grid ywc-sticker-grid--full">{TOURNAMENT_TEAMS.map((team) => <button type="button" key={team.id} className={`ywc-nation-sticker${selected === team.id ? ' is-selected' : ''}`} aria-pressed={selected === team.id} onClick={() => onSelect(team.id)}><span className="ywc-sticker-disc" style={{ background: team.color }}>{team.code}</span><strong>{team.name}</strong><span>Rating {team.rating}</span></button>)}</div></section></main>;
 }
 
-function PrototypeLabel({ compact = false }: { compact?: boolean }) {
-  return <p className={`ywc-simulation-label${compact ? ' is-compact' : ''}`}>Simulated personal tournament · Prototype</p>;
+function Draw({ campaign, onEnter }: { campaign: TournamentCampaign; onEnter: () => void }) {
+  const group = groupForNation(campaign); const teams = campaign.groups[group].map(teamFor);
+  return <main className="ywc-prototype ywc-draw is-complete" data-screen="draw" data-draw-complete="true"><header className="ywc-screen-head ywc-screen-head--dark"><CampaignLabel /></header><section className="ywc-draw__stage"><article className="ywc-draw-poster"><p>United 26 · Personal draw</p><h1>Group <strong>{group}</strong></h1><div className="ywc-draw-grid">{teams.map((team) => <div className="ywc-draw-sticker" key={team.id}><b style={{ background: team.color }}>{team.code}</b><span>{team.name}</span></div>)}</div><p className="ywc-draw-marker">THE DRAW IS FICTIONAL. YOUR CAMPAIGN STARTS HERE.</p></article><div className="ywc-draw-footer"><p className="ywc-draw-status">Group {group} is on the wall.</p><button type="button" className="ywc-button ywc-button--marigold" onClick={onEnter}>Enter campaign <span aria-hidden="true">→</span></button></div></section></main>;
 }
 
-function OpeningScreen({ hasCampaign, onStart, onContinue }: { hasCampaign: boolean; onStart: () => void; onContinue: () => void }) {
-  return (
-    <main className="ywc-prototype ywc-opening" data-screen="opening">
-      <div className="ywc-print-noise" aria-hidden="true" />
-      <div className="ywc-opening__cobalt" aria-hidden="true" />
-      <div className="ywc-opening__sun" aria-hidden="true" />
-      <div className="ywc-opening__ball-wrap"><FootballPosterBall /></div>
-      <div className="ywc-opening__edition" aria-hidden="true">SUMMER 26<br />POSTER 001</div>
-      <section className="ywc-opening__copy" aria-labelledby="ywc-opening-title">
-        <PrototypeLabel />
-        <h1 id="ywc-opening-title"><span>Your</span><span>World Cup</span></h1>
-        <p className="ywc-marker-line">The tournament of your life. The whole street is watching.</p>
-        <div className="ywc-opening__stickers" aria-hidden="true">
-          <span>Pick the shirt</span><span>Survive the draw</span><span>Write the story</span>
-        </div>
-      </section>
-      <div className="ywc-opening__actions">
-        <button type="button" className="ywc-button ywc-button--primary" onClick={onStart}>Start your World Cup <span aria-hidden="true">→</span></button>
-        {hasCampaign ? <button type="button" className="ywc-button ywc-button--paper" onClick={onContinue}>Continue campaign <span aria-hidden="true">↗</span></button> : null}
-      </div>
-      <div className="ywc-opening__terrace"><span>48 NATIONS · 3 HOST COUNTRIES · YOUR COLORS · YOUR NOISE · YOUR WORLD CUP</span></div>
-    </main>
-  );
+function GroupTable({ campaign }: { campaign: TournamentCampaign }) {
+  const group = groupForNation(campaign); const table = groupStandings(campaign, group);
+  return <section className="ywc-group-table" aria-label={`Group ${group} standings`}><div className="ywc-artifact-title"><span>Group {group}</span><b>PTS</b></div><div className="ywc-table-head"><span>Nation</span><span>PL</span><span>GD</span><span>PTS</span></div>{table.map((row) => { const team = teamFor(row.team); return <div className={`ywc-table-row${row.team === campaign.nation ? ' is-you' : ''}`} key={row.team}><span><i style={{ background: team.color }} />{team.name}</span><b>{row.played}</b><b>{row.goalDifference}</b><b>{row.points}</b></div>; })}<p className="ywc-table-scrawl">Tie-breakers: points · goal difference · goals scored · team code.</p></section>;
 }
 
-function NationScreen({ selected, onSelect, onChoose, onBack }: { selected: boolean; onSelect: () => void; onChoose: () => void; onBack: () => void }) {
-  return (
-    <main className="ywc-prototype ywc-nations" data-screen="nation">
-      <div className="ywc-print-noise" aria-hidden="true" />
-      <header className="ywc-screen-head">
-        <button type="button" className="ywc-back" onClick={onBack}><span aria-hidden="true">←</span> Back</button>
-        <PrototypeLabel compact />
-      </header>
-      <section className="ywc-nations__intro">
-        <p className="ywc-kicker">Sticker sheet no. 10</p>
-        <h1>Pick your <em>colors</em></h1>
-        <p>One shirt. One summer. Peel the nation you want to carry.</p>
-      </section>
-      <section className="ywc-sticker-sheet" aria-label="Choose a nation">
-        <div className="ywc-tape ywc-tape--one" aria-hidden="true" />
-        <div className="ywc-tape ywc-tape--two" aria-hidden="true" />
-        <p className="ywc-sheet-note">Fictional prototype play styles</p>
-        <div className="ywc-sticker-grid">
-          {nations.map((nation, index) => {
-            const chosen = nation.name === 'Argentina' && selected;
-            return (
-              <button
-                type="button"
-                className={`ywc-nation-sticker${chosen ? ' is-selected' : ''}`}
-                key={nation.code}
-                disabled={!nation.available}
-                onClick={nation.available ? onSelect : undefined}
-                aria-pressed={nation.available ? chosen : undefined}
-                aria-label={`${nation.name}, ${nation.style}${nation.available ? ', available to choose' : ', not in prototype'}`}
-                style={{ '--sticker-turn': `${[-4, 3, -2, 4, -3, 2][index]}deg` } as React.CSSProperties}
-              >
-                <span className="ywc-sticker-disc"><Flag name={nation.flag} /></span>
-                <strong>{nation.name}</strong>
-                <span>{nation.style}</span>
-                {chosen ? <b className="ywc-peeled">Peeled!</b> : null}
-              </button>
-            );
-          })}
-        </div>
-        <div className="ywc-screen-actions ywc-screen-actions--nation">
-          <p className="ywc-marker-note">{selected ? 'that sky-blue shirt is yours →' : 'tap Argentina to peel the sticker'}</p>
-          <button type="button" className="ywc-button ywc-button--pink" disabled={!selected} onClick={onChoose}>Choose Argentina <span aria-hidden="true">→</span></button>
-        </div>
-      </section>
-    </main>
-  );
+function Bracket({ campaign }: { campaign: TournamentCampaign }) {
+  const fixtures = campaign.fixtures.filter((fixture) => fixture.stage !== 'groups');
+  if (!fixtures.length) return <p className="ywc-bracket-empty">Round of 32 brackets print after all group matches are settled.</p>;
+  return <section className="ywc-bracket" aria-label="Fictional knockout bracket">{fixtures.map((fixture) => <article className={`ywc-bracket-match${fixture.home === campaign.nation || fixture.away === campaign.nation ? ' is-you' : ''}`} key={fixture.id}><p>{fixture.stage.replaceAll('-', ' ')}</p><b>{teamFor(fixture.home).code} {fixture.played ? fixture.homeGoals : '–'} <span>v</span> {fixture.played ? fixture.awayGoals : '–'} {teamFor(fixture.away).code}</b>{fixture.homePenalties != null ? <small>{fixture.homePenalties}–{fixture.awayPenalties} pens</small> : null}</article>)}</section>;
 }
 
-function DrawScreen({ reducedMotion, onComplete, onBack }: { reducedMotion: boolean; onComplete: () => void; onBack: () => void }) {
-  const [complete, setComplete] = useState(reducedMotion);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setComplete(true);
-      return;
-    }
-    const timer = window.setTimeout(() => setComplete(true), 2700);
-    return () => window.clearTimeout(timer);
-  }, [reducedMotion]);
-
-  return (
-    <main className={`ywc-prototype ywc-draw ${complete ? 'is-complete' : 'is-running'}`} data-screen="draw" data-draw-complete={complete ? 'true' : 'false'}>
-      <div className="ywc-print-noise" aria-hidden="true" />
-      <header className="ywc-screen-head ywc-screen-head--dark">
-        <button type="button" className="ywc-back ywc-back--dark" onClick={onBack}><span aria-hidden="true">←</span> Stickers</button>
-        {!complete ? <button type="button" className="ywc-skip" onClick={() => setComplete(true)}>Skip draw</button> : <PrototypeLabel compact />}
-      </header>
-      <div className="ywc-flood-flash" aria-hidden="true" />
-      <section className="ywc-draw__stage" aria-labelledby="ywc-draw-title" aria-live="polite">
-        <div className="ywc-draw-scraps" aria-hidden="true">
-          <span>POT 1 · ARG</span>
-          <span>DRAW CARD 26</span>
-          <span>C</span>
-        </div>
-        <article className="ywc-draw-poster">
-          <div className="ywc-tape ywc-tape--draw" aria-hidden="true" />
-          <p>United 26 · Personal draw</p>
-          <h1 id="ywc-draw-title">Group <strong>C</strong></h1>
-          <div className="ywc-draw-grid">
-            {group.map((team, index) => (
-              <div className="ywc-draw-sticker" key={team.code} style={{ '--draw-order': index } as React.CSSProperties}>
-                <Flag name={team.flag} />
-                <span>{team.name}</span>
-                <b>{team.code}</b>
-              </div>
-            ))}
-          </div>
-          <p className="ywc-draw-marker">WE START WITH NIGERIA. BRING THE NOISE.</p>
-          <div className="ywc-draw-scorebug" aria-hidden="true"><span>DRAW COMPLETE</span><b>GROUP C</b></div>
-        </article>
-        <div className="ywc-draw-footer">
-          <p className="ywc-draw-status">{complete ? 'Group C is on the wall.' : 'Your group is being printed…'}</p>
-          {complete ? <button type="button" className="ywc-button ywc-button--marigold" onClick={onComplete}>Enter campaign <span aria-hidden="true">→</span></button> : null}
-        </div>
-      </section>
-    </main>
-  );
+function CampaignWall({ campaign, onNext, onNew }: { campaign: TournamentCampaign; onNext: () => void; onNew: () => void }) {
+  const next = campaign.fixtures.find((fixture) => !fixture.played && (fixture.home === campaign.nation || fixture.away === campaign.nation));
+  return <main className="ywc-prototype ywc-campaign" data-screen="campaign"><header className="ywc-campaign__header"><CampaignLabel /><p>{teamFor(campaign.nation).name} · campaign record</p><h1>The campaign wall</h1><span className="ywc-campaign-stamp">{stageLabel(campaign.stage)}</span></header><section className="ywc-wall"><div className="ywc-wall__table"><GroupTable campaign={campaign} /></div><article className="ywc-next-ticket"><p>{next ? stageLabel(next.stage) : stageLabel(campaign.stage)}</p>{next ? <><h2><span>{teamFor(next.home).code}</span><i>v</i><span>{teamFor(next.away).code}</span></h2><dl><div><dt>Fixture</dt><dd>{teamFor(next.home).name} v {teamFor(next.away).name}</dd></div><div><dt>Campaign</dt><dd>{campaign.history.length} result{campaign.history.length === 1 ? '' : 's'} pinned</dd></div></dl></> : <h2>{campaign.trophy ? 'Trophy on the wall' : campaign.eliminated ? 'Campaign complete' : 'Bracket printing'}</h2>}</article><aside className="ywc-wall-notes"><span className="ywc-note ywc-note--pink">fiction only<br />official truth untouched</span><span className="ywc-note ywc-note--gold">12 groups<br />32-team knockout</span></aside></section><Bracket campaign={campaign} /><section className="ywc-history" aria-label="Campaign history"><h2>Match ledger</h2>{campaign.history.length ? campaign.history.map((item, index) => <p key={`${item}-${index}`}>{item}</p>) : <p>No result yet. Three group matches stand between you and the knockouts.</p>}</section><div className="ywc-campaign__action">{next ? <button type="button" className="ywc-button ywc-button--pink" onClick={onNext}>Prepare {teamFor(next.home).code} v {teamFor(next.away).code} <span aria-hidden="true">→</span></button> : <button type="button" className="ywc-button ywc-button--paper" onClick={onNew}>New campaign <span aria-hidden="true">↺</span></button>}</div></main>;
 }
 
-function GroupTable({ campaign }: { campaign: CampaignStateV2 | null }) {
-  const match = campaign?.completedMatches[0];
-  const table = groupTable(match, campaign?.seed ?? 26062026);
-  return (
-    <div className="ywc-group-table">
-      <div className="ywc-tape ywc-tape--table" aria-hidden="true" />
-      <div className="ywc-artifact-title"><span>Group C</span><b>{match ? 'Simulated campaign' : 'Before kickoff'}</b></div>
-      <div className="ywc-table-head"><span>Nation</span><span>PL</span><span>GD</span><span>PTS</span></div>
-      {table.map((team) => (
-        <div className={`ywc-table-row${team.name === 'Argentina' ? ' is-you' : ''}`} key={team.name}>
-          <span><Flag name={team.name === 'New Zealand' ? 'new-zealand' : team.name.toLowerCase()} />{team.name}</span><b>{team.played}</b><b>{team.gd}</b><b>{team.points}</b>
-        </div>
-      ))}
-      <p className="ywc-table-scrawl">{match ? `Poland ${otherGroupResult(campaign!.seed).home}–${otherGroupResult(campaign!.seed).away} New Zealand` : 'top two keep the dream alive'}</p>
-    </div>
-  );
+function TacticsBoard({ campaign, onChange, onKickoff, onBack }: { campaign: TournamentCampaign; onChange: (value: Tactics) => void; onKickoff: () => void; onBack: () => void }) {
+  const fixture = fixtureForActive(campaign); if (!fixture) return null;
+  const rows: readonly [keyof Tactics, readonly string[], string][] = [['shape', ['4-3-3-wide', '4-2-3-1-control'], 'Shape'], ['press', ['patient', 'balanced', 'aggressive'], 'Press'], ['finalThird', ['wings', 'number-10', 'direct-runners'], 'Final-third plan']];
+  return <main className="ywc-prototype ywc-tactics" data-screen="tactics"><header className="ywc-screen-head"><button type="button" className="ywc-back" onClick={onBack}>← Wall</button><CampaignLabel /></header><section className="ywc-clipboard"><p className="ywc-kicker">Coach clipboard · fictional campaign</p><h1>Make the <em>plan</em></h1><div className="ywc-tactics-pitch" aria-label={`Formation ${campaign.tactics.shape}`}><b>4</b><b>3</b><b>3</b><span>Canvas match presentation uses this shape, compactness, press and running lanes.</span></div>{rows.map(([key, values, label]) => <fieldset className="ywc-choice" key={key}><legend>{label}</legend>{values.map((value) => <button type="button" key={value} className={campaign.tactics[key] === value ? 'is-selected' : ''} aria-pressed={campaign.tactics[key] === value} onClick={() => onChange({ ...campaign.tactics, [key]: value } as Tactics)}>{value.replaceAll('-', ' ')}</button>)}</fieldset>)}<p className="ywc-marker-note">{teamFor(fixture.home).name} v {teamFor(fixture.away).name} · {stageLabel(fixture.stage)}</p><button type="button" className="ywc-button ywc-button--pink" onClick={onKickoff}>Kick off <span aria-hidden="true">→</span></button></section></main>;
 }
 
-function CampaignScreen({ campaign, onPlay, onReset }: { campaign: CampaignStateV2 | null; onPlay: () => void; onReset: () => void }) {
-  const match = campaign?.completedMatches[0];
-  return (
-    <main className="ywc-prototype ywc-campaign" data-screen="campaign">
-      <div className="ywc-print-noise" aria-hidden="true" />
-      <header className="ywc-campaign__header">
-        <PrototypeLabel compact />
-        <p>Argentina · Campaign 001</p>
-        <h1>The campaign wall</h1>
-        <span className="ywc-campaign-stamp">THE DREAM STARTS HERE</span>
-      </header>
-      <section className="ywc-wall" aria-label="Argentina campaign artifacts">
-        <div className="ywc-wall__table"><GroupTable campaign={campaign} /></div>
-        <article className="ywc-next-ticket">
-          <div className="ywc-ticket-stub" aria-hidden="true">C26<br />001</div>
-          <p>{match ? 'Next fixture · Group C' : 'Matchday 1 · Group C'}</p>
-          <h2><span><Flag name="argentina" /> Argentina</span><i>v</i><span><Flag name={match ? 'poland' : 'nigeria'} /> {match ? 'Poland' : 'Nigeria'}</span></h2>
-          <dl><div><dt>{match ? 'Last result' : 'When'}</dt><dd>{match ? `Argentina ${match.homeGoals}–${match.awayGoals} Nigeria` : 'Friday · 20:00'}</dd></div><div><dt>{match ? 'Points' : 'Where'}</dt><dd>{match ? `${groupTable(match, campaign!.seed).find((team) => team.name === 'Argentina')!.points} after one` : 'Atlanta · Gate C'}</dd></div></dl>
-          <b className="ywc-ticket-callout">{match ? 'NEXT UP' : 'NEXT MATCH'}</b>
-        </article>
-        <article className="ywc-road-map">
-          <div className="ywc-tape ywc-tape--road" aria-hidden="true" />
-          <p>Road to New York / New Jersey</p>
-          <div className="ywc-road-line" aria-hidden="true" />
-          <ol>
-            <li className="is-now"><b>01</b><span>Group C</span><small>Argentina v Nigeria</small></li>
-            <li><b>02</b><span>Round of 32</span><small>Earn your place</small></li>
-            <li><b>03</b><span>Final</span><small>The empty frame</small></li>
-          </ol>
-        </article>
-        <aside className="ywc-wall-notes" aria-label="Campaign notes">
-          <span className="ywc-note ywc-note--pink">the whole block is watching</span>
-          <span className="ywc-note ywc-note--gold">3 group matches<br />one way through</span>
-          <span className="ywc-scarf" aria-hidden="true">ARGENTINA · ARGENTINA · ARGENTINA</span>
-        </aside>
-      </section>
-      <div className="ywc-campaign__action">
-        {match ? <p className="ywc-prototype-message" role="status">A {match.outcome} is pinned to your wall. Poland is next.</p> : <p className="ywc-prototype-message" role="status">YOUR WORLD CUP · SIMULATED CAMPAIGN</p>}
-        {match ? <button type="button" className="ywc-button ywc-button--paper" onClick={onReset}>Reset this slice <span aria-hidden="true">↺</span></button> : <button type="button" className="ywc-button ywc-button--pink" onClick={onPlay}>Play Argentina v Nigeria <span aria-hidden="true">→</span></button>}
-      </div>
-    </main>
-  );
-}
-
-function TacticsClipboard({ tactics, onChange, onKickOff, onBack }: { tactics: Tactics; onChange: (next: Tactics) => void; onKickOff: () => void; onBack: () => void }) {
-  const pressValues = ['patient', 'balanced', 'aggressive'] as const;
-  const finalThirdValues = ['wings', 'number-10', 'direct-runners'] as const;
-  const formation = formationForShape(tactics.shape);
-  const formationLines = [...new Set(formation.map((slot) => slot.line))]
-    .filter((line) => line !== 'goalkeeper')
-    .map((line) => formation.filter((slot) => slot.line === line).sort((a, b) => a.x - b.x));
-  return <main className="ywc-prototype ywc-tactics" data-screen="tactics">
-    <header className="ywc-screen-head"><button type="button" className="ywc-back" onClick={onBack}>← Wall</button><PrototypeLabel compact /></header>
-    <section className="ywc-clipboard" aria-labelledby="ywc-tactics-title">
-      <div className="ywc-clip" aria-hidden="true" />
-      <p className="ywc-kicker">Coach clipboard · fictional campaign</p><h1 id="ywc-tactics-title">Make the <em>plan</em></h1>
-      <div className={`ywc-tactics-pitch is-${tactics.shape}`} aria-label={`Pitch diagram for ${tactics.shape}`} data-formation={tactics.shape}>
-        <svg className="ywc-formation-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {formationLines.map((line) => <polyline key={line[0].line} points={line.map((slot) => `${slot.x},${slot.y}`).join(' ')} />)}
-        </svg>
-        {formation.map((slot) => <span
-          className={`ywc-formation-player is-${slot.line}${slot.captain ? ' is-captain' : ''}`}
-          style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%` } as CSSProperties}
-          key={slot.id}
-          data-position={slot.position}
-          data-line={slot.line}
-        >
-          <i className="ywc-formation-shirt" aria-hidden="true"><b>{slot.number}</b></i>
-          <small>{slot.position}</small>
-          {slot.captain ? <em aria-label="Captain">C</em> : null}
-        </span>)}
-      </div>
-      <fieldset className="ywc-choice"><legend>Shape</legend>{(['4-3-3-wide', '4-2-3-1-control'] as const).map((value) => <button type="button" key={value} className={tactics.shape === value ? 'is-selected' : ''} aria-pressed={tactics.shape === value} onClick={() => onChange({ ...tactics, shape: value })}>{value === '4-3-3-wide' ? '4–3–3 Wide' : '4–2–3–1 Control'}</button>)}</fieldset>
-      <fieldset className="ywc-choice"><legend>Press</legend>{pressValues.map((value) => <button type="button" key={value} className={tactics.press === value ? 'is-selected' : ''} aria-pressed={tactics.press === value} onClick={() => onChange({ ...tactics, press: value })}>{value}</button>)}</fieldset>
-      <fieldset className="ywc-choice"><legend>Final-third plan</legend>{finalThirdValues.map((value) => <button type="button" key={value} className={tactics.finalThird === value ? 'is-selected' : ''} aria-pressed={tactics.finalThird === value} onClick={() => onChange({ ...tactics, finalThird: value })}>{value === 'wings' ? 'Attack the wings' : value === 'number-10' ? 'Play through the 10' : 'Direct runners'}</button>)}</fieldset>
-      <p className="ywc-marker-note">Your plan changes the tape and the last attack.</p>
-      <button type="button" className="ywc-button ywc-button--pink" onClick={onKickOff}>Kick off <span aria-hidden="true">→</span></button>
-    </section>
-  </main>;
-}
-
-function FullTimeArtifact({ campaign, onReturn }: { campaign: CampaignStateV2; onReturn: () => void }) {
-  const match = campaign.completedMatches[0]!; const positive = match.outcome === 'win';
-  const interventionLine = match.decisiveMoment === 'goal'
-    ? 'YOUR LAST MOVE FINDS THE NET. THE RESULT IS YOURS TO CARRY.'
-    : match.decisiveMoment === 'interception'
-      ? 'Nigeria closed the lane. The story keeps moving.'
-      : match.decisiveMoment === 'save'
-        ? 'The keeper reads the last move. The next chance is waiting.'
-        : 'Time closes the last attack. The next chance is waiting.';
-  return <main className={`ywc-prototype ywc-full-time ${positive ? 'is-positive' : 'is-negative'}`} data-screen="result"><article className="ywc-result-artifact"><p>{positive ? 'THE FINAL WHISTLE · FREE EDITION' : 'THE CAMPAIGN WALL · RAIN EDITION'}</p><h1>{positive ? 'ARGENTINA FIND A WAY' : match.outcome === 'draw' ? 'A POINT TO PIN UP' : 'WE GO AGAIN'}</h1><div className="ywc-result-score">ARG {match.homeGoals}–{match.awayGoals} NGA</div><strong>{interventionLine}</strong><small>YOUR WORLD CUP · SIMULATED CAMPAIGN · Argentina have {groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points} point{groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points === 1 ? '' : 's'}.</small></article><button type="button" className="ywc-button ywc-button--paper" onClick={onReturn}>{positive ? 'Keep the paper' : 'Pin it up. We go again.'} <span aria-hidden="true">→</span></button></main>;
-}
-
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function Result({ campaign, onWall, onNew }: { campaign: TournamentCampaign; onWall: () => void; onNew: () => void }) {
+  const latest = campaign.history.at(-1); const title = campaign.trophy ? 'CHAMPIONS OF YOUR WORLD CUP' : campaign.eliminated ? 'THE WALL HOLDS THE STORY' : 'RESULT PINNED';
+  return <main className={`ywc-prototype ywc-full-time${campaign.trophy ? ' is-positive' : ''}`} data-screen="result"><article className="ywc-result-artifact"><CampaignLabel /><h1>{title}</h1><div className="ywc-result-score">{latest ?? 'Campaign result'}</div><strong>{campaign.trophy ? 'THE TROPHY IS YOURS. THIS IS A FICTIONAL PERSONAL CAMPAIGN.' : campaign.eliminated ? 'ELIMINATION IS FINAL. START A NEW CAMPAIGN WHEN YOU ARE READY.' : 'THE LEDGER, GROUP TABLES, AND BRACKET NOW AGREE.'}</strong></article>{campaign.trophy || campaign.eliminated ? <button type="button" className="ywc-button ywc-button--paper" onClick={onNew}>New campaign <span aria-hidden="true">↺</span></button> : <button type="button" className="ywc-button ywc-button--paper" onClick={onWall}>Return to wall <span aria-hidden="true">→</span></button>}</main>;
 }
 
 export function YourWorldCupPrototype() {
-  const initialState = useMemo(() => readPrototypeState(window.localStorage), []);
-  const initialCampaign = useMemo(() => readCampaign(window.localStorage), []);
-  const [savedState, setSavedState] = useState(initialState);
-  const [campaign, setCampaign] = useState<CampaignStateV2 | null>(initialCampaign);
-  const [view, setView] = useState<View>(() => initialCampaign && initialCampaign.stage !== 'campaign' ? 'campaign' : 'opening');
-  const [selected, setSelected] = useState(false);
-  const reducedMotion = useMemo(prefersReducedMotion, []);
-
-  useEffect(() => {
-    document.title = 'Your World Cup — United 26 Prototype';
-  }, []);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [view, campaign?.stage]);
-
-  function persist(screen: PrototypeScreen, nation: 'Argentina' | null) {
-    const next = { version: 1, screen, nation } as const;
-    writePrototypeState(window.localStorage, next);
-    setSavedState(next);
-  }
-
-  function saveCampaign(next: CampaignStateV2) {
-    writeCampaign(window.localStorage, next);
-    setCampaign(next);
-  }
-
-  function openTactics() {
-    const next = campaign ?? createCampaign();
-    saveCampaign({ ...next, stage: 'tactics', tactics: next.tactics ?? DEFAULT_TACTICS, match: DEFAULT_MATCH_CHECKPOINT });
-  }
-
-  function setTactics(tactics: Tactics) {
-    const current = campaign ?? createCampaign();
-    saveCampaign({ ...current, stage: 'tactics', tactics });
-  }
-
-  function kickOff() {
-    if (!campaign?.tactics) return;
-    saveCampaign({ ...campaign, stage: 'match', match: DEFAULT_MATCH_CHECKPOINT });
-  }
-
-  function updateMatch(next: MatchCheckpoint) {
-    if (campaign?.stage === 'match') saveCampaign(checkpointMatch(campaign, next));
-  }
-
-  function resolveMatch(match: CompletedMatch) {
-    if (!campaign?.tactics || campaign.completedMatches.length) return;
-    saveCampaign(recordMatch(campaign, match));
-  }
-
-  function resetSlice() {
-    resetCampaign(window.localStorage);
-    setCampaign(null);
-  }
-
-  function start() {
-    setSelected(false);
-    persist('nation', null);
-    setView('nation');
-  }
-
-  function continueCampaign() {
-    if (!savedState) return;
-    setSelected(savedState.nation === 'Argentina');
-    setView(savedState.screen);
-  }
-
-  if (view === 'opening') return <OpeningScreen hasCampaign={savedState != null} onStart={start} onContinue={continueCampaign} />;
-  if (view === 'nation') return <NationScreen selected={selected} onSelect={() => setSelected(true)} onBack={() => setView('opening')} onChoose={() => { persist('draw', 'Argentina'); setView('draw'); }} />;
-  if (view === 'draw') return <DrawScreen reducedMotion={reducedMotion} onBack={() => { persist('nation', 'Argentina'); setSelected(true); setView('nation'); }} onComplete={() => { persist('campaign', 'Argentina'); setView('campaign'); }} />;
-  if (campaign?.stage === 'tactics') return <TacticsClipboard tactics={campaign.tactics ?? DEFAULT_TACTICS} onChange={setTactics} onKickOff={kickOff} onBack={() => saveCampaign({ ...campaign, stage: 'campaign', tactics: null, match: DEFAULT_MATCH_CHECKPOINT })} />;
-  if (campaign?.stage === 'match') return <Suspense fallback={<main className="ywc-prototype ywc-match-loading" role="status">Printing the simulated match…</main>}><MatchExperience campaign={campaign} reducedMotion={reducedMotion} onCheckpoint={updateMatch} onComplete={resolveMatch} onBack={() => saveCampaign({ ...campaign, stage: 'tactics', match: DEFAULT_MATCH_CHECKPOINT })} /></Suspense>;
-  if (campaign?.stage === 'result') return <FullTimeArtifact campaign={campaign} onReturn={() => saveCampaign({ ...campaign, stage: 'campaign-complete' })} />;
-  return <CampaignScreen campaign={campaign} onPlay={openTactics} onReset={resetSlice} />;
+  const initial = useMemo(() => readTournamentCampaign(window.localStorage), []); const [campaign, setCampaign] = useState<TournamentCampaign | null>(initial); const [selecting, setSelecting] = useState(false); const motion = useMemo(reducedMotion, []);
+  useEffect(() => { document.title = 'Your World Cup — United 26'; }, []);
+  const save = (next: TournamentCampaign) => { writeTournamentCampaign(window.localStorage, next); setCampaign(next); };
+  const begin = (nation: string) => { const next = { ...createTournamentCampaign(26062026 + (TOURNAMENT_TEAMS.findIndex((team) => team.id === nation) * 97), nation), screen: 'draw' as const }; save(next); setSelecting(false); };
+  const newCampaign = () => { resetTournamentCampaign(window.localStorage); setCampaign(null); setSelecting(false); };
+  if (!campaign && !selecting) return <Opening hasCampaign={false} onStart={() => setSelecting(true)} onContinue={() => {}} />;
+  if (selecting || campaign?.screen === 'nation') return <NationSelect selected={campaign?.nation ?? null} onSelect={begin} onBack={() => setSelecting(false)} />;
+  if (!campaign) return null;
+  if (campaign.screen === 'opening') return <Opening hasCampaign onStart={() => setSelecting(true)} onContinue={() => save({ ...campaign, screen: 'wall' })} />;
+  if (campaign.screen === 'draw') return <Draw campaign={campaign} onEnter={() => save({ ...campaign, screen: 'wall' })} />;
+  if (campaign.screen === 'tactics') return <TacticsBoard campaign={campaign} onChange={(tactics) => save({ ...campaign, tactics })} onKickoff={() => save({ ...campaign, screen: 'match' })} onBack={() => save({ ...campaign, screen: 'wall', activeFixtureId: null })} />;
+  if (campaign.screen === 'match') { const fixture = fixtureForActive(campaign); return fixture ? <Suspense fallback={<main className="ywc-prototype ywc-match-loading" role="status">Preparing Canvas match…</main>}><MatchExperience campaign={campaign} fixture={fixture} reducedMotion={motion} onBack={() => save({ ...campaign, screen: 'tactics' })} onComplete={(score) => save(completeActiveMatch(campaign, score))} /></Suspense> : <CampaignWall campaign={campaign} onNext={() => save(openNextMatch(campaign))} onNew={newCampaign} />; }
+  if (campaign.screen === 'result') return <Result campaign={campaign} onWall={() => save({ ...campaign, screen: 'wall' })} onNew={newCampaign} />;
+  return <CampaignWall campaign={campaign} onNext={() => save(openNextMatch(campaign))} onNew={newCampaign} />;
 }
-
-export { PROTOTYPE_STORAGE_KEY };

@@ -223,3 +223,21 @@ button.ywc-match-player { cursor: pointer; }
   .ywc-visible-match *::after { animation: none !important; transition: none !important; }
   .ywc-match-stage.is-pivotal .ywc-match-pitch { transform: none; }
 }
+
+/* Canvas owns the active pitch. These rules are semantic HUD and control surfaces only. */
+.ywc-match-canvas { display: block; width: 100%; height: min(68vh, 720px); min-height: 460px; background: #07111F; touch-action: manipulation; }
+.ywc-match-stage { position: relative; overflow: hidden; background: #07111F; }
+.ywc-canvas-control, .ywc-canvas-full-time { position: absolute; inset: auto 14px 14px; z-index: 2; padding: 16px; background: rgba(7,17,31,.92); color: #F4F1E8; border: 2px solid #F4F1E8; box-shadow: 6px 6px 0 rgba(7,17,31,.6); }
+.ywc-canvas-control strong, .ywc-canvas-full-time strong { display: block; font-size: clamp(26px, 7vw, 44px); line-height: .9; letter-spacing: -.06em; }
+.ywc-canvas-control b { display: block; margin-top: 8px; color: var(--ywc-marigold); letter-spacing: .06em; }
+.ywc-canvas-control p, .ywc-canvas-control small, .ywc-canvas-full-time p { display: block; margin: 8px 0; }
+.ywc-canvas-control__passes, .ywc-canvas-control__shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.ywc-canvas-control button, .ywc-canvas-full-time button { min-height: 48px; padding: 8px 10px; border: 2px solid #F4F1E8; background: #F4F1E8; color: #07111F; font: inherit; font-weight: 800; text-transform: uppercase; }
+.ywc-canvas-control button:disabled { opacity: .45; }
+.ywc-canvas-full-time { inset: 50% 14px auto; transform: translateY(-50%); text-align: center; }
+.ywc-canvas-full-time button { margin-top: 10px; }
+.ywc-match-rail > .ywc-speed-control button, .ywc-match-rail > button { min-height: 48px; border: 2px solid rgba(247,240,223,.54); color: #fff; background: transparent; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.ywc-match-rail > .ywc-speed-control button.is-selected { color: var(--ywc-ink); border-color: var(--ywc-marigold); background: var(--ywc-marigold); }
+.ywc-match-rail > .ywc-speed-control { margin-bottom: 8px; }.ywc-match-rail > button { width: 100%; padding: 8px 12px; }.ywc-match-rail > p { margin: 12px 0 0; color: rgba(247,240,223,.82); font-size: 12px; line-height: 1.45; }
+@media (min-width: 720px) { .ywc-canvas-control { max-width: 580px; left: 24px; right: auto; } .ywc-match-canvas { height: min(74vh, 860px); } }
+@media (max-width: 480px) { .ywc-match-canvas { min-height: 420px; height: 62vh; } .ywc-canvas-control { inset: auto 8px 8px; padding: 12px; } }
