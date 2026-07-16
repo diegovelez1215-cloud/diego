@@ -6,6 +6,7 @@ import {
   type CompletedMatch,
   type MatchCheckpoint,
   type MatchPhase,
+  type MatchPresentationStep,
   type MatchSpeed,
   type MomentProgress,
   type Tactics,
@@ -19,6 +20,8 @@ const LEGACY_STAGES = ['campaign', 'tactics', 'match-story', 'moment', 'result',
 const PHASES: readonly MatchPhase[] = ['first-half', 'halftime', 'second-half', 'pivotal', 'closing', 'full-time'];
 const SPEEDS: readonly MatchSpeed[] = [1, 2, 4];
 const MOMENTS = ['goal', 'save', 'interception', 'expired'];
+const PRESENTATION_STEPS: readonly MatchPresentationStep[] = ['simulation', 'control-intro', 'control-active', 'control-outcome', 'control-returning'];
+const VAR_STATES = [null, 'checking', 'reviewing', 'confirmed', 'overturned'];
 
 function tactics(value: unknown): Tactics | null {
   if (!value || typeof value !== 'object') return null;
@@ -41,8 +44,10 @@ function checkpoint(value: unknown): MatchCheckpoint | null {
   if (!value || typeof value !== 'object') return null;
   const item = value as Record<string, unknown>;
   const moment = progress(item.moment);
-  if (item.planVersion !== 1 || item.fixtureId !== 'arg-nga' || !Number.isInteger(item.tick) || Number(item.tick) < 0 || Number(item.tick) > 420 || !SPEEDS.includes(item.speed as MatchSpeed) || !PHASES.includes(item.phase as MatchPhase) || !moment || (item.momentOutcome !== null && !MOMENTS.includes(String(item.momentOutcome)))) return null;
-  return { planVersion: 1, fixtureId: 'arg-nga', tick: item.tick as number, speed: item.speed as MatchSpeed, phase: item.phase as MatchPhase, moment, momentOutcome: item.momentOutcome as MatchCheckpoint['momentOutcome'] };
+  const presentationStep = (item.presentationStep ?? (item.phase === 'pivotal' ? item.momentOutcome ? 'control-outcome' : 'control-active' : 'simulation')) as MatchPresentationStep;
+  const varState = item.varState ?? null;
+  if (item.planVersion !== 1 || item.fixtureId !== 'arg-nga' || !Number.isInteger(item.tick) || Number(item.tick) < 0 || Number(item.tick) > 800 || !SPEEDS.includes(item.speed as MatchSpeed) || !PHASES.includes(item.phase as MatchPhase) || !moment || (item.momentOutcome !== null && !MOMENTS.includes(String(item.momentOutcome))) || !PRESENTATION_STEPS.includes(presentationStep) || !VAR_STATES.includes(varState as null | string)) return null;
+  return { planVersion: 1, fixtureId: 'arg-nga', tick: item.tick as number, speed: item.speed as MatchSpeed, phase: item.phase as MatchPhase, moment, momentOutcome: item.momentOutcome as MatchCheckpoint['momentOutcome'], presentationStep, varState: varState as MatchCheckpoint['varState'] };
 }
 
 function completed(value: unknown, seed: number): readonly CompletedMatch[] | null {
@@ -82,9 +87,9 @@ export function migrateCampaign(value: unknown): CampaignStateV2 | null {
   const legacyStage = String(item.stage);
   const stage: CampaignStateV2['stage'] = legacyStage === 'match-story' || legacyStage === 'moment' ? 'match' : legacyStage as CampaignStateV2['stage'];
   const match: MatchCheckpoint = legacyStage === 'moment'
-    ? { planVersion: 1, fixtureId: 'arg-nga', tick: 68, speed: 1, phase: 'pivotal', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? null }
+    ? { planVersion: 1, fixtureId: 'arg-nga', tick: 68, speed: 1, phase: 'pivotal', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? null, presentationStep: matches[0]?.decisiveMoment ? 'control-outcome' : 'control-active', varState: null }
     : legacyStage === 'result' || legacyStage === 'campaign-complete'
-      ? { planVersion: 1, fixtureId: 'arg-nga', tick: 90, speed: 1, phase: 'full-time', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? 'expired' }
+      ? { planVersion: 1, fixtureId: 'arg-nga', tick: 90, speed: 1, phase: 'full-time', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? 'expired', presentationStep: 'simulation', varState: null }
       : DEFAULT_MATCH_CHECKPOINT;
   return { ...createCampaign(item.seed as number), stage, tactics: plan, match: { ...match, planVersion: 1, fixtureId: 'arg-nga' }, completedMatches: matches };
 }

@@ -80,7 +80,7 @@ async function nextEvent(page) {
   await expect.poll(() => match(page).getAttribute('data-event-index')).not.toBe(before);
 }
 
-async function advanceToAction(page, actions, maximum = 32) {
+async function advanceToAction(page, actions, maximum = 100) {
   const wanted = Array.isArray(actions) ? actions : [actions];
   await pauseMatch(page);
   for (let index = 0; index < maximum; index++) {
@@ -94,6 +94,28 @@ async function advanceToAction(page, actions, maximum = 32) {
     await nextEvent(page);
   }
   throw new Error(`Did not reach ${wanted.join('/')} within ${maximum} visible events.`);
+}
+
+async function expectFormation(page, shape) {
+  const pitch = page.locator('.ywc-tactics-pitch');
+  await expect(pitch).toHaveAttribute('data-formation', shape);
+  const slots = await pitch.locator('.ywc-formation-player').evaluateAll((elements) => elements.map((element) => {
+    const box = element.getBoundingClientRect();
+    return { position: element.dataset.position, line: element.dataset.line, x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  }));
+  expect(slots).toHaveLength(11);
+  const count = (line) => slots.filter((slot) => slot.line === line).length;
+  expect(count('goalkeeper')).toBe(1); expect(count('defense')).toBe(4);
+  if (shape === '4-3-3-wide') {
+    expect(count('attack')).toBe(3); expect(count('midfield') + count('pivot')).toBe(3);
+    expect(slots.find((slot) => slot.position === 'LW').x).toBeLessThan(slots.find((slot) => slot.position === 'ST').x);
+    expect(slots.find((slot) => slot.position === 'RW').x).toBeGreaterThan(slots.find((slot) => slot.position === 'ST').x);
+    expect(slots.find((slot) => slot.position === 'ST').y).toBeLessThan(slots.find((slot) => slot.position === 'DM').y);
+  } else {
+    expect(count('attack')).toBe(1); expect(count('attacking-midfield')).toBe(3); expect(count('pivot')).toBe(2);
+    expect(slots.find((slot) => slot.position === 'CAM').y).toBeLessThan(slots.find((slot) => slot.position === 'LDM').y);
+  }
+  return slots;
 }
 
 async function advanceToHalftime(page) {
@@ -226,6 +248,72 @@ test('390 success flow: campaign wall through coherent result and updated wall',
   await expectViewportSafe(page, 390);
 });
 
+test('formation preview, animated switch, safe-area chrome, and 393px controls are objectively correct', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-390', 'One focused formation and safe-area audit is sufficient.');
+  await page.setViewportSize({ width: 393, height: 852 });
+  await enterFreshCampaign(page);
+  await expectFormation(page, '4-3-3-wide');
+  const transition = await page.locator('.ywc-formation-player').first().evaluate((element) => getComputedStyle(element).transitionDuration);
+  expect(transition).not.toBe('0s');
+  await page.getByRole('button', { name: /4–2–3–1 control/i }).click();
+  await expectFormation(page, '4-2-3-1-control');
+  const geometry = await page.evaluate(() => {
+    const back = document.querySelector('.ywc-back').getBoundingClientRect();
+    const header = document.querySelector('.ywc-screen-head').getBoundingClientRect();
+    const label = document.querySelector('.ywc-simulation-label').getBoundingClientRect();
+    return { width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, back, header, label };
+  });
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width);
+  expect(geometry.back.width).toBeGreaterThanOrEqual(48); expect(geometry.back.height).toBeGreaterThanOrEqual(48);
+  expect(geometry.back.top).toBeGreaterThanOrEqual(0); expect(geometry.label.top).toBeGreaterThanOrEqual(0);
+  expect(geometry.header.bottom).toBeGreaterThan(geometry.back.top);
+  await page.screenshot({ path: evidence('formation-safe-area/393-control.png'), fullPage: true });
+});
+
+test('deterministic referee, miss, post, restart, substitution, added-time, and VAR flows stay coherent', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone-390', 'One focused event-catalog watch is sufficient.');
+  await seedStorage(page, campaign({ campaignSeed: 2 }));
+  await advanceToAction(page, 'yellow');
+  await expect(page.locator('.ywc-event-strip')).toContainText(/yellow|card/i);
+
+  await seedStorage(page, campaign({ campaignSeed: 1 }));
+  await advanceToAction(page, 'offside');
+  await expect(page.locator('.ywc-match-context')).toContainText(/offside/i);
+  await nextEvent(page);
+  await expect(match(page)).toHaveAttribute('data-action', 'indirect-free-kick');
+
+  await seedStorage(page, campaign({ campaignSeed: 1 }));
+  await advanceToAction(page, 'post');
+  await expect(page.locator('.ywc-match-context')).toContainText(/post/i);
+  expect(await page.locator('.ywc-match-pitch').getAttribute('data-ball-state')).toBe('deflected');
+
+  await seedStorage(page, campaign({ campaignSeed: 1 }));
+  await advanceToAction(page, 'substitution');
+  const beforeSub = await page.locator('.ywc-match-player').count();
+  await playThroughCurrentEvent(page);
+  expect(await page.locator('.ywc-match-player').count()).toBe(beforeSub);
+  await expect(page.locator('[data-player-id^="arg-sub-"]')).toHaveCount(1);
+
+  await seedStorage(page, campaign({ campaignSeed: 1 }));
+  await advanceToAction(page, 'added-time');
+  await expect(page.locator('.ywc-match-context')).toContainText(/added time/i);
+
+  await seedStorage(page, campaign({ campaignSeed: 3 }));
+  await advanceToAction(page, 'var-check');
+  const scoreAtCheck = await match(page).getAttribute('data-score');
+  await expect(page.locator('.ywc-var-overlay')).toContainText(/VAR CHECK/i);
+  await expect(match(page)).toHaveAttribute('data-var-state', /checking|reviewing/);
+  await expect(page.getByRole('button', { name: /take control/i })).toBeDisabled();
+  const varTick = await match(page).getAttribute('data-tick');
+  await page.reload();
+  await expect(match(page)).toHaveAttribute('data-tick', varTick);
+  await expect(page.locator('.ywc-var-overlay')).toBeVisible();
+  expect(await match(page).getAttribute('data-score')).toBe(scoreAtCheck);
+  await expect(match(page)).toHaveAttribute('data-action', 'var-decision', { timeout: 8_000 });
+  expect(await match(page).getAttribute('data-score')).toBe(scoreAtCheck);
+  await page.screenshot({ path: evidence('events/var-decision.png') });
+});
+
 test('390 failure flow is explicit, coherent, and persists its result', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'iphone-390', 'One canonical mobile failure watch is sufficient.');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -271,18 +359,21 @@ test('event frames show pass travel, resolved turnover possession, and shot-befo
   await startRecorder(page);
   await playThroughCurrentEvent(page);
   observed = await stopRecorder(page);
-  const scoreChanges = await page.evaluate(() => { window.__ywcScoreObserver.disconnect(); return window.__ywcScoreChanges; });
   const shotFrames = observed.filter((frame) => frame.action === 'shot');
   const resolution = observed.find((frame) => frame.eventIndex > shotFrames[0].eventIndex);
   expect(shotFrames.at(-1).progress).toBe(1);
   expect(shotFrames.every((frame) => frame.score === scoreBefore)).toBe(true);
-  expect(['goal', 'save']).toContain(resolution.action);
+  expect(['goal', 'save', 'parried-save', 'blocked-shot', 'wide', 'over', 'post', 'crossbar', 'deflection', 'one-on-one-miss']).toContain(resolution.action);
   expect(Math.hypot(shotFrames.at(-1).ball[0] - resolution.ball[0], shotFrames.at(-1).ball[1] - resolution.ball[1])).toBeLessThan(.01);
   if (resolution.action === 'goal') {
-    const changed = scoreChanges[0];
+    await playThroughCurrentEvent(page);
+    const changed = await page.evaluate(() => { window.__ywcScoreObserver.disconnect(); return window.__ywcScoreChanges.at(-1); });
     expect(changed).toMatchObject({ action: 'goal', progress: 1 });
     expect(changed.score).not.toBe(scoreBefore);
-  } else expect(await match(page).getAttribute('data-score')).toBe(scoreBefore);
+  } else {
+    await page.evaluate(() => window.__ywcScoreObserver.disconnect());
+    expect(await match(page).getAttribute('data-score')).toBe(scoreBefore);
+  }
 });
 
 test('play, pause, all speeds, next event, and take-control work from visible state', async ({ page }) => {
@@ -362,7 +453,7 @@ test('reduced motion and keyboard-only pivotal play remain understandable', asyn
   await expectSentinels(page);
 });
 
-for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }, { width: 1440, height: 1000 }]) {
+for (const viewport of [{ width: 390, height: 844 }, { width: 393, height: 852 }, { width: 430, height: 932 }, { width: 1280, height: 900 }, { width: 1440, height: 1000 }]) {
   test(`${viewport.width}×${viewport.height} match geometry has no clipping or overflow`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await seedStorage(page);

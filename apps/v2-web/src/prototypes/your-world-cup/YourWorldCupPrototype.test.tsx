@@ -149,8 +149,9 @@ describe('Your World Cup prototype route', () => {
     expect(container?.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(0);
 
     setItem.mockClear();
-    await act(async () => vi.advanceTimersByTime(500));
-    expect(setItem).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(800));
+    expect(setItem).toHaveBeenCalledWith(CAMPAIGN_STORAGE_KEY, expect.any(String));
+    setItem.mockClear();
     await act(async () => container?.querySelector<HTMLButtonElement>('button[aria-label^="Luna, open"]')?.click());
     const persisted = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
     expect(persisted.match.moment.events).toHaveLength(1); expect(persisted.match.moment.tick).toBe(1);
@@ -161,14 +162,19 @@ describe('Your World Cup prototype route', () => {
     const restored = document.body.lastElementChild as HTMLDivElement;
     expect(restored.querySelector('[data-phase="pivotal"]')).toBeTruthy();
     expect(restored.querySelector('.ywc-match-player.is-carrier')?.getAttribute('aria-label')).toMatch(/Luna/i);
-    await act(async () => vi.advanceTimersByTime(300));
-    await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]')?.click());
-    await act(async () => vi.advanceTimersByTime(300));
+    await act(async () => vi.advanceTimersByTime(350));
+    for (let move = 0; move < 5 && restored.querySelectorAll('.ywc-match-goal-zones button').length === 0; move++) {
+      const striker = restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]:not(:disabled)');
+      const target = striker ?? restored.querySelector<HTMLButtonElement>('button[aria-label*="open for a pass"]:not(:disabled)');
+      await act(async () => target?.click());
+      await act(async () => vi.advanceTimersByTime(350));
+    }
     expect(restored.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(3);
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label="Shoot right goal zone"]')?.click());
-    await act(async () => vi.advanceTimersByTime(300));
+    await act(async () => vi.advanceTimersByTime(400));
     expect(restored.querySelector('.ywc-match-freeze.is-goal')?.textContent).toMatch(/goal/i);
-    await act(async () => vi.advanceTimersByTime(1200));
+    await act(async () => vi.advanceTimersByTime(1100));
+    await act(async () => vi.advanceTimersByTime(800));
     expect(restored.querySelector('[data-phase="closing"]')).toBeTruthy();
     const successAtFullTime = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
     successAtFullTime.match = { ...successAtFullTime.match, tick: 90, phase: 'full-time' };
@@ -177,6 +183,7 @@ describe('Your World Cup prototype route', () => {
     const renderedSuccess = await renderPrototype(); await loadMatchExperience();
     await act(async () => vi.advanceTimersByTime(1100));
     expect(renderedSuccess.querySelector('[data-screen="result"]')).toBeTruthy();
+    expect(renderedSuccess.querySelector('[data-screen="result"]')?.textContent).toMatch(/last move finds the net/i);
   });
 
   it('shows a closed direct lane as a real interception and negative result', async () => {
@@ -186,12 +193,13 @@ describe('Your World Cup prototype route', () => {
     window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(campaign));
     await renderPrototype();
     await loadMatchExperience();
-    const closed = container?.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, lane closing"]');
+    await act(async () => vi.advanceTimersByTime(800));
+    const closed = container?.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, closed lane"]');
     expect(closed).toBeTruthy();
     await act(async () => closed?.click());
-    await act(async () => vi.advanceTimersByTime(300));
+    await act(async () => vi.advanceTimersByTime(420));
     expect(container?.querySelector('.ywc-match-freeze.is-interception')?.textContent).toMatch(/closed|cut it out/i);
-    await act(async () => vi.advanceTimersByTime(1200));
+    await act(async () => vi.advanceTimersByTime(1900));
     const failureAtFullTime = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);
     failureAtFullTime.match = { ...failureAtFullTime.match, tick: 90, phase: 'full-time' };
     window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(failureAtFullTime));

@@ -7,6 +7,8 @@ export type Tactics = Readonly<{ shape: Shape; press: Press; finalThird: FinalTh
 export type CampaignStage = 'campaign' | 'tactics' | 'match' | 'result' | 'campaign-complete';
 export type MatchPhase = 'first-half' | 'halftime' | 'second-half' | 'pivotal' | 'closing' | 'full-time';
 export type MatchSpeed = 1 | 2 | 4;
+export type MatchPresentationStep = 'simulation' | 'control-intro' | 'control-active' | 'control-outcome' | 'control-returning';
+export type PersistedVarState = null | 'checking' | 'reviewing' | 'confirmed' | 'overturned';
 export type MomentOutcome = 'goal' | 'save' | 'interception' | 'expired';
 export type PlayerId = 'lw' | 'ten' | 'rw' | 'st';
 export type ShotZone = 'left' | 'center' | 'right';
@@ -21,6 +23,8 @@ export type MatchCheckpoint = Readonly<{
   phase: MatchPhase;
   moment: MomentProgress;
   momentOutcome: MomentOutcome | null;
+  presentationStep: MatchPresentationStep;
+  varState: PersistedVarState;
 }>;
 
 export type CompletedMatch = Readonly<{
@@ -64,6 +68,8 @@ export const DEFAULT_MATCH_CHECKPOINT: MatchCheckpoint = Object.freeze({
   phase: 'first-half',
   moment: Object.freeze({ tick: 0, events: Object.freeze([]) }),
   momentOutcome: null,
+  presentationStep: 'simulation',
+  varState: null,
 });
 
 export function createCampaign(seed = 26062026): CampaignStateV2 {

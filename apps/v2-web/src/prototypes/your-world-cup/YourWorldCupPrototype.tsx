@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { PROTOTYPE_STORAGE_KEY, readPrototypeState, writePrototypeState, type PrototypeScreen } from './prototype-state';
 import { checkpointMatch, createCampaign, readCampaign, recordMatch, resetCampaign, writeCampaign } from './campaign/campaign-store';
 import { DEFAULT_MATCH_CHECKPOINT, DEFAULT_TACTICS, type CampaignStateV2, type CompletedMatch, type MatchCheckpoint, type Tactics } from './campaign/contracts';
+import { formationForShape } from './campaign/formations';
 import { groupTable, otherGroupResult } from './campaign/group-table';
 import './your-world-cup.css';
 
@@ -233,13 +234,30 @@ function CampaignScreen({ campaign, onPlay, onReset }: { campaign: CampaignState
 function TacticsClipboard({ tactics, onChange, onKickOff, onBack }: { tactics: Tactics; onChange: (next: Tactics) => void; onKickOff: () => void; onBack: () => void }) {
   const pressValues = ['patient', 'balanced', 'aggressive'] as const;
   const finalThirdValues = ['wings', 'number-10', 'direct-runners'] as const;
+  const formation = formationForShape(tactics.shape);
+  const formationLines = [...new Set(formation.map((slot) => slot.line))]
+    .filter((line) => line !== 'goalkeeper')
+    .map((line) => formation.filter((slot) => slot.line === line).sort((a, b) => a.x - b.x));
   return <main className="ywc-prototype ywc-tactics" data-screen="tactics">
     <header className="ywc-screen-head"><button type="button" className="ywc-back" onClick={onBack}>← Wall</button><PrototypeLabel compact /></header>
     <section className="ywc-clipboard" aria-labelledby="ywc-tactics-title">
       <div className="ywc-clip" aria-hidden="true" />
       <p className="ywc-kicker">Coach clipboard · fictional campaign</p><h1 id="ywc-tactics-title">Make the <em>plan</em></h1>
-      <div className={`ywc-tactics-pitch is-${tactics.shape}`} aria-label={`Pitch diagram for ${tactics.shape}`}>
-        {[1, 4, 5, 6, 3, 8, 10, 11, 7, 9].map((number) => <i key={number}>{number}</i>)}
+      <div className={`ywc-tactics-pitch is-${tactics.shape}`} aria-label={`Pitch diagram for ${tactics.shape}`} data-formation={tactics.shape}>
+        <svg className="ywc-formation-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {formationLines.map((line) => <polyline key={line[0].line} points={line.map((slot) => `${slot.x},${slot.y}`).join(' ')} />)}
+        </svg>
+        {formation.map((slot) => <span
+          className={`ywc-formation-player is-${slot.line}${slot.captain ? ' is-captain' : ''}`}
+          style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%` } as CSSProperties}
+          key={slot.id}
+          data-position={slot.position}
+          data-line={slot.line}
+        >
+          <i className="ywc-formation-shirt" aria-hidden="true"><b>{slot.number}</b></i>
+          <small>{slot.position}</small>
+          {slot.captain ? <em aria-label="Captain">C</em> : null}
+        </span>)}
       </div>
       <fieldset className="ywc-choice"><legend>Shape</legend>{(['4-3-3-wide', '4-2-3-1-control'] as const).map((value) => <button type="button" key={value} className={tactics.shape === value ? 'is-selected' : ''} aria-pressed={tactics.shape === value} onClick={() => onChange({ ...tactics, shape: value })}>{value === '4-3-3-wide' ? '4–3–3 Wide' : '4–2–3–1 Control'}</button>)}</fieldset>
       <fieldset className="ywc-choice"><legend>Press</legend>{pressValues.map((value) => <button type="button" key={value} className={tactics.press === value ? 'is-selected' : ''} aria-pressed={tactics.press === value} onClick={() => onChange({ ...tactics, press: value })}>{value}</button>)}</fieldset>
@@ -252,7 +270,14 @@ function TacticsClipboard({ tactics, onChange, onKickOff, onBack }: { tactics: T
 
 function FullTimeArtifact({ campaign, onReturn }: { campaign: CampaignStateV2; onReturn: () => void }) {
   const match = campaign.completedMatches[0]!; const positive = match.outcome === 'win';
-  return <main className={`ywc-prototype ywc-full-time ${positive ? 'is-positive' : 'is-negative'}`} data-screen="result"><article className="ywc-result-artifact"><p>{positive ? 'THE FINAL WHISTLE · FREE EDITION' : 'THE CAMPAIGN WALL · RAIN EDITION'}</p><h1>{positive ? 'ARGENTINA FIND A WAY' : match.outcome === 'draw' ? 'A POINT TO PIN UP' : 'WE GO AGAIN'}</h1><div className="ywc-result-score">ARG {match.homeGoals}–{match.awayGoals} NGA</div><strong>{positive ? 'THE LAST MOVE BECOMES A FRONT PAGE.' : match.decisiveMoment === 'interception' ? 'Nigeria closed the lane. The story keeps moving.' : 'The last chance did not land. The next one is waiting.'}</strong><small>YOUR WORLD CUP · SIMULATED CAMPAIGN · Argentina have {groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points} point{groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points === 1 ? '' : 's'}.</small></article><button type="button" className="ywc-button ywc-button--paper" onClick={onReturn}>{positive ? 'Keep the paper' : 'Pin it up. We go again.'} <span aria-hidden="true">→</span></button></main>;
+  const interventionLine = match.decisiveMoment === 'goal'
+    ? 'YOUR LAST MOVE FINDS THE NET. THE RESULT IS YOURS TO CARRY.'
+    : match.decisiveMoment === 'interception'
+      ? 'Nigeria closed the lane. The story keeps moving.'
+      : match.decisiveMoment === 'save'
+        ? 'The keeper reads the last move. The next chance is waiting.'
+        : 'Time closes the last attack. The next chance is waiting.';
+  return <main className={`ywc-prototype ywc-full-time ${positive ? 'is-positive' : 'is-negative'}`} data-screen="result"><article className="ywc-result-artifact"><p>{positive ? 'THE FINAL WHISTLE · FREE EDITION' : 'THE CAMPAIGN WALL · RAIN EDITION'}</p><h1>{positive ? 'ARGENTINA FIND A WAY' : match.outcome === 'draw' ? 'A POINT TO PIN UP' : 'WE GO AGAIN'}</h1><div className="ywc-result-score">ARG {match.homeGoals}–{match.awayGoals} NGA</div><strong>{interventionLine}</strong><small>YOUR WORLD CUP · SIMULATED CAMPAIGN · Argentina have {groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points} point{groupTable(match, campaign.seed).find((team) => team.name === 'Argentina')!.points === 1 ? '' : 's'}.</small></article><button type="button" className="ywc-button ywc-button--paper" onClick={onReturn}>{positive ? 'Keep the paper' : 'Pin it up. We go again.'} <span aria-hidden="true">→</span></button></main>;
 }
 
 function prefersReducedMotion() {
@@ -271,6 +296,10 @@ export function YourWorldCupPrototype() {
   useEffect(() => {
     document.title = 'Your World Cup — United 26 Prototype';
   }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view, campaign?.stage]);
 
   function persist(screen: PrototypeScreen, nation: 'Argentina' | null) {
     const next = { version: 1, screen, nation } as const;
