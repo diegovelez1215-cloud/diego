@@ -46,12 +46,20 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
   const [playing, setPlaying] = useState(campaign.match.phase !== 'halftime' && campaign.match.phase !== 'pivotal' && campaign.match.phase !== 'full-time');
   const [momentProgress, setMomentProgress] = useState(campaign.match.moment);
   const [momentOutcome, setMomentOutcome] = useState(campaign.match.momentOutcome);
+  const [momentResolvedVisible, setMomentResolvedVisible] = useState(campaign.match.momentOutcome != null);
   const [inputLocked, setInputLocked] = useState(false);
   const completed = useRef(false);
   const input = useMemo(() => ({ fixtureId: campaign.match.fixtureId, campaignSeed: campaign.seed, home: campaignFixture.home, away: campaignFixture.away, tactics }), [campaign.match.fixtureId, campaign.seed, tactics]);
   const plan = useMemo(() => injectPivotalOutcome(createMatchPlan(input), input, momentOutcome), [input, momentOutcome]);
   const frames = useMemo(() => buildPresentationFrames(plan, input), [input, plan]);
   const pivotalTick = useMemo(() => Math.max(0, frames.findIndex((candidate) => candidate.action?.type === 'pivotal-entry')), [frames]);
+  const closingResumeTick = useMemo(() => {
+    const pivotalEventIndex = frames[pivotalTick]?.eventIndex ?? -1;
+    const resolution = frames.find((candidate) => candidate.eventIndex > pivotalEventIndex);
+    if (!resolution) return Math.min(frames.length - 1, pivotalTick + 1);
+    const resolutionFrames = frames.filter((candidate) => candidate.eventIndex === resolution.eventIndex);
+    return resolutionFrames.at(-1)?.tick ?? resolution.tick;
+  }, [frames, pivotalTick]);
   const safeTick = Math.min(tick, frames.length - 1);
   const frame = frames[safeTick];
   const momentState = useMemo(() => replayMoment(campaign.seed, tactics, momentProgress), [campaign.seed, momentProgress, tactics]);
@@ -66,7 +74,7 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
     setTick(bounded);
     setPhase(nextPhase);
     if (nextPhase === 'halftime' || nextPhase === 'pivotal' || nextPhase === 'full-time') setPlaying(false);
-    if (frames[bounded].meaningful || bounded % 6 === 0 || ['halftime', 'pivotal', 'full-time'].includes(nextPhase)) save(bounded, nextPhase);
+    save(bounded, nextPhase);
   }, [frames, pivotalTick, save]);
 
   useEffect(() => {
@@ -99,13 +107,19 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
       save(tick, 'pivotal', momentProgress, outcome);
     }
     const timer = window.setTimeout(() => {
-      setTick(Math.min(frames.length - 1, pivotalTick + 1));
+      setTick(closingResumeTick);
       setPhase('closing');
       setPlaying(true);
-      save(Math.min(frames.length - 1, pivotalTick + 1), 'closing', momentProgress, outcome);
+      save(closingResumeTick, 'closing', momentProgress, outcome);
     }, reducedMotion ? 450 : 1050);
     return () => window.clearTimeout(timer);
-  }, [frames.length, momentOutcome, momentProgress, momentState.outcome, phase, pivotalTick, reducedMotion, save, tick]);
+  }, [closingResumeTick, momentOutcome, momentProgress, momentState.outcome, phase, reducedMotion, save, tick]);
+
+  useEffect(() => {
+    if (phase !== 'pivotal' || (!momentState.outcome && !momentOutcome) || momentResolvedVisible) return;
+    const timer = window.setTimeout(() => setMomentResolvedVisible(true), reducedMotion ? 0 : 260);
+    return () => window.clearTimeout(timer);
+  }, [momentOutcome, momentResolvedVisible, momentState.outcome, phase, reducedMotion]);
 
   useEffect(() => {
     if (phase !== 'full-time' || completed.current || !momentOutcome) return;
@@ -159,7 +173,8 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
       const defenderIndex = player.id === 'nga-cb1' ? 0 : player.id === 'nga-dm1' ? 1 : player.id === 'nga-cb2' ? 2 : -1;
       if (defenderIndex >= 0) return { ...player, position: momentState.defenders[defenderIndex] };
       if (player.id === 'nga-gk') return { ...player, position: momentState.keeper };
-      return player;
+      if (player.role === 'goalkeeper') return player;
+      return { ...player, supporting: true };
     });
   }, [frame.players, inputLocked, momentState, phase]);
 
@@ -171,10 +186,10 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
   const lastShot = momentState.lastAction?.type === 'shoot' ? momentState.lastAction.zone : 'center';
   const outcomeBall = momentState.outcome === 'goal' ? { x: lastShot === 'left' ? 32 : lastShot === 'right' ? 68 : 50, y: 3 } : momentState.outcome ? momentState.keeper : momentState.ball;
   const pitchBall = phase === 'pivotal' ? outcomeBall : frame.ball;
-  const scoreFrame = phase === 'pivotal' && momentState.outcome === 'goal' ? { ...frame, score: { ...frame.score, home: frame.score.home + 1 } } : frame;
+  const scoreFrame = phase === 'pivotal' && momentState.outcome === 'goal' && momentResolvedVisible ? { ...frame, score: { ...frame.score, home: frame.score.home + 1 } } : frame;
 
   return (
-    <main className="ywc-prototype ywc-visible-match" data-screen="match" data-phase={phase} data-tick={safeTick} data-minute={frame.minute} data-speed={speed} data-reduced-motion={reducedMotion ? 'true' : 'false'}>
+    <main className="ywc-prototype ywc-visible-match" data-screen="match" data-phase={phase} data-tick={safeTick} data-minute={frame.minute} data-event-index={frame.eventIndex} data-event-progress={frame.eventProgress.toFixed(3)} data-action={frame.action?.type ?? 'open-play'} data-possession={frame.possessionTeamId} data-ball-owner={frame.ballOwnerId ?? ''} data-score={`${scoreFrame.score.home}-${scoreFrame.score.away}`} data-moment-tick={momentState.tick} data-moment-outcome={momentState.outcome ?? ''} data-moment-resolved={momentResolvedVisible ? 'true' : 'false'} data-speed={speed} data-reduced-motion={reducedMotion ? 'true' : 'false'}>
       <header className="ywc-match-header">
         <p>YOUR WORLD CUP · SIMULATED MATCH</p>
         <div className="ywc-match-score" aria-live="polite" aria-label={`Argentina ${scoreFrame.score.home}, Nigeria ${scoreFrame.score.away}, ${scoreFrame.minute} minutes`}>
@@ -189,11 +204,11 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
           <strong>{phase === 'pivotal' ? momentState.message : frame.momentumContext}</strong>
           <i>{frame.possessionTeamId === 'arg' ? 'ARGENTINA POSSESSION' : 'NIGERIA POSSESSION'}</i>
         </div>
-        <MatchPitch players={renderPlayers} ball={pitchBall} onPlayer={(id) => pass(MOMENT_IDS[id])} shotZones={{ enabled: phase === 'pivotal' && momentState.shotAvailable && !momentState.outcome, onShoot: shoot }} statusLabel={phase === 'pivotal' ? `Playable attack. ${momentState.message}` : `Condensed match at ${frame.minute} minutes. ${frame.momentumContext}`} />
+        <MatchPitch players={renderPlayers} ball={pitchBall} onPlayer={(id) => pass(MOMENT_IDS[id])} shotZones={{ enabled: phase === 'pivotal' && momentState.shotAvailable && !momentState.outcome && !inputLocked, onShoot: shoot }} statusLabel={phase === 'pivotal' ? `Playable attack. ${momentState.message}` : `Condensed match at ${frame.minute} minutes. ${frame.momentumContext}`} />
         {phase === 'pivotal' ? <div className="ywc-pivotal-instruction" role="status"><b>{momentState.outcome ? momentState.message : 'Tap the open runner. Shoot when the goal zones appear.'}</b><span>Keys 1–4 pass · Q / W / E shoot · Pressure {Math.max(0, momentState.limit - momentState.tick)}</span></div> : null}
         {phase === 'halftime' ? <div className="ywc-match-freeze is-halftime" role="status"><span>HALF-TIME</span><b>{frame.score.home}–{frame.score.away}</b><p>{frame.momentumContext}</p><button type="button" onClick={resumeHalf}>Resume second half</button></div> : null}
         {phase === 'full-time' ? <div className="ywc-match-freeze is-full-time" role="status"><span>FULL TIME</span><b>{frame.score.home}–{frame.score.away}</b><p>The final whistle prints the result.</p></div> : null}
-        {phase === 'pivotal' && momentState.outcome ? <div className={`ywc-match-freeze is-moment is-${momentState.outcome}`} role="status"><span>{momentState.outcome === 'goal' ? 'GOAL' : momentState.outcome === 'interception' ? 'INTERCEPTED' : 'SAVED'}</span><p>{momentState.message}</p><small>The visible match will resume.</small></div> : null}
+        {phase === 'pivotal' && momentState.outcome && momentResolvedVisible ? <div className={`ywc-match-freeze is-moment is-${momentState.outcome}`} role="status"><span>{momentState.outcome === 'goal' ? 'GOAL' : momentState.outcome === 'interception' ? 'INTERCEPTED' : 'SAVED'}</span><p>{momentState.message}</p><small>The visible match will resume.</small></div> : null}
       </section>
 
       <aside className="ywc-match-rail" aria-label="Match events and controls">

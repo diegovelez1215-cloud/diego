@@ -163,9 +163,10 @@ describe('Your World Cup prototype route', () => {
     expect(restored.querySelector('.ywc-match-player.is-carrier')?.getAttribute('aria-label')).toMatch(/Luna/i);
     await act(async () => vi.advanceTimersByTime(300));
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, open"]')?.click());
-    expect(restored.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(3);
     await act(async () => vi.advanceTimersByTime(300));
+    expect(restored.querySelectorAll('.ywc-match-goal-zones button')).toHaveLength(3);
     await act(async () => restored.querySelector<HTMLButtonElement>('button[aria-label="Shoot right goal zone"]')?.click());
+    await act(async () => vi.advanceTimersByTime(300));
     expect(restored.querySelector('.ywc-match-freeze.is-goal')?.textContent).toMatch(/goal/i);
     await act(async () => vi.advanceTimersByTime(1200));
     expect(restored.querySelector('[data-phase="closing"]')).toBeTruthy();
@@ -188,6 +189,7 @@ describe('Your World Cup prototype route', () => {
     const closed = container?.querySelector<HTMLButtonElement>('button[aria-label^="Ferreyra, lane closing"]');
     expect(closed).toBeTruthy();
     await act(async () => closed?.click());
+    await act(async () => vi.advanceTimersByTime(300));
     expect(container?.querySelector('.ywc-match-freeze.is-interception')?.textContent).toMatch(/closed|cut it out/i);
     await act(async () => vi.advanceTimersByTime(1200));
     const failureAtFullTime = JSON.parse(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)!);

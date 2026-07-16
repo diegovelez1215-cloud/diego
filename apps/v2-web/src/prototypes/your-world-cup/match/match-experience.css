@@ -94,6 +94,8 @@ button.ywc-match-player { cursor: pointer; }
 .ywc-match-player.is-carrier .ywc-shirt { outline: 3px solid var(--ywc-marigold); outline-offset: 2px; transform: scale(1.12); }
 .ywc-match-player.is-open::before { content: "OPEN"; position: absolute; top: -7px; left: 50%; padding: 2px 3px; color: var(--ywc-ink); background: var(--ywc-marigold); font-size: 6px; font-weight: 950; transform: translateX(-50%); }
 .ywc-match-player.is-closed { filter: saturate(.35); }
+.ywc-match-player.is-supporting { z-index: 5; opacity: .3; transform: scale(.78); }
+.ywc-match-player.is-supporting > small { display: none; }
 .ywc-match-player.is-closed::before { content: "CLOSED"; position: absolute; top: -7px; left: 50%; padding: 2px 3px; border: 1px solid #fff; color: #fff; background: #71334e; font-size: 6px; font-weight: 950; transform: translateX(-50%); }
 .ywc-match-player > i { position: absolute; z-index: 2; top: 7px; right: 8px; display: grid; width: 13px; height: 13px; place-items: center; border-radius: 50%; color: #fff; background: var(--ywc-red); font-size: 9px; font-style: normal; font-weight: 950; }
 

@@ -33,10 +33,50 @@ describe('Your World Cup deterministic match planner', () => {
 
   it('keeps possession, actors, score ledger, shots and frames coherent', () => {
     const plan = createMatchPlan(input(19)); const presentation = buildPresentationFrames(plan, input(19));
-    for (const event of plan.events) { expect([plan.homeTeamId, plan.awayTeamId]).toContain(event.teamId); expect([plan.homeTeamId, plan.awayTeamId]).toContain(event.possessionAfter); }
+    const teams = new Map([[ARGENTINA_TEAM.id, ARGENTINA_TEAM], [NIGERIA_TEAM.id, NIGERIA_TEAM]]);
+    for (const event of plan.events) {
+      expect([plan.homeTeamId, plan.awayTeamId]).toContain(event.teamId);
+      expect([plan.homeTeamId, plan.awayTeamId]).toContain(event.possessionAfter);
+      const team = teams.get(event.teamId)!;
+      if (event.action.actor) expect(team.lineup.some((player) => player.id === event.action.actor)).toBe(true);
+      if (event.action.target) expect(team.lineup.some((player) => player.id === event.action.target)).toBe(true);
+    }
+    const goals = plan.events.filter((event) => event.action.type === 'goal');
+    expect(plan.baselineResultWithoutMoment).toEqual({ home: goals.filter((event) => event.teamId === plan.homeTeamId).length, away: goals.filter((event) => event.teamId === plan.awayTeamId).length });
     for (let index = 1; index < presentation.length; index++) { const before = presentation[index - 1].score; const after = presentation[index].score; if (before.home !== after.home || before.away !== after.away) { expect(presentation[index].action?.type).toBe('goal'); expect(presentation[index].eventProgress).toBe(1); } }
     const pass = presentation.find((frame) => frame.action?.type === 'pass'); expect(pass).toBeTruthy(); expect(presentation.filter((frame) => frame.eventIndex === pass!.eventIndex).length).toBeGreaterThan(3);
+    const turnover = plan.events.findIndex((event) => event.action.type === 'turnover' || event.action.type === 'tackle');
+    const turnoverFrames = presentation.filter((frame) => frame.eventIndex === turnover);
+    if (turnoverFrames.length) { expect(turnoverFrames[0].possessionTeamId).not.toBe(plan.events[turnover].possessionAfter); expect(turnoverFrames.at(-1)?.possessionTeamId).toBe(plan.events[turnover].possessionAfter); }
+    for (let index = 1; index < plan.events.length; index++) {
+      const event = plan.events[index]; const previous = plan.events[index - 1];
+      if (event.minute === previous.minute && previous.action.type === 'shot' && (event.action.type === 'goal' || event.action.type === 'save')) expect(event.start).toEqual(previous.end);
+    }
     const next = nextMeaningfulTick(presentation, 0); expect(presentation[next].meaningful).toBe(true);
+  });
+
+  it('uses team strengths as well as tactics and keeps bounded pivotal outcomes non-scripted', () => {
+    const stronger = { ...ARGENTINA_TEAM, strengths: { ...ARGENTINA_TEAM.strengths, attack: 99, midfield: 99, pace: 99 } };
+    const weaker = { ...ARGENTINA_TEAM, strengths: { ...ARGENTINA_TEAM.strengths, attack: 55, midfield: 55, pace: 55 } };
+    const strongPlan = createMatchPlan(input(31, DEFAULT_TACTICS, stronger, NIGERIA_TEAM));
+    const weakPlan = createMatchPlan(input(31, DEFAULT_TACTICS, weaker, NIGERIA_TEAM));
+    expect(strongPlan.events.map((event) => `${event.minute}:${event.action.type}:${event.teamId}`)).not.toEqual(weakPlan.events.map((event) => `${event.minute}:${event.action.type}:${event.teamId}`));
+
+    const fixedSeeds = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+    const outcomes = fixedSeeds.map((seed) => {
+      const base = createMatchPlan(input(seed));
+      return {
+        base,
+        success: injectPivotalOutcome(base, input(seed), 'goal'),
+        failure: injectPivotalOutcome(base, input(seed), 'interception'),
+      };
+    });
+    expect(outcomes.some(({ success }) => success.baselineResultWithoutMoment.home <= success.baselineResultWithoutMoment.away)).toBe(true);
+    expect(outcomes.some(({ base, failure }) => {
+      const pivotal = base.events.find((event) => event.action.type === 'pivotal-entry')!;
+      const opponent = base.pivotalTeamId === base.homeTeamId ? 'away' : 'home';
+      return failure.baselineResultWithoutMoment[opponent] === pivotal.scoreAfter[opponent];
+    })).toBe(true);
   });
 
   it('varies pivotal setup and lets the injected outcome affect only the future', () => {

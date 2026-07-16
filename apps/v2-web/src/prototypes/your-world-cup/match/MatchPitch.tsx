@@ -13,6 +13,7 @@ export type RenderPlayer = Readonly<{
   active?: boolean;
   interactive?: boolean;
   disabled?: boolean;
+  supporting?: boolean;
   lane?: 'open' | 'closed' | 'carrier';
   accessibleName?: string;
 }>;
@@ -27,7 +28,7 @@ export function MatchPitch({ players, ball, onPlayer, shotZones, statusLabel }: 
   statusLabel: string;
 }) {
   return (
-    <section className="ywc-match-pitch" aria-label={statusLabel}>
+    <section className="ywc-match-pitch" aria-label={statusLabel} data-ball-x={ball.x.toFixed(3)} data-ball-y={ball.y.toFixed(3)}>
       <svg className="ywc-pitch-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <rect x="1" y="1" width="98" height="98" />
         <line x1="1" y1="50" x2="99" y2="50" />
@@ -47,12 +48,12 @@ export function MatchPitch({ players, ball, onPlayer, shotZones, statusLabel }: 
         </div>
       ) : null}
       {players.map((player) => {
-        const className = `ywc-match-player is-${player.teamId} is-${player.role}${player.active ? ' is-active' : ''}${player.lane ? ` is-${player.lane}` : ''}`;
+        const className = `ywc-match-player is-${player.teamId} is-${player.role}${player.active ? ' is-active' : ''}${player.supporting ? ' is-supporting' : ''}${player.lane ? ` is-${player.lane}` : ''}`;
         const contents = <><span className="ywc-shirt" aria-hidden="true"><b>{player.number}</b></span><small>{player.shortLabel}</small>{player.lane === 'closed' ? <i aria-hidden="true">×</i> : null}</>;
         return player.interactive ? (
-          <button type="button" className={className} style={position(player.position)} key={player.id} disabled={player.disabled} onClick={() => onPlayer?.(player.id)} aria-label={player.accessibleName}>{contents}</button>
+          <button type="button" className={className} style={position(player.position)} key={player.id} disabled={player.disabled} onClick={() => onPlayer?.(player.id)} aria-label={player.accessibleName} data-player-id={player.id} data-team-id={player.teamId}>{contents}</button>
         ) : (
-          <div className={className} style={position(player.position)} key={player.id} aria-hidden="true">{contents}</div>
+          <div className={className} style={position(player.position)} key={player.id} aria-hidden="true" data-player-id={player.id} data-team-id={player.teamId}>{contents}</div>
         );
       })}
       <div className="ywc-match-ball" style={position(ball)} aria-hidden="true"><span /></div>
