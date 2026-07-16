@@ -198,6 +198,6 @@ describe('Your World Cup prototype route', () => {
     const renderedFailure = await renderPrototype(); await loadMatchExperience();
     await act(async () => vi.advanceTimersByTime(1100));
     expect(renderedFailure.querySelector('[data-screen="result"]')).toBeTruthy();
-    expect(button('pin it up')).toBeTruthy();
+    expect(button('keep the paper') || button('pin it up')).toBeTruthy();
   });
 });

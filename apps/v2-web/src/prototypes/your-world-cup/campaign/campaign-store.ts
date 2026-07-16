@@ -41,8 +41,8 @@ function checkpoint(value: unknown): MatchCheckpoint | null {
   if (!value || typeof value !== 'object') return null;
   const item = value as Record<string, unknown>;
   const moment = progress(item.moment);
-  if (!Number.isInteger(item.tick) || Number(item.tick) < 0 || Number(item.tick) > 90 || !SPEEDS.includes(item.speed as MatchSpeed) || !PHASES.includes(item.phase as MatchPhase) || !moment || (item.momentOutcome !== null && !MOMENTS.includes(String(item.momentOutcome)))) return null;
-  return { tick: item.tick as number, speed: item.speed as MatchSpeed, phase: item.phase as MatchPhase, moment, momentOutcome: item.momentOutcome as MatchCheckpoint['momentOutcome'] };
+  if (item.planVersion !== 1 || item.fixtureId !== 'arg-nga' || !Number.isInteger(item.tick) || Number(item.tick) < 0 || Number(item.tick) > 420 || !SPEEDS.includes(item.speed as MatchSpeed) || !PHASES.includes(item.phase as MatchPhase) || !moment || (item.momentOutcome !== null && !MOMENTS.includes(String(item.momentOutcome)))) return null;
+  return { planVersion: 1, fixtureId: 'arg-nga', tick: item.tick as number, speed: item.speed as MatchSpeed, phase: item.phase as MatchPhase, moment, momentOutcome: item.momentOutcome as MatchCheckpoint['momentOutcome'] };
 }
 
 function completed(value: unknown, seed: number): readonly CompletedMatch[] | null {
@@ -82,11 +82,11 @@ export function migrateCampaign(value: unknown): CampaignStateV2 | null {
   const legacyStage = String(item.stage);
   const stage: CampaignStateV2['stage'] = legacyStage === 'match-story' || legacyStage === 'moment' ? 'match' : legacyStage as CampaignStateV2['stage'];
   const match: MatchCheckpoint = legacyStage === 'moment'
-    ? { tick: 68, speed: 1, phase: 'pivotal', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? null }
+    ? { planVersion: 1, fixtureId: 'arg-nga', tick: 68, speed: 1, phase: 'pivotal', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? null }
     : legacyStage === 'result' || legacyStage === 'campaign-complete'
-      ? { tick: 90, speed: 1, phase: 'full-time', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? 'expired' }
+      ? { planVersion: 1, fixtureId: 'arg-nga', tick: 90, speed: 1, phase: 'full-time', moment: legacyMoment, momentOutcome: matches[0]?.decisiveMoment ?? 'expired' }
       : DEFAULT_MATCH_CHECKPOINT;
-  return { ...createCampaign(item.seed as number), stage, tactics: plan, match, completedMatches: matches };
+  return { ...createCampaign(item.seed as number), stage, tactics: plan, match: { ...match, planVersion: 1, fixtureId: 'arg-nga' }, completedMatches: matches };
 }
 
 export function sanitizeCampaign(value: unknown): CampaignStateV2 | null {
@@ -94,15 +94,16 @@ export function sanitizeCampaign(value: unknown): CampaignStateV2 | null {
   if (migrated) return migrated;
   if (!value || typeof value !== 'object') return null;
   const item = value as Record<string, unknown>;
-  if (!common(item) || item.version !== 2 || !STAGES.includes(String(item.stage))) return null;
+  if (!common(item) || ![2, 3].includes(Number(item.version)) || !STAGES.includes(String(item.stage))) return null;
   const plan = item.tactics === null ? null : tactics(item.tactics);
-  const match = checkpoint(item.match);
+  const legacy = item.match as Record<string, unknown> | undefined;
+  const match = checkpoint(item.version === 2 ? { ...legacy, planVersion: 1, fixtureId: 'arg-nga' } : legacy);
   const matches = completed(item.completedMatches, item.seed as number);
   if (!match || !matches || (item.tactics !== null && !plan)) return null;
   const stage = item.stage as CampaignStateV2['stage'];
   const finished = stage === 'result' || stage === 'campaign-complete';
   if ((stage !== 'campaign' && !plan) || (finished && matches.length !== 1) || (!finished && matches.length !== 0)) return null;
-  return { version: 2, campaignId: 'argentina-group-c-001', seed: item.seed as number, nation: 'Argentina', group: ['Argentina', 'Nigeria', 'Poland', 'New Zealand'], stage, tactics: plan, match, completedMatches: matches };
+  return { version: 3, campaignId: 'argentina-group-c-001', seed: item.seed as number, nation: 'Argentina', group: ['Argentina', 'Nigeria', 'Poland', 'New Zealand'], stage, tactics: plan, match, completedMatches: matches };
 }
 
 export function readCampaign(storage: Pick<Storage, 'getItem'>): CampaignStateV2 | null {

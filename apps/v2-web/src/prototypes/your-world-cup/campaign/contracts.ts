@@ -14,6 +14,8 @@ export type MomentReplayEvent = Readonly<{ tick: number; action: Readonly<{ type
 export type MomentProgress = Readonly<{ tick: number; events: readonly MomentReplayEvent[] }>;
 
 export type MatchCheckpoint = Readonly<{
+  planVersion: 1;
+  fixtureId: string;
   tick: number;
   speed: MatchSpeed;
   phase: MatchPhase;
@@ -34,7 +36,7 @@ export type CompletedMatch = Readonly<{
 }>;
 
 export type CampaignStateV2 = Readonly<{
-  version: 2;
+  version: 3;
   campaignId: string;
   seed: number;
   nation: 'Argentina';
@@ -55,6 +57,8 @@ export const DEFAULT_TACTICS: Tactics = Object.freeze({
 });
 
 export const DEFAULT_MATCH_CHECKPOINT: MatchCheckpoint = Object.freeze({
+  planVersion: 1,
+  fixtureId: 'arg-nga',
   tick: 0,
   speed: 1,
   phase: 'first-half',
@@ -64,7 +68,7 @@ export const DEFAULT_MATCH_CHECKPOINT: MatchCheckpoint = Object.freeze({
 
 export function createCampaign(seed = 26062026): CampaignStateV2 {
   return Object.freeze({
-    version: 2,
+    version: 3,
     campaignId: 'argentina-group-c-001',
     seed,
     nation: 'Argentina',

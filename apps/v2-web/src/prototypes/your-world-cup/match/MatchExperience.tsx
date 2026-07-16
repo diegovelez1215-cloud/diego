@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CampaignStateV2, CompletedMatch, MatchCheckpoint, MatchPhase, MatchSpeed, MomentProgress, PlayerId, ShotZone } from '../campaign/contracts';
 import { replayMoment } from '../campaign/moment-engine';
 import { completeMatch, simulateMatch } from '../campaign/simulation';
-import { buildMatchFrames, nextMeaningfulTick, type MatchFrame } from './engine';
+import { buildPresentationFrames, createMatchPlan, injectPivotalOutcome, nextMeaningfulTick, type MatchFrame } from './engine';
+import { campaignFixture } from '../campaign/match-data';
 import { MatchPitch, type RenderPlayer } from './MatchPitch';
 import './match-experience.css';
 
@@ -10,22 +11,25 @@ const PLAYER_NAMES: Record<PlayerId, string> = { lw: 'Luna', ten: 'Ocampo', rw: 
 const MATCH_IDS: Record<PlayerId, string> = { lw: 'arg-lw', ten: 'arg-ten', rw: 'arg-rw', st: 'arg-st' };
 const MOMENT_IDS: Record<string, PlayerId> = Object.fromEntries(Object.entries(MATCH_IDS).map(([moment, match]) => [match, moment])) as Record<string, PlayerId>;
 
-function phaseForTick(tick: number): MatchPhase {
-  if (tick === 45) return 'halftime';
-  if (tick < 45) return 'first-half';
-  if (tick < 68) return 'second-half';
-  if (tick === 68) return 'pivotal';
-  if (tick < 90) return 'closing';
-  return 'full-time';
+function phaseForTick(tick: number, frames: readonly MatchFrame[], pivotalTick: number): MatchPhase {
+  const action = frames[tick]?.action;
+  if (action?.type === 'phase' && action.phase === 'halftime') return 'halftime';
+  if (tick < pivotalTick && frames[tick]?.minute < 45) return 'first-half';
+  if (tick < pivotalTick) return 'second-half';
+  if (tick === pivotalTick) return 'pivotal';
+  if (action?.type === 'phase' && action.phase === 'full-time') return 'full-time';
+  if (tick >= frames.length - 1) return 'full-time';
+  if (tick > pivotalTick) return 'closing';
+  return 'first-half';
 }
 
 function eventLabel(frame: MatchFrame) {
   if (!frame.action) return 'Open play';
-  return frame.action.type === 'phase' ? frame.action.phase.replace('-', ' ') : frame.action.type;
+  return frame.action.type === 'phase' ? (frame.action.phase ?? 'phase').replace('-', ' ') : frame.action.type;
 }
 
 function checkpoint(tick: number, speed: MatchSpeed, phase: MatchPhase, moment: MomentProgress, momentOutcome: MatchCheckpoint['momentOutcome']): MatchCheckpoint {
-  return { tick, speed, phase, moment, momentOutcome };
+  return { planVersion: 1, fixtureId: 'arg-nga', tick, speed, phase, moment, momentOutcome };
 }
 
 export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onComplete, onBack }: {
@@ -44,8 +48,12 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
   const [momentOutcome, setMomentOutcome] = useState(campaign.match.momentOutcome);
   const [inputLocked, setInputLocked] = useState(false);
   const completed = useRef(false);
-  const frames = useMemo(() => buildMatchFrames(campaign.seed, tactics, momentOutcome), [campaign.seed, momentOutcome, tactics]);
-  const frame = frames[tick];
+  const input = useMemo(() => ({ fixtureId: campaign.match.fixtureId, campaignSeed: campaign.seed, home: campaignFixture.home, away: campaignFixture.away, tactics }), [campaign.match.fixtureId, campaign.seed, tactics]);
+  const plan = useMemo(() => injectPivotalOutcome(createMatchPlan(input), input, momentOutcome), [input, momentOutcome]);
+  const frames = useMemo(() => buildPresentationFrames(plan, input), [input, plan]);
+  const pivotalTick = useMemo(() => Math.max(0, frames.findIndex((candidate) => candidate.action?.type === 'pivotal-entry')), [frames]);
+  const safeTick = Math.min(tick, frames.length - 1);
+  const frame = frames[safeTick];
   const momentState = useMemo(() => replayMoment(campaign.seed, tactics, momentProgress), [campaign.seed, momentProgress, tactics]);
 
   const save = useCallback((nextTick: number, nextPhase = phase, nextMoment = momentProgress, nextOutcome = momentOutcome, nextSpeed = speed) => {
@@ -53,19 +61,19 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
   }, [momentOutcome, momentProgress, onCheckpoint, phase, speed]);
 
   const moveTo = useCallback((nextTick: number) => {
-    const bounded = Math.min(90, Math.max(0, nextTick));
-    const nextPhase = phaseForTick(bounded);
+    const bounded = Math.min(frames.length - 1, Math.max(0, nextTick));
+    const nextPhase = phaseForTick(bounded, frames, pivotalTick);
     setTick(bounded);
     setPhase(nextPhase);
     if (nextPhase === 'halftime' || nextPhase === 'pivotal' || nextPhase === 'full-time') setPlaying(false);
     if (frames[bounded].meaningful || bounded % 6 === 0 || ['halftime', 'pivotal', 'full-time'].includes(nextPhase)) save(bounded, nextPhase);
-  }, [frames, save]);
+  }, [frames, pivotalTick, save]);
 
   useEffect(() => {
-    if (!playing || phase === 'pivotal' || tick >= 90) return;
-    const timer = window.setTimeout(() => moveTo(tick + 1), (reducedMotion ? 560 : 650) / speed);
+    if (!playing || phase === 'pivotal' || safeTick >= frames.length - 1) return;
+    const timer = window.setTimeout(() => moveTo(safeTick + 1), (reducedMotion ? 120 : 220) / speed);
     return () => window.clearTimeout(timer);
-  }, [moveTo, phase, playing, reducedMotion, speed, tick]);
+  }, [frames.length, moveTo, phase, playing, reducedMotion, safeTick, speed]);
 
   useEffect(() => {
     if (phase !== 'pivotal' || momentState.outcome) return;
@@ -91,13 +99,13 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
       save(tick, 'pivotal', momentProgress, outcome);
     }
     const timer = window.setTimeout(() => {
-      setTick(69);
+      setTick(Math.min(frames.length - 1, pivotalTick + 1));
       setPhase('closing');
       setPlaying(true);
-      save(69, 'closing', momentProgress, outcome);
+      save(Math.min(frames.length - 1, pivotalTick + 1), 'closing', momentProgress, outcome);
     }, reducedMotion ? 450 : 1050);
     return () => window.clearTimeout(timer);
-  }, [momentOutcome, momentProgress, momentState.outcome, phase, reducedMotion, save, tick]);
+  }, [frames.length, momentOutcome, momentProgress, momentState.outcome, phase, pivotalTick, reducedMotion, save, tick]);
 
   useEffect(() => {
     if (phase !== 'full-time' || completed.current || !momentOutcome) return;
@@ -158,15 +166,15 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
   const recentEvents = useMemo(() => frames.filter((candidate) => candidate.meaningful && candidate.tick <= tick).slice(-3).reverse(), [frames, tick]);
   const onSpeed = (next: MatchSpeed) => { setSpeed(next); save(tick, phase, momentProgress, momentOutcome, next); setPlaying(phase !== 'halftime' && phase !== 'pivotal' && phase !== 'full-time'); };
   const skipQuiet = () => moveTo(nextMeaningfulTick(frames, tick));
-  const skipToMoment = () => moveTo(68);
-  const resumeHalf = () => { setPhase('second-half'); setPlaying(true); save(46, 'second-half'); setTick(46); };
+  const skipToMoment = () => moveTo(pivotalTick);
+  const resumeHalf = () => { const secondHalf = frames.findIndex((candidate) => candidate.minute > 45); setPhase('second-half'); setPlaying(true); save(secondHalf, 'second-half'); setTick(secondHalf); };
   const lastShot = momentState.lastAction?.type === 'shoot' ? momentState.lastAction.zone : 'center';
   const outcomeBall = momentState.outcome === 'goal' ? { x: lastShot === 'left' ? 32 : lastShot === 'right' ? 68 : 50, y: 3 } : momentState.outcome ? momentState.keeper : momentState.ball;
   const pitchBall = phase === 'pivotal' ? outcomeBall : frame.ball;
-  const scoreFrame = phase === 'pivotal' ? (momentState.outcome === 'goal' ? frames[69] : frames[68]) : frame;
+  const scoreFrame = phase === 'pivotal' && momentState.outcome === 'goal' ? { ...frame, score: { ...frame.score, home: frame.score.home + 1 } } : frame;
 
   return (
-    <main className="ywc-prototype ywc-visible-match" data-screen="match" data-phase={phase} data-tick={tick} data-speed={speed} data-reduced-motion={reducedMotion ? 'true' : 'false'}>
+    <main className="ywc-prototype ywc-visible-match" data-screen="match" data-phase={phase} data-tick={safeTick} data-minute={frame.minute} data-speed={speed} data-reduced-motion={reducedMotion ? 'true' : 'false'}>
       <header className="ywc-match-header">
         <p>YOUR WORLD CUP · SIMULATED MATCH</p>
         <div className="ywc-match-score" aria-live="polite" aria-label={`Argentina ${scoreFrame.score.home}, Nigeria ${scoreFrame.score.away}, ${scoreFrame.minute} minutes`}>
@@ -193,12 +201,11 @@ export function MatchExperience({ campaign, reducedMotion, onCheckpoint, onCompl
           {recentEvents.map((event) => <p key={event.tick}><time>{event.minute}′</time><span>{eventLabel(event)}</span><b>{event.momentumContext}</b></p>)}
         </div>
         <div className="ywc-match-controls" aria-label="Condensed match controls">
-          <button type="button" aria-pressed={playing} onClick={() => { const next = !playing; setPlaying(next); save(tick, phase); }}>WATCH <span>{playing ? 'ON' : 'PAUSED'}</span></button>
-          <button type="button" className={speed === 2 ? 'is-selected' : ''} aria-pressed={speed === 2} onClick={() => onSpeed(2)}>2×</button>
-          <button type="button" className={speed === 4 ? 'is-selected' : ''} aria-pressed={speed === 4} onClick={() => onSpeed(4)}>4×</button>
-          <button type="button" disabled={phase === 'pivotal' || tick >= 90} onClick={skipQuiet}>Skip quiet phase</button>
-          <button type="button" disabled={tick >= 68} onClick={skipToMoment}>Skip to the moment</button>
-          {tick === 0 ? <button type="button" onClick={onBack}>Back to clipboard</button> : null}
+          <button type="button" aria-label={playing ? 'Pause match' : 'Play match'} aria-pressed={playing} onClick={() => { const next = !playing; setPlaying(next); save(safeTick, phase); }}>{playing ? 'PAUSE' : 'PLAY'}</button>
+          <div className="ywc-speed-control" role="group" aria-label="Playback speed"><button type="button" className={speed === 1 ? 'is-selected' : ''} aria-pressed={speed === 1} onClick={() => onSpeed(1)}>1×</button><button type="button" className={speed === 2 ? 'is-selected' : ''} aria-pressed={speed === 2} onClick={() => onSpeed(2)}>2×</button><button type="button" className={speed === 4 ? 'is-selected' : ''} aria-pressed={speed === 4} onClick={() => onSpeed(4)}>4×</button></div>
+          <button type="button" disabled={phase === 'pivotal' || safeTick >= frames.length - 1} onClick={skipQuiet}>Next event</button>
+          <button type="button" disabled={safeTick >= pivotalTick} onClick={skipToMoment}>{safeTick < pivotalTick ? 'Skip to the moment' : 'Moment reached'}</button>
+          {safeTick === 0 ? <button type="button" className="ywc-back-clipboard" onClick={onBack}>Back to clipboard</button> : null}
         </div>
       </aside>
     </main>
